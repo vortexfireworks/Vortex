@@ -400,6 +400,32 @@ async function fetchOperatorDirectory(){
   }
 }
 
+async function fetchVenueDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetVenues = await res.json();
+    if(Array.isArray(sheetVenues)){
+      sheetVenues.forEach(v => {
+        if(!v.name) return;
+        VENUE_INFO[v.name.trim().toLowerCase()] = {
+          address: v.address || '',
+          county: v.county || ''
+        };
+        const dl = document.getElementById('eventList');
+        const exists = Array.from(dl.options).some(o => o.value.toLowerCase() === v.name.trim().toLowerCase());
+        if(!exists){
+          const opt = document.createElement('option');
+          opt.value = v.name.trim();
+          dl.appendChild(opt);
+        }
+      });
+    }
+  } catch(err){
+    // fall back silently to the built-in venue list
+  }
+}
+
 async function loadCheckins(){
   const statusEl = document.getElementById('checkinStatus');
   const eventName = document.getElementById('event').value.trim();
@@ -517,6 +543,7 @@ addPersonnelRow();
 addPersonnelRow();
 addPersonnelRow();
 fetchOperatorDirectory();
+fetchVenueDirectory();
 
 const sigCanvas = document.getElementById('sigPad');
 const sigCtx = sigCanvas.getContext('2d');

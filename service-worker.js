@@ -6,11 +6,14 @@ const ASSETS = [
   './checkin.html',
   './qr-codes.html',
   './payroll.html',
+  './manage.html',
   './operators.html',
+  './venues.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './logo.jpg'
+  './logo.jpg',
+  './menu-bg.jpg'
 ];
 
 self.addEventListener('install', event => {

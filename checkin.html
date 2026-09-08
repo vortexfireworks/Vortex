@@ -163,9 +163,10 @@ const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJl
 document.getElementById('contactsList').innerHTML =
   CONTACTS.map(c => `<option value="${c.name}">`).join('');
 
-const params = new URLSearchParams(window.location.search);
-const eventFromUrl = params.get('event') || '';
-if(eventFromUrl){
+function applyEventFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  const eventFromUrl = params.get('event') || '';
+  if(!eventFromUrl) return;
   const eventSelect = document.getElementById('eventName');
   const match = Array.from(eventSelect.options).find(
     opt => opt.value.toLowerCase() === eventFromUrl.toLowerCase()
@@ -177,6 +178,32 @@ if(eventFromUrl){
     document.getElementById('eventTitle').textContent = eventFromUrl;
   }
 }
+applyEventFromUrl();
+
+async function fetchVenueDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetVenues = await res.json();
+    if(Array.isArray(sheetVenues)){
+      const select = document.getElementById('eventName');
+      sheetVenues.forEach(v => {
+        if(!v.name) return;
+        const exists = Array.from(select.options).some(o => o.value.toLowerCase() === v.name.trim().toLowerCase());
+        if(!exists){
+          const opt = document.createElement('option');
+          opt.value = v.name.trim();
+          opt.textContent = v.name.trim();
+          select.appendChild(opt);
+        }
+      });
+      applyEventFromUrl();
+    }
+  } catch(err){
+    // fall back silently to the built-in venue list
+  }
+}
+fetchVenueDirectory();
 
 const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
 document.getElementById('eventDate').value = todayStr;

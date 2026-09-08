@@ -17,16 +17,23 @@
   *{box-sizing:border-box;}
   body{
     margin:0; min-height:100vh;
-    background:var(--paper); color:var(--ink);
+    background:#05060a url("menu-bg.jpg") center center / cover no-repeat fixed;
+    color:var(--ink);
     font-family:"Helvetica Neue",Arial,sans-serif;
     display:flex; align-items:flex-start; justify-content:center;
     padding:40px 16px;
   }
   .wrap{max-width:480px; width:100%;}
-  header{margin-bottom:28px;display:flex;align-items:center;gap:16px;}
+  header{
+    margin-bottom:28px;display:flex;align-items:center;gap:16px;
+    background:rgba(10,14,20,0.55);
+    border-radius:8px;
+    padding:14px 16px;
+    backdrop-filter:blur(2px);
+  }
   header img{width:56px;height:56px;flex-shrink:0;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:var(--ink-soft);margin:0 0 6px;font-weight:600;}
-  header h1{margin:0;font-size:22px;color:var(--navy);line-height:1.3;}
+  header .kicker{font-size:11px;letter-spacing:.08em;color:#d9dee4;margin:0 0 6px;font-weight:600;}
+  header h1{margin:0;font-size:22px;color:#fdfbf6;line-height:1.3;text-shadow:0 1px 4px rgba(0,0,0,0.6);}
   .card{
     display:block; background:var(--card); border:1px solid var(--line);
     border-radius:6px; padding:20px; margin-bottom:14px;
@@ -37,7 +44,10 @@
   .card:hover{border-color:var(--navy);}
   .card h2{margin:0 0 6px;font-size:16px;color:var(--navy);}
   .card p{margin:0;font-size:13.5px;color:var(--ink-soft);line-height:1.5;}
-  footer{margin-top:28px;font-size:11.5px;color:var(--ink-soft);text-align:center;}
+  footer{
+    margin-top:28px;font-size:11.5px;color:#e7e9ec;text-align:center;
+    text-shadow:0 1px 3px rgba(0,0,0,0.7);
+  }
 </style>
 </head>
 <body>
@@ -70,9 +80,9 @@
     <p>Create and download printable QR codes for each venue, linking straight to that event's check-in page.</p>
   </a>
 
-  <a class="card" href="operators.html">
-    <h2>Manage Operators</h2>
-    <p>Add a new operator or update an existing one's license, address, or age — changes show up for autofill everywhere.</p>
+  <a class="card" href="manage.html">
+    <h2>Manage/Edit</h2>
+    <p>Add or update operators and venues — changes show up for autofill and in dropdowns everywhere.</p>
   </a>
 
   <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>

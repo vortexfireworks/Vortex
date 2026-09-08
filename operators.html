@@ -104,8 +104,14 @@
           <input type="text" id="opEditName" list="operatorDirectoryList" oninput="prefillOperatorEdit(this)">
         </div>
         <div class="field"><label for="opEditLicense">License number</label><input type="text" id="opEditLicense"></div>
+        <div class="field"><label for="opEditPhone">Phone number</label><input type="text" id="opEditPhone"></div>
         <div class="field full"><label for="opEditAddress">Address</label><input type="text" id="opEditAddress"></div>
         <div class="field"><label for="opEditAge">Age</label><input type="text" id="opEditAge"></div>
+      </div>
+      <div class="field full" style="margin-bottom:10px;">
+        <label for="opEditPhotoFile">Photo</label>
+        <input type="file" id="opEditPhotoFile" accept="image/*" onchange="handlePhotoSelect(event)">
+        <img id="opEditPhotoPreview" style="display:none;width:88px;height:88px;object-fit:cover;border-radius:6px;margin-top:8px;border:1px solid var(--line);">
       </div>
       <datalist id="operatorDirectoryList"></datalist>
       <div class="save-row">
@@ -127,10 +133,13 @@
 <script>
 const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
 
+const CONTACTS = [
+];
+
 const CONTACTS_BY_NAME = {};
+CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
 
 async function fetchOperatorDirectory(){
-  const wrap = document.getElementById('operatorListWrap');
   try{
     const res = await fetch(`${CHECKIN_API_URL}?type=contacts`);
     if(!res.ok) throw new Error('Request failed');
@@ -141,14 +150,15 @@ async function fetchOperatorDirectory(){
         CONTACTS_BY_NAME[c.name.trim().toLowerCase()] = {
           name: c.name.trim(),
           license: c.license || '',
+          phone: c.phone || '',
           address: c.address || '',
-          age: c.age || ''
+          age: c.age || '',
+          photoUrl: c.photoUrl || ''
         };
       });
     }
   } catch(err){
-    wrap.innerHTML = '<p style="color:var(--brick);margin:4px 0;">Could not load the operator list — check your connection.</p>';
-    return;
+    // Sheet sync failed — still show the built-in operator list below
   }
   populateOperatorDatalist();
   renderOperatorList();
@@ -159,12 +169,61 @@ function populateOperatorDatalist(){
   dl.innerHTML = Object.values(CONTACTS_BY_NAME).map(c => `<option value="${c.name}">`).join('');
 }
 
+let pendingPhotoBase64 = null;
+
+function resizeImageToDataUrl(file, maxSize, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxSize){ h = Math.round(h * maxSize / w); w = maxSize; } }
+        else { if(h > maxSize){ w = Math.round(w * maxSize / h); h = maxSize; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePhotoSelect(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const dataUrl = await resizeImageToDataUrl(file, 400, 0.7);
+  pendingPhotoBase64 = dataUrl;
+  const preview = document.getElementById('opEditPhotoPreview');
+  preview.src = dataUrl;
+  preview.style.display = 'block';
+}
+
 function prefillOperatorEdit(nameInput){
   const match = CONTACTS_BY_NAME[nameInput.value.trim().toLowerCase()];
   if(match){
     document.getElementById('opEditLicense').value = match.license || '';
+    document.getElementById('opEditPhone').value = match.phone || '';
     document.getElementById('opEditAddress').value = match.address || '';
     document.getElementById('opEditAge').value = match.age || '';
+    showExistingPhoto(match.photoUrl);
+  }
+}
+
+function showExistingPhoto(photoUrl){
+  pendingPhotoBase64 = null;
+  document.getElementById('opEditPhotoFile').value = '';
+  const preview = document.getElementById('opEditPhotoPreview');
+  if(photoUrl){
+    preview.src = photoUrl;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+    preview.src = '';
   }
 }
 
@@ -181,9 +240,15 @@ function renderOperatorList(){
   }
   wrap.innerHTML = names.map(c => `
     <div class="op-row">
-      <div>
-        <div class="op-name">${c.name}</div>
-        <div class="op-detail">${[c.license, c.address, c.age ? 'Age ' + c.age : ''].filter(Boolean).join(' · ') || 'No details on file'}</div>
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        ${c.photoUrl
+          ? `<img src="${c.photoUrl}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" alt="">`
+          : `<div style="width:36px;height:36px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-soft);flex-shrink:0;">${c.name.charAt(0)}</div>`
+        }
+        <div style="min-width:0;">
+          <div class="op-name">${c.name}</div>
+          <div class="op-detail">${[c.license, c.phone, c.address, c.age ? 'Age ' + c.age : ''].filter(Boolean).join(' · ') || 'No details on file'}</div>
+        </div>
       </div>
       <button type="button" onclick="loadOperatorIntoEditor('${c.name.replace(/'/g,"\\'")}')">Edit</button>
     </div>
@@ -195,8 +260,10 @@ function loadOperatorIntoEditor(name){
   if(!match) return;
   document.getElementById('opEditName').value = match.name;
   document.getElementById('opEditLicense').value = match.license || '';
+  document.getElementById('opEditPhone').value = match.phone || '';
   document.getElementById('opEditAddress').value = match.address || '';
   document.getElementById('opEditAge').value = match.age || '';
+  showExistingPhoto(match.photoUrl);
   document.getElementById('opEditName').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
@@ -204,6 +271,7 @@ function saveOperator(){
   const statusEl = document.getElementById('operatorSaveStatus');
   const name = document.getElementById('opEditName').value.trim();
   const license = document.getElementById('opEditLicense').value.trim();
+  const phone = document.getElementById('opEditPhone').value.trim();
   const address = document.getElementById('opEditAddress').value.trim();
   const age = document.getElementById('opEditAge').value.trim();
 
@@ -213,25 +281,31 @@ function saveOperator(){
     return;
   }
 
-  statusEl.textContent = 'Saving…';
+  statusEl.textContent = pendingPhotoBase64 ? 'Saving (uploading photo)…' : 'Saving…';
   statusEl.style.color = 'var(--ink-soft)';
 
-  const payload = { recordType: 'contact', name, license, address, age };
+  const payload = { recordType: 'contact', name, license, phone, address, age };
+  if(pendingPhotoBase64){
+    payload.photoBase64 = pendingPhotoBase64;
+  }
 
   fetch(CHECKIN_API_URL, {
     method: 'POST',
     mode: 'no-cors',
     body: JSON.stringify(payload)
-  }).then(() => {
-    CONTACTS_BY_NAME[name.toLowerCase()] = { name, license, address, age };
-    populateOperatorDatalist();
-    renderOperatorList();
+  }).then(async () => {
+    // Re-fetch from the Sheet so we pick up the real Drive photo URL
+    await fetchOperatorDirectory();
     statusEl.textContent = 'Saved.';
     statusEl.style.color = 'var(--ok)';
     document.getElementById('opEditName').value = '';
     document.getElementById('opEditLicense').value = '';
+    document.getElementById('opEditPhone').value = '';
     document.getElementById('opEditAddress').value = '';
     document.getElementById('opEditAge').value = '';
+    document.getElementById('opEditPhotoFile').value = '';
+    document.getElementById('opEditPhotoPreview').style.display = 'none';
+    pendingPhotoBase64 = null;
   }).catch(() => {
     statusEl.textContent = 'Could not save — check your connection and try again.';
     statusEl.style.color = 'var(--brick)';

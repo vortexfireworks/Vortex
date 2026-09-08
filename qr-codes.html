@@ -145,8 +145,28 @@ function downloadQr(i, venue){
   a.remove();
 }
 
-buildGrid();
-renderCodes();
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+async function loadVenuesAndRender(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(res.ok){
+      const sheetVenues = await res.json();
+      if(Array.isArray(sheetVenues)){
+        sheetVenues.forEach(v => {
+          if(!v.name) return;
+          const exists = VENUES.some(existing => existing.toLowerCase() === v.name.trim().toLowerCase());
+          if(!exists) VENUES.push(v.name.trim());
+        });
+      }
+    }
+  } catch(err){
+    // fall back silently to the built-in venue list
+  }
+  buildGrid();
+  renderCodes();
+}
+loadVenuesAndRender();
 </script>
 </body>
 </html>

@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Venues — Vortex Productions</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1c2b3a">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --navy:#1c2b3a; --brick:#8c3b2e; --brick-light:#b5493a;
+    --paper:#f6f3ec; --card:#ffffff; --line:#d8d2c4;
+    --ink:#20262c; --ink-soft:#5b6470; --ok:#2f6d4f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+  }
+  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  header{
+    background:var(--navy); color:#f2efe6;
+    padding:22px 24px; border-bottom:4px solid var(--brick);
+    display:flex; align-items:center; gap:14px;
+  }
+  header img{width:44px;height:44px;flex-shrink:0;border-radius:4px;background:#fff;}
+  header .kicker{font-size:11px;letter-spacing:.08em;color:#c9d2da;margin:0 0 4px;}
+  header h1{margin:0;font-size:19px;font-weight:600;}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .full{grid-column:1/-1;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:3px;background:#fdfcfa;color:var(--ink);
+  }
+  input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(28,43,58,0.12);}
+  button.primary{
+    background:var(--brick); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:600; padding:11px 18px; border-radius:3px; cursor:pointer;
+  }
+  button.primary:hover{background:var(--brick-light);}
+  .editor-box{
+    background:#fdfcfa;border:1px solid var(--line);border-radius:4px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;}
+  #venueSaveStatus{font-size:12.5px;}
+  .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .search-box{margin-bottom:10px;}
+  #venueListWrap{
+    max-height:400px;overflow-y:auto;border:1px solid var(--line);
+    border-radius:4px;padding:6px 14px;font-size:13px;
+  }
+  .venue-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:8px 0;border-bottom:1px solid var(--line);
+  }
+  .venue-row:last-child{border-bottom:none;}
+  .venue-row .venue-name{font-weight:600;}
+  .venue-row .venue-detail{color:var(--ink-soft);font-size:12px;}
+  .venue-row button{
+    background:none;border:1px solid var(--line);color:var(--navy);
+    font-size:12px;padding:5px 10px;border-radius:3px;cursor:pointer;flex-shrink:0;
+  }
+  .venue-row button:hover{border-color:var(--navy);}
+</style>
+</head>
+<body>
+
+<div id="lockScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="max-width:340px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:28px 24px;text-align:center;">
+    <img src="logo.jpg" alt="Vortex Fireworks Artists logo" style="width:56px;height:56px;border-radius:6px;margin-bottom:14px;">
+    <h1 style="font-size:17px;margin:0 0 6px;color:var(--navy);">Manage Venues</h1>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;">This page is password protected.</p>
+    <input type="password" id="lockPassword" placeholder="Password" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:3px;margin-bottom:12px;box-sizing:border-box;" onkeydown="if(event.key==='Enter') checkPassword()">
+    <button class="primary" type="button" style="width:100%;" onclick="checkPassword()">Unlock</button>
+    <p id="lockError" style="font-size:12px;color:var(--brick);margin:12px 0 0;display:none;">Incorrect password.</p>
+  </div>
+</div>
+
+<div class="sheet" id="mainContent" style="display:none;">
+  <header>
+    <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
+    <div>
+      <p class="kicker">VORTEX PRODUCTIONS INC.</p>
+      <h1>Manage Venues</h1>
+    </div>
+  </header>
+
+  <div class="section">
+    <p class="desc">Add a new venue or update an existing one's address or county. Changes save to the shared venue list and show up in the Venue dropdown on the After-Action Report, Check-In, Payroll, and QR code pages right away.</p>
+
+    <div class="editor-box">
+      <p class="label-title">ADD / UPDATE VENUE</p>
+      <div class="grid2" style="margin-bottom:10px;">
+        <div class="field full">
+          <label for="vEditName">Venue name</label>
+          <input type="text" id="vEditName" list="venueDirectoryList" oninput="prefillVenueEdit(this)">
+        </div>
+        <div class="field full"><label for="vEditAddress">Address</label><input type="text" id="vEditAddress"></div>
+        <div class="field"><label for="vEditCounty">County</label><input type="text" id="vEditCounty"></div>
+      </div>
+      <datalist id="venueDirectoryList"></datalist>
+      <div class="save-row">
+        <button class="primary" type="button" onclick="saveVenue()">Save venue</button>
+        <span id="venueSaveStatus"></span>
+      </div>
+    </div>
+
+    <p class="list-title">CURRENT VENUES</p>
+    <div class="field search-box">
+      <input type="text" id="venueSearch" placeholder="Search by name…" oninput="renderVenueList()">
+    </div>
+    <div id="venueListWrap">
+      <p style="color:var(--ink-soft);margin:4px 0;">Loading…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+const BASE_VENUES = [
+  {name:"Real Salt Lake", address:"America First Field, 9256 S State St, Sandy, UT 84070", county:"Salt Lake"},
+  {name:"University of Utah", address:"Rice-Eccles Stadium, 451 1400 E, Salt Lake City, UT 84112", county:"Salt Lake"},
+  {name:"Salt Lake Bees", address:"The Ballpark at America First Square, 11111 South Ballpark Way (5470 W), South Jordan, UT 84009", county:"Salt Lake"},
+  {name:"Trailer Loading", address:"Shop", county:"Salt Lake"},
+  {name:"Shop Time", address:"Shop", county:"Salt Lake"},
+  {name:"Bunker Time", address:"Bunker", county:"Salt Lake"},
+  {name:"Hillcrest High School", address:"7350 S 900 E, Midvale, UT 84047", county:"Salt Lake"},
+  {name:"Jordan High School", address:"95 Beetdigger Blvd., Sandy, UT 84070", county:"Salt Lake"},
+  {name:"Copper Hills High School", address:"5445 Copper Hls Pkwy, West Jordan, UT 84081", county:"Salt Lake"},
+  {name:"Herriman High School", address:"11917 Mustang Trail Way, Herriman, UT 84096", county:"Salt Lake"},
+  {name:"North Ridge High School", address:"2430 N Hill Field Rd, Layton, UT 84041", county:"Salt Lake"},
+  {name:"Bee's - Class \"C\" Show", address:"11111 Ballpark Dr, South Jordan, UT 84009", county:"Salt Lake"},
+  {name:"West Jordan High School", address:"8136 2700 W, West Jordan, UT 84088", county:"Salt Lake"},
+  {name:"American Heritage High School", address:"736 N 1100 E, American Fork, UT 84003", county:"Utah"},
+  {name:"Sleepy Ridge", address:"730 S Sleepy Ridge Dr, Orem, UT 84058", county:"Utah"},
+  {name:"Mountain Ridge High School", address:"14100 Sentinel Ridge Blvd, Herriman, UT 84096", county:"Salt Lake"},
+  {name:"Stansbury High School", address:"5300 N Aberdeen Ln, Stansbury Park, UT 84074", county:"Tooele"},
+  {name:"Bingham High School", address:"2160 South Jordan Pkwy, South Jordan, UT 84095", county:"Salt Lake"},
+  {name:"Bluffdale City", address:"2400 14400 S, Bluffdale, UT 84065", county:"Salt Lake"},
+  {name:"Midvale City", address:"425 6th Ave, Midvale, UT 84047", county:"Salt Lake"},
+  {name:"Utah Valley University", address:"800 W University Pkwy, Orem, UT 84058", county:"Utah"},
+  {name:"Southeast Township Days", address:"930 E Onyx Ln, Sandy, UT 84094", county:"Salt Lake"},
+  {name:"Magna - Day 1", address:"8975 W 2600 S, Magna, UT 84044", county:"Salt Lake"},
+  {name:"Magna - Day 2", address:"8975 W 2600 S, Magna, UT 84044", county:"Salt Lake"},
+  {name:"Murray City", address:"296 E Murray Park Ave, Murray, UT 84107", county:"Salt Lake"},
+  {name:"Ogden Raptors", address:"2330 Lincoln Ave, Ogden, UT 84401", county:"Weber"},
+  {name:"Farr West", address:"2500 W 4000 N St, Farr West, UT 84404", county:"Weber"},
+  {name:"West Point", address:"683 N 3500 W, West Point, UT 84015", county:"Davis"},
+  {name:"Moab - 4th of July", address:"680 S Mill Creek Dr, Moab, UT 84532", county:"Grand"},
+  {name:"Dutch John", address:"1050 S Blvd, Dutch John, UT 84023", county:"Daggett"},
+  {name:"Weber State University", address:"3848 Harrison Blvd, Ogden, UT 84408", county:"Weber"},
+  {name:"Draper City", address:"1020 Pioneer Rd, Draper, UT 84020", county:"Salt Lake"},
+  {name:"Bountiful City", address:"1077 E 1500 S, Bountiful, UT 84010", county:"Davis"},
+  {name:"American Fork City", address:"1000 N 550 E St, American Fork, UT 84003", county:"Utah"},
+  {name:"Lehi City", address:"601 W 3200 N, Lehi, UT 84043", county:"Utah"},
+  {name:"Springville City", address:"1205 E 900 S, Springville, UT 84663", county:"Utah"},
+  {name:"West Valley City (West Fest)", address:"5405 W 3100 S, West Valley City, UT 84120", county:"Salt Lake"},
+  {name:"Clinton City", address:"2000 N 2750 W, Clinton, UT 84015", county:"Davis"},
+  {name:"Thanksgiving Point Waterfall Concert", address:"3003 N Thanksgiving Way, Lehi, UT 84043", county:""},
+  {name:"Dugway City", address:"", county:""},
+  {name:"Taylorsville - Thursday", address:"2775 W 5200 S, West Valley City, UT 84118", county:"Salt Lake"},
+  {name:"Taylorsville - Friday", address:"2775 W 5200 S, West Valley City, UT 84118", county:"Salt Lake"},
+  {name:"Taylorsville - Saturday", address:"2775 W 5200 S, West Valley City, UT 84118", county:"Salt Lake"},
+  {name:"Olympus High School", address:"4055 S 2300 E, Holladay, UT 84124", county:"Salt Lake"},
+  {name:"Moab - Music Festival", address:"58 E 300 S, Moab, UT 84532", county:"Grand"}
+];
+
+const VENUE_DIRECTORY = {};
+BASE_VENUES.forEach(v => VENUE_DIRECTORY[v.name.toLowerCase()] = v);
+
+async function fetchVenueDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetVenues = await res.json();
+    if(Array.isArray(sheetVenues)){
+      sheetVenues.forEach(v => {
+        if(!v.name) return;
+        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = {
+          name: v.name.trim(),
+          address: v.address || '',
+          county: v.county || ''
+        };
+      });
+    }
+  } catch(err){
+    // Sheet sync failed — still show the built-in venue list below
+  }
+  populateVenueDatalist();
+  renderVenueList();
+}
+
+function populateVenueDatalist(){
+  const dl = document.getElementById('venueDirectoryList');
+  dl.innerHTML = Object.values(VENUE_DIRECTORY).map(v => `<option value="${v.name}">`).join('');
+}
+
+function prefillVenueEdit(nameInput){
+  const match = VENUE_DIRECTORY[nameInput.value.trim().toLowerCase()];
+  if(match){
+    document.getElementById('vEditAddress').value = match.address || '';
+    document.getElementById('vEditCounty').value = match.county || '';
+  }
+}
+
+function renderVenueList(){
+  const wrap = document.getElementById('venueListWrap');
+  const search = document.getElementById('venueSearch').value.trim().toLowerCase();
+  let venues = Object.values(VENUE_DIRECTORY).sort((a,b) => a.name.localeCompare(b.name));
+  if(search){
+    venues = venues.filter(v => v.name.toLowerCase().includes(search));
+  }
+  if(venues.length === 0){
+    wrap.innerHTML = '<p style="color:var(--ink-soft);margin:4px 0;">No venues found.</p>';
+    return;
+  }
+  wrap.innerHTML = venues.map(v => `
+    <div class="venue-row">
+      <div>
+        <div class="venue-name">${v.name}</div>
+        <div class="venue-detail">${[v.address, v.county ? v.county + ' County' : ''].filter(Boolean).join(' · ') || 'No details on file'}</div>
+      </div>
+      <button type="button" onclick="loadVenueIntoEditor('${v.name.replace(/'/g,"\\'")}')">Edit</button>
+    </div>
+  `).join('');
+}
+
+function loadVenueIntoEditor(name){
+  const match = VENUE_DIRECTORY[name.toLowerCase()];
+  if(!match) return;
+  document.getElementById('vEditName').value = match.name;
+  document.getElementById('vEditAddress').value = match.address || '';
+  document.getElementById('vEditCounty').value = match.county || '';
+  document.getElementById('vEditName').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function saveVenue(){
+  const statusEl = document.getElementById('venueSaveStatus');
+  const name = document.getElementById('vEditName').value.trim();
+  const address = document.getElementById('vEditAddress').value.trim();
+  const county = document.getElementById('vEditCounty').value.trim();
+
+  if(!name){
+    statusEl.textContent = 'Enter a venue name first.';
+    statusEl.style.color = 'var(--brick)';
+    return;
+  }
+
+  statusEl.textContent = 'Saving…';
+  statusEl.style.color = 'var(--ink-soft)';
+
+  const payload = { recordType: 'venue', name, address, county };
+
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload)
+  }).then(() => {
+    VENUE_DIRECTORY[name.toLowerCase()] = { name, address, county };
+    populateVenueDatalist();
+    renderVenueList();
+    statusEl.textContent = 'Saved.';
+    statusEl.style.color = 'var(--ok)';
+    document.getElementById('vEditName').value = '';
+    document.getElementById('vEditAddress').value = '';
+    document.getElementById('vEditCounty').value = '';
+  }).catch(() => {
+    statusEl.textContent = 'Could not save — check your connection and try again.';
+    statusEl.style.color = 'var(--brick)';
+  });
+}
+
+fetchVenueDirectory();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+
+<script>
+const VENUES_PASSWORD_HASH = "3527374c1ff8dad43a5fae9007904cc82041d83a5d9adb69e030a71340f54b2a";
+
+async function sha256Hex(text){
+  const data = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function unlockVenues(){
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  sessionStorage.setItem('venuesUnlocked', '1');
+}
+
+async function checkPassword(){
+  const entered = document.getElementById('lockPassword').value;
+  const hash = await sha256Hex(entered);
+  if(hash === VENUES_PASSWORD_HASH){
+    unlockVenues();
+  } else {
+    document.getElementById('lockError').style.display = 'block';
+    document.getElementById('lockPassword').value = '';
+    document.getElementById('lockPassword').focus();
+  }
+}
+
+if(sessionStorage.getItem('venuesUnlocked') === '1'){
+  unlockVenues();
+}
+</script>
+</body>
+</html>

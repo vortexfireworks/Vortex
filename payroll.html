@@ -230,6 +230,33 @@ async function fetchOperatorDirectory(){
 }
 fetchOperatorDirectory();
 
+async function fetchVenueDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetVenues = await res.json();
+    if(Array.isArray(sheetVenues)){
+      const select = document.getElementById('event');
+      sheetVenues.forEach(v => {
+        if(!v.name) return;
+        VENUE_INFO[v.name.trim().toLowerCase()] = {
+          address: v.address || '',
+          county: v.county || ''
+        };
+        const exists = Array.from(select.options).some(o => o.value.toLowerCase() === v.name.trim().toLowerCase());
+        if(!exists){
+          const opt = document.createElement('option');
+          opt.value = v.name.trim();
+          opt.textContent = v.name.trim();
+          select.appendChild(opt);
+        }
+      });
+    }
+  } catch(err){
+    // fall back silently to the built-in venue list
+  }
+}
+
 const VENUE_INFO = {
   "real salt lake": { address: "America First Field, 9256 S State St, Sandy, UT 84070", county: "Salt Lake" },
   "university of utah": { address: "Rice-Eccles Stadium, 451 1400 E, Salt Lake City, UT 84112", county: "Salt Lake" },
@@ -277,6 +304,7 @@ const VENUE_INFO = {
   "olympus high school": { address: "4055 S 2300 E, Holladay, UT 84124", county: "Salt Lake" },
   "moab - music festival": { address: "58 E 300 S, Moab, UT 84532", county: "Grand" }
 };
+fetchVenueDirectory();
 
 function showVenueAddress(){
   const venue = document.getElementById('event').value.trim();
