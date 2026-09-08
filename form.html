@@ -218,6 +218,30 @@
           <option value="Real Salt Lake">
           <option value="University of Utah">
           <option value="Salt Lake Bees">
+          <option value="Trailer Loading">
+          <option value="Shop Time">
+          <option value="Bunker Time">
+          <option value="Hillcrest High School">
+          <option value="Jordan High School">
+          <option value="Copper Hills High School">
+          <option value="Herriman High School">
+          <option value="North Ridge High School">
+          <option value="Bee's - Class &quot;C&quot; Show">
+          <option value="West Jordan High School">
+          <option value="American Heritage High School">
+          <option value="Sleepy Ridge">
+          <option value="Mountain Ridge High School">
+          <option value="Stansbury High School">
+          <option value="Bingham High School">
+          <option value="Bluffdale City">
+          <option value="Midvale City">
+          <option value="Utah Valley University">
+          <option value="Southeast Township Days">
+          <option value="Magna - Day 1">
+          <option value="Magna - Day 2">
+          <option value="Murray City">
+          <option value="Ogden Raptors">
+          <option value="Farr West">
         </datalist>
         <p id="checkinStatus" style="font-size:11.5px;color:var(--ink-soft);font-family:'Helvetica Neue',Arial,sans-serif;margin:6px 0 0;"></p>
       </div>
@@ -519,16 +543,41 @@ function val(id){
   return document.getElementById(id).value.trim();
 }
 
-const EVENT_ADDRESSES = {
-  "real salt lake": "America First Field, 9256 S State St, Sandy, UT 84070",
-  "university of utah": "Rice-Eccles Stadium, 451 1400 E, Salt Lake City, UT 84112",
-  "salt lake bees": "The Ballpark at America First Square, 11111 South Ballpark Way (5470 W), South Jordan, UT 84009"
+const VENUE_INFO = {
+  "real salt lake": { address: "America First Field, 9256 S State St, Sandy, UT 84070", county: "Salt Lake" },
+  "university of utah": { address: "Rice-Eccles Stadium, 451 1400 E, Salt Lake City, UT 84112", county: "Salt Lake" },
+  "salt lake bees": { address: "The Ballpark at America First Square, 11111 South Ballpark Way (5470 W), South Jordan, UT 84009", county: "Salt Lake" },
+  "trailer loading": { address: "Shop", county: "Salt Lake" },
+  "shop time": { address: "Shop", county: "Salt Lake" },
+  "bunker time": { address: "Bunker", county: "Salt Lake" },
+  "hillcrest high school": { address: "7350 S 900 E, Midvale, UT 84047", county: "Salt Lake" },
+  "jordan high school": { address: "95 Beetdigger Blvd., Sandy, UT 84070", county: "Salt Lake" },
+  "copper hills high school": { address: "5445 Copper Hls Pkwy, West Jordan, UT 84081", county: "Salt Lake" },
+  "herriman high school": { address: "11917 Mustang Trail Way, Herriman, UT 84096", county: "Salt Lake" },
+  "north ridge high school": { address: "2430 N Hill Field Rd, Layton, UT 84041", county: "Salt Lake" },
+  "bee's - class \"c\" show": { address: "11111 Ballpark Dr, South Jordan, UT 84009", county: "Salt Lake" },
+  "west jordan high school": { address: "8136 2700 W, West Jordan, UT 84088", county: "Salt Lake" },
+  "american heritage high school": { address: "736 N 1100 E, American Fork, UT 84003", county: "Utah" },
+  "sleepy ridge": { address: "730 S Sleepy Ridge Dr, Orem, UT 84058", county: "Utah" },
+  "mountain ridge high school": { address: "14100 Sentinel Ridge Blvd, Herriman, UT 84096", county: "Salt Lake" },
+  "stansbury high school": { address: "5300 N Aberdeen Ln, Stansbury Park, UT 84074", county: "Tooele" },
+  "bingham high school": { address: "2160 South Jordan Pkwy, South Jordan, UT 84095", county: "Salt Lake" },
+  "bluffdale city": { address: "2400 14400 S, Bluffdale, UT 84065", county: "Salt Lake" },
+  "midvale city": { address: "425 6th Ave, Midvale, UT 84047", county: "Salt Lake" },
+  "utah valley university": { address: "800 W University Pkwy, Orem, UT 84058", county: "Utah" },
+  "southeast township days": { address: "930 E Onyx Ln, Sandy, UT 84094", county: "Salt Lake" },
+  "magna - day 1": { address: "8975 W 2600 S, Magna, UT 84044", county: "Salt Lake" },
+  "magna - day 2": { address: "8975 W 2600 S, Magna, UT 84044", county: "Salt Lake" },
+  "murray city": { address: "296 E Murray Park Ave, Murray, UT 84107", county: "Salt Lake" },
+  "ogden raptors": { address: "2330 Lincoln Ave, Ogden, UT 84401", county: "Weber" },
+  "farr west": { address: "2500 W 4000 N St, Farr West, UT 84404", county: "Weber" }
 };
 
 function autofillEventAddress(eventInput){
-  const match = EVENT_ADDRESSES[eventInput.value.trim().toLowerCase()];
+  const match = VENUE_INFO[eventInput.value.trim().toLowerCase()];
   if(match){
-    document.getElementById('address').value = match;
+    document.getElementById('address').value = match.address;
+    document.getElementById('venue').value = match.county;
   }
 }
 
