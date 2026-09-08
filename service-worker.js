@@ -5,6 +5,7 @@ const ASSETS = [
   './form.html',
   './checkin.html',
   './qr-codes.html',
+  './payroll.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

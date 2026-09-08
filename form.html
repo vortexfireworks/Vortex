@@ -338,6 +338,7 @@ const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJl
 async function loadCheckins(){
   const statusEl = document.getElementById('checkinStatus');
   const eventName = document.getElementById('event').value.trim();
+  const eventDateVal = document.getElementById('eventDate').value.trim();
   if(!eventName){
     statusEl.textContent = 'Type or select a venue first.';
     return;
@@ -346,9 +347,20 @@ async function loadCheckins(){
   try{
     const res = await fetch(`${CHECKIN_API_URL}?event=${encodeURIComponent(eventName)}`);
     if(!res.ok) throw new Error('Request failed');
-    const checkins = await res.json();
-    if(!Array.isArray(checkins) || checkins.length === 0){
+    let checkins = await res.json();
+    if(!Array.isArray(checkins)){
       statusEl.textContent = 'No check-ins found for this venue yet.';
+      return;
+    }
+
+    if(eventDateVal){
+      checkins = checkins.filter(person => (person.eventDate || '').trim() === eventDateVal);
+    }
+
+    if(checkins.length === 0){
+      statusEl.textContent = eventDateVal
+        ? 'No check-ins found for this venue on the date entered.'
+        : 'No check-ins found for this venue yet.';
       return;
     }
 

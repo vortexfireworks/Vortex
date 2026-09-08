@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payroll Submit — Vortex Productions</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1c2b3a">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#1c2b3a; --brick:#8c3b2e; --brick-light:#b5493a;
+    --paper:#f6f3ec; --card:#ffffff; --line:#d8d2c4;
+    --ink:#20262c; --ink-soft:#5b6470; --ok:#2f6d4f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+  }
+  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  header{
+    background:var(--navy); color:#f2efe6;
+    padding:22px 24px; border-bottom:4px solid var(--brick);
+    display:flex; align-items:center; gap:14px;
+  }
+  header img{width:44px;height:44px;flex-shrink:0;border-radius:4px;background:#fff;}
+  header .kicker{font-size:11px;letter-spacing:.08em;color:#c9d2da;margin:0 0 4px;}
+  header h1{margin:0;font-size:19px;font-weight:600;}
+  .section{padding:22px 24px;border-bottom:1px solid var(--line);}
+  .section h2{font-size:13px;font-weight:600;color:var(--brick);margin:0 0 14px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text],input[type=date],input[type=number],select{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:3px;background:#fdfcfa;color:var(--ink);
+  }
+  input:focus,select:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(28,43,58,0.12);}
+  input[readonly]{background:#eee9dd;color:var(--ink-soft);}
+  button.primary{
+    background:var(--brick); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:600; padding:11px 18px; border-radius:3px; cursor:pointer;
+  }
+  button.primary:hover{background:var(--brick-light);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:3px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.small{font-size:12px;padding:6px 10px;}
+  .checkbox-row{display:flex;align-items:center;gap:8px;margin:8px 0 16px;}
+  .checkbox-row input{width:auto;}
+  .checkbox-row label{font-size:13.5px;color:var(--ink);font-weight:400;}
+  table.people{width:100%;border-collapse:collapse;}
+  table.people th{
+    font-size:10.5px;color:var(--ink-soft);text-align:left;
+    padding:0 8px 6px 0;font-weight:600;
+  }
+  table.people td{padding:4px 8px 4px 0;}
+  table.people input[type=text]{width:100%;}
+  table.people input[type=number]{width:100%;text-align:right;}
+  .rm-row{background:none;border:none;color:var(--brick);cursor:pointer;font-size:17px;line-height:1;padding:4px;}
+  .add-row{
+    margin-top:8px; background:none; border:1px dashed var(--line);
+    color:var(--navy); font-size:12.5px; padding:7px 12px; border-radius:3px; cursor:pointer;
+  }
+  .add-row:hover{border-color:var(--navy);}
+  .totals{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 0 0; font-size:14px; font-weight:600;
+  }
+  .totals .mismatch{color:var(--brick); font-weight:600; font-size:12.5px;}
+  .totals .match{color:var(--ok); font-weight:600; font-size:12.5px;}
+  .status{font-size:11.5px;color:var(--ink-soft);margin-top:8px;}
+  .actions{padding:22px 24px 26px; display:flex; gap:12px; flex-wrap:wrap;}
+</style>
+</head>
+<body>
+
+<div class="sheet">
+  <header>
+    <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
+    <div>
+      <p class="kicker">VORTEX PRODUCTIONS INC.</p>
+      <h1>Payroll Submit</h1>
+    </div>
+  </header>
+
+  <div class="section">
+    <h2>Event</h2>
+    <div class="row2">
+      <div class="field">
+        <label for="event">Venue</label>
+        <select id="event">
+          <option value="" disabled selected>Select a venue…</option>
+          <option value="Real Salt Lake">Real Salt Lake</option>
+          <option value="University of Utah">University of Utah</option>
+          <option value="Salt Lake Bees">Salt Lake Bees</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="eventDate">Date of event</label>
+        <input type="date" id="eventDate">
+      </div>
+    </div>
+    <button class="secondary" type="button" onclick="loadFromCheckins()">Load people who checked in</button>
+    <p class="status" id="loadStatus"></p>
+  </div>
+
+  <div class="section">
+    <h2>People &amp; pay</h2>
+    <table class="people" id="peopleTable">
+      <thead>
+        <tr><th style="width:55%">Name</th><th style="width:35%">Amount ($)</th><th></th></tr>
+      </thead>
+      <tbody id="peopleBody"></tbody>
+    </table>
+    <button class="add-row" type="button" onclick="addPersonRow()">+ Add person</button>
+  </div>
+
+  <div class="section" style="border-bottom:none;">
+    <h2>Total payroll</h2>
+    <div class="field">
+      <label for="totalPayroll">Total amount to divide ($)</label>
+      <input type="number" id="totalPayroll" min="0" step="1" oninput="recalculate()">
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="divideEvenly" onchange="recalculate()">
+      <label for="divideEvenly">Divide evenly between all people</label>
+    </div>
+    <div class="totals">
+      <span>Sum of amounts below:</span>
+      <span id="sumDisplay">$0</span>
+    </div>
+    <p id="matchMsg" class="status"></p>
+  </div>
+
+  <div class="actions">
+    <button class="primary" type="button" onclick="submitPayroll()">Submit payroll</button>
+    <button class="secondary" type="button" onclick="emailToChuck()">Email to Chuck (PDF)</button>
+    <button class="secondary" type="button" onclick="downloadPayrollPDF()">Download as PDF</button>
+    <button class="secondary" type="button" onclick="downloadPayroll()">Download as text file</button>
+  </div>
+  <p style="padding:0 24px 20px;font-size:11.5px;color:var(--ink-soft);">"Email to Chuck" opens your email app addressed to chuckj@xmission.com with the payroll summary — since a web page can't attach files to an email automatically, it also downloads the PDF for you to attach yourself before sending.</p>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function addPersonRow(name){
+  const tbody = document.getElementById('peopleBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="p-name" value="${name ? name.replace(/"/g,'&quot;') : ''}"></td>
+    <td><input type="number" class="p-amount" min="0" step="1" oninput="onAmountEdit()"></td>
+    <td><button class="rm-row" type="button" onclick="this.closest('tr').remove(); recalculate();" aria-label="Remove">&times;</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+addPersonRow();
+addPersonRow();
+
+async function loadFromCheckins(){
+  const statusEl = document.getElementById('loadStatus');
+  const eventName = document.getElementById('event').value.trim();
+  const eventDateVal = document.getElementById('eventDate').value.trim();
+  if(!eventName){
+    statusEl.textContent = 'Select a venue first.';
+    return;
+  }
+  statusEl.textContent = 'Loading check-ins…';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?event=${encodeURIComponent(eventName)}`);
+    if(!res.ok) throw new Error('Request failed');
+    let checkins = await res.json();
+    if(!Array.isArray(checkins)) checkins = [];
+    if(eventDateVal){
+      checkins = checkins.filter(p => (p.eventDate || '').trim() === eventDateVal);
+    }
+    if(checkins.length === 0){
+      statusEl.textContent = eventDateVal
+        ? 'No check-ins found for this venue on that date.'
+        : 'No check-ins found for this venue yet.';
+      return;
+    }
+
+    document.getElementById('peopleBody').innerHTML = '';
+    const seen = new Set();
+    checkins.forEach(p => {
+      const key = (p.name || '').trim().toLowerCase();
+      if(!key || seen.has(key)) return;
+      seen.add(key);
+      addPersonRow(p.name);
+    });
+    statusEl.textContent = `Loaded ${seen.size} ${seen.size === 1 ? 'person' : 'people'} from check-ins.`;
+    recalculate();
+  } catch(err){
+    statusEl.textContent = 'Could not load check-ins — check your connection and try again.';
+  }
+}
+
+function onAmountEdit(){
+  // Manual edits only matter when not dividing evenly
+  if(!document.getElementById('divideEvenly').checked){
+    updateSumDisplay();
+  }
+}
+
+function recalculate(){
+  const rows = Array.from(document.querySelectorAll('#peopleBody tr'));
+  const divideEvenly = document.getElementById('divideEvenly').checked;
+  const amountInputs = rows.map(r => r.querySelector('.p-amount'));
+
+  if(divideEvenly){
+    amountInputs.forEach(inp => inp.readOnly = true);
+    const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
+    const totalRounded = Math.round(total);
+    const n = rows.length;
+    if(n === 0){
+      updateSumDisplay();
+      return;
+    }
+    const base = Math.floor(totalRounded / n);
+    let remainder = totalRounded - base * n;
+    amountInputs.forEach((inp, i) => {
+      const amount = base + (i < remainder ? 1 : 0);
+      inp.value = amount;
+    });
+  } else {
+    amountInputs.forEach(inp => inp.readOnly = false);
+  }
+  updateSumDisplay();
+}
+
+function updateSumDisplay(){
+  const amounts = Array.from(document.querySelectorAll('.p-amount')).map(i => parseFloat(i.value) || 0);
+  const sum = amounts.reduce((a,b) => a+b, 0);
+  document.getElementById('sumDisplay').textContent = `$${sum.toLocaleString()}`;
+
+  const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
+  const totalRounded = Math.round(total);
+  const matchMsg = document.getElementById('matchMsg');
+  if(document.getElementById('totalPayroll').value === ''){
+    matchMsg.textContent = '';
+    matchMsg.className = 'status';
+  } else if(sum === totalRounded){
+    matchMsg.textContent = `Matches total payroll of $${totalRounded.toLocaleString()}.`;
+    matchMsg.className = 'status';
+    matchMsg.style.color = 'var(--ok)';
+  } else {
+    matchMsg.textContent = `Does not match total payroll of $${totalRounded.toLocaleString()} (off by $${Math.abs(sum - totalRounded).toLocaleString()}).`;
+    matchMsg.style.color = 'var(--brick)';
+  }
+}
+
+function collectPeople(){
+  return Array.from(document.querySelectorAll('#peopleBody tr')).map(row => ({
+    name: row.querySelector('.p-name').value.trim(),
+    amount: parseFloat(row.querySelector('.p-amount').value) || 0
+  })).filter(p => p.name);
+}
+
+function buildPayrollText(){
+  const event = document.getElementById('event').value.trim();
+  const eventDate = document.getElementById('eventDate').value.trim();
+  const total = document.getElementById('totalPayroll').value.trim();
+  const people = collectPeople();
+  const lines = [];
+  lines.push('PAYROLL SUBMISSION');
+  lines.push(`Venue: ${event || '(not selected)'}`);
+  lines.push(`Date of event: ${eventDate || '(not set)'}`);
+  lines.push(`Total payroll: $${total || '0'}`);
+  lines.push('');
+  lines.push('Payments:');
+  people.forEach(p => lines.push(`  - ${p.name}: $${p.amount.toLocaleString()}`));
+  const sum = people.reduce((a,p) => a + p.amount, 0);
+  lines.push('');
+  lines.push(`Sum of payments: $${sum.toLocaleString()}`);
+  return lines.join('\n');
+}
+
+function downloadPayroll(){
+  const text = buildPayrollText();
+  const blob = new Blob([text], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
+  a.href = url;
+  a.download = `Payroll_${eventName}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function submitPayroll(){
+  const event = document.getElementById('event').value.trim();
+  const eventDate = document.getElementById('eventDate').value.trim();
+  const people = collectPeople();
+  const statusEl = document.getElementById('loadStatus');
+
+  if(!event || people.length === 0){
+    statusEl.textContent = 'Select a venue and add at least one person before submitting.';
+    return;
+  }
+
+  const payload = {
+    recordType: 'payroll',
+    event: event,
+    eventDate: eventDate,
+    entries: people
+  };
+
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload)
+  }).then(() => {
+    statusEl.textContent = 'Payroll submitted.';
+    statusEl.style.color = 'var(--ok)';
+  }).catch(() => {
+    statusEl.textContent = 'Could not submit — check your connection and try again.';
+    statusEl.style.color = 'var(--brick)';
+  });
+}
+
+function buildPayrollPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'letter'});
+  const marginX = 40;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  let y = 50;
+
+  const event = document.getElementById('event').value.trim() || '(not selected)';
+  const eventDate = document.getElementById('eventDate').value.trim() || '(not set)';
+  const total = document.getElementById('totalPayroll').value.trim() || '0';
+  const people = collectPeople();
+  const sum = people.reduce((a,p) => a + p.amount, 0);
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(15);
+  doc.text('Vortex Productions Inc.', marginX, y); y += 20;
+  doc.setFontSize(12.5);
+  doc.text('Payroll Submission', marginX, y); y += 24;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+  doc.text('VENUE', marginX, y);
+  doc.text('DATE OF EVENT', marginX + 260, y);
+  y += 13;
+  doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
+  doc.text(event, marginX, y);
+  doc.text(eventDate, marginX + 260, y);
+  y += 22;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+  doc.text('TOTAL PAYROLL', marginX, y); y += 13;
+  doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
+  doc.text(`$${Number(total).toLocaleString()}`, marginX, y); y += 24;
+
+  doc.setDrawColor(216,210,196);
+  doc.line(marginX, y, pageWidth - marginX, y); y += 18;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+  doc.text('NAME', marginX, y);
+  doc.text('AMOUNT', pageWidth - marginX - 60, y);
+  y += 14;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(20,26,32);
+  people.forEach(p => {
+    doc.text(p.name, marginX, y);
+    doc.text(`$${p.amount.toLocaleString()}`, pageWidth - marginX - 60, y);
+    y += 16;
+  });
+
+  y += 8;
+  doc.setDrawColor(216,210,196);
+  doc.line(marginX, y, pageWidth - marginX, y); y += 18;
+  doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text('Total', marginX, y);
+  doc.text(`$${sum.toLocaleString()}`, pageWidth - marginX - 60, y);
+
+  return doc;
+}
+
+function downloadPayrollPDF(){
+  const people = collectPeople();
+  if(people.length === 0){
+    alert('Add at least one person before exporting.');
+    return;
+  }
+  const doc = buildPayrollPDF();
+  const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
+  doc.save(`Payroll_${eventName}.pdf`);
+}
+
+function emailToChuck(){
+  const people = collectPeople();
+  if(people.length === 0){
+    alert('Add at least one person before emailing.');
+    return;
+  }
+  const doc = buildPayrollPDF();
+  const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
+  doc.save(`Payroll_${eventName}.pdf`);
+
+  const event = document.getElementById('event').value.trim();
+  const eventDate = document.getElementById('eventDate').value.trim();
+  const subject = `Payroll - ${event || 'Event'}${eventDate ? ' - ' + eventDate : ''}`;
+  const body = buildPayrollText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
+  const mailto = `mailto:chuckj@xmission.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+}
+
+recalculate();
+</script>
+
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
