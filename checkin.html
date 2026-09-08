@@ -79,51 +79,6 @@
       <label for="eventName">Event / venue</label>
       <select id="eventName">
         <option value="" disabled selected>Select a venue…</option>
-        <option value="Real Salt Lake">Real Salt Lake</option>
-        <option value="University of Utah">University of Utah</option>
-        <option value="Salt Lake Bees">Salt Lake Bees</option>
-        <option value="Trailer Loading">Trailer Loading</option>
-        <option value="Shop Time">Shop Time</option>
-        <option value="Bunker Time">Bunker Time</option>
-        <option value="Hillcrest High School">Hillcrest High School</option>
-        <option value="Jordan High School">Jordan High School</option>
-        <option value="Copper Hills High School">Copper Hills High School</option>
-        <option value="Herriman High School">Herriman High School</option>
-        <option value="North Ridge High School">North Ridge High School</option>
-        <option value="Bee's - Class &quot;C&quot; Show">Bee's - Class "C" Show</option>
-        <option value="West Jordan High School">West Jordan High School</option>
-        <option value="American Heritage High School">American Heritage High School</option>
-        <option value="Sleepy Ridge">Sleepy Ridge</option>
-        <option value="Mountain Ridge High School">Mountain Ridge High School</option>
-        <option value="Stansbury High School">Stansbury High School</option>
-        <option value="Bingham High School">Bingham High School</option>
-        <option value="Bluffdale City">Bluffdale City</option>
-        <option value="Midvale City">Midvale City</option>
-        <option value="Utah Valley University">Utah Valley University</option>
-        <option value="Southeast Township Days">Southeast Township Days</option>
-        <option value="Magna - Day 1">Magna - Day 1</option>
-        <option value="Magna - Day 2">Magna - Day 2</option>
-        <option value="Murray City">Murray City</option>
-        <option value="Ogden Raptors">Ogden Raptors</option>
-        <option value="Farr West">Farr West</option>
-        <option value="West Point">West Point</option>
-        <option value="Moab - 4th of July">Moab - 4th of July</option>
-        <option value="Dutch John">Dutch John</option>
-        <option value="Weber State University">Weber State University</option>
-        <option value="Draper City">Draper City</option>
-        <option value="Bountiful City">Bountiful City</option>
-        <option value="American Fork City">American Fork City</option>
-        <option value="Lehi City">Lehi City</option>
-        <option value="Springville City">Springville City</option>
-        <option value="West Valley City (West Fest)">West Valley City (West Fest)</option>
-        <option value="Clinton City">Clinton City</option>
-        <option value="Thanksgiving Point Waterfall Concert">Thanksgiving Point Waterfall Concert</option>
-        <option value="Dugway City">Dugway City</option>
-        <option value="Taylorsville - Thursday">Taylorsville - Thursday</option>
-        <option value="Taylorsville - Friday">Taylorsville - Friday</option>
-        <option value="Taylorsville - Saturday">Taylorsville - Saturday</option>
-        <option value="Olympus High School">Olympus High School</option>
-        <option value="Moab - Music Festival">Moab - Music Festival</option>
       </select>
     </div>
     <div class="field">
@@ -166,6 +121,33 @@ const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJl
 
 document.getElementById('contactsList').innerHTML =
   CONTACTS.map(c => `<option value="${c.name}">`).join('');
+
+const VENUE_DIRECTORY = {};
+[
+  "Real Salt Lake","University of Utah","Salt Lake Bees","Trailer Loading","Shop Time","Bunker Time",
+  "Hillcrest High School","Jordan High School","Copper Hills High School","Herriman High School",
+  "North Ridge High School","Bee's - Class \"C\" Show","West Jordan High School","American Heritage High School",
+  "Sleepy Ridge","Mountain Ridge High School","Stansbury High School","Bingham High School","Bluffdale City",
+  "Midvale City","Utah Valley University","Southeast Township Days","Magna - Day 1","Magna - Day 2",
+  "Murray City","Ogden Raptors","Farr West","West Point","Moab - 4th of July","Dutch John",
+  "Weber State University","Draper City","Bountiful City","American Fork City","Lehi City","Springville City",
+  "West Valley City (West Fest)","Clinton City","Thanksgiving Point Waterfall Concert","Dugway City",
+  "Taylorsville - Thursday","Taylorsville - Friday","Taylorsville - Saturday","Olympus High School","Moab - Music Festival"
+].forEach(name => { VENUE_DIRECTORY[name.toLowerCase()] = name; });
+
+function populateVenueSelect(){
+  const select = document.getElementById('eventName');
+  const currentValue = select.value;
+  const sortedNames = Object.values(VENUE_DIRECTORY).sort((a,b) => a.localeCompare(b));
+  select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
+    sortedNames.map(name => `<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`).join('');
+  if(currentValue){
+    select.value = currentValue;
+  } else {
+    select.selectedIndex = 0;
+  }
+}
+populateVenueSelect();
 
 async function fetchOperatorDirectory(){
   try{
@@ -215,17 +197,11 @@ async function fetchVenueDirectory(){
     if(!res.ok) throw new Error('Request failed');
     const sheetVenues = await res.json();
     if(Array.isArray(sheetVenues)){
-      const select = document.getElementById('eventName');
       sheetVenues.forEach(v => {
         if(!v.name) return;
-        const exists = Array.from(select.options).some(o => o.value.toLowerCase() === v.name.trim().toLowerCase());
-        if(!exists){
-          const opt = document.createElement('option');
-          opt.value = v.name.trim();
-          opt.textContent = v.name.trim();
-          select.appendChild(opt);
-        }
+        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = v.name.trim();
       });
+      populateVenueSelect();
       applyEventFromUrl();
     }
   } catch(err){

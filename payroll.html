@@ -107,51 +107,6 @@
         <label for="event">Venue</label>
         <select id="event" onchange="showVenueAddress()">
           <option value="" disabled selected>Select a venue…</option>
-          <option value="Real Salt Lake">Real Salt Lake</option>
-          <option value="University of Utah">University of Utah</option>
-          <option value="Salt Lake Bees">Salt Lake Bees</option>
-          <option value="Trailer Loading">Trailer Loading</option>
-          <option value="Shop Time">Shop Time</option>
-          <option value="Bunker Time">Bunker Time</option>
-          <option value="Hillcrest High School">Hillcrest High School</option>
-          <option value="Jordan High School">Jordan High School</option>
-          <option value="Copper Hills High School">Copper Hills High School</option>
-          <option value="Herriman High School">Herriman High School</option>
-          <option value="North Ridge High School">North Ridge High School</option>
-          <option value="Bee's - Class &quot;C&quot; Show">Bee's - Class "C" Show</option>
-          <option value="West Jordan High School">West Jordan High School</option>
-          <option value="American Heritage High School">American Heritage High School</option>
-          <option value="Sleepy Ridge">Sleepy Ridge</option>
-          <option value="Mountain Ridge High School">Mountain Ridge High School</option>
-          <option value="Stansbury High School">Stansbury High School</option>
-          <option value="Bingham High School">Bingham High School</option>
-          <option value="Bluffdale City">Bluffdale City</option>
-          <option value="Midvale City">Midvale City</option>
-          <option value="Utah Valley University">Utah Valley University</option>
-          <option value="Southeast Township Days">Southeast Township Days</option>
-          <option value="Magna - Day 1">Magna - Day 1</option>
-          <option value="Magna - Day 2">Magna - Day 2</option>
-          <option value="Murray City">Murray City</option>
-          <option value="Ogden Raptors">Ogden Raptors</option>
-          <option value="Farr West">Farr West</option>
-          <option value="West Point">West Point</option>
-          <option value="Moab - 4th of July">Moab - 4th of July</option>
-          <option value="Dutch John">Dutch John</option>
-          <option value="Weber State University">Weber State University</option>
-          <option value="Draper City">Draper City</option>
-          <option value="Bountiful City">Bountiful City</option>
-          <option value="American Fork City">American Fork City</option>
-          <option value="Lehi City">Lehi City</option>
-          <option value="Springville City">Springville City</option>
-          <option value="West Valley City (West Fest)">West Valley City (West Fest)</option>
-          <option value="Clinton City">Clinton City</option>
-          <option value="Thanksgiving Point Waterfall Concert">Thanksgiving Point Waterfall Concert</option>
-          <option value="Dugway City">Dugway City</option>
-          <option value="Taylorsville - Thursday">Taylorsville - Thursday</option>
-          <option value="Taylorsville - Friday">Taylorsville - Friday</option>
-          <option value="Taylorsville - Saturday">Taylorsville - Saturday</option>
-          <option value="Olympus High School">Olympus High School</option>
-          <option value="Moab - Music Festival">Moab - Music Festival</option>
         </select>
         <p id="venueAddress" style="font-size:12px;color:var(--ink-soft);margin:6px 0 0;"></p>
       </div>
@@ -236,21 +191,15 @@ async function fetchVenueDirectory(){
     if(!res.ok) throw new Error('Request failed');
     const sheetVenues = await res.json();
     if(Array.isArray(sheetVenues)){
-      const select = document.getElementById('event');
       sheetVenues.forEach(v => {
         if(!v.name) return;
         VENUE_INFO[v.name.trim().toLowerCase()] = {
+          name: v.name.trim(),
           address: v.address || '',
           county: v.county || ''
         };
-        const exists = Array.from(select.options).some(o => o.value.toLowerCase() === v.name.trim().toLowerCase());
-        if(!exists){
-          const opt = document.createElement('option');
-          opt.value = v.name.trim();
-          opt.textContent = v.name.trim();
-          select.appendChild(opt);
-        }
       });
+      populateVenueSelect();
     }
   } catch(err){
     // fall back silently to the built-in venue list
@@ -258,52 +207,66 @@ async function fetchVenueDirectory(){
 }
 
 const VENUE_INFO = {
-  "real salt lake": { address: "America First Field, 9256 S State St, Sandy, UT 84070", county: "Salt Lake" },
-  "university of utah": { address: "Rice-Eccles Stadium, 451 1400 E, Salt Lake City, UT 84112", county: "Salt Lake" },
-  "salt lake bees": { address: "The Ballpark at America First Square, 11111 South Ballpark Way (5470 W), South Jordan, UT 84009", county: "Salt Lake" },
-  "trailer loading": { address: "Shop", county: "Salt Lake" },
-  "shop time": { address: "Shop", county: "Salt Lake" },
-  "bunker time": { address: "Bunker", county: "Salt Lake" },
-  "hillcrest high school": { address: "7350 S 900 E, Midvale, UT 84047", county: "Salt Lake" },
-  "jordan high school": { address: "95 Beetdigger Blvd., Sandy, UT 84070", county: "Salt Lake" },
-  "copper hills high school": { address: "5445 Copper Hls Pkwy, West Jordan, UT 84081", county: "Salt Lake" },
-  "herriman high school": { address: "11917 Mustang Trail Way, Herriman, UT 84096", county: "Salt Lake" },
-  "north ridge high school": { address: "2430 N Hill Field Rd, Layton, UT 84041", county: "Salt Lake" },
-  "bee's - class \"c\" show": { address: "11111 Ballpark Dr, South Jordan, UT 84009", county: "Salt Lake" },
-  "west jordan high school": { address: "8136 2700 W, West Jordan, UT 84088", county: "Salt Lake" },
-  "american heritage high school": { address: "736 N 1100 E, American Fork, UT 84003", county: "Utah" },
-  "sleepy ridge": { address: "730 S Sleepy Ridge Dr, Orem, UT 84058", county: "Utah" },
-  "mountain ridge high school": { address: "14100 Sentinel Ridge Blvd, Herriman, UT 84096", county: "Salt Lake" },
-  "stansbury high school": { address: "5300 N Aberdeen Ln, Stansbury Park, UT 84074", county: "Tooele" },
-  "bingham high school": { address: "2160 South Jordan Pkwy, South Jordan, UT 84095", county: "Salt Lake" },
-  "bluffdale city": { address: "2400 14400 S, Bluffdale, UT 84065", county: "Salt Lake" },
-  "midvale city": { address: "425 6th Ave, Midvale, UT 84047", county: "Salt Lake" },
-  "utah valley university": { address: "800 W University Pkwy, Orem, UT 84058", county: "Utah" },
-  "southeast township days": { address: "930 E Onyx Ln, Sandy, UT 84094", county: "Salt Lake" },
-  "magna - day 1": { address: "8975 W 2600 S, Magna, UT 84044", county: "Salt Lake" },
-  "magna - day 2": { address: "8975 W 2600 S, Magna, UT 84044", county: "Salt Lake" },
-  "murray city": { address: "296 E Murray Park Ave, Murray, UT 84107", county: "Salt Lake" },
-  "ogden raptors": { address: "2330 Lincoln Ave, Ogden, UT 84401", county: "Weber" },
-  "farr west": { address: "2500 W 4000 N St, Farr West, UT 84404", county: "Weber" },
-  "west point": { address: "683 N 3500 W, West Point, UT 84015", county: "Davis" },
-  "moab - 4th of july": { address: "680 S Mill Creek Dr, Moab, UT 84532", county: "Grand" },
-  "dutch john": { address: "1050 S Blvd, Dutch John, UT 84023", county: "Daggett" },
-  "weber state university": { address: "3848 Harrison Blvd, Ogden, UT 84408", county: "Weber" },
-  "draper city": { address: "1020 Pioneer Rd, Draper, UT 84020", county: "Salt Lake" },
-  "bountiful city": { address: "1077 E 1500 S, Bountiful, UT 84010", county: "Davis" },
-  "american fork city": { address: "1000 N 550 E St, American Fork, UT 84003", county: "Utah" },
-  "lehi city": { address: "601 W 3200 N, Lehi, UT 84043", county: "Utah" },
-  "springville city": { address: "1205 E 900 S, Springville, UT 84663", county: "Utah" },
-  "west valley city (west fest)": { address: "5405 W 3100 S, West Valley City, UT 84120", county: "Salt Lake" },
-  "clinton city": { address: "2000 N 2750 W, Clinton, UT 84015", county: "Davis" },
-  "thanksgiving point waterfall concert": { address: "3003 N Thanksgiving Way, Lehi, UT 84043", county: "" },
-  "dugway city": { address: "", county: "" },
-  "taylorsville - thursday": { address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
-  "taylorsville - friday": { address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
-  "taylorsville - saturday": { address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
-  "olympus high school": { address: "4055 S 2300 E, Holladay, UT 84124", county: "Salt Lake" },
-  "moab - music festival": { address: "58 E 300 S, Moab, UT 84532", county: "Grand" }
+  "real salt lake": { name: "Real Salt Lake", address: "America First Field, 9256 S State St, Sandy, UT 84070", county: "Salt Lake" },
+  "university of utah": { name: "University of Utah", address: "Rice-Eccles Stadium, 451 1400 E, Salt Lake City, UT 84112", county: "Salt Lake" },
+  "salt lake bees": { name: "Salt Lake Bees", address: "The Ballpark at America First Square, 11111 South Ballpark Way (5470 W), South Jordan, UT 84009", county: "Salt Lake" },
+  "trailer loading": { name: "Trailer Loading", address: "Shop", county: "Salt Lake" },
+  "shop time": { name: "Shop Time", address: "Shop", county: "Salt Lake" },
+  "bunker time": { name: "Bunker Time", address: "Bunker", county: "Salt Lake" },
+  "hillcrest high school": { name: "Hillcrest High School", address: "7350 S 900 E, Midvale, UT 84047", county: "Salt Lake" },
+  "jordan high school": { name: "Jordan High School", address: "95 Beetdigger Blvd., Sandy, UT 84070", county: "Salt Lake" },
+  "copper hills high school": { name: "Copper Hills High School", address: "5445 Copper Hls Pkwy, West Jordan, UT 84081", county: "Salt Lake" },
+  "herriman high school": { name: "Herriman High School", address: "11917 Mustang Trail Way, Herriman, UT 84096", county: "Salt Lake" },
+  "north ridge high school": { name: "North Ridge High School", address: "2430 N Hill Field Rd, Layton, UT 84041", county: "Salt Lake" },
+  "bee's - class \"c\" show": { name: "Bee's - Class \"C\" Show", address: "11111 Ballpark Dr, South Jordan, UT 84009", county: "Salt Lake" },
+  "west jordan high school": { name: "West Jordan High School", address: "8136 2700 W, West Jordan, UT 84088", county: "Salt Lake" },
+  "american heritage high school": { name: "American Heritage High School", address: "736 N 1100 E, American Fork, UT 84003", county: "Utah" },
+  "sleepy ridge": { name: "Sleepy Ridge", address: "730 S Sleepy Ridge Dr, Orem, UT 84058", county: "Utah" },
+  "mountain ridge high school": { name: "Mountain Ridge High School", address: "14100 Sentinel Ridge Blvd, Herriman, UT 84096", county: "Salt Lake" },
+  "stansbury high school": { name: "Stansbury High School", address: "5300 N Aberdeen Ln, Stansbury Park, UT 84074", county: "Tooele" },
+  "bingham high school": { name: "Bingham High School", address: "2160 South Jordan Pkwy, South Jordan, UT 84095", county: "Salt Lake" },
+  "bluffdale city": { name: "Bluffdale City", address: "2400 14400 S, Bluffdale, UT 84065", county: "Salt Lake" },
+  "midvale city": { name: "Midvale City", address: "425 6th Ave, Midvale, UT 84047", county: "Salt Lake" },
+  "utah valley university": { name: "Utah Valley University", address: "800 W University Pkwy, Orem, UT 84058", county: "Utah" },
+  "southeast township days": { name: "Southeast Township Days", address: "930 E Onyx Ln, Sandy, UT 84094", county: "Salt Lake" },
+  "magna - day 1": { name: "Magna - Day 1", address: "8975 W 2600 S, Magna, UT 84044", county: "Salt Lake" },
+  "magna - day 2": { name: "Magna - Day 2", address: "8975 W 2600 S, Magna, UT 84044", county: "Salt Lake" },
+  "murray city": { name: "Murray City", address: "296 E Murray Park Ave, Murray, UT 84107", county: "Salt Lake" },
+  "ogden raptors": { name: "Ogden Raptors", address: "2330 Lincoln Ave, Ogden, UT 84401", county: "Weber" },
+  "farr west": { name: "Farr West", address: "2500 W 4000 N St, Farr West, UT 84404", county: "Weber" },
+  "west point": { name: "West Point", address: "683 N 3500 W, West Point, UT 84015", county: "Davis" },
+  "moab - 4th of july": { name: "Moab - 4th of July", address: "680 S Mill Creek Dr, Moab, UT 84532", county: "Grand" },
+  "dutch john": { name: "Dutch John", address: "1050 S Blvd, Dutch John, UT 84023", county: "Daggett" },
+  "weber state university": { name: "Weber State University", address: "3848 Harrison Blvd, Ogden, UT 84408", county: "Weber" },
+  "draper city": { name: "Draper City", address: "1020 Pioneer Rd, Draper, UT 84020", county: "Salt Lake" },
+  "bountiful city": { name: "Bountiful City", address: "1077 E 1500 S, Bountiful, UT 84010", county: "Davis" },
+  "american fork city": { name: "American Fork City", address: "1000 N 550 E St, American Fork, UT 84003", county: "Utah" },
+  "lehi city": { name: "Lehi City", address: "601 W 3200 N, Lehi, UT 84043", county: "Utah" },
+  "springville city": { name: "Springville City", address: "1205 E 900 S, Springville, UT 84663", county: "Utah" },
+  "west valley city (west fest)": { name: "West Valley City (West Fest)", address: "5405 W 3100 S, West Valley City, UT 84120", county: "Salt Lake" },
+  "clinton city": { name: "Clinton City", address: "2000 N 2750 W, Clinton, UT 84015", county: "Davis" },
+  "thanksgiving point waterfall concert": { name: "Thanksgiving Point Waterfall Concert", address: "3003 N Thanksgiving Way, Lehi, UT 84043", county: "" },
+  "dugway city": { name: "Dugway City", address: "", county: "" },
+  "taylorsville - thursday": { name: "Taylorsville - Thursday", address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
+  "taylorsville - friday": { name: "Taylorsville - Friday", address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
+  "taylorsville - saturday": { name: "Taylorsville - Saturday", address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
+  "olympus high school": { name: "Olympus High School", address: "4055 S 2300 E, Holladay, UT 84124", county: "Salt Lake" },
+  "moab - music festival": { name: "Moab - Music Festival", address: "58 E 300 S, Moab, UT 84532", county: "Grand" }
 };
+
+function populateVenueSelect(){
+  const select = document.getElementById('event');
+  const currentValue = select.value;
+  const sorted = Object.values(VENUE_INFO).sort((a,b) => a.name.localeCompare(b.name));
+  select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
+    sorted.map(v => `<option value="${v.name.replace(/"/g,'&quot;')}">${v.name}</option>`).join('');
+  if(currentValue){
+    select.value = currentValue;
+  } else {
+    select.selectedIndex = 0;
+  }
+}
+populateVenueSelect();
 fetchVenueDirectory();
 
 function showVenueAddress(){
