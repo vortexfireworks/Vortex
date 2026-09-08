@@ -140,6 +140,10 @@
       <input type="text" id="personLicense">
     </div>
     <div class="field">
+      <label for="personPhone">Phone number</label>
+      <input type="text" id="personPhone">
+    </div>
+    <div class="field">
       <label for="personAddress">Address</label>
       <input type="text" id="personAddress">
     </div>
@@ -162,6 +166,31 @@ const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJl
 
 document.getElementById('contactsList').innerHTML =
   CONTACTS.map(c => `<option value="${c.name}">`).join('');
+
+async function fetchOperatorDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=contacts`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetContacts = await res.json();
+    if(Array.isArray(sheetContacts)){
+      sheetContacts.forEach(c => {
+        if(!c.name) return;
+        CONTACTS_BY_NAME[c.name.trim().toLowerCase()] = {
+          name: c.name.trim(),
+          license: c.license || '',
+          phone: c.phone || '',
+          address: c.address || '',
+          age: c.age || ''
+        };
+      });
+      document.getElementById('contactsList').innerHTML =
+        Object.values(CONTACTS_BY_NAME).map(c => `<option value="${c.name}">`).join('');
+    }
+  } catch(err){
+    // fall back silently to the built-in contact list
+  }
+}
+fetchOperatorDirectory();
 
 function applyEventFromUrl(){
   const params = new URLSearchParams(window.location.search);
@@ -212,6 +241,7 @@ function autofill(nameInput){
   const match = CONTACTS_BY_NAME[nameInput.value.trim().toLowerCase()];
   if(match){
     document.getElementById('personLicense').value = match.license || '';
+    document.getElementById('personPhone').value = match.phone || '';
     document.getElementById('personAddress').value = match.address || '';
     document.getElementById('personAge').value = match.age || '';
   }
@@ -237,6 +267,7 @@ function checkIn(){
     eventDate: document.getElementById('eventDate').value,
     name: name,
     license: document.getElementById('personLicense').value.trim(),
+    phone: document.getElementById('personPhone').value.trim(),
     address: document.getElementById('personAddress').value.trim(),
     age: document.getElementById('personAge').value.trim()
   };

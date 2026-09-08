@@ -1,7 +1,7 @@
 {
-  "name": "Fire Marshal After-Action Report",
-  "short_name": "AAR Form",
-  "description": "Fillable Display/Special Effects/Flame Effects Operator After-Action Report",
+  "name": "Pyrotechnician Tools",
+  "short_name": "Pyro Tools",
+  "description": "Vortex Productions field tools: After-Action Report, event check-in, payroll, and operator/venue management",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
