@@ -29,13 +29,15 @@
   header{
     background:var(--navy); color:#f2efe6;
     padding:22px 24px; border-bottom:4px solid var(--brick);
+    display:flex; align-items:center; gap:14px;
   }
+  header img{width:44px;height:44px;flex-shrink:0;border-radius:4px;background:#fff;}
   header .kicker{font-size:11px;letter-spacing:.08em;color:#c9d2da;margin:0 0 4px;}
   header h1{margin:0;font-size:19px;font-weight:600;line-height:1.3;}
   .body{padding:24px;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
-  input[type=text],input[type=number]{
+  input[type=text],input[type=number],select{
     font-size:15px;padding:10px 12px;border:1px solid var(--line);
     border-radius:3px;background:#fdfcfa;color:var(--ink);
   }
@@ -66,13 +68,21 @@
 
 <div class="card">
   <header>
-    <p class="kicker">VORTEX PRODUCTIONS INC.</p>
-    <h1 id="eventTitle">Event Check-In</h1>
+    <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
+    <div>
+      <p class="kicker">VORTEX PRODUCTIONS INC.</p>
+      <h1 id="eventTitle">Event Check-In</h1>
+    </div>
   </header>
   <div class="body" id="formBody">
     <div class="field">
       <label for="eventName">Event / venue</label>
-      <input type="text" id="eventName">
+      <select id="eventName">
+        <option value="" disabled selected>Select a venue…</option>
+        <option value="Real Salt Lake">Real Salt Lake</option>
+        <option value="University of Utah">University of Utah</option>
+        <option value="Salt Lake Bees">Salt Lake Bees</option>
+      </select>
     </div>
     <div class="field">
       <label for="personName">Your name</label>
@@ -102,16 +112,24 @@ const CONTACTS = [
 const CONTACTS_BY_NAME = {};
 CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
 
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbzvRJ6jg3c6BziCOFC119CZREibInXnsqZl7XMRNasryTG8AHWGFfVeQgZco-VCJMgCKQ/exec";
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
 
 document.getElementById('contactsList').innerHTML =
   CONTACTS.map(c => `<option value="${c.name}">`).join('');
 
 const params = new URLSearchParams(window.location.search);
 const eventFromUrl = params.get('event') || '';
-document.getElementById('eventName').value = eventFromUrl;
 if(eventFromUrl){
-  document.getElementById('eventTitle').textContent = eventFromUrl;
+  const eventSelect = document.getElementById('eventName');
+  const match = Array.from(eventSelect.options).find(
+    opt => opt.value.toLowerCase() === eventFromUrl.toLowerCase()
+  );
+  if(match){
+    eventSelect.value = match.value;
+    document.getElementById('eventTitle').textContent = match.value;
+  } else {
+    document.getElementById('eventTitle').textContent = eventFromUrl;
+  }
 }
 
 function autofill(nameInput){

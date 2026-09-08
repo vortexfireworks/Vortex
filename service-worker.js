@@ -7,7 +7,8 @@ const ASSETS = [
   './qr-codes.html',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './logo.jpg'
 ];
 
 self.addEventListener('install', event => {
