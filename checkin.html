@@ -85,6 +85,10 @@
       </select>
     </div>
     <div class="field">
+      <label for="eventDate">Date of event</label>
+      <input type="date" id="eventDate">
+    </div>
+    <div class="field">
       <label for="personName">Your name</label>
       <input type="text" id="personName" list="contactsList" oninput="autofill(this)" autocomplete="off">
       <datalist id="contactsList"></datalist>
@@ -132,6 +136,9 @@ if(eventFromUrl){
   }
 }
 
+const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+document.getElementById('eventDate').value = todayStr;
+
 function autofill(nameInput){
   const match = CONTACTS_BY_NAME[nameInput.value.trim().toLowerCase()];
   if(match){
@@ -158,6 +165,7 @@ function checkIn(){
 
   const payload = {
     event: eventName,
+    eventDate: document.getElementById('eventDate').value,
     name: name,
     license: document.getElementById('personLicense').value.trim(),
     address: document.getElementById('personAddress').value.trim(),
