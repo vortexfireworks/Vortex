@@ -139,7 +139,6 @@
   </div>
 
   <div class="actions">
-    <button class="primary" type="button" onclick="submitPayroll()">Submit payroll</button>
     <button class="secondary" type="button" onclick="emailToChuck()">Email to Chuck (PDF)</button>
     <button class="secondary" type="button" onclick="downloadPayrollPDF()">Download as PDF</button>
     <button class="secondary" type="button" onclick="downloadPayroll()">Download as text file</button>
@@ -294,37 +293,6 @@ function downloadPayroll(){
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-}
-
-function submitPayroll(){
-  const event = document.getElementById('event').value.trim();
-  const eventDate = document.getElementById('eventDate').value.trim();
-  const people = collectPeople();
-  const statusEl = document.getElementById('loadStatus');
-
-  if(!event || people.length === 0){
-    statusEl.textContent = 'Select a venue and add at least one person before submitting.';
-    return;
-  }
-
-  const payload = {
-    recordType: 'payroll',
-    event: event,
-    eventDate: eventDate,
-    entries: people
-  };
-
-  fetch(CHECKIN_API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(payload)
-  }).then(() => {
-    statusEl.textContent = 'Payroll submitted.';
-    statusEl.style.color = 'var(--ok)';
-  }).catch(() => {
-    statusEl.textContent = 'Could not submit — check your connection and try again.';
-    statusEl.style.color = 'var(--brick)';
-  });
 }
 
 function buildPayrollPDF(){
