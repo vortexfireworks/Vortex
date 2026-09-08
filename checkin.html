@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Check-In — Vortex Productions</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1c2b3a">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --navy:#1c2b3a; --brick:#8c3b2e; --brick-light:#b5493a;
+    --paper:#f6f3ec; --card:#ffffff; --line:#d8d2c4;
+    --ink:#20262c; --ink-soft:#5b6470; --ok:#2f6d4f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:var(--paper); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:32px 16px;
+  }
+  .card{
+    max-width:440px; width:100%;
+    background:var(--card); border:1px solid var(--line);
+    border-radius:6px; overflow:hidden;
+  }
+  header{
+    background:var(--navy); color:#f2efe6;
+    padding:22px 24px; border-bottom:4px solid var(--brick);
+  }
+  header .kicker{font-size:11px;letter-spacing:.08em;color:#c9d2da;margin:0 0 4px;}
+  header h1{margin:0;font-size:19px;font-weight:600;line-height:1.3;}
+  .body{padding:24px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text],input[type=number]{
+    font-size:15px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:3px;background:#fdfcfa;color:var(--ink);
+  }
+  input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(28,43,58,0.12);}
+  input[readonly]{background:#eee9dd;color:var(--ink-soft);}
+  button.primary{
+    width:100%; background:var(--brick); color:#fdf6f2; border:none;
+    font-size:15px; font-weight:600; padding:13px 16px; border-radius:3px; cursor:pointer;
+  }
+  button.primary:disabled{opacity:.6;cursor:default;}
+  button.primary:hover:not(:disabled){background:var(--brick-light);}
+  .msg{font-size:13px;margin-top:14px;text-align:center;}
+  .msg.ok{color:var(--ok);}
+  .msg.err{color:var(--brick);}
+  .success{
+    padding:40px 24px;text-align:center;
+  }
+  .success .check{
+    width:56px;height:56px;border-radius:50%;background:var(--ok);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:28px;margin:0 auto 16px;
+  }
+  .success h2{margin:0 0 6px;font-size:18px;color:var(--ink);}
+  .success p{margin:0;color:var(--ink-soft);font-size:13.5px;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <header>
+    <p class="kicker">VORTEX PRODUCTIONS INC.</p>
+    <h1 id="eventTitle">Event Check-In</h1>
+  </header>
+  <div class="body" id="formBody">
+    <div class="field">
+      <label for="eventName">Event / venue</label>
+      <input type="text" id="eventName">
+    </div>
+    <div class="field">
+      <label for="personName">Your name</label>
+      <input type="text" id="personName" list="contactsList" oninput="autofill(this)" autocomplete="off">
+      <datalist id="contactsList"></datalist>
+    </div>
+    <div class="field">
+      <label for="personLicense">License number</label>
+      <input type="text" id="personLicense">
+    </div>
+    <div class="field">
+      <label for="personAddress">Address</label>
+      <input type="text" id="personAddress">
+    </div>
+    <div class="field">
+      <label for="personAge">Age</label>
+      <input type="text" id="personAge">
+    </div>
+    <button class="primary" id="submitBtn" onclick="checkIn()">Check in</button>
+    <p class="msg" id="msg"></p>
+  </div>
+</div>
+
+<script>
+const CONTACTS = [
+];
+const CONTACTS_BY_NAME = {};
+CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
+
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbzvRJ6jg3c6BziCOFC119CZREibInXnsqZl7XMRNasryTG8AHWGFfVeQgZco-VCJMgCKQ/exec";
+
+document.getElementById('contactsList').innerHTML =
+  CONTACTS.map(c => `<option value="${c.name}">`).join('');
+
+const params = new URLSearchParams(window.location.search);
+const eventFromUrl = params.get('event') || '';
+document.getElementById('eventName').value = eventFromUrl;
+if(eventFromUrl){
+  document.getElementById('eventTitle').textContent = eventFromUrl;
+}
+
+function autofill(nameInput){
+  const match = CONTACTS_BY_NAME[nameInput.value.trim().toLowerCase()];
+  if(match){
+    document.getElementById('personLicense').value = match.license || '';
+    document.getElementById('personAddress').value = match.address || '';
+    document.getElementById('personAge').value = match.age || '';
+  }
+}
+
+function checkIn(){
+  const eventName = document.getElementById('eventName').value.trim();
+  const name = document.getElementById('personName').value.trim();
+  const msg = document.getElementById('msg');
+
+  if(!eventName || !name){
+    msg.textContent = 'Enter the event and your name before checking in.';
+    msg.className = 'msg err';
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking in…';
+
+  const payload = {
+    event: eventName,
+    name: name,
+    license: document.getElementById('personLicense').value.trim(),
+    address: document.getElementById('personAddress').value.trim(),
+    age: document.getElementById('personAge').value.trim()
+  };
+
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload)
+  }).then(() => {
+    document.getElementById('formBody').innerHTML = `
+      <div class="success">
+        <div class="check">&#10003;</div>
+        <h2>You're checked in</h2>
+        <p>${name} — ${eventName}</p>
+      </div>`;
+  }).catch(() => {
+    msg.textContent = 'Could not check in — check your connection and try again.';
+    msg.className = 'msg err';
+    btn.disabled = false;
+    btn.textContent = 'Check in';
+  });
+}
+</script>
+</body>
+</html>

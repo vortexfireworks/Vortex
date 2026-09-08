@@ -2,6 +2,7 @@ const CACHE_NAME = 'aar-form-v1';
 const ASSETS = [
   './',
   './index.html',
+  './checkin.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Check-In QR Codes — Vortex Productions</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --navy:#1c2b3a; --brick:#8c3b2e; --brick-light:#b5493a;
+    --paper:#f6f3ec; --card:#ffffff; --line:#d8d2c4;
+    --ink:#20262c; --ink-soft:#5b6470;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:20px;margin:0 0 6px;}
+  p.sub{color:var(--ink-soft);font-size:13.5px;margin:0 0 24px;}
+  .setup{
+    background:var(--card);border:1px solid var(--line);border-radius:6px;
+    padding:18px 20px;margin-bottom:28px;
+  }
+  .setup label{font-size:11.5px;color:var(--ink-soft);font-weight:600;display:block;margin-bottom:6px;}
+  .setup input{
+    width:100%;font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:3px;background:#fdfcfa;color:var(--ink);
+  }
+  .setup .hint{font-size:11.5px;color:var(--ink-soft);margin-top:8px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:18px;}
+  .venue-card{
+    background:var(--card);border:1px solid var(--line);border-radius:6px;
+    padding:18px;text-align:center;
+  }
+  .venue-card h2{font-size:14.5px;margin:0 0 12px;color:var(--navy);}
+  .qr-holder{display:flex;justify-content:center;margin-bottom:12px;}
+  .venue-card .link{font-size:11px;color:var(--ink-soft);word-break:break-all;margin-bottom:12px;}
+  button{
+    background:none;border:1px solid var(--line);color:var(--navy);
+    font-size:12.5px;padding:8px 14px;border-radius:3px;cursor:pointer;
+  }
+  button:hover{border-color:var(--navy);}
+  @media print{
+    .setup, .no-print { display:none; }
+    .grid{grid-template-columns:1fr;}
+    .venue-card{page-break-after:always;padding:60px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Event Check-In QR Codes</h1>
+  <p class="sub">Print these and post them at each venue. Scanning one opens the check-in page pre-filled with that event.</p>
+
+  <div class="setup">
+    <label for="baseUrl">Your hosted site's base URL (where checkin.html lives)</label>
+    <input type="text" id="baseUrl" placeholder="https://yourusername.github.io/aar-form/" oninput="renderCodes()">
+    <p class="hint">This should match wherever you host checkin.html — e.g. your GitHub Pages URL. The QR codes below update automatically as you type.</p>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <p class="no-print" style="margin-top:24px;"><button onclick="window.print()">Print this page</button></p>
+</div>
+
+<script>
+const VENUES = ["Real Salt Lake", "University of Utah", "Salt Lake Bees"];
+const qrInstances = {};
+
+function buildGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  VENUES.forEach((venue, i) => {
+    const card = document.createElement('div');
+    card.className = 'venue-card';
+    card.innerHTML = `
+      <h2>${venue}</h2>
+      <div class="qr-holder" id="qr-${i}"></div>
+      <div class="link" id="link-${i}"></div>
+      <button class="no-print" onclick="downloadQr(${i}, '${venue.replace(/'/g,"\\'")}')">Download PNG</button>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function renderCodes(){
+  const base = document.getElementById('baseUrl').value.trim();
+  const cleanBase = base ? (base.endsWith('/') ? base : base + '/') : '';
+
+  VENUES.forEach((venue, i) => {
+    const holder = document.getElementById(`qr-${i}`);
+    const linkEl = document.getElementById(`link-${i}`);
+    holder.innerHTML = '';
+    const url = cleanBase
+      ? `${cleanBase}checkin.html?event=${encodeURIComponent(venue)}`
+      : `checkin.html?event=${encodeURIComponent(venue)} (enter your site URL above)`;
+    linkEl.textContent = url;
+    new QRCode(holder, {
+      text: url,
+      width: 160,
+      height: 160,
+      colorDark: "#1c2b3a",
+      colorLight: "#ffffff"
+    });
+  });
+}
+
+function downloadQr(i, venue){
+  const holder = document.getElementById(`qr-${i}`);
+  const canvas = holder.querySelector('canvas');
+  if(!canvas) return;
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = `QR_${venue.replace(/\s+/g,'_')}.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+buildGrid();
+renderCodes();
+</script>
+</body>
+</html>

@@ -210,12 +210,16 @@
       <div class="field"><label for="license">License number</label><input type="text" id="license"></div>
       <div class="field full">
         <label for="event">Venue</label>
-        <input type="text" id="event" list="eventList" oninput="autofillEventAddress(this)">
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="event" list="eventList" oninput="autofillEventAddress(this)" style="flex:1;">
+          <button type="button" class="secondary" style="padding:8px 14px;white-space:nowrap;" onclick="loadCheckins()">Load check-ins</button>
+        </div>
         <datalist id="eventList">
           <option value="Real Salt Lake">
           <option value="University of Utah">
           <option value="Salt Lake Bees">
         </datalist>
+        <p id="checkinStatus" style="font-size:11.5px;color:var(--ink-soft);font-family:'Helvetica Neue',Arial,sans-serif;margin:6px 0 0;"></p>
       </div>
       <div class="field full"><label for="address">Address and/or location of event or show</label><input type="text" id="address"></div>
       <div class="field"><label for="venue">County</label><input type="text" id="venue"></div>
@@ -328,6 +332,54 @@ const CONTACTS = [
 ];
 const CONTACTS_BY_NAME = {};
 CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
+
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbzvRJ6jg3c6BziCOFC119CZREibInXnsqZl7XMRNasryTG8AHWGFfVeQgZco-VCJMgCKQ/exec";
+
+async function loadCheckins(){
+  const statusEl = document.getElementById('checkinStatus');
+  const eventName = document.getElementById('event').value.trim();
+  if(!eventName){
+    statusEl.textContent = 'Type or select a venue first.';
+    return;
+  }
+  statusEl.textContent = 'Loading check-ins…';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?event=${encodeURIComponent(eventName)}`);
+    if(!res.ok) throw new Error('Request failed');
+    const checkins = await res.json();
+    if(!Array.isArray(checkins) || checkins.length === 0){
+      statusEl.textContent = 'No check-ins found for this venue yet.';
+      return;
+    }
+
+    const existingNames = new Set(
+      Array.from(document.querySelectorAll('#personnelBody .p-name'))
+        .map(el => el.value.trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+    let added = 0, skipped = 0;
+    for(const person of checkins){
+      const nameKey = (person.name || '').trim().toLowerCase();
+      if(!nameKey || existingNames.has(nameKey)) { skipped++; continue; }
+      if(document.querySelectorAll('#personnelBody tr').length >= MAX_ROWS){ skipped++; continue; }
+      addPersonnelRow();
+      const rows = document.querySelectorAll('#personnelBody tr');
+      const row = rows[rows.length - 1];
+      row.querySelector('.p-name').value = person.name || '';
+      row.querySelector('.p-license').value = person.license || '';
+      row.querySelector('.p-address').value = person.address || '';
+      row.querySelector('.p-age').value = person.age || '';
+      existingNames.add(nameKey);
+      added++;
+    }
+    statusEl.textContent = skipped > 0
+      ? `Added ${added} checked-in ${added === 1 ? 'person' : 'people'} (${skipped} skipped — already listed or row limit reached).`
+      : `Added ${added} checked-in ${added === 1 ? 'person' : 'people'}.`;
+  } catch(err){
+    statusEl.textContent = 'Could not load check-ins — check your connection and try again.';
+  }
+}
 
 const MAX_ROWS = 10;
 let personnelCount = 0;
