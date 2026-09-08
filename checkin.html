@@ -62,10 +62,17 @@
   }
   .success h2{margin:0 0 6px;font-size:18px;color:var(--ink);}
   .success p{margin:0;color:var(--ink-soft);font-size:13.5px;}
+  .back-link{
+    display:block; max-width:440px; margin:0 auto 12px; padding:0 4px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
 </style>
 </head>
 <body>
 
+<div style="max-width:440px;width:100%;">
+<a class="back-link" href="index.html">&larr; Back to main menu</a>
 <div class="card">
   <header>
     <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
@@ -109,6 +116,7 @@
     <button class="primary" id="submitBtn" onclick="checkIn()">Check in</button>
     <p class="msg" id="msg"></p>
   </div>
+</div>
 </div>
 
 <script>

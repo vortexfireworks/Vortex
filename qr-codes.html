@@ -42,10 +42,18 @@
     body{background:#fff;}
     .card{border:none;}
     button{display:none;}
+    .back-link{display:none;}
   }
+  .back-link{
+    display:block; max-width:400px; margin:0 auto 12px; padding:0 4px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
 </style>
 </head>
 <body>
+<div style="max-width:400px;width:100%;">
+<a class="back-link" href="index.html">&larr; Back to main menu</a>
 <div class="card">
   <div class="page-header">
     <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
@@ -55,6 +63,7 @@
   <div class="qr-holder" id="qr"></div>
   <div class="link">https://darboe-lgtm.github.io/VortexAAR/checkin.html</div>
   <button type="button" onclick="downloadQr()">Download PNG</button>
+</div>
 </div>
 
 <script>
