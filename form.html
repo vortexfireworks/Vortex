@@ -200,6 +200,34 @@
     <p class="ref">Required under Rules Pursuant to the Utah Fireworks Act R‑710.2.7.19</p>
   </header>
 
+  <div class="section" style="border-bottom:1px solid var(--line);">
+    <button class="secondary" type="button" onclick="toggleOperatorPanel()" id="operatorPanelToggle">Manage operators</button>
+    <div id="operatorPanel" style="display:none;margin-top:16px;">
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 14px;">Add a new operator or update an existing one's license, address, or age. Changes save to the shared operator list and are available for autofill right away.</p>
+
+      <div style="background:#fdfcfa;border:1px solid var(--line);border-radius:4px;padding:14px;margin-bottom:16px;">
+        <p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;">ADD / UPDATE OPERATOR</p>
+        <div class="grid2" style="margin-bottom:10px;">
+          <div class="field">
+            <label for="opEditName">Name</label>
+            <input type="text" id="opEditName" list="operatorDirectoryList" oninput="prefillOperatorEdit(this)">
+          </div>
+          <div class="field"><label for="opEditLicense">License number</label><input type="text" id="opEditLicense"></div>
+          <div class="field full"><label for="opEditAddress">Address</label><input type="text" id="opEditAddress"></div>
+          <div class="field"><label for="opEditAge">Age</label><input type="text" id="opEditAge"></div>
+        </div>
+        <datalist id="operatorDirectoryList"></datalist>
+        <button class="primary" type="button" onclick="saveOperator()" style="padding:9px 16px;">Save operator</button>
+        <span id="operatorSaveStatus" style="font-size:12px;color:var(--ink-soft);margin-left:10px;"></span>
+      </div>
+
+      <p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">CURRENT OPERATORS</p>
+      <div id="operatorListWrap" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:4px;padding:8px 12px;font-size:12.5px;">
+        <p style="color:var(--ink-soft);margin:4px 0;">Loading…</p>
+      </div>
+    </div>
+  </div>
+
   <div class="section">
     <h2>Operator &amp; event</h2>
     <div class="grid2">
@@ -242,6 +270,24 @@
           <option value="Murray City">
           <option value="Ogden Raptors">
           <option value="Farr West">
+          <option value="West Point">
+          <option value="Moab - 4th of July">
+          <option value="Dutch John">
+          <option value="Weber State University">
+          <option value="Draper City">
+          <option value="Bountiful City">
+          <option value="American Fork City">
+          <option value="Lehi City">
+          <option value="Springville City">
+          <option value="West Valley City (West Fest)">
+          <option value="Clinton City">
+          <option value="Thanksgiving Point Waterfall Concert">
+          <option value="Dugway City">
+          <option value="Taylorsville - Thursday">
+          <option value="Taylorsville - Friday">
+          <option value="Taylorsville - Saturday">
+          <option value="Olympus High School">
+          <option value="Moab - Music Festival">
         </datalist>
         <p id="checkinStatus" style="font-size:11.5px;color:var(--ink-soft);font-family:'Helvetica Neue',Arial,sans-serif;margin:6px 0 0;"></p>
       </div>
@@ -359,6 +405,116 @@ CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
 
 const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
 
+let operatorDirectoryLoaded = false;
+
+async function fetchOperatorDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=contacts`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetContacts = await res.json();
+    if(Array.isArray(sheetContacts)){
+      sheetContacts.forEach(c => {
+        if(!c.name) return;
+        CONTACTS_BY_NAME[c.name.trim().toLowerCase()] = {
+          name: c.name.trim(),
+          license: c.license || '',
+          address: c.address || '',
+          age: c.age || ''
+        };
+      });
+    }
+  } catch(err){
+    // fall back silently to the built-in contact list
+  } finally {
+    operatorDirectoryLoaded = true;
+    populateDatalist();
+    renderOperatorList();
+  }
+}
+
+function toggleOperatorPanel(){
+  const panel = document.getElementById('operatorPanel');
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'block' : 'none';
+  if(isHidden && !operatorDirectoryLoaded){
+    fetchOperatorDirectory();
+  } else if(isHidden){
+    renderOperatorList();
+  }
+}
+
+function prefillOperatorEdit(nameInput){
+  const match = CONTACTS_BY_NAME[nameInput.value.trim().toLowerCase()];
+  if(match){
+    document.getElementById('opEditLicense').value = match.license || '';
+    document.getElementById('opEditAddress').value = match.address || '';
+    document.getElementById('opEditAge').value = match.age || '';
+  }
+}
+
+function renderOperatorList(){
+  const wrap = document.getElementById('operatorListWrap');
+  const names = Object.values(CONTACTS_BY_NAME).sort((a,b) => a.name.localeCompare(b.name));
+  if(names.length === 0){
+    wrap.innerHTML = '<p style="color:var(--ink-soft);margin:4px 0;">No operators found.</p>';
+    return;
+  }
+  wrap.innerHTML = names.map(c => `
+    <div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);">
+      <span><strong>${c.name}</strong>${c.license ? ' — ' + c.license : ''}</span>
+      <button class="rm-row" style="font-size:12px;color:var(--navy);" type="button" onclick="loadOperatorIntoEditor('${c.name.replace(/'/g,"\\'")}')">Edit</button>
+    </div>
+  `).join('');
+}
+
+function loadOperatorIntoEditor(name){
+  const match = CONTACTS_BY_NAME[name.toLowerCase()];
+  if(!match) return;
+  document.getElementById('opEditName').value = match.name;
+  document.getElementById('opEditLicense').value = match.license || '';
+  document.getElementById('opEditAddress').value = match.address || '';
+  document.getElementById('opEditAge').value = match.age || '';
+  document.getElementById('opEditName').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function saveOperator(){
+  const statusEl = document.getElementById('operatorSaveStatus');
+  const name = document.getElementById('opEditName').value.trim();
+  const license = document.getElementById('opEditLicense').value.trim();
+  const address = document.getElementById('opEditAddress').value.trim();
+  const age = document.getElementById('opEditAge').value.trim();
+
+  if(!name){
+    statusEl.textContent = 'Enter a name first.';
+    statusEl.style.color = 'var(--brick)';
+    return;
+  }
+
+  statusEl.textContent = 'Saving…';
+  statusEl.style.color = 'var(--ink-soft)';
+
+  const payload = { recordType: 'contact', name, license, address, age };
+
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload)
+  }).then(() => {
+    CONTACTS_BY_NAME[name.toLowerCase()] = { name, license, address, age };
+    populateDatalist();
+    renderOperatorList();
+    statusEl.textContent = 'Saved.';
+    statusEl.style.color = 'var(--ok)';
+    document.getElementById('opEditName').value = '';
+    document.getElementById('opEditLicense').value = '';
+    document.getElementById('opEditAddress').value = '';
+    document.getElementById('opEditAge').value = '';
+  }).catch(() => {
+    statusEl.textContent = 'Could not save — check your connection and try again.';
+    statusEl.style.color = 'var(--brick)';
+  });
+}
+
 async function loadCheckins(){
   const statusEl = document.getElementById('checkinStatus');
   const eventName = document.getElementById('event').value.trim();
@@ -421,10 +577,13 @@ const MAX_ROWS = 10;
 let personnelCount = 0;
 
 function populateDatalist(){
+  const merged = Object.values(CONTACTS_BY_NAME);
   const dl = document.getElementById('contactsList');
-  dl.innerHTML = CONTACTS.map(c => `<option value="${c.name}">`).join('');
+  dl.innerHTML = merged.map(c => `<option value="${c.name}">`).join('');
   const ldl = document.getElementById('licensedContactsList');
-  ldl.innerHTML = CONTACTS.filter(c => c.license && c.license.trim()).map(c => `<option value="${c.name}">`).join('');
+  ldl.innerHTML = merged.filter(c => c.license && c.license.trim()).map(c => `<option value="${c.name}">`).join('');
+  const odl = document.getElementById('operatorDirectoryList');
+  if(odl) odl.innerHTML = merged.map(c => `<option value="${c.name}">`).join('');
 }
 
 function autofillOperator(nameInput){
@@ -472,6 +631,7 @@ populateDatalist();
 addPersonnelRow();
 addPersonnelRow();
 addPersonnelRow();
+fetchOperatorDirectory();
 
 const sigCanvas = document.getElementById('sigPad');
 const sigCtx = sigCanvas.getContext('2d');
@@ -570,7 +730,25 @@ const VENUE_INFO = {
   "magna - day 2": { address: "8975 W 2600 S, Magna, UT 84044", county: "Salt Lake" },
   "murray city": { address: "296 E Murray Park Ave, Murray, UT 84107", county: "Salt Lake" },
   "ogden raptors": { address: "2330 Lincoln Ave, Ogden, UT 84401", county: "Weber" },
-  "farr west": { address: "2500 W 4000 N St, Farr West, UT 84404", county: "Weber" }
+  "farr west": { address: "2500 W 4000 N St, Farr West, UT 84404", county: "Weber" },
+  "west point": { address: "683 N 3500 W, West Point, UT 84015", county: "Davis" },
+  "moab - 4th of july": { address: "680 S Mill Creek Dr, Moab, UT 84532", county: "Grand" },
+  "dutch john": { address: "1050 S Blvd, Dutch John, UT 84023", county: "Daggett" },
+  "weber state university": { address: "3848 Harrison Blvd, Ogden, UT 84408", county: "Weber" },
+  "draper city": { address: "1020 Pioneer Rd, Draper, UT 84020", county: "Salt Lake" },
+  "bountiful city": { address: "1077 E 1500 S, Bountiful, UT 84010", county: "Davis" },
+  "american fork city": { address: "1000 N 550 E St, American Fork, UT 84003", county: "Utah" },
+  "lehi city": { address: "601 W 3200 N, Lehi, UT 84043", county: "Utah" },
+  "springville city": { address: "1205 E 900 S, Springville, UT 84663", county: "Utah" },
+  "west valley city (west fest)": { address: "5405 W 3100 S, West Valley City, UT 84120", county: "Salt Lake" },
+  "clinton city": { address: "2000 N 2750 W, Clinton, UT 84015", county: "Davis" },
+  "thanksgiving point waterfall concert": { address: "3003 N Thanksgiving Way, Lehi, UT 84043", county: "" },
+  "dugway city": { address: "", county: "" },
+  "taylorsville - thursday": { address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
+  "taylorsville - friday": { address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
+  "taylorsville - saturday": { address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
+  "olympus high school": { address: "4055 S 2300 E, Holladay, UT 84124", county: "Salt Lake" },
+  "moab - music festival": { address: "58 E 300 S, Moab, UT 84532", county: "Grand" }
 };
 
 function autofillEventAddress(eventInput){
