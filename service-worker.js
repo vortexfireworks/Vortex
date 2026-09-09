@@ -7,6 +7,7 @@ const ASSETS = [
   './qr-codes.html',
   './payroll.html',
   './manage.html',
+  './hp-tools.html',
   './operators.html',
   './venues.html',
   './manifest.json',

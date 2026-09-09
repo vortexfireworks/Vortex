@@ -125,6 +125,12 @@
         <input type="date" id="eventDate">
       </div>
     </div>
+    <div class="field" style="margin-top:14px;">
+      <label for="headPyro">Head Pyro (HP)</label>
+      <select id="headPyro">
+        <option value="">Select a person…</option>
+      </select>
+    </div>
     <button class="secondary" type="button" onclick="loadFromCheckins()">Load people who checked in</button>
     <p class="status" id="loadStatus"></p>
   </div>
@@ -159,17 +165,21 @@
   </div>
 
   <div class="actions">
-    <button class="secondary" type="button" onclick="emailToChuck()">Email to Chuck (PDF)</button>
+    <button class="secondary" type="button" onclick="emailToChuck()">Email to Chuck (cc Vortex)</button>
+    <button class="secondary" type="button" onclick="emailToVortex()">Email to Vortex</button>
     <button class="secondary" type="button" onclick="downloadPayrollPDF()">Download as PDF</button>
-    <button class="secondary" type="button" onclick="downloadPayroll()">Download as text file</button>
   </div>
-  <p style="padding:0 24px 20px;font-size:11.5px;color:var(--ink-soft);">"Email to Chuck" opens your email app addressed to chuckj@xmission.com with the payroll summary — since a web page can't attach files to an email automatically, it also downloads the PDF for you to attach yourself before sending.</p>
+  <p style="padding:0 24px 20px;font-size:11.5px;color:var(--ink-soft);">Both email buttons open your email app with the payroll summary in the body and address it for you — "Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. Since a web page can't attach files automatically, each also downloads the PDF for you to attach yourself before sending.</p>
 </div>
 
 <script>
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const CONTACTS = [
+];
 
 const CONTACTS_BY_NAME = {};
+CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
+
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
 
 async function fetchOperatorDirectory(){
   try{
@@ -192,8 +202,20 @@ async function fetchOperatorDirectory(){
   }
   const dl = document.getElementById('operatorDirectoryList');
   if(dl) dl.innerHTML = Object.values(CONTACTS_BY_NAME).map(c => `<option value="${c.name}">`).join('');
+  populateHeadPyroSelect();
 }
 fetchOperatorDirectory();
+
+function populateHeadPyroSelect(){
+  const select = document.getElementById('headPyro');
+  const currentValue = select.value;
+  const sorted = Object.values(CONTACTS_BY_NAME)
+    .filter(c => c.license && c.license.trim())
+    .sort((a,b) => a.name.localeCompare(b.name));
+  select.innerHTML = '<option value="">Select a person…</option>' +
+    sorted.map(c => `<option value="${c.name.replace(/"/g,'&quot;')}">${c.name}</option>`).join('');
+  if(currentValue) select.value = currentValue;
+}
 
 async function fetchVenueDirectory(){
   try{
@@ -286,11 +308,14 @@ function showVenueAddress(){
   addressEl.textContent = match ? `${match.address} · ${match.county} County` : '';
 }
 
-function addPersonRow(name, address){
+function addPersonRow(name, address, checkInTime){
   const tbody = document.getElementById('peopleBody');
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input type="text" class="p-name" value="${name ? name.replace(/"/g,'&quot;') : ''}" list="operatorDirectoryList" oninput="onNameEdit(this)"></td>
+    <td>
+      <input type="text" class="p-name" value="${name ? name.replace(/"/g,'&quot;') : ''}" list="operatorDirectoryList" oninput="onNameEdit(this)">
+      <div class="checkin-time" style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;${checkInTime ? '' : 'display:none;'}">${checkInTime ? 'Checked in ' + checkInTime : ''}</div>
+    </td>
     <td><input type="text" class="p-address" value="${address ? address.replace(/"/g,'&quot;') : ''}"></td>
     <td><input type="number" class="p-amount" min="0" step="1" oninput="onAmountEdit()"></td>
     <td><button class="rm-row" type="button" onclick="this.closest('tr').remove(); recalculate();" aria-label="Remove">&times;</button></td>
@@ -307,6 +332,25 @@ function onNameEdit(nameInput){
     const addressField = row.querySelector('.p-address');
     if(!addressField.value.trim()) addressField.value = match.address || '';
   }
+}
+
+function formatCheckInTime(timestamp){
+  if(!timestamp) return '';
+  const d = new Date(timestamp);
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+}
+
+function formatManualTime(timeStr){
+  if(!timeStr) return '';
+  const parts = timeStr.split(':');
+  if(parts.length < 2) return '';
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1];
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  if(hours === 0) hours = 12;
+  return `${hours}:${minutes} ${ampm}`;
 }
 
 async function loadFromCheckins(){
@@ -341,7 +385,8 @@ async function loadFromCheckins(){
       seen.add(key);
       const directoryMatch = CONTACTS_BY_NAME[key];
       const address = p.address || (directoryMatch ? directoryMatch.address : '') || '';
-      addPersonRow(p.name, address);
+      const checkInTime = p.checkInTime ? formatManualTime(p.checkInTime) : formatCheckInTime(p.timestamp);
+      addPersonRow(p.name, address, checkInTime);
     });
     statusEl.textContent = `Loaded ${seen.size} ${seen.size === 1 ? 'person' : 'people'} from check-ins.`;
     recalculate();
@@ -408,6 +453,7 @@ function collectPeople(){
   return Array.from(document.querySelectorAll('#peopleBody tr')).map(row => ({
     name: row.querySelector('.p-name').value.trim(),
     address: row.querySelector('.p-address').value.trim(),
+    checkInTime: (row.querySelector('.checkin-time')?.textContent || '').replace('Checked in ', '').trim(),
     amount: parseFloat(row.querySelector('.p-amount').value) || 0
   })).filter(p => p.name);
 }
@@ -423,28 +469,15 @@ function buildPayrollText(){
   lines.push(`Venue: ${event || '(not selected)'}`);
   if(venueInfo) lines.push(`Address: ${venueInfo.address} (${venueInfo.county} County)`);
   lines.push(`Date of event: ${eventDate || '(not set)'}`);
+  lines.push(`Head Pyro (HP): ${document.getElementById('headPyro').value || '(not selected)'}`);
   lines.push(`Total payroll: $${total || '0'}`);
   lines.push('');
   lines.push('Payments:');
-  people.forEach(p => lines.push(`  - ${p.name}${p.address ? ' (' + p.address + ')' : ''}: $${p.amount.toLocaleString()}`));
+  people.forEach(p => lines.push(`  - ${p.name}${p.checkInTime ? ' [checked in ' + p.checkInTime + ']' : ''}${p.address ? ' (' + p.address + ')' : ''}: $${p.amount.toLocaleString()}`));
   const sum = people.reduce((a,p) => a + p.amount, 0);
   lines.push('');
   lines.push(`Sum of payments: $${sum.toLocaleString()}`);
   return lines.join('\n');
-}
-
-function downloadPayroll(){
-  const text = buildPayrollText();
-  const blob = new Blob([text], {type:'text/plain'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
-  a.href = url;
-  a.download = `Payroll_${eventName}.txt`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
 }
 
 function buildPayrollPDF(){
@@ -484,6 +517,12 @@ function buildPayrollPDF(){
     y += 6;
   }
 
+  const headPyro = document.getElementById('headPyro').value.trim();
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+  doc.text('HEAD PYRO (HP)', marginX, y); y += 13;
+  doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
+  doc.text(headPyro || '(not selected)', marginX, y); y += 22;
+
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
   doc.text('TOTAL PAYROLL', marginX, y); y += 13;
   doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
@@ -505,7 +544,15 @@ function buildPayrollPDF(){
       doc.text(addrLines[0], marginX + 160, y);
     }
     doc.text(`$${p.amount.toLocaleString()}`, pageWidth - marginX - 60, y);
-    y += 16;
+    if(p.checkInTime){
+      y += 11;
+      doc.setFontSize(8); doc.setTextColor(91,100,112);
+      doc.text(`Checked in ${p.checkInTime}`, marginX, y);
+      doc.setFontSize(10); doc.setTextColor(20,26,32);
+      y += 12;
+    } else {
+      y += 16;
+    }
   });
 
   y += 8;
@@ -543,7 +590,25 @@ function emailToChuck(){
   const eventDate = document.getElementById('eventDate').value.trim();
   const subject = `Payroll - ${event || 'Event'}${eventDate ? ' - ' + eventDate : ''}`;
   const body = buildPayrollText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
-  const mailto = `mailto:chuckj@xmission.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const mailto = `mailto:chuckj@xmission.com?cc=vortexfireworksartists@gmail.com&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+}
+
+function emailToVortex(){
+  const people = collectPeople();
+  if(people.length === 0){
+    alert('Add at least one person before emailing.');
+    return;
+  }
+  const doc = buildPayrollPDF();
+  const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
+  doc.save(`Payroll_${eventName}.pdf`);
+
+  const event = document.getElementById('event').value.trim();
+  const eventDate = document.getElementById('eventDate').value.trim();
+  const subject = `Payroll - ${event || 'Event'}${eventDate ? ' - ' + eventDate : ''}`;
+  const body = buildPayrollText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
+  const mailto = `mailto:vortexfireworksartists@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
 }
 

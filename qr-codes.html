@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#1c2b3a">
 <link rel="icon" href="icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
     --navy:#1c2b3a; --brick:#8c3b2e; --brick-light:#b5493a;
@@ -23,36 +24,45 @@
     padding:32px 16px;
   }
   .card{
-    max-width:400px; width:100%;
+    max-width:420px; width:100%;
     background:var(--card); border:1px solid var(--line); border-radius:6px;
     padding:28px 24px; text-align:center;
   }
   .page-header{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:18px;}
-  .page-header img{width:48px;height:48px;flex-shrink:0;}
+  .page-header img{width:48px;height:48px;flex-shrink:0;border-radius:6px;}
   .page-header h1{margin:0;font-size:19px;color:var(--navy);}
   p.sub{color:var(--ink-soft);font-size:13px;margin:0 0 20px;line-height:1.5;}
   .qr-holder{display:flex;justify-content:center;margin-bottom:16px;}
   .link{font-size:11.5px;color:var(--ink-soft);word-break:break-all;margin-bottom:20px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;text-align:left;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=date],select{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:3px;background:#fdfcfa;color:var(--ink);width:100%;
+  }
+  input:focus,select:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(28,43,58,0.12);}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
   button{
     background:var(--brick); color:#fdf6f2; border:none;
-    font-size:14px; font-weight:600; padding:11px 20px; border-radius:3px; cursor:pointer;
+    font-size:13.5px; font-weight:600; padding:11px 18px; border-radius:3px; cursor:pointer;
   }
   button:hover{background:var(--brick-light);}
-  @media print{
-    body{background:#fff;}
-    .card{border:none;}
-    button{display:none;}
-    .back-link{display:none;}
-  }
+  button.secondary{background:none;border:1px solid var(--line);color:var(--navy);}
+  button.secondary:hover{border-color:var(--navy);background:none;}
   .back-link{
     display:block; max-width:400px; margin:0 auto 12px; padding:0 4px;
     font-size:12.5px; color:var(--ink-soft); text-decoration:none;
   }
   .back-link:hover{color:var(--navy);}
+  @media print{
+    body{background:#fff;}
+    .card{border:none;}
+    button, .field, .back-link{display:none;}
+  }
 </style>
 </head>
 <body>
-<div style="max-width:400px;width:100%;">
+<div style="max-width:420px;width:100%;">
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 <div class="card">
   <div class="page-header">
@@ -62,20 +72,79 @@
   <p class="sub">Scan to check in to today's event. Print this and post it at the venue.</p>
   <div class="qr-holder" id="qr"></div>
   <div class="link">https://darboe-lgtm.github.io/VortexAAR/checkin.html</div>
-  <button type="button" onclick="downloadQr()">Download PNG</button>
+
+  <div class="field">
+    <label for="pdfVenue">Venue (for the printable flyer)</label>
+    <select id="pdfVenue">
+      <option value="" disabled selected>Select a venue…</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="pdfDate">Date of event</label>
+    <input type="date" id="pdfDate">
+  </div>
+
+  <div class="actions">
+    <button type="button" onclick="downloadQr()">Download PNG</button>
+    <button class="secondary" type="button" onclick="downloadFlyerPDF()">Download flyer as PDF</button>
+  </div>
 </div>
 </div>
 
 <script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
 const CHECKIN_URL = "https://darboe-lgtm.github.io/VortexAAR/checkin.html";
 
-new QRCode(document.getElementById('qr'), {
-  text: CHECKIN_URL,
-  width: 220,
-  height: 220,
-  colorDark: "#1c2b3a",
-  colorLight: "#ffffff"
-});
+function drawRoundedRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function renderQrWithLogo(){
+  const holder = document.getElementById('qr');
+  holder.innerHTML = '';
+  /* eslint-disable no-new */
+  new QRCode(holder, {
+    text: CHECKIN_URL,
+    width: 220,
+    height: 220,
+    colorDark: "#1c2b3a",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  setTimeout(() => {
+    const canvas = holder.querySelector('canvas');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const logo = new Image();
+    logo.onload = () => {
+      const logoSize = canvas.width * 0.22;
+      const x = (canvas.width - logoSize) / 2;
+      const y = (canvas.height - logoSize) / 2;
+      const pad = 6;
+      ctx.fillStyle = '#ffffff';
+      drawRoundedRect(ctx, x - pad, y - pad, logoSize + pad * 2, logoSize + pad * 2, 8);
+      ctx.fill();
+      ctx.save();
+      drawRoundedRect(ctx, x, y, logoSize, logoSize, 6);
+      ctx.clip();
+      ctx.drawImage(logo, x, y, logoSize, logoSize);
+      ctx.restore();
+
+      // Some browsers show a fallback <img> instead of the canvas — keep it in sync
+      const img = holder.querySelector('img');
+      if(img) img.src = canvas.toDataURL('image/png');
+    };
+    logo.src = 'logo.jpg';
+  }, 60);
+}
+renderQrWithLogo();
 
 function downloadQr(){
   const canvas = document.getElementById('qr').querySelector('canvas');
@@ -86,6 +155,108 @@ function downloadQr(){
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+const VENUE_DIRECTORY = {};
+[
+  "Real Salt Lake","University of Utah","Salt Lake Bees","Trailer Loading","Shop Time","Bunker Time",
+  "Hillcrest High School","Jordan High School","Copper Hills High School","Herriman High School",
+  "North Ridge High School","Bee's - Class \"C\" Show","West Jordan High School","American Heritage High School",
+  "Sleepy Ridge","Mountain Ridge High School","Stansbury High School","Bingham High School","Bluffdale City",
+  "Midvale City","Utah Valley University","Southeast Township Days","Magna - Day 1","Magna - Day 2",
+  "Murray City","Ogden Raptors","Farr West","West Point","Moab - 4th of July","Dutch John",
+  "Weber State University","Draper City","Bountiful City","American Fork City","Lehi City","Springville City",
+  "West Valley City (West Fest)","Clinton City","Thanksgiving Point Waterfall Concert","Dugway City",
+  "Taylorsville - Thursday","Taylorsville - Friday","Taylorsville - Saturday","Olympus High School","Moab - Music Festival"
+].forEach(name => { VENUE_DIRECTORY[name.toLowerCase()] = name; });
+
+function populateVenueSelect(){
+  const select = document.getElementById('pdfVenue');
+  const currentValue = select.value;
+  const sortedNames = Object.values(VENUE_DIRECTORY).sort((a,b) => a.localeCompare(b));
+  select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
+    sortedNames.map(name => `<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`).join('');
+  if(currentValue) select.value = currentValue;
+}
+populateVenueSelect();
+
+async function fetchVenueDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetVenues = await res.json();
+    if(Array.isArray(sheetVenues)){
+      sheetVenues.forEach(v => {
+        if(!v.name) return;
+        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = v.name.trim();
+      });
+      populateVenueSelect();
+    }
+  } catch(err){
+    // fall back silently to the built-in venue list
+  }
+}
+fetchVenueDirectory();
+
+function downloadFlyerPDF(){
+  const canvas = document.getElementById('qr').querySelector('canvas');
+  if(!canvas){
+    alert('QR code is still loading — try again in a moment.');
+    return;
+  }
+  const venue = document.getElementById('pdfVenue').value;
+  const dateVal = document.getElementById('pdfDate').value;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit: 'pt', format: 'letter'});
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let y = 90;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(28, 43, 58);
+  doc.text('Event Check-In', pageWidth / 2, y, {align: 'center'});
+  y += 28;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(91, 100, 112);
+  doc.text('Scan the code below to check in', pageWidth / 2, y, {align: 'center'});
+  y += 40;
+
+  const qrSize = 260;
+  const qrX = (pageWidth - qrSize) / 2;
+  const qrImg = canvas.toDataURL('image/png');
+  doc.addImage(qrImg, 'PNG', qrX, y, qrSize, qrSize);
+  y += qrSize + 36;
+
+  if(venue){
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(28, 43, 58);
+    doc.text(venue, pageWidth / 2, y, {align: 'center'});
+    y += 22;
+  }
+  if(dateVal){
+    const [yyyy, mm, dd] = dateVal.split('-');
+    const displayDate = `${mm}/${dd}/${yyyy}`;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(13);
+    doc.setTextColor(91, 100, 112);
+    doc.text(displayDate, pageWidth / 2, y, {align: 'center'});
+    y += 20;
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(91, 100, 112);
+  doc.text(CHECKIN_URL, pageWidth / 2, pageHeight - 50, {align: 'center'});
+  doc.text('Vortex Fireworks Artists', pageWidth / 2, pageHeight - 36, {align: 'center'});
+
+  const namePart = (venue || 'Event').replace(/\s+/g, '_');
+  const datePart = dateVal ? '_' + dateVal : '';
+  doc.save(`CheckIn_Flyer_${namePart}${datePart}.pdf`);
 }
 </script>
 
