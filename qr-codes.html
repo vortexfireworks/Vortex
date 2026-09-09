@@ -33,6 +33,7 @@
   .page-header h1{margin:0;font-size:19px;color:var(--navy);}
   p.sub{color:var(--ink-soft);font-size:13px;margin:0 0 20px;line-height:1.5;}
   .qr-holder{display:flex;justify-content:center;margin-bottom:16px;}
+  .qr-holder canvas, .qr-holder img{width:220px !important;height:220px !important;}
   .link{font-size:11.5px;color:var(--ink-soft);word-break:break-all;margin-bottom:20px;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;text-align:left;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
@@ -111,8 +112,8 @@ function renderQrWithLogo(){
   /* eslint-disable no-new */
   new QRCode(holder, {
     text: CHECKIN_URL,
-    width: 220,
-    height: 220,
+    width: 640,
+    height: 640,
     colorDark: "#1c2b3a",
     colorLight: "#ffffff",
     correctLevel: QRCode.CorrectLevel.H
@@ -127,12 +128,15 @@ function renderQrWithLogo(){
       const logoSize = canvas.width * 0.22;
       const x = (canvas.width - logoSize) / 2;
       const y = (canvas.height - logoSize) / 2;
-      const pad = 6;
+      const pad = canvas.width * 0.018;
+      const cornerRadius = canvas.width * 0.024;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.fillStyle = '#ffffff';
-      drawRoundedRect(ctx, x - pad, y - pad, logoSize + pad * 2, logoSize + pad * 2, 8);
+      drawRoundedRect(ctx, x - pad, y - pad, logoSize + pad * 2, logoSize + pad * 2, cornerRadius + pad);
       ctx.fill();
       ctx.save();
-      drawRoundedRect(ctx, x, y, logoSize, logoSize, 6);
+      drawRoundedRect(ctx, x, y, logoSize, logoSize, cornerRadius);
       ctx.clip();
       ctx.drawImage(logo, x, y, logoSize, logoSize);
       ctx.restore();
