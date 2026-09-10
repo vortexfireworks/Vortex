@@ -114,7 +114,8 @@
     </div>
     <div class="field">
       <label for="personPhone">Phone number</label>
-      <input type="text" id="personPhone">
+      <input type="text" id="personPhone" oninput="checkPhoneMatch()">
+      <p style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">Enter the phone number on file to auto-fill your license, address, and age.</p>
     </div>
     <div class="field">
       <label for="personAddress">Address</label>
@@ -131,15 +132,25 @@
 </div>
 
 <script>
-const CONTACTS = [
-];
-const CONTACTS_BY_NAME = {};
-CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
-
 const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
 
-document.getElementById('contactsList').innerHTML =
-  CONTACTS.map(c => `<option value="${c.name}">`).join('');
+// Only names are ever kept in the browser — license/address/age/phone are
+// looked up on the server, and only released after a matching phone number
+// is entered for that exact name. See checkPhoneMatch().
+async function fetchNameList(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=names`);
+    if(!res.ok) throw new Error('Request failed');
+    const names = await res.json();
+    if(Array.isArray(names)){
+      document.getElementById('contactsList').innerHTML =
+        names.map(n => `<option value="${String(n).replace(/"/g,'&quot;')}">`).join('');
+    }
+  } catch(err){
+    // fall back silently — manual entry still works even if this fails
+  }
+}
+fetchNameList();
 
 const VENUE_DIRECTORY = {};
 [
@@ -167,31 +178,6 @@ function populateVenueSelect(){
   }
 }
 populateVenueSelect();
-
-async function fetchOperatorDirectory(){
-  try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=contacts`);
-    if(!res.ok) throw new Error('Request failed');
-    const sheetContacts = await res.json();
-    if(Array.isArray(sheetContacts)){
-      sheetContacts.forEach(c => {
-        if(!c.name) return;
-        CONTACTS_BY_NAME[c.name.trim().toLowerCase()] = {
-          name: c.name.trim(),
-          license: c.license || '',
-          phone: c.phone || '',
-          address: c.address || '',
-          age: c.age || ''
-        };
-      });
-      document.getElementById('contactsList').innerHTML =
-        Object.values(CONTACTS_BY_NAME).map(c => `<option value="${c.name}">`).join('');
-    }
-  } catch(err){
-    // fall back silently to the built-in contact list
-  }
-}
-fetchOperatorDirectory();
 
 function applyEventFromUrl(){
   const params = new URLSearchParams(window.location.search);
@@ -236,11 +222,55 @@ const nowTimeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minu
 document.getElementById('checkInTime').value = nowTimeStr;
 
 function autofill(nameInput){
-  const match = CONTACTS_BY_NAME[nameInput.value.trim().toLowerCase()];
-  if(match){
-    document.getElementById('personLicense').value = match.license || '';
-    document.getElementById('personPhone').value = match.phone || '';
-    document.getElementById('personAddress').value = match.address || '';
+  // Don't reveal license/address/age just from typing a name.
+  // Those only unlock once the correct phone number is entered below.
+  document.getElementById('personLicense').value = '';
+  document.getElementById('personAddress').value = '';
+  document.getElementById('personAge').value = '';
+  checkPhoneMatch();
+}
+
+function normalizePhoneDigits(str){
+  return (str || '').replace(/\D/g, '');
+}
+
+let phoneCheckTimer = null;
+let phoneCheckToken = 0;
+
+function checkPhoneMatch(){
+  clearTimeout(phoneCheckTimer);
+  const enteredPhone = normalizePhoneDigits(document.getElementById('personPhone').value);
+  if(enteredPhone.length < 7){
+    document.getElementById('personLicense').value = '';
+    document.getElementById('personAddress').value = '';
+    document.getElementById('personAge').value = '';
+    return;
+  }
+  phoneCheckTimer = setTimeout(verifyPhoneWithServer, 450);
+}
+
+async function verifyPhoneWithServer(){
+  const name = document.getElementById('personName').value.trim();
+  const phone = document.getElementById('personPhone').value.trim();
+  if(!name || !phone) return;
+  const myToken = ++phoneCheckToken;
+  try{
+    const url = `${CHECKIN_API_URL}?type=verifyPerson&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`;
+    const res = await fetch(url);
+    if(!res.ok) return;
+    const data = await res.json();
+    if(myToken !== phoneCheckToken) return; // a newer keystroke already superseded this check
+    if(data && data.verified){
+      document.getElementById('personLicense').value = data.license || '';
+      document.getElementById('personAddress').value = data.address || '';
+      document.getElementById('personAge').value = data.age || '';
+    } else {
+      document.getElementById('personLicense').value = '';
+      document.getElementById('personAddress').value = '';
+      document.getElementById('personAge').value = '';
+    }
+  } catch(err){
+    // silent fail — the person can still fill everything in manually
   }
 }
 
