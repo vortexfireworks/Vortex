@@ -8,6 +8,7 @@ const ASSETS = [
   './payroll.html',
   './manage.html',
   './hp-tools.html',
+  './new-hire.html',
   './operators.html',
   './venues.html',
   './manifest.json',

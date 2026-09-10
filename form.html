@@ -370,7 +370,7 @@
     <button class="secondary" type="button" onclick="downloadSignature()">Download signature image</button>
   </div>
   <p class="footer-note">Office of the State Fire Marshal · 410 W. 9800 South, Suite 372, Sandy, UT 84070 · 801‑256‑2390 · fireworks@utah.gov<br>
-  "Email to state fire marshal" opens your email app with this report filled into a new message addressed to fireworks@utah.gov — review it and hit send there.</p>
+  "Email to state fire marshal" addresses a message to fireworks@utah.gov (CC: Chuck &amp; Vortex). On phones that support it, this opens your share sheet with the actual PDF ready to attach — just pick Mail. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -678,8 +678,7 @@ function autofillEventAddress(eventInput){
   }
 }
 
-function exportPDF(){
-  if(!validate()) return;
+function buildReportPDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'letter'});
   const marginX = 40;
@@ -802,6 +801,12 @@ function exportPDF(){
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(91,100,112);
   doc.text('Office of the State Fire Marshal  \u00b7  410 W. 9800 South, Suite 372, Sandy, UT 84070  \u00b7  801-256-2390  \u00b7  fireworks@utah.gov', marginX, pageHeight - 30);
 
+  return doc;
+}
+
+function exportPDF(){
+  if(!validate()) return;
+  const doc = buildReportPDF();
   const opNameFile = (val('opName') || 'report').replace(/\s+/g,'_');
   doc.save(`AAR_${opNameFile}.pdf`);
 }
@@ -873,12 +878,39 @@ function validate(){
   return true;
 }
 
-function sendReport(){
+async function sendReport(){
   if(!validate()) return;
-  const body = buildReportText();
   const opName = document.getElementById('opName').value.trim();
   const eventDate = document.getElementById('eventDate').value.trim();
   const subject = `After-Action Report - ${opName} - ${eventDate}`;
+  const opNameFile = (opName || 'report').replace(/\s+/g,'_');
+  const fileName = `AAR_${opNameFile}.pdf`;
+
+  const doc = buildReportPDF();
+  const pdfBlob = doc.output('blob');
+
+  // Try the device's native share sheet first — this can attach the real PDF
+  // to Mail (or any app) on supported browsers, unlike a mailto: link.
+  if(navigator.canShare){
+    try{
+      const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
+      if(navigator.canShare({files: [file]})){
+        await navigator.share({
+          files: [file],
+          title: subject,
+          text: subject
+        });
+        return;
+      }
+    } catch(err){
+      if(err && err.name === 'AbortError') return; // user cancelled the share sheet
+      // otherwise fall through to the mailto fallback below
+    }
+  }
+
+  // Fallback: download the PDF and open a plain-text email addressed and ready to go
+  doc.save(fileName);
+  const body = buildReportText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
   const mailto = `mailto:fireworks@utah.gov?cc=chuckj@xmission.com,vortexfireworksartists@gmail.com&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
 }

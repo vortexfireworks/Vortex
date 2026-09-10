@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Hire Documents — Vortex Productions</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1c2b3a">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#1c2b3a; --brick:#8c3b2e; --brick-light:#b5493a;
+    --paper:#f6f3ec; --card:#ffffff; --line:#d8d2c4;
+    --ink:#20262c; --ink-soft:#5b6470; --ok:#2f6d4f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+  .back-link{
+    display:block; margin:0 0 18px; font-size:12.5px;
+    color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:26px;}
+  header img{width:52px;height:52px;flex-shrink:0;border-radius:8px;}
+  .kicker{font-size:11px;letter-spacing:.08em;color:var(--ink-soft);margin:0 0 4px;font-weight:600;}
+  h1{margin:0;font-size:21px;color:var(--navy);}
+  .section{
+    background:var(--card); border:1px solid var(--line); border-radius:6px;
+    padding:22px 24px; margin-bottom:20px;
+  }
+  .section h2{font-size:14px;font-weight:600;color:var(--brick);margin:0 0 6px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;line-height:1.5;}
+  .doc-link{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:#fdfcfa; border:1px solid var(--line); border-radius:5px;
+    padding:14px 16px; text-decoration:none; color:inherit;
+    margin-bottom:10px; transition:border-color .15s;
+  }
+  .doc-link:hover{border-color:var(--navy);}
+  .doc-link .name{font-weight:600;font-size:14px;color:var(--ink);}
+  .doc-link .sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .doc-link .ext{font-size:13px;color:var(--brick);font-weight:700;flex-shrink:0;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .full{grid-column:1/-1;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text],input[type=email],input[type=tel],input[type=date],textarea{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:3px;background:#fdfcfa;color:var(--ink);font-family:inherit;
+  }
+  textarea{resize:vertical;min-height:70px;}
+  input:focus,textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(28,43,58,0.12);}
+  .radiorow{display:flex;gap:18px;flex-wrap:wrap;margin-top:2px;}
+  .radiorow label{display:flex;align-items:center;gap:6px;font-weight:400;color:var(--ink);font-size:13.5px;}
+  .radiorow input{width:auto;}
+  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;}
+  button{
+    background:var(--brick); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:600; padding:11px 18px; border-radius:3px; cursor:pointer;
+  }
+  button:hover{background:var(--brick-light);}
+  button.secondary{background:none;border:1px solid var(--line);color:var(--navy);}
+  button.secondary:hover{border-color:var(--navy);background:none;}
+  .status{font-size:12px;color:var(--ink-soft);margin-top:10px;}
+  .note{font-size:11.5px;color:var(--ink-soft);margin-top:12px;line-height:1.5;}
+  @media(max-width:480px){
+    .grid2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back-link" href="index.html">&larr; Back to main menu</a>
+  <header>
+    <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
+    <div>
+      <p class="kicker">VORTEX PRODUCTIONS INC.</p>
+      <h1>New Hire Documents</h1>
+    </div>
+  </header>
+
+  <div class="section">
+    <h2>Required forms</h2>
+    <p class="desc">Download, fill out, and bring these with you (or return them to Vortex) as part of getting set up.</p>
+    <a class="doc-link" href="https://www.irs.gov/pub/irs-pdf/fw4.pdf" target="_blank" rel="noopener">
+      <div>
+        <div class="name">IRS Form W-4</div>
+        <div class="sub">Employee's Withholding Certificate</div>
+      </div>
+      <span class="ext">↗</span>
+    </a>
+    <a class="doc-link" href="https://www.atf.gov/media/22511/download" target="_blank" rel="noopener">
+      <div>
+        <div class="name">ATF Form</div>
+        <div class="sub">Federal explosives/employee documentation</div>
+      </div>
+      <span class="ext">↗</span>
+    </a>
+  </div>
+
+  <div class="section">
+    <h2>Get to know you / experience questionnaire</h2>
+    <p class="desc">Tell us a bit about yourself and your background. Fill this out, then email it straight to Vortex or download a copy.</p>
+
+    <div class="grid2">
+      <div class="field"><label for="nhName">Full name</label><input type="text" id="nhName"></div>
+      <div class="field"><label for="nhDate">Date</label><input type="date" id="nhDate"></div>
+      <div class="field"><label for="nhPhone">Phone number</label><input type="tel" id="nhPhone"></div>
+      <div class="field"><label for="nhEmail">Email</label><input type="email" id="nhEmail"></div>
+    </div>
+
+    <div class="field">
+      <label for="nhHeard">How did you hear about Vortex?</label>
+      <input type="text" id="nhHeard">
+    </div>
+
+    <div class="field">
+      <label for="nhExperience">Fireworks / pyrotechnics experience</label>
+      <textarea id="nhExperience" placeholder="Years of experience, prior roles, any licenses or certifications you hold"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="nhWorkHistory">Relevant work history</label>
+      <textarea id="nhWorkHistory" placeholder="Previous employers or relevant jobs"></textarea>
+    </div>
+
+    <div class="field">
+      <label for="nhAvailability">Availability</label>
+      <textarea id="nhAvailability" placeholder="Days/times you're generally available, including evenings, weekends, and holidays"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Comfortable with physically demanding outdoor work (heavy lifting, heat, long hours)?</label>
+      <div class="radiorow">
+        <label><input type="radio" name="nhPhysical" value="Yes"> Yes</label>
+        <label><input type="radio" name="nhPhysical" value="No"> No</label>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="field"><label for="nhEmergencyName">Emergency contact name</label><input type="text" id="nhEmergencyName"></div>
+      <div class="field"><label for="nhEmergencyPhone">Emergency contact phone</label><input type="tel" id="nhEmergencyPhone"></div>
+    </div>
+
+    <div class="field">
+      <label for="nhMore">Anything else you'd like us to know?</label>
+      <textarea id="nhMore"></textarea>
+    </div>
+
+    <div class="actions">
+      <button type="button" onclick="emailQuestionnaire()">Email to Vortex (PDF)</button>
+      <button class="secondary" type="button" onclick="downloadQuestionnairePDF()">Download as PDF</button>
+    </div>
+    <p class="status" id="nhStatus"></p>
+    <p class="note">On phones that support it, "Email to Vortex" opens your share sheet with the actual PDF ready to attach — just pick Mail. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
+  </div>
+</div>
+
+<script>
+function val(id){ return document.getElementById(id).value.trim(); }
+function radioVal(name){
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '';
+}
+
+function buildQuestionnairePDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'letter'});
+  const marginX = 40;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const contentWidth = pageWidth - marginX * 2;
+  const lineHeight = 14;
+  let y = 50;
+
+  function ensureSpace(extra){
+    if(y + extra > pageHeight - 50){
+      doc.addPage();
+      y = 50;
+    }
+  }
+  function field(label, value){
+    ensureSpace(lineHeight * 2);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(91,100,112);
+    doc.text(label.toUpperCase(), marginX, y); y += 12;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(20,26,32);
+    const lines = doc.splitTextToSize(value || '-', contentWidth);
+    doc.text(lines, marginX, y); y += lines.length * lineHeight + 6;
+  }
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('Vortex Productions Inc.', marginX, y); y += 20;
+  doc.setFontSize(12.5);
+  doc.text('New Hire Questionnaire', marginX, y); y += 26;
+
+  field('Full name', val('nhName'));
+  field('Date', val('nhDate'));
+  field('Phone number', val('nhPhone'));
+  field('Email', val('nhEmail'));
+  field('How did you hear about Vortex?', val('nhHeard'));
+  field('Fireworks / pyrotechnics experience', val('nhExperience'));
+  field('Relevant work history', val('nhWorkHistory'));
+  field('Availability', val('nhAvailability'));
+  field('Comfortable with physically demanding outdoor work?', radioVal('nhPhysical') || '(not answered)');
+  field('Emergency contact name', val('nhEmergencyName'));
+  field('Emergency contact phone', val('nhEmergencyPhone'));
+  field('Anything else?', val('nhMore'));
+
+  return doc;
+}
+
+function downloadQuestionnairePDF(){
+  const name = (val('nhName') || 'new_hire').replace(/\s+/g,'_');
+  const doc = buildQuestionnairePDF();
+  doc.save(`New_Hire_${name}.pdf`);
+}
+
+async function emailQuestionnaire(){
+  const statusEl = document.getElementById('nhStatus');
+  const name = val('nhName');
+  if(!name){
+    statusEl.textContent = 'Enter your name first.';
+    statusEl.style.color = 'var(--brick)';
+    return;
+  }
+
+  const doc = buildQuestionnairePDF();
+  const fileName = `New_Hire_${name.replace(/\s+/g,'_')}.pdf`;
+  const subject = `New Hire Questionnaire - ${name}`;
+  const pdfBlob = doc.output('blob');
+
+  if(navigator.canShare){
+    try{
+      const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
+      if(navigator.canShare({files: [file]})){
+        await navigator.share({ files: [file], title: subject, text: subject });
+        return;
+      }
+    } catch(err){
+      if(err && err.name === 'AbortError') return;
+    }
+  }
+
+  doc.save(fileName);
+  const body = `New hire questionnaire submitted by ${name}.\n\n(PDF copy downloaded separately — please attach it to this email before sending.)`;
+  const mailto = `mailto:vortexfireworksartists@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

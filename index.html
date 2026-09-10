@@ -5,85 +5,226 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vortex Productions — Pyrotechnician Tools</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1c2b3a">
+<meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Pyro Tools">
 <style>
-  :root{
-    --navy:#1c2b3a; --brick:#8c3b2e; --brick-light:#b5493a;
-    --paper:#f6f3ec; --card:#ffffff; --line:#d8d2c4;
-    --ink:#20262c; --ink-soft:#5b6470;
-  }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box;margin:0;padding:0;}
   body{
-    margin:0; min-height:100vh;
-    background:#05060a url("menu-bg.jpg") center center / cover no-repeat fixed;
-    color:var(--ink);
+    min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%);
     font-family:"Helvetica Neue",Arial,sans-serif;
+    color:#f4f1ea;
     display:flex; align-items:flex-start; justify-content:center;
-    padding:40px 16px;
+    padding:48px 16px;
+    overflow-x:hidden;
+    position:relative;
   }
-  .wrap{max-width:480px; width:100%;}
-  header{
-    margin-bottom:28px;display:flex;align-items:center;gap:16px;
-    background:rgba(10,14,20,0.55);
-    border-radius:8px;
-    padding:14px 16px;
-    backdrop-filter:blur(2px);
+  .burst{
+    position:absolute; border-radius:50%;
+    filter: blur(2px);
+    opacity:0.4;
+    pointer-events:none;
   }
-  header img{width:56px;height:56px;flex-shrink:0;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:#d9dee4;margin:0 0 6px;font-weight:600;}
-  header h1{margin:0;font-size:22px;color:#fdfbf6;line-height:1.3;text-shadow:0 1px 4px rgba(0,0,0,0.6);}
+  .v-watermark{
+    position:absolute; top:-30px; right:-50px;
+    width:300px;height:340px;
+    opacity:0.07;
+    background:linear-gradient(160deg, #d92b2b, #ff8c00 30%, #ffd23f 50%, #2f7ec9 75%, #123a63);
+    clip-path:polygon(0 0, 100% 0, 55% 100%, 45% 100%);
+    pointer-events:none;
+    filter:blur(1px);
+  }
+  .wrap{max-width:440px;width:100%;position:relative;z-index:2;}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:104px;height:104px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 18px;
+    box-shadow:0 0 40px rgba(255,140,0,0.35), 0 0 70px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:#0d1220;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:82px;height:82px;border-radius:50%;object-fit:cover;}
+  .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:#ffb98a;font-weight:700;margin-bottom:6px;
+  }
+  h1{
+    font-size:27px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .tagline{
+    font-family:Georgia,"Times New Roman",serif; font-style:italic;
+    font-size:14px; color:#a6acc4; margin-top:6px;
+  }
+  .divider{
+    height:3px;width:64px;margin:22px auto 26px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  .cards{display:flex;flex-direction:column;gap:14px;}
   .card{
-    display:block; background:var(--card); border:1px solid var(--line);
-    border-radius:6px; padding:20px; margin-bottom:14px;
-    text-decoration:none; color:inherit;
-    border-left:4px solid var(--brick);
-    transition:border-color .15s;
+    display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;
+    background:rgba(22,28,48,0.7);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:14px;
+    padding:24px 20px 22px;
+    text-decoration:none;color:inherit;
+    position:relative;
+    backdrop-filter:blur(6px);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    overflow:hidden;
   }
-  .card:hover{border-color:var(--navy);}
-  .card h2{margin:0 0 6px;font-size:16px;color:var(--navy);}
-  .card p{margin:0;font-size:13.5px;color:var(--ink-soft);line-height:1.5;}
-  .section-heading{
-    font-size:11.5px;letter-spacing:.06em;font-weight:600;
-    color:var(--ink-soft);margin:26px 0 10px;text-transform:uppercase;
+  .card::before{
+    content:'';position:absolute;left:16px;right:16px;top:0;height:4px;border-radius:0 0 4px 4px;
+    background:var(--grad);
   }
-  .card .ext{font-size:11px;color:var(--brick);font-weight:600;}
+  .card:hover{transform:translateY(-2px); border-color:rgba(255,255,255,0.16); box-shadow:0 8px 26px rgba(0,0,0,0.35);}
+  .icon-circle{
+    width:52px;height:52px;border-radius:50%;flex-shrink:0;
+    background:var(--grad);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 18px var(--glow);
+  }
+  .icon-circle svg{width:28px;height:28px;}
+  .card h2{font-size:16px;font-weight:700;margin-bottom:2px;color:#f4f1ea;}
+  .card p{font-size:12.5px;color:#a3a9bf;line-height:1.5;max-width:280px;}
+  .card .ext{font-size:12px;color:#ffb98a;font-weight:700;}
+  .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00); --glow:rgba(255,140,0,0.4);}
+  .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63); --glow:rgba(47,126,201,0.4);}
+  .c3{--grad:linear-gradient(135deg,#ff8c00,#ffd23f); --glow:rgba(255,210,63,0.4);}
   footer{
-    margin-top:28px;font-size:11.5px;color:#e7e9ec;text-align:center;
-    text-shadow:0 1px 3px rgba(0,0,0,0.7);
+    margin-top:32px;text-align:center;font-size:11px;color:#6b7290;
+  }
+  footer .brand{
+    font-weight:700;
+    background:linear-gradient(90deg,#ff8c5a,#ff8c00 40%,#5a9de0 80%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
   }
 </style>
 </head>
 <body>
+<div class="burst" style="width:260px;height:260px;top:-70px;left:-70px;background:radial-gradient(circle,#ff8c00 0%,transparent 70%);"></div>
+<div class="burst" style="width:220px;height:220px;top:10px;right:-70px;background:radial-gradient(circle,#2f7ec9 0%,transparent 70%);"></div>
+<div class="burst" style="width:180px;height:180px;bottom:40px;left:-50px;background:radial-gradient(circle,#d92b2b 0%,transparent 70%);"></div>
+<div class="v-watermark"></div>
+
 <div class="wrap">
   <header>
-    <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
-    <div>
-      <p class="kicker">VORTEX PRODUCTIONS INC.</p>
-      <h1>Pyrotechnician Tools</h1>
-    </div>
+    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+    <p class="kicker">Vortex Productions Inc.</p>
+    <h1>Pyrotechnician Tools</h1>
+    <p class="tagline">Fireworks Artists</p>
   </header>
 
-  <a class="card" href="checkin.html">
-    <h2>Check-In</h2>
-    <p>For crew arriving on-site — enter your name to check in to today's event. Usually reached by scanning a venue QR code.</p>
-  </a>
+  <div class="divider"></div>
 
-  <a class="card" href="https://docs.google.com/spreadsheets/d/1ozZ24Xi7LPeMsCVps18pnUwMRZC2KKFf-iz8KkU3Rho/edit?usp=drive_link" target="_blank" rel="noopener">
-    <h2>Sign-Up for a Show <span class="ext">↗</span></h2>
-    <p>Add your name to the sign-up sheet for an upcoming show.</p>
-  </a>
+  <div class="cards">
+    <a class="card c1" href="checkin.html">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+          <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+          <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+          <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+          <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div>
+        <h2>Check-In</h2>
+        <p>For crew arriving on-site — enter your name to check in to today's event. Usually reached by scanning a venue QR code.</p>
+      </div>
+    </a>
 
-  <a class="card" href="hp-tools.html">
-    <h2>HP Tools</h2>
-    <p>After-Action Report, payroll, QR codes, manage operators/venues, and reference links.</p>
-  </a>
+    <a class="card c2" href="https://docs.google.com/spreadsheets/d/1ozZ24Xi7LPeMsCVps18pnUwMRZC2KKFf-iz8KkU3Rho/edit?usp=drive_link" target="_blank" rel="noopener">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+          <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+          <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+          <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+          <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div>
+        <h2>Sign-Up for a Show <span class="ext">↗</span></h2>
+        <p>Add your name to the sign-up sheet for an upcoming show.</p>
+      </div>
+    </a>
 
-  <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>
+    <a class="card c3" href="hp-tools.html">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+          <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+          <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+          <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+          <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div>
+        <h2>HP Tools</h2>
+        <p>After-Action Report, payroll, QR codes, manage operators/venues, and reference links.</p>
+      </div>
+    </a>
+
+    <a class="card c1" href="new-hire.html">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+          <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+          <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+          <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+          <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+          <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div>
+        <h2>New Hire Documents</h2>
+        <p>W-4, ATF form, and a get-to-know-you questionnaire you can fill out and email in.</p>
+      </div>
+    </a>
+  </div>
+
+  <footer><span class="brand">Vortex Fireworks Artists</span> &middot; vortexfireworksartists@gmail.com</footer>
 </div>
 
 <script>

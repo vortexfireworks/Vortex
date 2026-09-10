@@ -127,9 +127,13 @@
     </div>
     <div class="field" style="margin-top:14px;">
       <label for="headPyro">Head Pyro (HP)</label>
-      <select id="headPyro">
+      <select id="headPyro" onchange="recalculate()">
         <option value="">Select a person…</option>
       </select>
+    </div>
+    <div class="field" id="headPyroPayField">
+      <label for="headPyroPay" id="headPyroPayLabel">Head Pyro pay ($)</label>
+      <input type="number" id="headPyroPay" min="0" step="1" oninput="updateSumDisplay()">
     </div>
     <button class="secondary" type="button" onclick="loadFromCheckins()">Load people who checked in</button>
     <p class="status" id="loadStatus"></p>
@@ -139,7 +143,7 @@
     <h2>People &amp; pay</h2>
     <table class="people" id="peopleTable">
       <thead>
-        <tr><th style="width:30%">Name</th><th style="width:40%">Address</th><th style="width:22%">Amount ($)</th><th></th></tr>
+        <tr><th style="width:30%">Name</th><th style="width:40%">Address</th><th style="width:22%" id="amountHeader">Amount ($)</th><th></th></tr>
       </thead>
       <tbody id="peopleBody"></tbody>
     </table>
@@ -148,14 +152,14 @@
   </div>
 
   <div class="section" style="border-bottom:none;">
-    <h2>Total payroll</h2>
+    <h2 id="payrollSectionTitle">Total payroll</h2>
     <div class="field">
-      <label for="totalPayroll">Total amount to divide ($)</label>
+      <label for="totalPayroll" id="totalPayrollLabel">Total amount to divide ($)</label>
       <input type="number" id="totalPayroll" min="0" step="1" oninput="recalculate()">
     </div>
     <div class="checkbox-row">
       <input type="checkbox" id="divideEvenly" onchange="recalculate()">
-      <label for="divideEvenly">Divide evenly between all people</label>
+      <label for="divideEvenly" id="divideEvenlyLabel">Divide evenly between all people</label>
     </div>
     <div class="totals">
       <span>Sum of amounts below:</span>
@@ -169,7 +173,7 @@
     <button class="secondary" type="button" onclick="emailToVortex()">Email to Vortex</button>
     <button class="secondary" type="button" onclick="downloadPayrollPDF()">Download as PDF</button>
   </div>
-  <p style="padding:0 24px 20px;font-size:11.5px;color:var(--ink-soft);">Both email buttons open your email app with the payroll summary in the body and address it for you — "Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. Since a web page can't attach files automatically, each also downloads the PDF for you to attach yourself before sending.</p>
+  <p style="padding:0 24px 20px;font-size:11.5px;color:var(--ink-soft);">"Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach — just pick Mail. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
 </div>
 
 <script>
@@ -306,6 +310,29 @@ function showVenueAddress(){
   const match = VENUE_INFO[venue.toLowerCase()];
   const addressEl = document.getElementById('venueAddress');
   addressEl.textContent = match ? `${match.address} · ${match.county} County` : '';
+  updateModeUI();
+}
+
+function isHoursMode(){
+  const venue = document.getElementById('event').value.trim().toLowerCase();
+  return venue === 'shop time' || venue === 'bunker time';
+}
+
+function updateModeUI(){
+  const hours = isHoursMode();
+  const step = hours ? '0.25' : '1';
+
+  document.getElementById('payrollSectionTitle').textContent = hours ? 'Total hours' : 'Total payroll';
+  document.getElementById('totalPayrollLabel').textContent = hours ? 'Total hours to divide' : 'Total amount to divide ($)';
+  document.getElementById('totalPayroll').step = step;
+  document.getElementById('divideEvenlyLabel').textContent = hours ? 'Divide hours evenly between all people' : 'Divide evenly between all people';
+  document.getElementById('amountHeader').textContent = hours ? 'Hours' : 'Amount ($)';
+  document.getElementById('headPyroPayLabel').textContent = hours ? 'Head Pyro hours' : 'Head Pyro pay ($)';
+  document.getElementById('headPyroPay').step = step;
+
+  document.querySelectorAll('.p-amount').forEach(inp => inp.step = step);
+
+  recalculate();
 }
 
 function addPersonRow(name, address, checkInTime){
@@ -317,7 +344,7 @@ function addPersonRow(name, address, checkInTime){
       <div class="checkin-time" style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;${checkInTime ? '' : 'display:none;'}">${checkInTime ? 'Checked in ' + checkInTime : ''}</div>
     </td>
     <td><input type="text" class="p-address" value="${address ? address.replace(/"/g,'&quot;') : ''}"></td>
-    <td><input type="number" class="p-amount" min="0" step="1" oninput="onAmountEdit()"></td>
+    <td><input type="number" class="p-amount" min="0" step="${isHoursMode() ? '0.25' : '1'}" oninput="onAmountEdit()"></td>
     <td><button class="rm-row" type="button" onclick="this.closest('tr').remove(); recalculate();" aria-label="Remove">&times;</button></td>
   `;
   tbody.appendChild(tr);
@@ -406,45 +433,62 @@ function recalculate(){
   const rows = Array.from(document.querySelectorAll('#peopleBody tr'));
   const divideEvenly = document.getElementById('divideEvenly').checked;
   const amountInputs = rows.map(r => r.querySelector('.p-amount'));
+  const hours = isHoursMode();
 
   if(divideEvenly){
     amountInputs.forEach(inp => inp.readOnly = true);
     const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
-    const totalRounded = Math.round(total);
     const n = rows.length;
     if(n === 0){
       updateSumDisplay();
       return;
     }
-    const base = Math.floor(totalRounded / n);
-    let remainder = totalRounded - base * n;
-    amountInputs.forEach((inp, i) => {
-      const amount = base + (i < remainder ? 1 : 0);
-      inp.value = amount;
-    });
+    if(hours){
+      // Distribute in quarter-hour increments so the sum matches exactly
+      const totalQuarters = Math.round(total * 4);
+      const baseQuarters = Math.floor(totalQuarters / n);
+      let remainder = totalQuarters - baseQuarters * n;
+      amountInputs.forEach((inp, i) => {
+        const quarters = baseQuarters + (i < remainder ? 1 : 0);
+        inp.value = (quarters / 4).toFixed(2).replace(/\.?0+$/, '') || '0';
+      });
+    } else {
+      const totalRounded = Math.round(total);
+      const base = Math.floor(totalRounded / n);
+      let remainder = totalRounded - base * n;
+      amountInputs.forEach((inp, i) => {
+        const amount = base + (i < remainder ? 1 : 0);
+        inp.value = amount;
+      });
+    }
   } else {
     amountInputs.forEach(inp => inp.readOnly = false);
   }
   updateSumDisplay();
 }
 
+function formatUnit(value, hours){
+  return hours ? `${value.toLocaleString(undefined, {maximumFractionDigits: 2})} hrs` : `$${value.toLocaleString()}`;
+}
+
 function updateSumDisplay(){
+  const hours = isHoursMode();
   const amounts = Array.from(document.querySelectorAll('.p-amount')).map(i => parseFloat(i.value) || 0);
   const sum = amounts.reduce((a,b) => a+b, 0);
-  document.getElementById('sumDisplay').textContent = `$${sum.toLocaleString()}`;
+  document.getElementById('sumDisplay').textContent = formatUnit(sum, hours);
 
   const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
-  const totalRounded = Math.round(total);
+  const compareTotal = hours ? total : Math.round(total);
   const matchMsg = document.getElementById('matchMsg');
   if(document.getElementById('totalPayroll').value === ''){
     matchMsg.textContent = '';
     matchMsg.className = 'status';
-  } else if(sum === totalRounded){
-    matchMsg.textContent = `Matches total payroll of $${totalRounded.toLocaleString()}.`;
+  } else if(Math.abs(sum - compareTotal) < 0.01){
+    matchMsg.textContent = `Matches total of ${formatUnit(compareTotal, hours)}.`;
     matchMsg.className = 'status';
     matchMsg.style.color = 'var(--ok)';
   } else {
-    matchMsg.textContent = `Does not match total payroll of $${totalRounded.toLocaleString()} (off by $${Math.abs(sum - totalRounded).toLocaleString()}).`;
+    matchMsg.textContent = `Does not match total of ${formatUnit(compareTotal, hours)} (off by ${formatUnit(Math.abs(sum - compareTotal), hours)}).`;
     matchMsg.style.color = 'var(--brick)';
   }
 }
@@ -464,19 +508,25 @@ function buildPayrollText(){
   const total = document.getElementById('totalPayroll').value.trim();
   const people = collectPeople();
   const venueInfo = VENUE_INFO[event.toLowerCase()];
+  const hours = isHoursMode();
+  const unit = hours ? ' hrs' : '';
+  const prefix = hours ? '' : '$';
+  const headPyroName = document.getElementById('headPyro').value;
+  const headPyroPay = parseFloat(document.getElementById('headPyroPay').value) || 0;
   const lines = [];
   lines.push('PAYROLL SUBMISSION');
   lines.push(`Venue: ${event || '(not selected)'}`);
   if(venueInfo) lines.push(`Address: ${venueInfo.address} (${venueInfo.county} County)`);
   lines.push(`Date of event: ${eventDate || '(not set)'}`);
-  lines.push(`Head Pyro (HP): ${document.getElementById('headPyro').value || '(not selected)'}`);
-  lines.push(`Total payroll: $${total || '0'}`);
+  lines.push(`Head Pyro (HP): ${headPyroName || '(not selected)'}`);
+  if(headPyroName) lines.push(`Head Pyro ${hours ? 'hours' : 'pay'}: ${prefix}${headPyroPay.toLocaleString()}${unit}`);
+  lines.push(`Total ${hours ? 'hours' : 'payroll'}: ${prefix}${total || '0'}${unit}`);
   lines.push('');
   lines.push('Payments:');
-  people.forEach(p => lines.push(`  - ${p.name}${p.checkInTime ? ' [checked in ' + p.checkInTime + ']' : ''}${p.address ? ' (' + p.address + ')' : ''}: $${p.amount.toLocaleString()}`));
+  people.forEach(p => lines.push(`  - ${p.name}${p.checkInTime ? ' [checked in ' + p.checkInTime + ']' : ''}${p.address ? ' (' + p.address + ')' : ''}: ${prefix}${p.amount.toLocaleString()}${unit}`));
   const sum = people.reduce((a,p) => a + p.amount, 0);
   lines.push('');
-  lines.push(`Sum of payments: $${sum.toLocaleString()}`);
+  lines.push(`Sum of payments: ${prefix}${sum.toLocaleString()}${unit}`);
   return lines.join('\n');
 }
 
@@ -493,12 +543,15 @@ function buildPayrollPDF(){
   const people = collectPeople();
   const sum = people.reduce((a,p) => a + p.amount, 0);
   const venueInfo = VENUE_INFO[event.toLowerCase()];
+  const hours = isHoursMode();
+  const unit = hours ? ' hrs' : '';
+  const prefix = hours ? '' : '$';
 
   doc.setFont('helvetica','bold');
   doc.setFontSize(15);
   doc.text('Vortex Productions Inc.', marginX, y); y += 20;
   doc.setFontSize(12.5);
-  doc.text('Payroll Submission', marginX, y); y += 24;
+  doc.text(hours ? 'Hours Submission' : 'Payroll Submission', marginX, y); y += 24;
 
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
   doc.text('VENUE', marginX, y);
@@ -518,15 +571,20 @@ function buildPayrollPDF(){
   }
 
   const headPyro = document.getElementById('headPyro').value.trim();
+  const headPyroPay = parseFloat(document.getElementById('headPyroPay').value) || 0;
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
-  doc.text('HEAD PYRO (HP)', marginX, y); y += 13;
+  doc.text('HEAD PYRO (HP)', marginX, y);
+  doc.text(hours ? 'HP HOURS' : 'HP PAY', marginX + 260, y);
+  y += 13;
   doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
-  doc.text(headPyro || '(not selected)', marginX, y); y += 22;
+  doc.text(headPyro || '(not selected)', marginX, y);
+  if(headPyro) doc.text(`${prefix}${headPyroPay.toLocaleString()}${unit}`, marginX + 260, y);
+  y += 22;
 
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
-  doc.text('TOTAL PAYROLL', marginX, y); y += 13;
+  doc.text(hours ? 'TOTAL HOURS' : 'TOTAL PAYROLL', marginX, y); y += 13;
   doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
-  doc.text(`$${Number(total).toLocaleString()}`, marginX, y); y += 24;
+  doc.text(`${prefix}${Number(total).toLocaleString()}${unit}`, marginX, y); y += 24;
 
   doc.setDrawColor(216,210,196);
   doc.line(marginX, y, pageWidth - marginX, y); y += 18;
@@ -534,7 +592,7 @@ function buildPayrollPDF(){
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
   doc.text('NAME', marginX, y);
   doc.text('ADDRESS', marginX + 160, y);
-  doc.text('AMOUNT', pageWidth - marginX - 60, y);
+  doc.text(hours ? 'HOURS' : 'AMOUNT', pageWidth - marginX - 60, y);
   y += 14;
   doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(20,26,32);
   people.forEach(p => {
@@ -543,7 +601,7 @@ function buildPayrollPDF(){
       const addrLines = doc.splitTextToSize(p.address, pageWidth - marginX - 160 - 70);
       doc.text(addrLines[0], marginX + 160, y);
     }
-    doc.text(`$${p.amount.toLocaleString()}`, pageWidth - marginX - 60, y);
+    doc.text(`${prefix}${p.amount.toLocaleString()}${unit}`, pageWidth - marginX - 60, y);
     if(p.checkInTime){
       y += 11;
       doc.setFontSize(8); doc.setTextColor(91,100,112);
@@ -560,7 +618,7 @@ function buildPayrollPDF(){
   doc.line(marginX, y, pageWidth - marginX, y); y += 18;
   doc.setFont('helvetica','bold'); doc.setFontSize(11);
   doc.text('Total', marginX, y);
-  doc.text(`$${sum.toLocaleString()}`, pageWidth - marginX - 60, y);
+  doc.text(`${prefix}${sum.toLocaleString()}${unit}`, pageWidth - marginX - 60, y);
 
   return doc;
 }
@@ -576,43 +634,58 @@ function downloadPayrollPDF(){
   doc.save(`Payroll_${eventName}.pdf`);
 }
 
-function emailToChuck(){
+async function sharePayrollPDF(toAddress, ccAddress){
   const people = collectPeople();
   if(people.length === 0){
     alert('Add at least one person before emailing.');
     return;
   }
+
   const doc = buildPayrollPDF();
   const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
-  doc.save(`Payroll_${eventName}.pdf`);
-
+  const fileName = `Payroll_${eventName}.pdf`;
   const event = document.getElementById('event').value.trim();
   const eventDate = document.getElementById('eventDate').value.trim();
   const subject = `Payroll - ${event || 'Event'}${eventDate ? ' - ' + eventDate : ''}`;
+
+  const pdfBlob = doc.output('blob');
+
+  // Try the device's native share sheet first — this can attach the real PDF
+  // to Mail (or any app) on supported browsers, unlike a mailto: link.
+  if(navigator.canShare){
+    try{
+      const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
+      if(navigator.canShare({files: [file]})){
+        await navigator.share({
+          files: [file],
+          title: subject,
+          text: subject
+        });
+        return;
+      }
+    } catch(err){
+      if(err && err.name === 'AbortError') return; // user cancelled the share sheet
+      // otherwise fall through to the mailto fallback below
+    }
+  }
+
+  // Fallback: download the PDF and open a plain-text email addressed and ready to go
+  doc.save(fileName);
   const body = buildPayrollText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
-  const mailto = `mailto:chuckj@xmission.com?cc=vortexfireworksartists@gmail.com&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const ccParam = ccAddress ? `&cc=${encodeURIComponent(ccAddress)}` : '';
+  const mailto = `mailto:${encodeURIComponent(toAddress)}?${ccParam ? ccParam.slice(1) + '&' : ''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
+}
+
+function emailToChuck(){
+  sharePayrollPDF('chuckj@xmission.com', 'vortexfireworksartists@gmail.com');
 }
 
 function emailToVortex(){
-  const people = collectPeople();
-  if(people.length === 0){
-    alert('Add at least one person before emailing.');
-    return;
-  }
-  const doc = buildPayrollPDF();
-  const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
-  doc.save(`Payroll_${eventName}.pdf`);
-
-  const event = document.getElementById('event').value.trim();
-  const eventDate = document.getElementById('eventDate').value.trim();
-  const subject = `Payroll - ${event || 'Event'}${eventDate ? ' - ' + eventDate : ''}`;
-  const body = buildPayrollText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
-  const mailto = `mailto:vortexfireworksartists@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href = mailto;
+  sharePayrollPDF('vortexfireworksartists@gmail.com', '');
 }
 
-recalculate();
+updateModeUI();
 </script>
 
 
