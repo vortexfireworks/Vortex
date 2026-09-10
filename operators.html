@@ -242,10 +242,18 @@ function showExistingPhoto(photoUrl){
   }
 }
 
+function lastNameOf(fullName){
+  const cleaned = String(fullName || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const parts = cleaned.split(/\s+/);
+  return parts[parts.length - 1] || fullName;
+}
+
 function renderOperatorList(){
   const wrap = document.getElementById('operatorListWrap');
   const search = document.getElementById('operatorSearch').value.trim().toLowerCase();
-  let names = Object.values(CONTACTS_BY_NAME).sort((a,b) => a.name.localeCompare(b.name));
+  let names = Object.values(CONTACTS_BY_NAME).sort((a,b) =>
+    lastNameOf(a.name).localeCompare(lastNameOf(b.name)) || a.name.localeCompare(b.name)
+  );
   if(search){
     names = names.filter(c => c.name.toLowerCase().includes(search));
   }
