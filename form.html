@@ -470,10 +470,16 @@ async function loadCheckins(){
     for(const person of checkins){
       const nameKey = (person.name || '').trim().toLowerCase();
       if(!nameKey || existingNames.has(nameKey)) { skipped++; continue; }
-      if(document.querySelectorAll('#personnelBody tr').length >= MAX_ROWS){ skipped++; continue; }
-      addPersonnelRow();
-      const rows = document.querySelectorAll('#personnelBody tr');
-      const row = rows[rows.length - 1];
+
+      let row = Array.from(document.querySelectorAll('#personnelBody tr')).find(
+        r => !r.querySelector('.p-name').value.trim()
+      );
+      if(!row){
+        if(document.querySelectorAll('#personnelBody tr').length >= MAX_ROWS){ skipped++; continue; }
+        addPersonnelRow();
+        const rows = document.querySelectorAll('#personnelBody tr');
+        row = rows[rows.length - 1];
+      }
       row.querySelector('.p-name').value = person.name || '';
       row.querySelector('.p-license').value = person.license || '';
       row.querySelector('.p-address').value = person.address || '';
