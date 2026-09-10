@@ -123,6 +123,8 @@
       <div class="field"><label for="nhDate">Date</label><input type="date" id="nhDate"></div>
       <div class="field"><label for="nhPhone">Phone number</label><input type="tel" id="nhPhone"></div>
       <div class="field"><label for="nhEmail">Email</label><input type="email" id="nhEmail"></div>
+      <div class="field"><label for="nhLicense">License number</label><input type="text" id="nhLicense"></div>
+      <div class="field full"><label for="nhAddress">Address</label><input type="text" id="nhAddress"></div>
     </div>
 
     <div class="field">
@@ -213,6 +215,8 @@ function buildQuestionnairePDF(){
   field('Date', val('nhDate'));
   field('Phone number', val('nhPhone'));
   field('Email', val('nhEmail'));
+  field('License number', val('nhLicense'));
+  field('Address', val('nhAddress'));
   field('How did you hear about Vortex?', val('nhHeard'));
   field('Fireworks / pyrotechnics experience', val('nhExperience'));
   field('Relevant work history', val('nhWorkHistory'));
@@ -225,10 +229,33 @@ function buildQuestionnairePDF(){
   return doc;
 }
 
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function syncNewHireToDirectory(){
+  const name = val('nhName');
+  if(!name) return;
+  const payload = {
+    recordType: 'contact',
+    name: name,
+    license: val('nhLicense'),
+    address: val('nhAddress'),
+    phone: val('nhPhone'),
+    age: ''
+  };
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload)
+  }).catch(() => {
+    // if this fails, the questionnaire itself still goes through — this is just a convenience sync
+  });
+}
+
 function downloadQuestionnairePDF(){
   const name = (val('nhName') || 'new_hire').replace(/\s+/g,'_');
   const doc = buildQuestionnairePDF();
   doc.save(`New_Hire_${name}.pdf`);
+  syncNewHireToDirectory();
 }
 
 async function emailQuestionnaire(){
@@ -239,6 +266,8 @@ async function emailQuestionnaire(){
     statusEl.style.color = '#ff6a5a';
     return;
   }
+
+  syncNewHireToDirectory();
 
   const doc = buildQuestionnairePDF();
   const fileName = `New_Hire_${name.replace(/\s+/g,'_')}.pdf`;

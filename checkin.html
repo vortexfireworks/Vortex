@@ -104,6 +104,11 @@
       <input type="time" id="checkInTime">
     </div>
     <div class="field">
+      <label for="personPhone">Phone number</label>
+      <input type="text" id="personPhone" oninput="checkPhoneMatch()">
+      <p style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">Enter the phone number on file to auto-fill your license and address.</p>
+    </div>
+    <div class="field">
       <label for="personName">Your name</label>
       <input type="text" id="personName" list="contactsList" oninput="autofill(this)" autocomplete="off">
       <datalist id="contactsList"></datalist>
@@ -111,11 +116,6 @@
     <div class="field">
       <label for="personLicense">License number</label>
       <input type="text" id="personLicense">
-    </div>
-    <div class="field">
-      <label for="personPhone">Phone number</label>
-      <input type="text" id="personPhone" oninput="checkPhoneMatch()">
-      <p style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">Enter the phone number on file to auto-fill your license, address, and age.</p>
     </div>
     <div class="field">
       <label for="personAddress">Address</label>
