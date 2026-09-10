@@ -5,29 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Manage Venues — Vortex Productions</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1c2b3a">
+<meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
 <style>
   :root{
-    --navy:#1c2b3a; --brick:#8c3b2e; --brick-light:#b5493a;
-    --paper:#f6f3ec; --card:#ffffff; --line:#d8d2c4;
-    --ink:#20262c; --ink-soft:#5b6470; --ok:#2f6d4f;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
   }
   *{box-sizing:border-box;}
   body{
-    margin:0; background:var(--paper); color:var(--ink);
+    margin:0; background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%); color:var(--ink);
     font-family:"Helvetica Neue",Arial,sans-serif;
     padding:32px 16px 80px;
+    min-height:100vh;
   }
-  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
   header{
-    background:var(--navy); color:#f2efe6;
-    padding:22px 24px; border-bottom:4px solid var(--brick);
+    background:rgba(10,14,26,0.5); color:var(--ink);
+    padding:22px 24px; border-bottom:3px solid transparent;
+    border-image:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63) 1;
     display:flex; align-items:center; gap:14px;
   }
-  header img{width:44px;height:44px;flex-shrink:0;border-radius:4px;background:#fff;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:#c9d2da;margin:0 0 4px;}
-  header h1{margin:0;font-size:19px;font-weight:600;}
+  header img{width:44px;height:44px;flex-shrink:0;border-radius:8px;background:#fff;}
+  header .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 4px;font-weight:700;text-transform:uppercase;}
+  header h1{margin:0;font-size:19px;font-weight:700;}
   .section{padding:22px 24px;}
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
@@ -36,21 +39,22 @@
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
   input[type=text]{
     font-size:14px;padding:9px 11px;border:1px solid var(--line);
-    border-radius:3px;background:#fdfcfa;color:var(--ink);
+    border-radius:6px;background:rgba(10,14,26,0.55);color:var(--ink);
   }
-  input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(28,43,58,0.12);}
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
   button.primary{
-    background:var(--brick); color:#fdf6f2; border:none;
-    font-size:14px; font-weight:600; padding:11px 18px; border-radius:3px; cursor:pointer;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
   }
-  button.primary:hover{background:var(--brick-light);}
+  button.primary:hover{filter:brightness(1.1);}
   button.secondary{
     background:none; border:1px solid var(--line); color:var(--navy);
-    font-size:13px; padding:8px 14px; border-radius:3px; cursor:pointer;
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
   }
   button.secondary:hover{border-color:var(--navy);}
   .editor-box{
-    background:#fdfcfa;border:1px solid var(--line);border-radius:4px;
+    background:rgba(10,14,26,0.4);border:1px solid var(--line);border-radius:10px;
     padding:16px;margin-bottom:24px;
   }
   .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
@@ -60,7 +64,7 @@
   .search-box{margin-bottom:10px;}
   #venueListWrap{
     max-height:400px;overflow-y:auto;border:1px solid var(--line);
-    border-radius:4px;padding:6px 14px;font-size:13px;
+    border-radius:8px;padding:6px 14px;font-size:13px;
   }
   .venue-row{
     display:flex;justify-content:space-between;align-items:center;gap:10px;
@@ -71,7 +75,7 @@
   .venue-row .venue-detail{color:var(--ink-soft);font-size:12px;}
   .venue-row button{
     background:none;border:1px solid var(--line);color:var(--navy);
-    font-size:12px;padding:5px 10px;border-radius:3px;cursor:pointer;flex-shrink:0;
+    font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;flex-shrink:0;
   }
   .venue-row button:hover{border-color:var(--navy);}
   @media(max-width:480px){
@@ -267,19 +271,19 @@ function renderVenueList(){
           const key = v.name.toLowerCase().replace(/'/g, "\\'");
           return `
           <tr style="border-bottom:1px solid var(--line);">
-            <td style="padding:6px;font-weight:600;vertical-align:top;">${v.name}</td>
+            <td style="padding:6px;font-weight:600;vertical-align:top;color:var(--ink);">${v.name}</td>
             <td style="padding:6px;vertical-align:top;">
               <input type="text" value="${(v.address || '').replace(/"/g,'&quot;')}"
-                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:3px;background:#fdfcfa;"
+                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:rgba(10,14,26,0.55);color:var(--ink);"
                 oninput="updateVenueField('${key}','address',this.value)">
             </td>
             <td style="padding:6px;vertical-align:top;">
               <input type="text" value="${(v.county || '').replace(/"/g,'&quot;')}"
-                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:3px;background:#fdfcfa;"
+                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:rgba(10,14,26,0.55);color:var(--ink);"
                 oninput="updateVenueField('${key}','county',this.value)">
             </td>
             <td style="padding:6px;vertical-align:top;">
-              <button type="button" style="background:none;border:1px solid var(--line);color:var(--navy);font-size:11.5px;padding:5px 8px;border-radius:3px;cursor:pointer;" onclick="loadVenueIntoEditor('${key}')">Rename</button>
+              <button type="button" style="background:none;border:1px solid var(--line);color:var(--navy);font-size:11.5px;padding:5px 8px;border-radius:6px;cursor:pointer;" onclick="loadVenueIntoEditor('${key}')">Rename</button>
             </td>
           </tr>`;
         }).join('')}

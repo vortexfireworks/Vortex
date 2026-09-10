@@ -5,19 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HP Tools — Vortex Productions</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1c2b3a">
+<meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-  :root{
-    --navy:#1c2b3a; --brick:#8c3b2e; --brick-light:#b5493a;
-    --paper:#f6f3ec; --card:#ffffff; --line:#d8d2c4;
-    --ink:#20262c; --ink-soft:#5b6470;
-  }
   *{box-sizing:border-box;}
   body{
     margin:0; min-height:100vh;
-    background:var(--paper); color:var(--ink);
+    background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%);
+    color:#f4f1ea;
     font-family:"Helvetica Neue",Arial,sans-serif;
     display:flex; align-items:flex-start; justify-content:center;
     padding:40px 16px;
@@ -25,29 +21,41 @@
   .wrap{max-width:480px; width:100%;}
   .back-link{
     display:block; margin:0 0 18px; font-size:12.5px;
-    color:var(--ink-soft); text-decoration:none;
+    color:#a3a9bf; text-decoration:none;
   }
-  .back-link:hover{color:var(--navy);}
+  .back-link:hover{color:#ffb98a;}
   header{margin-bottom:28px;display:flex;align-items:center;gap:16px;}
-  header img{width:56px;height:56px;flex-shrink:0;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:var(--ink-soft);margin:0 0 6px;font-weight:600;}
-  header h1{margin:0;font-size:22px;color:var(--navy);line-height:1.3;}
-  .card{
-    display:block; background:var(--card); border:1px solid var(--line);
-    border-radius:6px; padding:20px; margin-bottom:14px;
-    text-decoration:none; color:inherit;
-    border-left:4px solid var(--brick);
-    transition:border-color .15s;
+  header img{width:56px;height:56px;flex-shrink:0;border-radius:10px;}
+  header .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 6px;font-weight:700;text-transform:uppercase;}
+  header h1{
+    margin:0;font-size:22px;line-height:1.3;font-weight:800;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
   }
-  .card:hover{border-color:var(--navy);}
-  .card h2{margin:0 0 6px;font-size:16px;color:var(--navy);}
-  .card p{margin:0;font-size:13.5px;color:var(--ink-soft);line-height:1.5;}
-  .card .ext{font-size:11px;color:var(--brick);font-weight:600;}
+  .card{
+    display:block; background:rgba(22,28,48,0.7); border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px; padding:20px; margin-bottom:14px;
+    text-decoration:none; color:inherit;
+    position:relative; overflow:hidden;
+    backdrop-filter:blur(6px);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .card::before{
+    content:'';position:absolute;left:16px;right:16px;top:0;height:4px;border-radius:0 0 4px 4px;
+    background:var(--grad);
+  }
+  .card:hover{transform:translateY(-2px); border-color:rgba(255,255,255,0.16); box-shadow:0 8px 26px rgba(0,0,0,0.35);}
+  .card h2{margin:10px 0 6px;font-size:16px;color:#f4f1ea;}
+  .card p{margin:0;font-size:13.5px;color:#a3a9bf;line-height:1.5;}
+  .card .ext{font-size:11px;color:#ffb98a;font-weight:700;}
   .section-heading{
     font-size:11.5px;letter-spacing:.06em;font-weight:600;
-    color:var(--ink-soft);margin:26px 0 10px;text-transform:uppercase;
+    color:#7d84a0;margin:26px 0 10px;text-transform:uppercase;
   }
-  footer{margin-top:28px;font-size:11.5px;color:var(--ink-soft);text-align:center;}
+  .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00);}
+  .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63);}
+  .c3{--grad:linear-gradient(135deg,#ff8c00,#ffd23f);}
+  footer{margin-top:28px;font-size:11.5px;color:#6b7290;text-align:center;}
 </style>
 </head>
 <body>
@@ -61,39 +69,39 @@
     </div>
   </header>
 
-  <a class="card" href="form.html">
+  <a class="card c1" href="form.html">
     <h2>Fill out After-Action Report</h2>
     <p>The full OSFM Display/Special Effects/Flame Effects Operator report — operator info, personnel, incident summary, signature, and PDF export.</p>
   </a>
 
-  <a class="card" href="payroll.html">
+  <a class="card c2" href="payroll.html">
     <h2>Payroll Submit</h2>
     <p>Pull in everyone checked in to an event, enter total payroll, and split it evenly (or manually) between them.</p>
   </a>
 
-  <a class="card" href="qr-codes.html">
+  <a class="card c3" href="qr-codes.html">
     <h2>Generate Check-In QR Code</h2>
     <p>One printable QR code linking straight to the check-in page — post it at any venue.</p>
   </a>
 
-  <a class="card" href="manage.html">
+  <a class="card c1" href="manage.html">
     <h2>Manage/Edit</h2>
     <p>Add or update operators and venues — changes show up for autofill and in dropdowns everywhere.</p>
   </a>
 
   <p class="section-heading">Important Tools</p>
 
-  <a class="card" href="https://fireworksfallout.com/" target="_blank" rel="noopener">
+  <a class="card c2" href="https://fireworksfallout.com/" target="_blank" rel="noopener">
     <h2>Fireworks Fallout <span class="ext">↗</span></h2>
     <p>Report and check for dud/fallout locations near a display site.</p>
   </a>
 
-  <a class="card" href="https://drive.google.com/drive/folders/16oMKmXje8PKcFzCZxxnlv2tYS_V87FDQ?usp=drive_link" target="_blank" rel="noopener">
+  <a class="card c3" href="https://drive.google.com/drive/folders/16oMKmXje8PKcFzCZxxnlv2tYS_V87FDQ?usp=drive_link" target="_blank" rel="noopener">
     <h2>Cobra Firing Systems Files <span class="ext">↗</span></h2>
     <p>Manuals, wiring diagrams, and reference files for Cobra firing systems.</p>
   </a>
 
-  <a class="card" href="https://drive.google.com/drive/folders/1oCWZGHPgGEdBmzfBM8ACOKSJNF0g33BA?usp=sharing" target="_blank" rel="noopener">
+  <a class="card c1" href="https://drive.google.com/drive/folders/1oCWZGHPgGEdBmzfBM8ACOKSJNF0g33BA?usp=sharing" target="_blank" rel="noopener">
     <h2>NFPA Books <span class="ext">↗</span></h2>
     <p>Reference copies of NFPA codes and standards.</p>
   </a>
