@@ -131,7 +131,7 @@
         <input type="date" id="eventDate">
       </div>
     </div>
-    <div class="field" style="margin-top:14px;">
+    <div class="field" id="headPyroField" style="margin-top:14px;">
       <label for="headPyro">Head Pyro (HP)</label>
       <select id="headPyro" onchange="recalculate()">
         <option value="">Select a person…</option>
@@ -321,7 +321,7 @@ function showVenueAddress(){
 
 function isHoursMode(){
   const venue = document.getElementById('event').value.trim().toLowerCase();
-  return venue === 'shop time' || venue === 'bunker time';
+  return venue === 'shop time' || venue === 'bunker time' || venue === 'trailer loading';
 }
 
 function updateModeUI(){
@@ -329,11 +329,12 @@ function updateModeUI(){
   const step = hours ? '0.25' : '1';
 
   document.getElementById('payrollSectionTitle').textContent = hours ? 'Total hours' : 'Total payroll';
-  document.getElementById('totalPayrollLabel').textContent = hours ? 'Total hours to divide' : 'Total amount to divide ($)';
+  document.getElementById('totalPayrollLabel').textContent = hours ? 'Total hours' : 'Total amount to divide ($)';
   document.getElementById('totalPayroll').step = step;
   document.getElementById('divideEvenlyLabel').textContent = hours ? 'Divide hours evenly between all people' : 'Divide evenly between all people';
   document.getElementById('amountHeader').textContent = hours ? 'Hours' : 'Amount ($)';
-  document.getElementById('headPyroPayLabel').textContent = hours ? 'Head Pyro hours' : 'Head Pyro pay ($)';
+  document.getElementById('headPyroField').style.display = hours ? 'none' : '';
+  document.getElementById('headPyroPayField').style.display = hours ? 'none' : '';
   document.getElementById('headPyroPay').step = step;
 
   document.querySelectorAll('.p-amount').forEach(inp => inp.step = step);
@@ -524,8 +525,10 @@ function buildPayrollText(){
   lines.push(`Venue: ${event || '(not selected)'}`);
   if(venueInfo) lines.push(`Address: ${venueInfo.address} (${venueInfo.county} County)`);
   lines.push(`Date of event: ${eventDate || '(not set)'}`);
-  lines.push(`Head Pyro (HP): ${headPyroName || '(not selected)'}`);
-  if(headPyroName) lines.push(`Head Pyro ${hours ? 'hours' : 'pay'}: ${prefix}${headPyroPay.toLocaleString()}${unit}`);
+  if(!hours){
+    lines.push(`Head Pyro (HP): ${headPyroName || '(not selected)'}`);
+    if(headPyroName) lines.push(`Head Pyro pay: ${prefix}${headPyroPay.toLocaleString()}${unit}`);
+  }
   lines.push(`Total ${hours ? 'hours' : 'payroll'}: ${prefix}${total || '0'}${unit}`);
   lines.push('');
   lines.push('Payments:');
@@ -576,16 +579,18 @@ function buildPayrollPDF(){
     y += 6;
   }
 
-  const headPyro = document.getElementById('headPyro').value.trim();
-  const headPyroPay = parseFloat(document.getElementById('headPyroPay').value) || 0;
-  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
-  doc.text('HEAD PYRO (HP)', marginX, y);
-  doc.text(hours ? 'HP HOURS' : 'HP PAY', marginX + 260, y);
-  y += 13;
-  doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
-  doc.text(headPyro || '(not selected)', marginX, y);
-  if(headPyro) doc.text(`${prefix}${headPyroPay.toLocaleString()}${unit}`, marginX + 260, y);
-  y += 22;
+  if(!hours){
+    const headPyro = document.getElementById('headPyro').value.trim();
+    const headPyroPay = parseFloat(document.getElementById('headPyroPay').value) || 0;
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+    doc.text('HEAD PYRO (HP)', marginX, y);
+    doc.text('HP PAY', marginX + 260, y);
+    y += 13;
+    doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
+    doc.text(headPyro || '(not selected)', marginX, y);
+    if(headPyro) doc.text(`$${headPyroPay.toLocaleString()}`, marginX + 260, y);
+    y += 22;
+  }
 
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
   doc.text(hours ? 'TOTAL HOURS' : 'TOTAL PAYROLL', marginX, y); y += 13;
