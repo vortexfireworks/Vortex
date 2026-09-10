@@ -131,16 +131,6 @@
         <input type="date" id="eventDate">
       </div>
     </div>
-    <div class="field" id="headPyroField" style="margin-top:14px;">
-      <label for="headPyro">Head Pyro (HP)</label>
-      <select id="headPyro" onchange="recalculate()">
-        <option value="">Select a person…</option>
-      </select>
-    </div>
-    <div class="field" id="headPyroPayField">
-      <label for="headPyroPay" id="headPyroPayLabel">Head Pyro pay ($)</label>
-      <input type="number" id="headPyroPay" min="0" step="1" oninput="updateSumDisplay()">
-    </div>
     <button class="secondary" type="button" onclick="loadFromCheckins()">Load people who checked in</button>
     <p class="status" id="loadStatus"></p>
   </div>
@@ -151,16 +141,27 @@
       <thead>
         <tr><th style="width:30%">Name</th><th style="width:40%">Address</th><th style="width:22%" id="amountHeader">Amount ($)</th><th></th></tr>
       </thead>
+      <tbody>
+        <tr id="headPyroRow" style="background:rgba(255,140,0,0.08);">
+          <td>
+            <input type="text" class="p-name" id="hpName" list="licensedOperatorDirectoryList" oninput="onNameEdit(this)" placeholder="Head Pyro name">
+          </td>
+          <td><input type="text" class="p-address" id="hpAddress"></td>
+          <td><input type="number" class="p-amount" id="hpAmount" min="0" step="1" oninput="onAmountEdit()"></td>
+          <td style="font-size:9.5px;color:var(--brick);font-weight:700;text-align:center;white-space:nowrap;">HP</td>
+        </tr>
+      </tbody>
       <tbody id="peopleBody"></tbody>
     </table>
     <button class="add-row" type="button" onclick="addPersonRow()">+ Add person</button>
     <datalist id="operatorDirectoryList"></datalist>
+    <datalist id="licensedOperatorDirectoryList"></datalist>
   </div>
 
   <div class="section" style="border-bottom:none;">
-    <h2 id="payrollSectionTitle">Total payroll</h2>
+    <h2 id="payrollSectionTitle">Budget</h2>
     <div class="field">
-      <label for="totalPayroll" id="totalPayrollLabel">Total amount to divide ($)</label>
+      <label for="totalPayroll" id="totalPayrollLabel">Total budget ($)</label>
       <input type="number" id="totalPayroll" min="0" step="1" oninput="recalculate()">
     </div>
     <div class="checkbox-row">
@@ -168,7 +169,7 @@
       <label for="divideEvenly" id="divideEvenlyLabel">Divide evenly between all people</label>
     </div>
     <div class="totals">
-      <span>Sum of amounts below:</span>
+      <span id="sumLabel">Total budget allocation:</span>
       <span id="sumDisplay">$0</span>
     </div>
     <p id="matchMsg" class="status"></p>
@@ -212,19 +213,16 @@ async function fetchOperatorDirectory(){
   }
   const dl = document.getElementById('operatorDirectoryList');
   if(dl) dl.innerHTML = Object.values(CONTACTS_BY_NAME).map(c => `<option value="${c.name}">`).join('');
-  populateHeadPyroSelect();
+  populateLicensedDatalist();
 }
 fetchOperatorDirectory();
 
-function populateHeadPyroSelect(){
-  const select = document.getElementById('headPyro');
-  const currentValue = select.value;
+function populateLicensedDatalist(){
+  const dl = document.getElementById('licensedOperatorDirectoryList');
   const sorted = Object.values(CONTACTS_BY_NAME)
     .filter(c => c.license && c.license.trim())
     .sort((a,b) => a.name.localeCompare(b.name));
-  select.innerHTML = '<option value="">Select a person…</option>' +
-    sorted.map(c => `<option value="${c.name.replace(/"/g,'&quot;')}">${c.name}</option>`).join('');
-  if(currentValue) select.value = currentValue;
+  dl.innerHTML = sorted.map(c => `<option value="${c.name.replace(/"/g,'&quot;')}">`).join('');
 }
 
 async function fetchVenueDirectory(){
@@ -328,14 +326,13 @@ function updateModeUI(){
   const hours = isHoursMode();
   const step = hours ? '0.25' : '1';
 
-  document.getElementById('payrollSectionTitle').textContent = hours ? 'Total hours' : 'Total payroll';
-  document.getElementById('totalPayrollLabel').textContent = hours ? 'Total hours' : 'Total amount to divide ($)';
+  document.getElementById('payrollSectionTitle').textContent = hours ? 'Total hours' : 'Budget';
+  document.getElementById('totalPayrollLabel').textContent = hours ? 'Total hours' : 'Total budget ($)';
   document.getElementById('totalPayroll').step = step;
   document.getElementById('divideEvenlyLabel').textContent = hours ? 'Divide hours evenly between all people' : 'Divide evenly between all people';
   document.getElementById('amountHeader').textContent = hours ? 'Hours' : 'Amount ($)';
-  document.getElementById('headPyroField').style.display = hours ? 'none' : '';
-  document.getElementById('headPyroPayField').style.display = hours ? 'none' : '';
-  document.getElementById('headPyroPay').step = step;
+  document.getElementById('sumLabel').textContent = hours ? 'Total hours allocation:' : 'Total budget allocation:';
+  document.getElementById('headPyroRow').style.display = hours ? 'none' : '';
 
   document.querySelectorAll('.p-amount').forEach(inp => inp.step = step);
 
@@ -518,24 +515,24 @@ function buildPayrollText(){
   const hours = isHoursMode();
   const unit = hours ? ' hrs' : '';
   const prefix = hours ? '' : '$';
-  const headPyroName = document.getElementById('headPyro').value;
-  const headPyroPay = parseFloat(document.getElementById('headPyroPay').value) || 0;
+  const headPyroName = document.getElementById('hpName').value.trim();
+  const headPyroAddress = document.getElementById('hpAddress').value.trim();
+  const headPyroAmount = parseFloat(document.getElementById('hpAmount').value) || 0;
   const lines = [];
   lines.push('PAYROLL SUBMISSION');
   lines.push(`Venue: ${event || '(not selected)'}`);
   if(venueInfo) lines.push(`Address: ${venueInfo.address} (${venueInfo.county} County)`);
   lines.push(`Date of event: ${eventDate || '(not set)'}`);
-  if(!hours){
-    lines.push(`Head Pyro (HP): ${headPyroName || '(not selected)'}`);
-    if(headPyroName) lines.push(`Head Pyro pay: ${prefix}${headPyroPay.toLocaleString()}${unit}`);
-  }
-  lines.push(`Total ${hours ? 'hours' : 'payroll'}: ${prefix}${total || '0'}${unit}`);
+  lines.push(`Total ${hours ? 'hours' : 'budget'}: ${prefix}${total || '0'}${unit}`);
   lines.push('');
   lines.push('Payments:');
+  if(!hours && headPyroName){
+    lines.push(`  - ${headPyroName} (HP)${headPyroAddress ? ' (' + headPyroAddress + ')' : ''}: ${prefix}${headPyroAmount.toLocaleString()}${unit}`);
+  }
   people.forEach(p => lines.push(`  - ${p.name}${p.checkInTime ? ' [checked in ' + p.checkInTime + ']' : ''}${p.address ? ' (' + p.address + ')' : ''}: ${prefix}${p.amount.toLocaleString()}${unit}`));
-  const sum = people.reduce((a,p) => a + p.amount, 0);
+  const sum = people.reduce((a,p) => a + p.amount, 0) + (!hours ? headPyroAmount : 0);
   lines.push('');
-  lines.push(`Sum of payments: ${prefix}${sum.toLocaleString()}${unit}`);
+  lines.push(`Total ${hours ? 'hours' : 'budget'} allocation: ${prefix}${sum.toLocaleString()}${unit}`);
   return lines.join('\n');
 }
 
@@ -550,11 +547,14 @@ function buildPayrollPDF(){
   const eventDate = document.getElementById('eventDate').value.trim() || '(not set)';
   const total = document.getElementById('totalPayroll').value.trim() || '0';
   const people = collectPeople();
-  const sum = people.reduce((a,p) => a + p.amount, 0);
   const venueInfo = VENUE_INFO[event.toLowerCase()];
   const hours = isHoursMode();
   const unit = hours ? ' hrs' : '';
   const prefix = hours ? '' : '$';
+  const headPyroName = document.getElementById('hpName').value.trim();
+  const headPyroAddress = document.getElementById('hpAddress').value.trim();
+  const headPyroAmount = parseFloat(document.getElementById('hpAmount').value) || 0;
+  const sum = people.reduce((a,p) => a + p.amount, 0) + (!hours ? headPyroAmount : 0);
 
   doc.setFont('helvetica','bold');
   doc.setFontSize(15);
@@ -579,21 +579,8 @@ function buildPayrollPDF(){
     y += 6;
   }
 
-  if(!hours){
-    const headPyro = document.getElementById('headPyro').value.trim();
-    const headPyroPay = parseFloat(document.getElementById('headPyroPay').value) || 0;
-    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
-    doc.text('HEAD PYRO (HP)', marginX, y);
-    doc.text('HP PAY', marginX + 260, y);
-    y += 13;
-    doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
-    doc.text(headPyro || '(not selected)', marginX, y);
-    if(headPyro) doc.text(`$${headPyroPay.toLocaleString()}`, marginX + 260, y);
-    y += 22;
-  }
-
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
-  doc.text(hours ? 'TOTAL HOURS' : 'TOTAL PAYROLL', marginX, y); y += 13;
+  doc.text(hours ? 'TOTAL HOURS' : 'TOTAL BUDGET', marginX, y); y += 13;
   doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
   doc.text(`${prefix}${Number(total).toLocaleString()}${unit}`, marginX, y); y += 24;
 
@@ -606,6 +593,17 @@ function buildPayrollPDF(){
   doc.text(hours ? 'HOURS' : 'AMOUNT', pageWidth - marginX - 60, y);
   y += 14;
   doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(20,26,32);
+
+  if(!hours && headPyroName){
+    doc.text(`${headPyroName} (HP)`, marginX, y);
+    if(headPyroAddress){
+      const addrLines = doc.splitTextToSize(headPyroAddress, pageWidth - marginX - 160 - 70);
+      doc.text(addrLines[0], marginX + 160, y);
+    }
+    doc.text(`$${headPyroAmount.toLocaleString()}`, pageWidth - marginX - 60, y);
+    y += 16;
+  }
+
   people.forEach(p => {
     doc.text(p.name, marginX, y);
     if(p.address){
@@ -628,7 +626,7 @@ function buildPayrollPDF(){
   doc.setDrawColor(216,210,196);
   doc.line(marginX, y, pageWidth - marginX, y); y += 18;
   doc.setFont('helvetica','bold'); doc.setFontSize(11);
-  doc.text('Total', marginX, y);
+  doc.text(hours ? 'Total hours allocation' : 'Total budget allocation', marginX, y);
   doc.text(`${prefix}${sum.toLocaleString()}${unit}`, pageWidth - marginX - 60, y);
 
   return doc;
