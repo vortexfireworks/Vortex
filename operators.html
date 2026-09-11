@@ -353,9 +353,13 @@ function saveOperator(){
 
   fetch(CHECKIN_API_URL, {
     method: 'POST',
-    mode: 'no-cors',
     body: JSON.stringify(payload)
-  }).then(async () => {
+  }).then(async (res) => {
+    const text = await res.text();
+    let parsed = null;
+    try{ parsed = JSON.parse(text); } catch(e){ /* not JSON */ }
+    alert('DIAGNOSTIC — server response:\n\n' + (parsed ? JSON.stringify(parsed, null, 2) : text));
+
     // Re-fetch from the Sheet so we pick up the real Drive photo URL
     await fetchOperatorDirectory();
     statusEl.textContent = 'Saved.';
@@ -368,7 +372,8 @@ function saveOperator(){
     document.getElementById('opEditPhotoFile').value = '';
     document.getElementById('opEditPhotoPreview').style.display = 'none';
     pendingPhotoBase64 = null;
-  }).catch(() => {
+  }).catch((err) => {
+    alert('DIAGNOSTIC — fetch itself failed (likely a CORS block): ' + err);
     statusEl.textContent = 'Could not save — check your connection and try again.';
     statusEl.style.color = 'var(--brick)';
   });
