@@ -59,8 +59,20 @@
 </style>
 </head>
 <body>
-<div class="wrap">
-  <a class="back-link" href="index.html">&larr; Back to main menu</a>
+<a class="back-link" href="index.html">&larr; Back to main menu</a>
+
+<div id="lockScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="max-width:340px;width:100%;background:rgba(22,28,48,0.85);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:28px 24px;text-align:center;backdrop-filter:blur(6px);">
+    <img src="logo.jpg" alt="Vortex Fireworks Artists logo" style="width:56px;height:56px;border-radius:8px;margin-bottom:14px;">
+    <h1 style="font-size:17px;margin:0 0 6px;color:#f4f1ea;">HP Tools</h1>
+    <p style="font-size:12.5px;color:#a3a9bf;margin:0 0 18px;">This page is password protected.</p>
+    <input type="password" id="lockPassword" placeholder="Password" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid rgba(255,255,255,0.15);border-radius:6px;margin-bottom:12px;box-sizing:border-box;background:rgba(10,14,26,0.6);color:#f4f1ea;" onkeydown="if(event.key==='Enter') checkPassword()">
+    <button type="button" style="width:100%;color:#fdf6f2;border:none;background:linear-gradient(135deg,#d92b2b,#ff8c00);font-size:14px;font-weight:700;padding:11px 16px;border-radius:8px;cursor:pointer;" onclick="checkPassword()">Unlock</button>
+    <p id="lockError" style="font-size:12px;color:#ff6a5a;margin:12px 0 0;display:none;">Incorrect password.</p>
+  </div>
+</div>
+
+<div class="wrap" id="mainContent" style="display:none;">
   <header>
     <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
     <div>
@@ -114,6 +126,38 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js').catch(() => {});
   });
+}
+</script>
+
+<script>
+const HPTOOLS_PASSWORD_HASH = "3527374c1ff8dad43a5fae9007904cc82041d83a5d9adb69e030a71340f54b2a";
+
+async function sha256Hex(text){
+  const data = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function unlockHpTools(){
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  sessionStorage.setItem('hpToolsUnlocked', '1');
+}
+
+async function checkPassword(){
+  const entered = document.getElementById('lockPassword').value;
+  const hash = await sha256Hex(entered);
+  if(hash === HPTOOLS_PASSWORD_HASH){
+    unlockHpTools();
+  } else {
+    document.getElementById('lockError').style.display = 'block';
+    document.getElementById('lockPassword').value = '';
+    document.getElementById('lockPassword').focus();
+  }
+}
+
+if(sessionStorage.getItem('hpToolsUnlocked') === '1'){
+  unlockHpTools();
 }
 </script>
 </body>

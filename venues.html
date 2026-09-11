@@ -92,18 +92,7 @@
 
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 
-<div id="lockScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
-  <div style="max-width:340px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:6px;padding:28px 24px;text-align:center;">
-    <img src="logo.jpg" alt="Vortex Fireworks Artists logo" style="width:56px;height:56px;border-radius:6px;margin-bottom:14px;">
-    <h1 style="font-size:17px;margin:0 0 6px;color:var(--navy);">Manage Venues</h1>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;">This page is password protected.</p>
-    <input type="password" id="lockPassword" placeholder="Password" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:3px;margin-bottom:12px;box-sizing:border-box;" onkeydown="if(event.key==='Enter') checkPassword()">
-    <button class="primary" type="button" style="width:100%;" onclick="checkPassword()">Unlock</button>
-    <p id="lockError" style="font-size:12px;color:var(--brick);margin:12px 0 0;display:none;">Incorrect password.</p>
-  </div>
-</div>
-
-<div class="sheet" id="mainContent" style="display:none;">
+<div class="sheet" id="mainContent">
   <header>
     <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
     <div>
@@ -472,38 +461,6 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('service-worker.js').catch(() => {});
   });
-}
-</script>
-
-<script>
-const VENUES_PASSWORD_HASH = "3527374c1ff8dad43a5fae9007904cc82041d83a5d9adb69e030a71340f54b2a";
-
-async function sha256Hex(text){
-  const data = new TextEncoder().encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
-function unlockVenues(){
-  document.getElementById('lockScreen').style.display = 'none';
-  document.getElementById('mainContent').style.display = 'block';
-  sessionStorage.setItem('venuesUnlocked', '1');
-}
-
-async function checkPassword(){
-  const entered = document.getElementById('lockPassword').value;
-  const hash = await sha256Hex(entered);
-  if(hash === VENUES_PASSWORD_HASH){
-    unlockVenues();
-  } else {
-    document.getElementById('lockError').style.display = 'block';
-    document.getElementById('lockPassword').value = '';
-    document.getElementById('lockPassword').focus();
-  }
-}
-
-if(sessionStorage.getItem('venuesUnlocked') === '1'){
-  unlockVenues();
 }
 </script>
 </body>
