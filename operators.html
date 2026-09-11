@@ -342,6 +342,10 @@ function saveOperator(){
   statusEl.textContent = pendingPhotoBase64 ? 'Saving (uploading photo)…' : 'Saving…';
   statusEl.style.color = 'var(--ink-soft)';
 
+  alert(pendingPhotoBase64
+    ? 'DIAGNOSTIC: Photo IS attached — length ' + pendingPhotoBase64.length + ' characters. Sending now.'
+    : 'DIAGNOSTIC: NO photo is attached to this save. (pendingPhotoBase64 is empty.)');
+
   const payload = { recordType: 'contact', name, license, phone, address, age };
   if(pendingPhotoBase64){
     payload.photoBase64 = pendingPhotoBase64;
