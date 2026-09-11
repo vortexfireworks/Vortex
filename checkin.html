@@ -107,6 +107,7 @@
       <label for="personPhone">Phone number</label>
       <input type="text" id="personPhone" oninput="checkPhoneMatch()">
       <p style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">Enter the phone number on file to auto-fill your license and address.</p>
+      <p id="phoneCheckStatus" style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;min-height:14px;"></p>
     </div>
     <div class="field">
       <label for="personName">Your name</label>
@@ -239,25 +240,35 @@ let phoneCheckToken = 0;
 
 function checkPhoneMatch(){
   clearTimeout(phoneCheckTimer);
+  const statusEl = document.getElementById('phoneCheckStatus');
   const enteredPhone = normalizePhoneDigits(document.getElementById('personPhone').value);
   if(enteredPhone.length < 7){
     document.getElementById('personLicense').value = '';
     document.getElementById('personAddress').value = '';
     document.getElementById('personAge').value = '';
+    statusEl.textContent = '';
     return;
   }
+  statusEl.textContent = 'Checking…';
   phoneCheckTimer = setTimeout(verifyPhoneWithServer, 450);
 }
 
 async function verifyPhoneWithServer(){
+  const statusEl = document.getElementById('phoneCheckStatus');
   const name = document.getElementById('personName').value.trim();
   const phone = document.getElementById('personPhone').value.trim();
-  if(!name || !phone) return;
+  if(!name || !phone){
+    statusEl.textContent = '';
+    return;
+  }
   const myToken = ++phoneCheckToken;
   try{
     const url = `${CHECKIN_API_URL}?type=verifyPerson&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`;
     const res = await fetch(url);
-    if(!res.ok) return;
+    if(!res.ok){
+      if(myToken === phoneCheckToken) statusEl.textContent = '';
+      return;
+    }
     const data = await res.json();
     if(myToken !== phoneCheckToken) return; // a newer keystroke already superseded this check
     if(data && data.verified){
@@ -269,8 +280,10 @@ async function verifyPhoneWithServer(){
       document.getElementById('personAddress').value = '';
       document.getElementById('personAge').value = '';
     }
+    statusEl.textContent = '';
   } catch(err){
     // silent fail — the person can still fill everything in manually
+    if(myToken === phoneCheckToken) statusEl.textContent = '';
   }
 }
 
