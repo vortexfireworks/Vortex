@@ -358,6 +358,7 @@ function onNameEdit(nameInput){
     const addressField = row.querySelector('.p-address');
     if(!addressField.value.trim()) addressField.value = match.address || '';
   }
+  if(document.getElementById('divideEvenly').checked) recalculate();
 }
 
 function formatCheckInTime(timestamp){
@@ -405,18 +406,28 @@ async function loadFromCheckins(){
 
     document.getElementById('peopleBody').innerHTML = '';
     const seen = new Set();
+    const hours = isHoursMode();
     let headPyroPerson = null;
+    if(!hours){
+      const hpCheckin = checkins.find(p => p.isHeadPyro && (p.name || '').trim());
+      if(hpCheckin){
+        const hpKey = hpCheckin.name.trim().toLowerCase();
+        const hpDirectoryMatch = CONTACTS_BY_NAME[hpKey];
+        headPyroPerson = {
+          name: hpCheckin.name,
+          address: hpCheckin.address || (hpDirectoryMatch ? hpDirectoryMatch.address : '') || ''
+        };
+      }
+    }
     checkins.forEach(p => {
       const key = (p.name || '').trim().toLowerCase();
       if(!key || seen.has(key)) return;
+      if(headPyroPerson && key === headPyroPerson.name.trim().toLowerCase()) return;
       seen.add(key);
       const directoryMatch = CONTACTS_BY_NAME[key];
       const address = p.address || (directoryMatch ? directoryMatch.address : '') || '';
       const checkInTime = p.checkInTime ? formatManualTime(p.checkInTime) : formatCheckInTime(p.timestamp);
       addPersonRow(p.name, address, checkInTime);
-      if(p.isHeadPyro && !headPyroPerson){
-        headPyroPerson = { name: p.name, address };
-      }
     });
     if(headPyroPerson && !isHoursMode()){
       document.getElementById('hpName').value = headPyroPerson.name;
@@ -440,13 +451,16 @@ function onAmountEdit(){
 function recalculate(){
   const rows = Array.from(document.querySelectorAll('#peopleBody tr'));
   const divideEvenly = document.getElementById('divideEvenly').checked;
-  const amountInputs = rows.map(r => r.querySelector('.p-amount'));
   const hours = isHoursMode();
+  const hpNameFilled = !hours && document.getElementById('hpName').value.trim();
+  const hpAmountInput = document.getElementById('hpAmount');
+  const amountInputs = rows.map(r => r.querySelector('.p-amount'));
+  const allAmountInputs = hpNameFilled ? amountInputs.concat([hpAmountInput]) : amountInputs;
 
   if(divideEvenly){
-    amountInputs.forEach(inp => inp.readOnly = true);
+    allAmountInputs.forEach(inp => inp.readOnly = true);
     const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
-    const n = rows.length;
+    const n = allAmountInputs.length;
     if(n === 0){
       updateSumDisplay();
       return;
@@ -456,7 +470,7 @@ function recalculate(){
       const totalQuarters = Math.round(total * 4);
       const baseQuarters = Math.floor(totalQuarters / n);
       let remainder = totalQuarters - baseQuarters * n;
-      amountInputs.forEach((inp, i) => {
+      allAmountInputs.forEach((inp, i) => {
         const quarters = baseQuarters + (i < remainder ? 1 : 0);
         inp.value = (quarters / 4).toFixed(2).replace(/\.?0+$/, '') || '0';
       });
@@ -464,13 +478,14 @@ function recalculate(){
       const totalRounded = Math.round(total);
       const base = Math.floor(totalRounded / n);
       let remainder = totalRounded - base * n;
-      amountInputs.forEach((inp, i) => {
+      allAmountInputs.forEach((inp, i) => {
         const amount = base + (i < remainder ? 1 : 0);
         inp.value = amount;
       });
     }
   } else {
-    amountInputs.forEach(inp => inp.readOnly = false);
+    allAmountInputs.forEach(inp => inp.readOnly = false);
+    hpAmountInput.readOnly = false;
   }
   updateSumDisplay();
 }
