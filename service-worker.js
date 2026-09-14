@@ -10,6 +10,7 @@ const ASSETS = [
   './hp-tools.html',
   './new-hire.html',
   './update-info.html',
+  './shows.html',
   './operators.html',
   './venues.html',
   './release-notes.html',

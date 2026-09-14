@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Show Sign-Ups — Vortex Productions</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<style>
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%);
+    color:#f4f1ea;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 60px;
+  }
+  .wrap{max-width:920px; margin:0 auto;}
+  .back-link{
+    display:block; margin:0 0 18px; font-size:12.5px;
+    color:#a3a9bf; text-decoration:none;
+  }
+  .back-link:hover{color:#ffb98a;}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;}
+  .titles .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 4px;font-weight:700;text-transform:uppercase;}
+  .titles h1{
+    margin:0;font-size:21px;font-weight:800;
+    background:linear-gradient(90deg,#ff6a5a,#ff8c00 40%,#5a9de0 80%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  button.refresh{
+    background:none; border:1px solid rgba(255,255,255,0.15); color:#f4f1ea;
+    font-size:12.5px; padding:8px 14px; border-radius:8px; cursor:pointer;
+  }
+  button.refresh:hover{border-color:#ffb98a;}
+  p.sub{font-size:12.5px;color:#a3a9bf;margin:8px 0 20px;line-height:1.5;}
+  .grid-card{
+    background:#fdfcfa; border-radius:12px; padding:14px;
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    box-shadow:0 8px 30px rgba(0,0,0,0.35);
+  }
+  table.signup-grid{border-collapse:collapse; font-size:12.5px; color:#1c1a17; min-width:100%;}
+  table.signup-grid td{
+    border:1px solid #d8d2c4; padding:4px 8px; white-space:nowrap;
+    vertical-align:middle;
+  }
+  table.signup-grid td.bold{font-weight:700;}
+  .status{font-size:13px;color:#a3a9bf;text-align:center;padding:40px 20px;}
+  .status.err{color:#ff6a5a;}
+  footer{margin-top:28px;font-size:11px;color:#6b7290;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back-link" href="index.html">&larr; Back to main menu</a>
+  <header>
+    <div class="titles">
+      <p class="kicker">Vortex Productions Inc.</p>
+      <h1 id="pageTitle">Show Sign-Ups</h1>
+    </div>
+    <button class="refresh" type="button" onclick="loadGrid(true)">Refresh</button>
+  </header>
+  <p class="sub">A live view of this month's sign-up sheet — scroll sideways to see everything. To add or change a sign-up, use the "Sign-Up for a Show" link on the main screen.</p>
+
+  <div id="gridHolder">
+    <p class="status" id="statusMsg">Loading this month's sign-ups…</p>
+  </div>
+
+  <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function renderGrid(data){
+  const holder = document.getElementById('gridHolder');
+
+  if(!data.found){
+    let msg = `Couldn't find a tab named "${data.monthName}" in the sign-up sheet yet.`;
+    if(data.availableSheets && data.availableSheets.length){
+      msg += ` Tabs currently in the sheet: ${data.availableSheets.join(', ')}.`;
+    }
+    if(data.error){
+      msg = `Something went wrong loading the sign-up sheet: ${data.error}`;
+    }
+    holder.innerHTML = `<p class="status err">${msg}</p>`;
+    return;
+  }
+
+  document.getElementById('pageTitle').textContent = data.monthName;
+
+  const covered = Array.from({length: data.numRows}, () => new Array(data.numCols).fill(false));
+  const mergeAt = {};
+  (data.merges || []).forEach(m => {
+    mergeAt[`${m.row},${m.col}`] = m;
+    for(let r = m.row; r < m.row + m.numRows; r++){
+      for(let c = m.col; c < m.col + m.numCols; c++){
+        covered[r][c] = true;
+      }
+    }
+  });
+
+  let html = '<table class="signup-grid">';
+  for(let r = 0; r < data.numRows; r++){
+    html += '<tr>';
+    for(let c = 0; c < data.numCols; c++){
+      const key = `${r},${c}`;
+      const merge = mergeAt[key];
+      if(merge){
+        const bg = (data.backgrounds[r] && data.backgrounds[r][c]) || '#ffffff';
+        const bold = data.bold[r] && data.bold[r][c] ? ' bold' : '';
+        const val = (data.values[r] && data.values[r][c]) || '';
+        html += `<td class="${bold}" rowspan="${merge.numRows}" colspan="${merge.numCols}" style="background:${bg};">${escapeHtml(val)}</td>`;
+      } else if(!covered[r][c]){
+        const bg = (data.backgrounds[r] && data.backgrounds[r][c]) || '#ffffff';
+        const bold = data.bold[r] && data.bold[r][c] ? ' bold' : '';
+        const val = (data.values[r] && data.values[r][c]) || '';
+        html += `<td class="${bold}" style="background:${bg};">${escapeHtml(val)}</td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+
+  holder.innerHTML = `<div class="grid-card">${html}</div>`;
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function loadGrid(isRefresh){
+  const holder = document.getElementById('gridHolder');
+  if(isRefresh){
+    holder.innerHTML = '<p class="status">Refreshing…</p>';
+  }
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=signupCurrentMonth`);
+    if(!res.ok) throw new Error('Request failed');
+    const data = await res.json();
+    renderGrid(data);
+  } catch(err){
+    holder.innerHTML = '<p class="status err">Could not load the sign-up sheet — check your connection and try again.</p>';
+  }
+}
+
+loadGrid(false);
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
