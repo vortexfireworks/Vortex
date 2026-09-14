@@ -44,6 +44,21 @@
   header h1{margin:0;font-size:19px;font-weight:700;line-height:1.3;}
   .body{padding:24px;}
   p.sub{color:var(--ink-soft);font-size:13px;margin:0 0 20px;line-height:1.5;}
+  .step-indicator{
+    display:flex; align-items:center; gap:8px;
+    padding:14px 24px 0;
+  }
+  .step-indicator .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:rgba(255,255,255,0.15);
+    transition:background .2s ease, box-shadow .2s ease;
+  }
+  .step-indicator .dot.active{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    box-shadow:0 0 8px rgba(255,140,0,0.5);
+  }
+  .step-indicator .dot.done{background:var(--ok);}
+  .step-indicator .line{flex:1;font-size:11px;color:var(--ink-soft);text-align:right;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
   input[type=text]{
@@ -55,7 +70,7 @@
   button.primary{
     width:100%; color:#fdf6f2; border:none;
     background:linear-gradient(135deg,var(--accent1),var(--accent2));
-    font-size:15px; font-weight:700; padding:13px 16px; border-radius:8px; cursor:pointer;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
     box-shadow:0 0 18px rgba(255,140,0,0.3);
   }
   button.primary:hover{filter:brightness(1.1);}
@@ -91,6 +106,12 @@
         <h1>Update My Info</h1>
       </div>
     </header>
+
+    <div class="step-indicator" id="stepIndicator">
+      <span class="dot active" id="stepDot1"></span>
+      <span class="dot" id="stepDot2"></span>
+      <span class="line" id="stepLabel">Step 1 of 2 — Verify</span>
+    </div>
 
     <div class="body" id="verifyStep">
       <p class="sub">Enter your name and the phone number already on file to pull up your info and make changes.</p>
@@ -229,6 +250,9 @@ async function verifyIdentity(){
       }
       document.getElementById('verifyStep').style.display = 'none';
       document.getElementById('editStep').style.display = 'block';
+      document.getElementById('stepDot1').className = 'dot done';
+      document.getElementById('stepDot2').className = 'dot active';
+      document.getElementById('stepLabel').textContent = 'Step 2 of 2 — Update';
     } else {
       msgEl.textContent = "That name and phone number don't match what's on file.";
       msgEl.className = 'msg err';
@@ -300,6 +324,7 @@ function saveChanges(){
   }).then(() => {
     document.getElementById('editStep').style.display = 'none';
     document.getElementById('successStep').style.display = 'block';
+    document.getElementById('stepIndicator').style.display = 'none';
     document.getElementById('successName').textContent = `Thanks, ${verifiedName} — your info has been updated.`;
   }).catch(() => {
     msgEl.textContent = 'Could not save — check your connection and try again.';

@@ -44,7 +44,7 @@
   input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
   button.primary{
     background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
-    font-size:14px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
     box-shadow:0 0 16px rgba(255,140,0,0.3);
   }
   button.primary:hover{filter:brightness(1.1);}
@@ -81,6 +81,18 @@
     font-size:12.5px; color:var(--ink-soft); text-decoration:none;
   }
   .back-link:hover{color:var(--navy);}
+  .loading-pulse{
+    color:var(--ink-soft); margin:4px 0;
+    animation:pulseFade 1.4s ease-in-out infinite;
+  }
+  @keyframes pulseFade{
+    0%,100%{opacity:0.4;} 50%{opacity:1;}
+  }
+  .empty-state{
+    text-align:center; padding:24px 12px; color:var(--ink-soft);
+  }
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
 </style>
 </head>
 <body>
@@ -148,7 +160,7 @@
       <input type="text" id="operatorSearch" placeholder="Search by name…" oninput="renderOperatorList()">
     </div>
     <div id="operatorListWrap">
-      <p style="color:var(--ink-soft);margin:4px 0;">Loading…</p>
+      <p class="loading-pulse">Loading…</p>
     </div>
     <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <button class="primary" type="button" onclick="saveAllOperators()">Save all changes</button>
@@ -301,7 +313,7 @@ function renderOperatorList(){
     names = names.filter(c => c.name.toLowerCase().includes(search));
   }
   if(names.length === 0){
-    wrap.innerHTML = '<p style="color:var(--ink-soft);margin:4px 0;">No operators found.</p>';
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No operators found. Try a different search, or add one above.</p></div>';
     return;
   }
   wrap.innerHTML = names.map(c => `
