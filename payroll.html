@@ -68,6 +68,22 @@
   table.people td{padding:4px 8px 4px 0;}
   table.people input[type=text]{width:100%;}
   table.people input[type=number]{width:100%;text-align:right;}
+  @media(max-width:480px){
+    table.people thead{display:none;}
+    table.people, table.people tbody, table.people tr, table.people td{display:block;width:100%;}
+    table.people tr{
+      border:1px solid var(--line); border-radius:8px;
+      padding:10px 12px; margin-bottom:10px;
+    }
+    table.people td{padding:6px 0;}
+    table.people td[data-label]:not([data-label=""])::before{
+      content:attr(data-label);
+      display:block; font-size:10.5px; color:var(--ink-soft); font-weight:600; margin-bottom:3px;
+    }
+    table.people td:last-child{
+      display:flex; justify-content:flex-end; padding-top:0;
+    }
+  }
   .rm-row{background:none;border:none;color:var(--brick);cursor:pointer;font-size:17px;line-height:1;padding:4px;}
   .add-row{
     margin-top:8px; background:none; border:1px dashed var(--line);
@@ -136,12 +152,12 @@
       </thead>
       <tbody>
         <tr id="headPyroRow" style="background:rgba(255,140,0,0.08);">
-          <td>
+          <td data-label="Name">
             <input type="text" class="p-name" id="hpName" list="licensedOperatorDirectoryList" oninput="onNameEdit(this)" placeholder="Head Pyro name">
           </td>
-          <td><input type="text" class="p-address" id="hpAddress"></td>
-          <td><input type="number" class="p-amount" id="hpAmount" min="0" step="1" oninput="onAmountEdit()"></td>
-          <td style="font-size:9.5px;color:var(--brick);font-weight:700;text-align:center;white-space:nowrap;">HP</td>
+          <td data-label="Address"><input type="text" class="p-address" id="hpAddress"></td>
+          <td data-label="Amount ($)"><input type="number" class="p-amount" id="hpAmount" min="0" step="1" oninput="onAmountEdit()"></td>
+          <td data-label="" style="font-size:9.5px;color:var(--brick);font-weight:700;text-align:center;white-space:nowrap;">HP</td>
         </tr>
       </tbody>
       <tbody id="peopleBody"></tbody>
@@ -338,13 +354,13 @@ function addPersonRow(name, address, checkInTime){
   const tbody = document.getElementById('peopleBody');
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td>
+    <td data-label="Name">
       <input type="text" class="p-name" value="${name ? name.replace(/"/g,'&quot;') : ''}" list="operatorDirectoryList" oninput="onNameEdit(this)">
       <div class="checkin-time" style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;${checkInTime ? '' : 'display:none;'}">${checkInTime ? 'Checked in ' + checkInTime : ''}</div>
     </td>
-    <td><input type="text" class="p-address" value="${address ? address.replace(/"/g,'&quot;') : ''}"></td>
-    <td><input type="number" class="p-amount" min="0" step="${isHoursMode() ? '0.25' : '1'}" oninput="onAmountEdit()"></td>
-    <td><button class="rm-row" type="button" onclick="this.closest('tr').remove(); recalculate();" aria-label="Remove">&times;</button></td>
+    <td data-label="Address"><input type="text" class="p-address" value="${address ? address.replace(/"/g,'&quot;') : ''}"></td>
+    <td data-label="Amount ($)"><input type="number" class="p-amount" min="0" step="${isHoursMode() ? '0.25' : '1'}" oninput="onAmountEdit()"></td>
+    <td data-label=""><button class="rm-row" type="button" onclick="this.closest('tr').remove(); recalculate();" aria-label="Remove">&times;</button></td>
   `;
   tbody.appendChild(tr);
 }

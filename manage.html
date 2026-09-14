@@ -15,10 +15,9 @@
     background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%);
     color:#f4f1ea;
     font-family:"Helvetica Neue",Arial,sans-serif;
-    display:flex; align-items:flex-start; justify-content:center;
     padding:40px 16px;
   }
-  .wrap{max-width:480px; width:100%;}
+  .wrap{max-width:480px; width:100%; margin:0 auto;}
   header{margin-bottom:28px;display:flex;align-items:center;gap:16px;}
   header img{width:56px;height:56px;flex-shrink:0;border-radius:10px;}
   header .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 6px;font-weight:700;text-transform:uppercase;}
@@ -45,7 +44,8 @@
   .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00);}
   .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63);}
   .back-link{
-    display:inline-block; margin-bottom:18px; font-size:12.5px;
+    display:block; max-width:480px; margin:0 auto 18px; padding:0 4px;
+    font-size:12.5px;
     color:#a3a9bf; text-decoration:none;
   }
   .back-link:hover{color:#ffb98a;}

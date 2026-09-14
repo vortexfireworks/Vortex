@@ -117,6 +117,23 @@
   }
   table.personnel td{padding:3px 6px 3px 0;}
   table.personnel input{width:100%;}
+  @media(max-width:600px){
+    table.personnel thead{display:none;}
+    table.personnel, table.personnel tbody, table.personnel tr, table.personnel td{display:block;width:100%;}
+    table.personnel tr{
+      border:1px solid var(--line); border-radius:6px;
+      padding:10px 12px; margin-bottom:10px;
+    }
+    table.personnel td{padding:6px 0;}
+    table.personnel td[data-label]:not([data-label=""])::before{
+      content:attr(data-label);
+      display:block; font-family:"Helvetica Neue",Arial,sans-serif;
+      font-size:10.5px; color:var(--ink-soft); font-weight:600; margin-bottom:3px;
+    }
+    table.personnel td:last-child{
+      display:flex; justify-content:flex-end; padding-top:0;
+    }
+  }
   .rm-row{
     background:none;border:none;color:var(--brick);cursor:pointer;
     font-size:18px;line-height:1;padding:4px;
@@ -554,11 +571,11 @@ function addPersonnelRow(){
   const tr = document.createElement('tr');
   tr.id = 'prow-' + id;
   tr.innerHTML = `
-    <td><input type="text" class="p-name" list="contactsList" oninput="autofillRow(this)"></td>
-    <td><input type="text" class="p-license"></td>
-    <td><input type="text" class="p-address"></td>
-    <td><input type="text" class="p-age" style="width:100%"></td>
-    <td><button class="rm-row" type="button" onclick="document.getElementById('prow-${id}').remove(); updateAddButtonState();" aria-label="Remove row">&times;</button></td>
+    <td data-label="Name"><input type="text" class="p-name" list="contactsList" oninput="autofillRow(this)"></td>
+    <td data-label="License number"><input type="text" class="p-license"></td>
+    <td data-label="Address / city / state / zip"><input type="text" class="p-address"></td>
+    <td data-label="Age"><input type="text" class="p-age" style="width:100%"></td>
+    <td data-label=""><button class="rm-row" type="button" onclick="document.getElementById('prow-${id}').remove(); updateAddButtonState();" aria-label="Remove row">&times;</button></td>
   `;
   tbody.appendChild(tr);
   updateAddButtonState();
