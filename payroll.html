@@ -405,6 +405,7 @@ async function loadFromCheckins(){
 
     document.getElementById('peopleBody').innerHTML = '';
     const seen = new Set();
+    let headPyroPerson = null;
     checkins.forEach(p => {
       const key = (p.name || '').trim().toLowerCase();
       if(!key || seen.has(key)) return;
@@ -413,8 +414,16 @@ async function loadFromCheckins(){
       const address = p.address || (directoryMatch ? directoryMatch.address : '') || '';
       const checkInTime = p.checkInTime ? formatManualTime(p.checkInTime) : formatCheckInTime(p.timestamp);
       addPersonRow(p.name, address, checkInTime);
+      if(p.isHeadPyro && !headPyroPerson){
+        headPyroPerson = { name: p.name, address };
+      }
     });
-    statusEl.textContent = `Loaded ${seen.size} ${seen.size === 1 ? 'person' : 'people'} from check-ins.`;
+    if(headPyroPerson && !isHoursMode()){
+      document.getElementById('hpName').value = headPyroPerson.name;
+      document.getElementById('hpAddress').value = headPyroPerson.address;
+    }
+    statusEl.textContent = `Loaded ${seen.size} ${seen.size === 1 ? 'person' : 'people'} from check-ins.` +
+      (headPyroPerson && !isHoursMode() ? ` ${headPyroPerson.name} was marked as Head Pyro at check-in and filled in below.` : '');
     recalculate();
   } catch(err){
     statusEl.textContent = 'Could not load check-ins — check your connection and try again.';

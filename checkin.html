@@ -126,6 +126,10 @@
       <label for="personAge">Age</label>
       <input type="text" id="personAge">
     </div>
+    <div class="field" style="flex-direction:row;align-items:center;gap:8px;">
+      <input type="checkbox" id="isHeadPyro" style="width:auto;" disabled>
+      <label for="isHeadPyro" id="isHeadPyroLabel" style="font-weight:400;color:var(--ink-soft);">Head Pyro for this event (verify your phone number first)</label>
+    </div>
     <button class="primary" id="submitBtn" onclick="checkIn()">Check in</button>
     <p class="msg" id="msg"></p>
   </div>
@@ -238,6 +242,17 @@ function normalizePhoneDigits(str){
 let phoneCheckTimer = null;
 let phoneCheckToken = 0;
 
+function setHeadPyroLock(enabled, message){
+  const checkbox = document.getElementById('isHeadPyro');
+  const label = document.getElementById('isHeadPyroLabel');
+  checkbox.disabled = !enabled;
+  if(!enabled) checkbox.checked = false;
+  label.style.color = enabled ? 'var(--ink)' : 'var(--ink-soft)';
+  label.textContent = enabled
+    ? 'Head Pyro for this event'
+    : `Head Pyro for this event (${message})`;
+}
+
 function checkPhoneMatch(){
   clearTimeout(phoneCheckTimer);
   const statusEl = document.getElementById('phoneCheckStatus');
@@ -246,6 +261,7 @@ function checkPhoneMatch(){
     document.getElementById('personLicense').value = '';
     document.getElementById('personAddress').value = '';
     document.getElementById('personAge').value = '';
+    setHeadPyroLock(false, 'verify your phone number first');
     statusEl.textContent = '';
     return;
   }
@@ -275,10 +291,13 @@ async function verifyPhoneWithServer(){
       document.getElementById('personLicense').value = data.license || '';
       document.getElementById('personAddress').value = data.address || '';
       document.getElementById('personAge').value = data.age || '';
+      const hasLicense = !!(data.displayLicense || data.specialEffectsLicense || data.flameLicense);
+      setHeadPyroLock(hasLicense, hasLicense ? '' : 'no license on file');
     } else {
       document.getElementById('personLicense').value = '';
       document.getElementById('personAddress').value = '';
       document.getElementById('personAge').value = '';
+      setHeadPyroLock(false, 'verify your phone number first');
     }
     statusEl.textContent = '';
   } catch(err){
@@ -310,7 +329,8 @@ function checkIn(){
     license: document.getElementById('personLicense').value.trim(),
     phone: document.getElementById('personPhone').value.trim(),
     address: document.getElementById('personAddress').value.trim(),
-    age: document.getElementById('personAge').value.trim()
+    age: document.getElementById('personAge').value.trim(),
+    isHeadPyro: document.getElementById('isHeadPyro').checked
   };
 
   fetch(CHECKIN_API_URL, {

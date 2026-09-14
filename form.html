@@ -468,8 +468,10 @@ async function loadCheckins(){
     );
 
     let added = 0, skipped = 0;
+    let headPyroPerson = null;
     for(const person of checkins){
       const nameKey = (person.name || '').trim().toLowerCase();
+      if(person.isHeadPyro && !headPyroPerson) headPyroPerson = person;
       if(!nameKey || existingNames.has(nameKey)) { skipped++; continue; }
 
       let row = Array.from(document.querySelectorAll('#personnelBody tr')).find(
@@ -488,9 +490,20 @@ async function loadCheckins(){
       existingNames.add(nameKey);
       added++;
     }
-    statusEl.textContent = skipped > 0
+
+    let headPyroNote = '';
+    if(headPyroPerson){
+      const opNameField = document.getElementById('opName');
+      if(!opNameField.value.trim()){
+        opNameField.value = headPyroPerson.name;
+        autofillOperator(opNameField);
+        headPyroNote = ` ${headPyroPerson.name} was marked as Head Pyro at check-in and filled in above as the operator.`;
+      }
+    }
+
+    statusEl.textContent = (skipped > 0
       ? `Added ${added} checked-in ${added === 1 ? 'person' : 'people'} (${skipped} skipped — already listed or row limit reached).`
-      : `Added ${added} checked-in ${added === 1 ? 'person' : 'people'}.`;
+      : `Added ${added} checked-in ${added === 1 ? 'person' : 'people'}.`) + headPyroNote;
   } catch(err){
     statusEl.textContent = 'Could not load check-ins — check your connection and try again.';
   }
