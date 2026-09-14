@@ -120,6 +120,10 @@
         <input type="date" id="eventDate">
       </div>
     </div>
+    <div class="field" id="descriptionField" style="display:none;">
+      <label for="hoursDescription">Description</label>
+      <textarea id="hoursDescription" rows="3" style="font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:rgba(10,14,26,0.55);color:var(--ink);resize:vertical;font-family:inherit;" placeholder="What was worked on during this time?"></textarea>
+    </div>
     <button class="secondary" type="button" onclick="loadFromCheckins()">Load people who checked in</button>
     <p class="status" id="loadStatus"></p>
   </div>
@@ -169,7 +173,8 @@
     <button class="secondary" type="button" onclick="emailToVortex()">Email to Vortex</button>
     <button class="secondary" type="button" onclick="downloadPayrollPDF()">Download as PDF</button>
   </div>
-  <p style="padding:0 24px 20px;font-size:11.5px;color:var(--ink-soft);">"Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach — just pick Mail. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
+  <p class="status" id="emailStatus" style="padding:0 24px;"></p>
+  <p style="padding:0 24px 20px;font-size:11.5px;color:var(--ink-soft);">"Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
 </div>
 
 <script>
@@ -322,6 +327,7 @@ function updateModeUI(){
   document.getElementById('amountHeader').textContent = hours ? 'Hours' : 'Amount ($)';
   document.getElementById('sumLabel').textContent = hours ? 'Total hours allocation:' : 'Total budget allocation:';
   document.getElementById('headPyroRow').style.display = hours ? 'none' : '';
+  document.getElementById('descriptionField').style.display = hours ? '' : 'none';
 
   document.querySelectorAll('.p-amount').forEach(inp => inp.step = step);
 
@@ -512,6 +518,10 @@ function buildPayrollText(){
   lines.push(`Venue: ${event || '(not selected)'}`);
   if(venueInfo) lines.push(`Address: ${venueInfo.address} (${venueInfo.county} County)`);
   lines.push(`Date of event: ${eventDate || '(not set)'}`);
+  if(hours){
+    const description = document.getElementById('hoursDescription').value.trim();
+    if(description) lines.push(`Description: ${description}`);
+  }
   lines.push(`Total ${hours ? 'hours' : 'budget'}: ${prefix}${total || '0'}${unit}`);
   lines.push('');
   lines.push('Payments:');
@@ -566,6 +576,18 @@ function buildPayrollPDF(){
     y += 18;
   } else {
     y += 6;
+  }
+
+  if(hours){
+    const description = document.getElementById('hoursDescription').value.trim();
+    if(description){
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+      doc.text('DESCRIPTION', marginX, y); y += 13;
+      doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(20,26,32);
+      const descLines = doc.splitTextToSize(description, pageWidth - marginX * 2);
+      doc.text(descLines, marginX, y);
+      y += descLines.length * 13 + 10;
+    }
   }
 
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
@@ -639,6 +661,9 @@ async function sharePayrollPDF(toAddress, ccAddress){
     return;
   }
 
+  const statusEl = document.getElementById('emailStatus');
+  const recipientLine = ccAddress ? `To: ${toAddress} (cc: ${ccAddress})` : `To: ${toAddress}`;
+
   const doc = buildPayrollPDF();
   const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
   const fileName = `Payroll_${eventName}.pdf`;
@@ -650,24 +675,32 @@ async function sharePayrollPDF(toAddress, ccAddress){
 
   // Try the device's native share sheet first — this can attach the real PDF
   // to Mail (or any app) on supported browsers, unlike a mailto: link.
+  // The share sheet has no way to pre-fill a recipient, so we surface it
+  // clearly on-screen and at the top of the shared text as a backup.
   if(navigator.canShare){
     try{
       const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
       if(navigator.canShare({files: [file]})){
+        statusEl.textContent = `Opening share sheet — remember to address it: ${recipientLine}`;
+        statusEl.style.color = 'var(--brick)';
         await navigator.share({
           files: [file],
           title: subject,
-          text: subject
+          text: `${recipientLine}\n\n${subject}`
         });
         return;
       }
     } catch(err){
-      if(err && err.name === 'AbortError') return; // user cancelled the share sheet
+      if(err && err.name === 'AbortError'){
+        statusEl.textContent = '';
+        return; // user cancelled the share sheet
+      }
       // otherwise fall through to the mailto fallback below
     }
   }
 
   // Fallback: download the PDF and open a plain-text email addressed and ready to go
+  statusEl.textContent = '';
   doc.save(fileName);
   const body = buildPayrollText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
   const ccParam = ccAddress ? `&cc=${encodeURIComponent(ccAddress)}` : '';

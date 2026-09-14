@@ -118,16 +118,34 @@
         <input type="text" id="ePhone">
       </div>
       <div class="field">
-        <label for="eLicense">License number</label>
-        <input type="text" id="eLicense">
-      </div>
-      <div class="field">
         <label for="eAddress">Address</label>
         <input type="text" id="eAddress">
       </div>
       <div class="field">
         <label for="eAge">Age</label>
         <input type="text" id="eAge">
+      </div>
+      <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">LICENSES</p>
+      <div class="field">
+        <label for="eDisplayLicense">Display Operator (D)</label>
+        <input type="text" id="eDisplayLicense">
+      </div>
+      <div class="field">
+        <label for="eSFXLicense">Special Effects Operator (P)</label>
+        <input type="text" id="eSFXLicense">
+      </div>
+      <div class="field">
+        <label for="eFlameLicense">Flame Effects Operator (F)</label>
+        <input type="text" id="eFlameLicense">
+      </div>
+      <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">EMERGENCY CONTACT</p>
+      <div class="field">
+        <label for="eEmergencyContact">Emergency contact name</label>
+        <input type="text" id="eEmergencyContact">
+      </div>
+      <div class="field">
+        <label for="eEmergencyContactPhone">Emergency contact phone number</label>
+        <input type="text" id="eEmergencyContactPhone">
       </div>
       <div class="field">
         <label>Photo</label>
@@ -197,7 +215,11 @@ async function verifyIdentity(){
       verifiedPhone = phone;
       document.getElementById('eName').value = name;
       document.getElementById('ePhone').value = data.phone || phone;
-      document.getElementById('eLicense').value = data.license || '';
+      document.getElementById('eDisplayLicense').value = data.displayLicense || '';
+      document.getElementById('eSFXLicense').value = data.specialEffectsLicense || '';
+      document.getElementById('eFlameLicense').value = data.flameLicense || '';
+      document.getElementById('eEmergencyContact').value = data.emergencyContact || '';
+      document.getElementById('eEmergencyContactPhone').value = data.emergencyContactPhone || '';
       document.getElementById('eAddress').value = data.address || '';
       document.getElementById('eAge').value = data.age || '';
       if(data.photoUrl){
@@ -256,7 +278,11 @@ function saveChanges(){
     name: verifiedName,
     verifyPhone: verifiedPhone,
     phone: document.getElementById('ePhone').value.trim(),
-    license: document.getElementById('eLicense').value.trim(),
+    displayLicense: document.getElementById('eDisplayLicense').value.trim(),
+    specialEffectsLicense: document.getElementById('eSFXLicense').value.trim(),
+    flameLicense: document.getElementById('eFlameLicense').value.trim(),
+    emergencyContact: document.getElementById('eEmergencyContact').value.trim(),
+    emergencyContactPhone: document.getElementById('eEmergencyContactPhone').value.trim(),
     address: document.getElementById('eAddress').value.trim(),
     age: document.getElementById('eAge').value.trim()
   };

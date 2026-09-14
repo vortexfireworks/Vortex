@@ -374,8 +374,9 @@
     <button class="secondary" type="button" onclick="exportPDF()">Export as PDF</button>
     <button class="secondary" type="button" onclick="downloadSignature()">Download signature image</button>
   </div>
+  <p class="status" id="emailStatus" style="padding:0 28px;font-size:12px;color:var(--brick);"></p>
   <p class="footer-note">Office of the State Fire Marshal · 410 W. 9800 South, Suite 372, Sandy, UT 84070 · 801‑256‑2390 · fireworks@utah.gov<br>
-  "Email to state fire marshal" addresses a message to fireworks@utah.gov (CC: Chuck &amp; Vortex). On phones that support it, this opens your share sheet with the actual PDF ready to attach — just pick Mail. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
+  "Email to state fire marshal" addresses a message to fireworks@utah.gov (CC: Chuck &amp; Vortex). On phones that support it, this opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -896,29 +897,38 @@ async function sendReport(){
   const subject = `After-Action Report - ${opName} - ${eventDate}`;
   const opNameFile = (opName || 'report').replace(/\s+/g,'_');
   const fileName = `AAR_${opNameFile}.pdf`;
+  const recipientLine = 'To: fireworks@utah.gov (cc: chuckj@xmission.com, vortexfireworksartists@gmail.com)';
+  const statusEl = document.getElementById('emailStatus');
 
   const doc = buildReportPDF();
   const pdfBlob = doc.output('blob');
 
   // Try the device's native share sheet first — this can attach the real PDF
   // to Mail (or any app) on supported browsers, unlike a mailto: link.
+  // The share sheet has no way to pre-fill a recipient, so we surface it
+  // clearly on-screen and at the top of the shared text as a backup.
   if(navigator.canShare){
     try{
       const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
       if(navigator.canShare({files: [file]})){
+        statusEl.textContent = `Opening share sheet — remember to address it: ${recipientLine}`;
         await navigator.share({
           files: [file],
           title: subject,
-          text: subject
+          text: `${recipientLine}\n\n${subject}`
         });
         return;
       }
     } catch(err){
-      if(err && err.name === 'AbortError') return; // user cancelled the share sheet
+      if(err && err.name === 'AbortError'){
+        statusEl.textContent = '';
+        return; // user cancelled the share sheet
+      }
       // otherwise fall through to the mailto fallback below
     }
   }
 
+  statusEl.textContent = '';
   // Fallback: download the PDF and open a plain-text email addressed and ready to go
   doc.save(fileName);
   const body = buildReportText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';

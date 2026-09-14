@@ -129,8 +129,14 @@
       <div class="field"><label for="nhDate">Date</label><input type="date" id="nhDate"></div>
       <div class="field"><label for="nhPhone">Phone number</label><input type="tel" id="nhPhone"></div>
       <div class="field"><label for="nhEmail">Email</label><input type="email" id="nhEmail"></div>
-      <div class="field"><label for="nhLicense">License number</label><input type="text" id="nhLicense"></div>
       <div class="field full"><label for="nhAddress">Address</label><input type="text" id="nhAddress"></div>
+    </div>
+
+    <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">LICENSES (if you have any)</p>
+    <div class="grid2">
+      <div class="field"><label for="nhDisplayLicense">Display Operator (D)</label><input type="text" id="nhDisplayLicense"></div>
+      <div class="field"><label for="nhSFXLicense">Special Effects Operator (P)</label><input type="text" id="nhSFXLicense"></div>
+      <div class="field"><label for="nhFlameLicense">Flame Effects Operator (F)</label><input type="text" id="nhFlameLicense"></div>
     </div>
 
     <div class="field full" style="margin-bottom:16px;">
@@ -192,7 +198,7 @@
       <button class="secondary" type="button" onclick="downloadQuestionnairePDF()">Download as PDF</button>
     </div>
     <p class="status" id="nhStatus"></p>
-    <p class="note">On phones that support it, "Email to Vortex" opens your share sheet with the actual PDF ready to attach — just pick Mail. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
+    <p class="note">On phones that support it, "Email to Vortex" opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
   </div>
 </div>
 
@@ -237,7 +243,9 @@ function buildQuestionnairePDF(){
   field('Date', val('nhDate'));
   field('Phone number', val('nhPhone'));
   field('Email', val('nhEmail'));
-  field('License number', val('nhLicense'));
+  field('Display Operator license (D)', val('nhDisplayLicense'));
+  field('Special Effects Operator license (P)', val('nhSFXLicense'));
+  field('Flame Effects Operator license (F)', val('nhFlameLicense'));
   field('Address', val('nhAddress'));
   field('How did you hear about Vortex?', val('nhHeard'));
   field('Fireworks / pyrotechnics experience', val('nhExperience'));
@@ -293,10 +301,14 @@ function syncNewHireToDirectory(){
   const payload = {
     recordType: 'contact',
     name: name,
-    license: val('nhLicense'),
+    displayLicense: val('nhDisplayLicense'),
+    specialEffectsLicense: val('nhSFXLicense'),
+    flameLicense: val('nhFlameLicense'),
     address: val('nhAddress'),
     phone: val('nhPhone'),
-    age: ''
+    age: '',
+    emergencyContact: val('nhEmergencyName'),
+    emergencyContactPhone: val('nhEmergencyPhone')
   };
   if(nhPendingPhotoBase64){
     payload.photoBase64 = nhPendingPhotoBase64;
@@ -331,20 +343,27 @@ async function emailQuestionnaire(){
   const doc = buildQuestionnairePDF();
   const fileName = `New_Hire_${name.replace(/\s+/g,'_')}.pdf`;
   const subject = `New Hire Questionnaire - ${name}`;
+  const recipientLine = 'To: vortexfireworksartists@gmail.com';
   const pdfBlob = doc.output('blob');
 
   if(navigator.canShare){
     try{
       const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
       if(navigator.canShare({files: [file]})){
-        await navigator.share({ files: [file], title: subject, text: subject });
+        statusEl.textContent = `Opening share sheet — remember to address it: ${recipientLine}`;
+        statusEl.style.color = 'var(--ink-soft)';
+        await navigator.share({ files: [file], title: subject, text: `${recipientLine}\n\n${subject}` });
         return;
       }
     } catch(err){
-      if(err && err.name === 'AbortError') return;
+      if(err && err.name === 'AbortError'){
+        statusEl.textContent = '';
+        return;
+      }
     }
   }
 
+  statusEl.textContent = '';
   doc.save(fileName);
   const body = `New hire questionnaire submitted by ${name}.\n\n(PDF copy downloaded separately — please attach it to this email before sending.)`;
   const mailto = `mailto:vortexfireworksartists@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;

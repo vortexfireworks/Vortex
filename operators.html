@@ -106,10 +106,20 @@
           <label for="opEditName">Name</label>
           <input type="text" id="opEditName" list="operatorDirectoryList" oninput="prefillOperatorEdit(this)">
         </div>
-        <div class="field"><label for="opEditLicense">License number</label><input type="text" id="opEditLicense"></div>
         <div class="field"><label for="opEditPhone">Phone number</label><input type="text" id="opEditPhone"></div>
         <div class="field full"><label for="opEditAddress">Address</label><input type="text" id="opEditAddress"></div>
         <div class="field"><label for="opEditAge">Age</label><input type="text" id="opEditAge"></div>
+      </div>
+      <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">LICENSES</p>
+      <div class="grid2" style="margin-bottom:10px;">
+        <div class="field"><label for="opEditDisplayLicense">Display Operator (D)</label><input type="text" id="opEditDisplayLicense"></div>
+        <div class="field"><label for="opEditSFXLicense">Special Effects Operator (P)</label><input type="text" id="opEditSFXLicense"></div>
+        <div class="field"><label for="opEditFlameLicense">Flame Effects Operator (F)</label><input type="text" id="opEditFlameLicense"></div>
+      </div>
+      <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">EMERGENCY CONTACT</p>
+      <div class="grid2" style="margin-bottom:10px;">
+        <div class="field"><label for="opEditEmergencyContact">Emergency contact name</label><input type="text" id="opEditEmergencyContact"></div>
+        <div class="field"><label for="opEditEmergencyContactPhone">Emergency contact phone</label><input type="text" id="opEditEmergencyContactPhone"></div>
       </div>
       <div class="field full" style="margin-bottom:10px;">
         <label for="opEditPhotoFile">Photo</label>
@@ -155,10 +165,14 @@
     </div>
     <h2 id="viewModalName" style="margin:0 0 14px;font-size:18px;color:var(--ink);text-align:center;"></h2>
     <div style="font-size:13.5px;color:var(--ink);line-height:1.9;">
-      <div><strong style="color:var(--ink-soft);font-weight:600;">License:</strong> <span id="viewModalLicense"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Display (D):</strong> <span id="viewModalDisplayLicense"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Special Effects (P):</strong> <span id="viewModalSFXLicense"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Flame Effects (F):</strong> <span id="viewModalFlameLicense"></span></div>
       <div><strong style="color:var(--ink-soft);font-weight:600;">Phone:</strong> <span id="viewModalPhone"></span></div>
       <div><strong style="color:var(--ink-soft);font-weight:600;">Address:</strong> <span id="viewModalAddress"></span></div>
       <div><strong style="color:var(--ink-soft);font-weight:600;">Age:</strong> <span id="viewModalAge"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Emergency contact:</strong> <span id="viewModalEmergencyContact"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Emergency phone:</strong> <span id="viewModalEmergencyContactPhone"></span></div>
     </div>
     <button class="secondary" type="button" style="width:100%;margin-top:18px;" onclick="closeViewModal()">Close</button>
   </div>
@@ -184,10 +198,15 @@ async function fetchOperatorDirectory(){
         CONTACTS_BY_NAME[c.name.trim().toLowerCase()] = {
           name: c.name.trim(),
           license: c.license || '',
+          displayLicense: c.displayLicense || '',
+          specialEffectsLicense: c.specialEffectsLicense || '',
+          flameLicense: c.flameLicense || '',
           phone: c.phone || '',
           address: c.address || '',
           age: c.age || '',
-          photoUrl: c.photoUrl || ''
+          photoUrl: c.photoUrl || '',
+          emergencyContact: c.emergencyContact || '',
+          emergencyContactPhone: c.emergencyContactPhone || ''
         };
       });
     }
@@ -240,10 +259,14 @@ async function handlePhotoSelect(event){
 function prefillOperatorEdit(nameInput){
   const match = CONTACTS_BY_NAME[nameInput.value.trim().toLowerCase()];
   if(match){
-    document.getElementById('opEditLicense').value = match.license || '';
+    document.getElementById('opEditDisplayLicense').value = match.displayLicense || '';
+    document.getElementById('opEditSFXLicense').value = match.specialEffectsLicense || '';
+    document.getElementById('opEditFlameLicense').value = match.flameLicense || '';
     document.getElementById('opEditPhone').value = match.phone || '';
     document.getElementById('opEditAddress').value = match.address || '';
     document.getElementById('opEditAge').value = match.age || '';
+    document.getElementById('opEditEmergencyContact').value = match.emergencyContact || '';
+    document.getElementById('opEditEmergencyContactPhone').value = match.emergencyContactPhone || '';
     if(!pendingPhotoBase64){
       showExistingPhoto(match.photoUrl);
     }
@@ -305,10 +328,14 @@ function loadOperatorIntoEditor(name){
   const match = CONTACTS_BY_NAME[name.toLowerCase()];
   if(!match) return;
   document.getElementById('opEditName').value = match.name;
-  document.getElementById('opEditLicense').value = match.license || '';
+  document.getElementById('opEditDisplayLicense').value = match.displayLicense || '';
+  document.getElementById('opEditSFXLicense').value = match.specialEffectsLicense || '';
+  document.getElementById('opEditFlameLicense').value = match.flameLicense || '';
   document.getElementById('opEditPhone').value = match.phone || '';
   document.getElementById('opEditAddress').value = match.address || '';
   document.getElementById('opEditAge').value = match.age || '';
+  document.getElementById('opEditEmergencyContact').value = match.emergencyContact || '';
+  document.getElementById('opEditEmergencyContactPhone').value = match.emergencyContactPhone || '';
   pendingPhotoBase64 = null;
   showExistingPhoto(match.photoUrl);
   document.getElementById('opEditName').scrollIntoView({behavior:'smooth', block:'center'});
@@ -317,10 +344,14 @@ function loadOperatorIntoEditor(name){
 function saveOperator(){
   const statusEl = document.getElementById('operatorSaveStatus');
   const name = document.getElementById('opEditName').value.trim();
-  const license = document.getElementById('opEditLicense').value.trim();
+  const displayLicense = document.getElementById('opEditDisplayLicense').value.trim();
+  const specialEffectsLicense = document.getElementById('opEditSFXLicense').value.trim();
+  const flameLicense = document.getElementById('opEditFlameLicense').value.trim();
   const phone = document.getElementById('opEditPhone').value.trim();
   const address = document.getElementById('opEditAddress').value.trim();
   const age = document.getElementById('opEditAge').value.trim();
+  const emergencyContact = document.getElementById('opEditEmergencyContact').value.trim();
+  const emergencyContactPhone = document.getElementById('opEditEmergencyContactPhone').value.trim();
 
   if(!name){
     statusEl.textContent = 'Enter a name first.';
@@ -331,7 +362,7 @@ function saveOperator(){
   statusEl.textContent = pendingPhotoBase64 ? 'Saving (uploading photo)…' : 'Saving…';
   statusEl.style.color = 'var(--ink-soft)';
 
-  const payload = { recordType: 'contact', name, license, phone, address, age };
+  const payload = { recordType: 'contact', name, displayLicense, specialEffectsLicense, flameLicense, phone, address, age, emergencyContact, emergencyContactPhone };
   if(pendingPhotoBase64){
     payload.photoBase64 = pendingPhotoBase64;
   }
@@ -346,10 +377,14 @@ function saveOperator(){
     statusEl.textContent = 'Saved.';
     statusEl.style.color = 'var(--ok)';
     document.getElementById('opEditName').value = '';
-    document.getElementById('opEditLicense').value = '';
+    document.getElementById('opEditDisplayLicense').value = '';
+    document.getElementById('opEditSFXLicense').value = '';
+    document.getElementById('opEditFlameLicense').value = '';
     document.getElementById('opEditPhone').value = '';
     document.getElementById('opEditAddress').value = '';
     document.getElementById('opEditAge').value = '';
+    document.getElementById('opEditEmergencyContact').value = '';
+    document.getElementById('opEditEmergencyContactPhone').value = '';
     document.getElementById('opEditPhotoFile').value = '';
     document.getElementById('opEditPhotoPreview').style.display = 'none';
     pendingPhotoBase64 = null;
@@ -363,10 +398,14 @@ function openViewModal(name){
   const match = CONTACTS_BY_NAME[name.toLowerCase()];
   if(!match) return;
   document.getElementById('viewModalName').textContent = match.name;
-  document.getElementById('viewModalLicense').textContent = match.license || '—';
+  document.getElementById('viewModalDisplayLicense').textContent = match.displayLicense || '—';
+  document.getElementById('viewModalSFXLicense').textContent = match.specialEffectsLicense || '—';
+  document.getElementById('viewModalFlameLicense').textContent = match.flameLicense || '—';
   document.getElementById('viewModalPhone').textContent = match.phone || '—';
   document.getElementById('viewModalAddress').textContent = match.address || '—';
   document.getElementById('viewModalAge').textContent = match.age || '—';
+  document.getElementById('viewModalEmergencyContact').textContent = match.emergencyContact || '—';
+  document.getElementById('viewModalEmergencyContactPhone').textContent = match.emergencyContactPhone || '—';
 
   const photo = document.getElementById('viewModalPhoto');
   const initial = document.getElementById('viewModalInitial');
@@ -397,10 +436,10 @@ function csvEscape(val){
 
 function exportContactsCSV(){
   const contacts = Object.values(CONTACTS_BY_NAME).sort((a,b) => a.name.localeCompare(b.name));
-  const lines = ['Name,License,Phone,Address,Age,PhotoURL'];
+  const lines = ['Name,DisplayLicense,SpecialEffectsLicense,FlameLicense,Phone,Address,Age,PhotoURL'];
   contacts.forEach(c => lines.push([
-    csvEscape(c.name), csvEscape(c.license), csvEscape(c.phone),
-    csvEscape(c.address), csvEscape(c.age), csvEscape(c.photoUrl)
+    csvEscape(c.name), csvEscape(c.displayLicense), csvEscape(c.specialEffectsLicense), csvEscape(c.flameLicense),
+    csvEscape(c.phone), csvEscape(c.address), csvEscape(c.age), csvEscape(c.photoUrl)
   ].join(',')));
   const blob = new Blob([lines.join('\n')], {type: 'text/csv'});
   const url = URL.createObjectURL(blob);
@@ -462,7 +501,9 @@ async function handleContactsCsvImport(event){
     }
     const headers = rows[0].map(h => h.trim().toLowerCase());
     const nameIdx = headers.indexOf('name');
-    const licenseIdx = headers.indexOf('license');
+    const displayLicenseIdx = headers.indexOf('displaylicense');
+    const sfxLicenseIdx = headers.indexOf('specialeffectslicense');
+    const flameLicenseIdx = headers.indexOf('flamelicense');
     const phoneIdx = headers.indexOf('phone');
     const addressIdx = headers.indexOf('address');
     const ageIdx = headers.indexOf('age');
@@ -480,9 +521,15 @@ async function handleContactsCsvImport(event){
       const key = name.toLowerCase();
       const existing = CONTACTS_BY_NAME[key];
       if(existing) updated++; else added++;
+      const displayLicense = displayLicenseIdx > -1 ? (row[displayLicenseIdx] || '').trim() : (existing ? existing.displayLicense : '');
+      const specialEffectsLicense = sfxLicenseIdx > -1 ? (row[sfxLicenseIdx] || '').trim() : (existing ? existing.specialEffectsLicense : '');
+      const flameLicense = flameLicenseIdx > -1 ? (row[flameLicenseIdx] || '').trim() : (existing ? existing.flameLicense : '');
       CONTACTS_BY_NAME[key] = {
         name,
-        license: licenseIdx > -1 ? (row[licenseIdx] || '').trim() : (existing ? existing.license : ''),
+        displayLicense,
+        specialEffectsLicense,
+        flameLicense,
+        license: [displayLicense && ('D: ' + displayLicense), specialEffectsLicense && ('P: ' + specialEffectsLicense), flameLicense && ('F: ' + flameLicense)].filter(Boolean).join(' · '),
         phone: phoneIdx > -1 ? (row[phoneIdx] || '').trim() : (existing ? existing.phone : ''),
         address: addressIdx > -1 ? (row[addressIdx] || '').trim() : (existing ? existing.address : ''),
         age: ageIdx > -1 ? (row[ageIdx] || '').trim() : (existing ? existing.age : ''),
@@ -515,7 +562,9 @@ async function saveAllOperators(){
         body: JSON.stringify({
           recordType: 'contact',
           name: c.name,
-          license: c.license || '',
+          displayLicense: c.displayLicense || '',
+          specialEffectsLicense: c.specialEffectsLicense || '',
+          flameLicense: c.flameLicense || '',
           phone: c.phone || '',
           address: c.address || '',
           age: c.age || ''
