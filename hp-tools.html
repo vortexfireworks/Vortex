@@ -33,8 +33,9 @@
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
   .card{
-    display:block; background:rgba(22,28,48,0.7); border:1px solid rgba(255,255,255,0.08);
-    border-radius:12px; padding:20px; margin-bottom:14px;
+    display:flex; align-items:flex-start; gap:14px;
+    background:rgba(22,28,48,0.7); border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px; padding:18px 20px; margin-bottom:14px;
     text-decoration:none; color:inherit;
     position:relative; overflow:hidden;
     backdrop-filter:blur(6px);
@@ -45,16 +46,23 @@
     background:var(--grad);
   }
   .card:hover{transform:translateY(-2px); border-color:rgba(255,255,255,0.16); box-shadow:0 8px 26px rgba(0,0,0,0.35);}
-  .card h2{margin:10px 0 6px;font-size:16px;color:#f4f1ea;}
+  .icon-circle{
+    width:40px;height:40px;border-radius:50%;flex-shrink:0;margin-top:2px;
+    background:var(--grad);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 14px var(--glow);
+  }
+  .icon-circle svg{width:21px;height:21px;}
+  .card h2{margin:0 0 4px;font-size:16px;color:#f4f1ea;}
   .card p{margin:0;font-size:13.5px;color:#a3a9bf;line-height:1.5;}
   .card .ext{font-size:11px;color:#ffb98a;font-weight:700;}
   .section-heading{
     font-size:11.5px;letter-spacing:.06em;font-weight:600;
     color:#7d84a0;margin:26px 0 10px;text-transform:uppercase;
   }
-  .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00);}
-  .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63);}
-  .c3{--grad:linear-gradient(135deg,#ff8c00,#ffd23f);}
+  .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00); --glow:rgba(255,140,0,0.4);}
+  .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63); --glow:rgba(47,126,201,0.4);}
+  .c3{--grad:linear-gradient(135deg,#ff8c00,#ffd23f); --glow:rgba(255,210,63,0.4);}
   footer{margin-top:28px;font-size:11.5px;color:#6b7290;text-align:center;}
 </style>
 </head>
@@ -82,45 +90,189 @@
   </header>
 
   <a class="card c3" href="checkin.html">
-    <h2>Sign-In</h2>
-    <p>Same check-in as the main screen — check in to an event, and mark yourself as Head Pyro if that's you today.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Sign-In</h2>
+      <p>Same check-in as the main screen — check in to an event, and mark yourself as Head Pyro if that's you today.</p>
+    </div>
   </a>
 
   <a class="card c1" href="form.html">
-    <h2>Fill out After-Action Report</h2>
-    <p>The full OSFM Display/Special Effects/Flame Effects Operator report — operator info, personnel, incident summary, signature, and PDF export.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Fill out After-Action Report</h2>
+      <p>The full OSFM Display/Special Effects/Flame Effects Operator report — operator info, personnel, incident summary, signature, and PDF export.</p>
+    </div>
   </a>
 
   <a class="card c2" href="payroll.html">
-    <h2>Payroll Submit</h2>
-    <p>Pull in everyone checked in to an event, enter total payroll, and split it evenly (or manually) between them.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Payroll Submit</h2>
+      <p>Pull in everyone checked in to an event, enter total payroll, and split it evenly (or manually) between them.</p>
+    </div>
   </a>
 
   <a class="card c3" href="qr-codes.html">
-    <h2>Generate Check-In QR Code</h2>
-    <p>One printable QR code linking straight to the check-in page — post it at any venue.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Generate Check-In QR Code</h2>
+      <p>One printable QR code linking straight to the check-in page — post it at any venue.</p>
+    </div>
   </a>
 
   <a class="card c1" href="manage.html">
-    <h2>Manage/Edit</h2>
-    <p>Add or update operators and venues — changes show up for autofill and in dropdowns everywhere.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Manage/Edit</h2>
+      <p>Add or update operators and venues — changes show up for autofill and in dropdowns everywhere.</p>
+    </div>
   </a>
 
   <p class="section-heading">Important Tools</p>
 
   <a class="card c2" href="https://fireworksfallout.com/" target="_blank" rel="noopener">
-    <h2>Fireworks Fallout <span class="ext">↗</span></h2>
-    <p>Report and check for dud/fallout locations near a display site.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Fireworks Fallout <span class="ext">↗</span></h2>
+      <p>Report and check for dud/fallout locations near a display site.</p>
+    </div>
   </a>
 
   <a class="card c3" href="https://drive.google.com/drive/folders/16oMKmXje8PKcFzCZxxnlv2tYS_V87FDQ?usp=drive_link" target="_blank" rel="noopener">
-    <h2>Cobra Firing Systems Files <span class="ext">↗</span></h2>
-    <p>Manuals, wiring diagrams, and reference files for Cobra firing systems.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Cobra Firing Systems Files <span class="ext">↗</span></h2>
+      <p>Manuals, wiring diagrams, and reference files for Cobra firing systems.</p>
+    </div>
   </a>
 
   <a class="card c1" href="https://drive.google.com/drive/folders/1oCWZGHPgGEdBmzfBM8ACOKSJNF0g33BA?usp=sharing" target="_blank" rel="noopener">
-    <h2>NFPA Books <span class="ext">↗</span></h2>
-    <p>Reference copies of NFPA codes and standards.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>NFPA Books <span class="ext">↗</span></h2>
+      <p>Reference copies of NFPA codes and standards.</p>
+    </div>
   </a>
 
   <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>

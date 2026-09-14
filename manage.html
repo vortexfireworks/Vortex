@@ -27,8 +27,9 @@
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
   .card{
-    display:block; background:rgba(22,28,48,0.7); border:1px solid rgba(255,255,255,0.08);
-    border-radius:12px; padding:20px; margin-bottom:14px;
+    display:flex; align-items:flex-start; gap:14px;
+    background:rgba(22,28,48,0.7); border:1px solid rgba(255,255,255,0.08);
+    border-radius:12px; padding:18px 20px; margin-bottom:14px;
     text-decoration:none; color:inherit;
     position:relative; overflow:hidden;
     backdrop-filter:blur(6px);
@@ -39,10 +40,17 @@
     background:var(--grad);
   }
   .card:hover{transform:translateY(-2px); border-color:rgba(255,255,255,0.16); box-shadow:0 8px 26px rgba(0,0,0,0.35);}
-  .card h2{margin:10px 0 6px;font-size:16px;color:#f4f1ea;}
+  .icon-circle{
+    width:40px;height:40px;border-radius:50%;flex-shrink:0;margin-top:2px;
+    background:var(--grad);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 14px var(--glow);
+  }
+  .icon-circle svg{width:21px;height:21px;}
+  .card h2{margin:0 0 4px;font-size:16px;color:#f4f1ea;}
   .card p{margin:0;font-size:13.5px;color:#a3a9bf;line-height:1.5;}
-  .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00);}
-  .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63);}
+  .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00); --glow:rgba(255,140,0,0.4);}
+  .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63); --glow:rgba(47,126,201,0.4);}
   .back-link{
     display:block; max-width:480px; margin:0 auto 18px; padding:0 4px;
     font-size:12.5px;
@@ -76,13 +84,49 @@
   </header>
 
   <a class="card c1" href="operators.html">
-    <h2>Manage Operators</h2>
-    <p>Add a new operator or update an existing one's license, phone, address, age, or photo — changes show up for autofill everywhere.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Manage Operators</h2>
+      <p>Add a new operator or update an existing one's license, phone, address, age, or photo — changes show up for autofill everywhere.</p>
+    </div>
   </a>
 
   <a class="card c2" href="venues.html">
-    <h2>Manage Venues</h2>
-    <p>Add a new venue or update an existing one's address or county — changes show up in the Venue dropdown everywhere.</p>
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="1.4" fill="#fff" stroke="none"/>
+        <path d="M12 12 L12 3"/><path d="M12 12 L18.5 5.5"/><path d="M12 12 L21 12"/>
+        <path d="M12 12 L18.5 18.5"/><path d="M12 12 L12 21"/><path d="M12 12 L5.5 18.5"/>
+        <path d="M12 12 L3 12"/><path d="M12 12 L5.5 5.5"/>
+        <circle cx="12" cy="3" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="21" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="18.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="12" cy="21" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="18.5" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="3" cy="12" r="0.9" fill="#fff" stroke="none"/>
+        <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Manage Venues</h2>
+      <p>Add a new venue or update an existing one's address or county — changes show up in the Venue dropdown everywhere.</p>
+    </div>
   </a>
 
   <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>

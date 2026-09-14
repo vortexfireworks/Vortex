@@ -683,6 +683,18 @@ function buildPayrollPDF(){
   return doc;
 }
 
+function buildPayrollFileName(){
+  const parts = [];
+  const eventDate = document.getElementById('eventDate').value.trim();
+  if(eventDate) parts.push(eventDate);
+  const venue = document.getElementById('event').value.trim();
+  if(venue) parts.push(venue.replace(/\s+/g,'_'));
+  const hpName = document.getElementById('hpName').value.trim();
+  if(hpName) parts.push(hpName.replace(/\s+/g,'_'));
+  const base = parts.length ? parts.join('_') : 'payroll';
+  return `Payroll_${base}.pdf`.replace(/[\\/:*?"<>|]/g, '');
+}
+
 function downloadPayrollPDF(){
   const people = collectPeople();
   if(people.length === 0){
@@ -690,8 +702,7 @@ function downloadPayrollPDF(){
     return;
   }
   const doc = buildPayrollPDF();
-  const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
-  doc.save(`Payroll_${eventName}.pdf`);
+  doc.save(buildPayrollFileName());
 }
 
 async function sharePayrollPDF(toAddress, ccAddress){
@@ -705,8 +716,7 @@ async function sharePayrollPDF(toAddress, ccAddress){
   const recipientLine = ccAddress ? `To: ${toAddress} (cc: ${ccAddress})` : `To: ${toAddress}`;
 
   const doc = buildPayrollPDF();
-  const eventName = (document.getElementById('event').value.trim() || 'payroll').replace(/\s+/g,'_');
-  const fileName = `Payroll_${eventName}.pdf`;
+  const fileName = buildPayrollFileName();
   const event = document.getElementById('event').value.trim();
   const eventDate = document.getElementById('eventDate').value.trim();
   const subject = `Payroll - ${event || 'Event'}${eventDate ? ' - ' + eventDate : ''}`;

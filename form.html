@@ -182,7 +182,7 @@
     box-shadow:0 0 18px rgba(255,140,0,0.3);
   }
   button.primary:hover{filter:brightness(1.1);}
-  button.secondary{
+  button.secondary, label.secondary{
     background:none;
     border:1px solid var(--line);
     color:var(--navy);
@@ -192,7 +192,7 @@
     border-radius:8px;
     cursor:pointer;
   }
-  button.secondary:hover{border-color:var(--navy);}
+  button.secondary:hover, label.secondary:hover{border-color:var(--navy);}
   .err{
     color:var(--brick);
     font-size:12px;
@@ -295,11 +295,11 @@
     </div>
 
     <div class="field full" style="margin-top:14px;">
-      <label>Display type</label>
+      <label>Display type (select all that apply)</label>
       <div class="radiorow">
-        <label><input type="radio" name="dtype" value="NFPA 1123 Outdoor Display Operator"> NFPA 1123 outdoor display operator</label>
-        <label><input type="radio" name="dtype" value="NFPA 1126 Special Effects/Proximal Audience"> NFPA 1126 special effects / proximal audience</label>
-        <label><input type="radio" name="dtype" value="NFPA 160 Flame Effects"> NFPA 160 flame effects</label>
+        <label><input type="checkbox" name="dtype" value="NFPA 1123 Outdoor Display Operator"> NFPA 1123 outdoor display operator</label>
+        <label><input type="checkbox" name="dtype" value="NFPA 1126 Special Effects/Proximal Audience"> NFPA 1126 special effects / proximal audience</label>
+        <label><input type="checkbox" name="dtype" value="NFPA 160 Flame Effects"> NFPA 160 flame effects</label>
       </div>
     </div>
   </div>
@@ -377,8 +377,12 @@
       <div style="border:1px solid var(--line);border-radius:3px;background:#fdfcfa;touch-action:none;">
         <canvas id="sigPad" width="740" height="160" style="display:block;width:100%;height:160px;cursor:crosshair;"></canvas>
       </div>
-      <div style="display:flex;gap:10px;margin-top:8px;">
+      <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
         <button class="secondary" type="button" onclick="clearSignature()">Clear signature</button>
+        <label class="secondary" style="display:inline-flex;align-items:center;cursor:pointer;">
+          Upload signature image
+          <input type="file" accept="image/*" style="display:none;" onchange="handleSignatureUpload(event)">
+        </label>
       </div>
     </div>
     <p class="notice">Only one after‑action report per flame effects display or performance. This report must be filed with the Office of the State Fire Marshal within ten (10) working days following the display.</p>
@@ -633,6 +637,30 @@ function clearSignature(){
   sigHasContent = false;
 }
 
+function handleSignatureUpload(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+      // Fit the uploaded image within the pad while keeping its aspect ratio
+      const padW = sigCanvas.width, padH = sigCanvas.height;
+      const scale = Math.min(padW / img.width, padH / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      const x = (padW - w) / 2;
+      const y = (padH - h) / 2;
+      sigCtx.drawImage(img, x, y, w, h);
+      sigHasContent = true;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
 function downloadSignature(){
   if(!sigHasContent){
     alert('Draw a signature first.');
@@ -651,6 +679,11 @@ function downloadSignature(){
 function radioVal(name){
   const el = document.querySelector(`input[name="${name}"]:checked`);
   return el ? el.value : '';
+}
+
+function checkboxVals(name){
+  const els = document.querySelectorAll(`input[name="${name}"]:checked`);
+  return Array.from(els).map(el => el.value).join('; ');
 }
 
 function val(id){
@@ -786,7 +819,7 @@ function buildReportPDF(){
   field('Permit department', val('dept'));
   field('AHJ name & title', val('ahj'));
   field('Permit number', val('permitNum'));
-  field('Display type', radioVal('dtype') || '(not selected)');
+  field('Display type', checkboxVals('dtype') || '(not selected)');
 
   heading('Assisting personnel');
   const rows = [];
@@ -846,11 +879,22 @@ function buildReportPDF(){
   return doc;
 }
 
+function buildAarFileName(){
+  const parts = [];
+  const eventDate = val('eventDate');
+  if(eventDate) parts.push(eventDate);
+  const venue = val('event');
+  if(venue) parts.push(venue.replace(/\s+/g,'_'));
+  const opName = val('opName');
+  if(opName) parts.push(opName.replace(/\s+/g,'_'));
+  const base = parts.length ? parts.join('_') : 'report';
+  return `AAR_${base}.pdf`.replace(/[\\/:*?"<>|]/g, '');
+}
+
 function exportPDF(){
   if(!validate()) return;
   const doc = buildReportPDF();
-  const opNameFile = (val('opName') || 'report').replace(/\s+/g,'_');
-  doc.save(`AAR_${opNameFile}.pdf`);
+  doc.save(buildAarFileName());
 }
 
 function buildReportText(){
@@ -882,7 +926,7 @@ function buildReportText(){
   lines.push(`Permit department: ${val('dept')}`);
   lines.push(`AHJ name & title: ${val('ahj')}`);
   lines.push(`Permit number: ${val('permitNum')}`);
-  lines.push(`Display type: ${radioVal('dtype') || '(not selected)'}`);
+  lines.push(`Display type: ${checkboxVals('dtype') || '(not selected)'}`);
   lines.push('');
   lines.push('Assisting personnel:');
   lines.push(personnel.length ? personnel.join('\n') : '  (none listed)');
@@ -925,8 +969,7 @@ async function sendReport(){
   const opName = document.getElementById('opName').value.trim();
   const eventDate = document.getElementById('eventDate').value.trim();
   const subject = `After-Action Report - ${opName} - ${eventDate}`;
-  const opNameFile = (opName || 'report').replace(/\s+/g,'_');
-  const fileName = `AAR_${opNameFile}.pdf`;
+  const fileName = buildAarFileName();
   const recipientLine = 'To: fireworks@utah.gov (cc: chuckj@xmission.com, vortexfireworksartists@gmail.com)';
   const statusEl = document.getElementById('emailStatus');
 
