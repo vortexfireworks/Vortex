@@ -115,8 +115,16 @@
       <datalist id="contactsList"></datalist>
     </div>
     <div class="field">
-      <label for="personLicense">License number</label>
-      <input type="text" id="personLicense">
+      <label for="personDisplayLicense">Display Operator (D)</label>
+      <input type="text" id="personDisplayLicense">
+    </div>
+    <div class="field">
+      <label for="personSFXLicense">Special Effects Operator (P)</label>
+      <input type="text" id="personSFXLicense">
+    </div>
+    <div class="field">
+      <label for="personFlameLicense">Flame Effects Operator (F)</label>
+      <input type="text" id="personFlameLicense">
     </div>
     <div class="field">
       <label for="personAddress">Address</label>
@@ -229,7 +237,9 @@ document.getElementById('checkInTime').value = nowTimeStr;
 function autofill(nameInput){
   // Don't reveal license/address/age just from typing a name.
   // Those only unlock once the correct phone number is entered below.
-  document.getElementById('personLicense').value = '';
+  document.getElementById('personDisplayLicense').value = '';
+  document.getElementById('personSFXLicense').value = '';
+  document.getElementById('personFlameLicense').value = '';
   document.getElementById('personAddress').value = '';
   document.getElementById('personAge').value = '';
   checkPhoneMatch();
@@ -258,7 +268,9 @@ function checkPhoneMatch(){
   const statusEl = document.getElementById('phoneCheckStatus');
   const enteredPhone = normalizePhoneDigits(document.getElementById('personPhone').value);
   if(enteredPhone.length < 7){
-    document.getElementById('personLicense').value = '';
+    document.getElementById('personDisplayLicense').value = '';
+    document.getElementById('personSFXLicense').value = '';
+    document.getElementById('personFlameLicense').value = '';
     document.getElementById('personAddress').value = '';
     document.getElementById('personAge').value = '';
     setHeadPyroLock(false, 'verify your phone number first');
@@ -288,13 +300,17 @@ async function verifyPhoneWithServer(){
     const data = await res.json();
     if(myToken !== phoneCheckToken) return; // a newer keystroke already superseded this check
     if(data && data.verified){
-      document.getElementById('personLicense').value = data.license || '';
+      document.getElementById('personDisplayLicense').value = data.displayLicense || '';
+      document.getElementById('personSFXLicense').value = data.specialEffectsLicense || '';
+      document.getElementById('personFlameLicense').value = data.flameLicense || '';
       document.getElementById('personAddress').value = data.address || '';
       document.getElementById('personAge').value = data.age || '';
       const hasLicense = !!(data.displayLicense || data.specialEffectsLicense || data.flameLicense);
       setHeadPyroLock(hasLicense, hasLicense ? '' : 'no license on file');
     } else {
-      document.getElementById('personLicense').value = '';
+      document.getElementById('personDisplayLicense').value = '';
+      document.getElementById('personSFXLicense').value = '';
+      document.getElementById('personFlameLicense').value = '';
       document.getElementById('personAddress').value = '';
       document.getElementById('personAge').value = '';
       setHeadPyroLock(false, 'verify your phone number first');
@@ -321,12 +337,20 @@ function checkIn(){
   btn.disabled = true;
   btn.textContent = 'Checking in…';
 
+  const displayLicense = document.getElementById('personDisplayLicense').value.trim();
+  const sfxLicense = document.getElementById('personSFXLicense').value.trim();
+  const flameLicense = document.getElementById('personFlameLicense').value.trim();
+  const licenseParts = [];
+  if(displayLicense) licenseParts.push('D: ' + displayLicense);
+  if(sfxLicense) licenseParts.push('P: ' + sfxLicense);
+  if(flameLicense) licenseParts.push('F: ' + flameLicense);
+
   const payload = {
     event: eventName,
     eventDate: document.getElementById('eventDate').value,
     checkInTime: document.getElementById('checkInTime').value,
     name: name,
-    license: document.getElementById('personLicense').value.trim(),
+    license: licenseParts.join(' · '),
     phone: document.getElementById('personPhone').value.trim(),
     address: document.getElementById('personAddress').value.trim(),
     age: document.getElementById('personAge').value.trim(),
