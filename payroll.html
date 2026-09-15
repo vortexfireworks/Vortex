@@ -110,6 +110,11 @@
 </head>
 <body>
 
+<div id="undoToast" style="display:none;position:fixed;left:16px;right:16px;bottom:20px;max-width:400px;margin:0 auto;background:#1c2434;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;">
+  <span id="undoToastMsg" style="font-size:13px;color:var(--ink);">Person removed</span>
+  <button type="button" onclick="undoRemove()" style="background:none;border:none;color:#ffb98a;font-weight:700;font-size:13px;cursor:pointer;padding:4px 8px;">Undo</button>
+</div>
+
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 
 <div class="sheet" id="mainContent">
@@ -188,6 +193,7 @@
     <button class="secondary" type="button" onclick="emailToChuck()">Email to Chuck (cc Vortex)</button>
     <button class="secondary" type="button" onclick="emailToVortex()">Email to Vortex</button>
     <button class="secondary" type="button" onclick="downloadPayrollPDF()">Download as PDF</button>
+    <button class="secondary" type="button" onclick="downloadPayrollCSV()">Download as CSV</button>
   </div>
   <p class="status" id="emailStatus" style="padding:0 24px;"></p>
   <p style="padding:0 24px 20px;font-size:11.5px;color:var(--ink-soft);">"Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
@@ -350,6 +356,39 @@ function updateModeUI(){
   recalculate();
 }
 
+let lastRemovedPerson = null;
+let undoToastTimer = null;
+
+function removePersonRow(row){
+  const name = row.querySelector('.p-name').value.trim();
+  const address = row.querySelector('.p-address').value.trim();
+  const amount = row.querySelector('.p-amount').value.trim();
+  const checkinTimeEl = row.querySelector('.checkin-time');
+  const checkInTime = checkinTimeEl ? checkinTimeEl.textContent.replace('Checked in ', '').trim() : '';
+
+  lastRemovedPerson = { name, address, amount, checkInTime };
+  row.remove();
+  recalculate();
+
+  const toast = document.getElementById('undoToast');
+  document.getElementById('undoToastMsg').textContent = name ? `${name} removed` : 'Person removed';
+  toast.style.display = 'flex';
+  clearTimeout(undoToastTimer);
+  undoToastTimer = setTimeout(() => { toast.style.display = 'none'; lastRemovedPerson = null; }, 6000);
+}
+
+function undoRemove(){
+  if(!lastRemovedPerson) return;
+  addPersonRow(lastRemovedPerson.name, lastRemovedPerson.address, lastRemovedPerson.checkInTime);
+  const rows = document.querySelectorAll('#peopleBody tr');
+  const newRow = rows[rows.length - 1];
+  if(newRow) newRow.querySelector('.p-amount').value = lastRemovedPerson.amount;
+  recalculate();
+  document.getElementById('undoToast').style.display = 'none';
+  clearTimeout(undoToastTimer);
+  lastRemovedPerson = null;
+}
+
 function addPersonRow(name, address, checkInTime){
   const tbody = document.getElementById('peopleBody');
   const tr = document.createElement('tr');
@@ -360,7 +399,7 @@ function addPersonRow(name, address, checkInTime){
     </td>
     <td data-label="Address"><input type="text" class="p-address" value="${address ? address.replace(/"/g,'&quot;') : ''}"></td>
     <td data-label="Amount ($)"><input type="number" class="p-amount" min="0" step="${isHoursMode() ? '0.25' : '1'}" oninput="onAmountEdit()"></td>
-    <td data-label=""><button class="rm-row" type="button" onclick="this.closest('tr').remove(); recalculate();" aria-label="Remove">&times;</button></td>
+    <td data-label=""><button class="rm-row" type="button" onclick="removePersonRow(this.closest('tr'))" aria-label="Remove">&times;</button></td>
   `;
   tbody.appendChild(tr);
 }
@@ -705,6 +744,45 @@ function downloadPayrollPDF(){
   doc.save(buildPayrollFileName());
 }
 
+function csvEscapeField(val){
+  val = String(val == null ? '' : val);
+  if(val.includes(',') || val.includes('"') || val.includes('\n')){
+    return '"' + val.replace(/"/g, '""') + '"';
+  }
+  return val;
+}
+
+function downloadPayrollCSV(){
+  const people = collectPeople();
+  if(people.length === 0){
+    alert('Add at least one person before exporting.');
+    return;
+  }
+  const hours = isHoursMode();
+  const unitLabel = hours ? 'Hours' : 'Amount ($)';
+  const lines = [`Name,Address,${unitLabel},Checked In`];
+
+  const hpName = document.getElementById('hpName').value.trim();
+  if(!hours && hpName){
+    const hpAddress = document.getElementById('hpAddress').value.trim();
+    const hpAmount = parseFloat(document.getElementById('hpAmount').value) || 0;
+    lines.push([csvEscapeField(hpName + ' (HP)'), csvEscapeField(hpAddress), csvEscapeField(hpAmount), ''].join(','));
+  }
+  people.forEach(p => {
+    lines.push([csvEscapeField(p.name), csvEscapeField(p.address), csvEscapeField(p.amount), csvEscapeField(p.checkInTime || '')].join(','));
+  });
+
+  const blob = new Blob([lines.join('\n')], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = buildPayrollFileName().replace(/\.pdf$/, '.csv');
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function sharePayrollPDF(toAddress, ccAddress){
   const people = collectPeople();
   if(people.length === 0){
@@ -738,6 +816,7 @@ async function sharePayrollPDF(toAddress, ccAddress){
           title: subject,
           text: `${recipientLine}\n\n${subject}`
         });
+        payrollSubmitted = true;
         return;
       }
     } catch(err){
@@ -756,6 +835,7 @@ async function sharePayrollPDF(toAddress, ccAddress){
   const ccParam = ccAddress ? `&cc=${encodeURIComponent(ccAddress)}` : '';
   const mailto = `mailto:${encodeURIComponent(toAddress)}?${ccParam ? ccParam.slice(1) + '&' : ''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
+  payrollSubmitted = true;
 }
 
 function emailToChuck(){
@@ -765,6 +845,21 @@ function emailToChuck(){
 function emailToVortex(){
   sharePayrollPDF('vortexfireworksartists@gmail.com', '');
 }
+
+let payrollSubmitted = false;
+function hasUnsavedPayrollContent(){
+  const total = document.getElementById('totalPayroll').value.trim();
+  const hpName = document.getElementById('hpName').value.trim();
+  const anyPeople = Array.from(document.querySelectorAll('#peopleBody .p-name')).some(el => el.value.trim());
+  return !!total || !!hpName || anyPeople;
+}
+window.addEventListener('beforeunload', (e) => {
+  if(payrollSubmitted) return;
+  if(hasUnsavedPayrollContent()){
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 updateModeUI();
 </script>

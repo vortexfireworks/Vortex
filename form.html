@@ -220,7 +220,21 @@
 </head>
 <body>
 
+<div id="undoToast" style="display:none;position:fixed;left:16px;right:16px;bottom:20px;max-width:600px;margin:0 auto;background:#1c2434;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;font-family:"Helvetica Neue",Arial,sans-serif;">
+  <span id="undoToastMsg" style="font-size:13px;color:var(--ink);">Person removed</span>
+  <button type="button" onclick="undoRemovePersonnel()" style="background:none;border:none;color:#ffb98a;font-weight:700;font-size:13px;cursor:pointer;padding:4px 8px;">Undo</button>
+</div>
+
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
+
+<div id="draftBanner" style="display:none;max-width:820px;margin:0 auto 14px;background:rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.35);border-radius:10px;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <span style="font-size:13px;color:#f4f1ea;">You have a saved draft of this report.</span>
+  <div style="display:flex;gap:10px;">
+    <button type="button" id="restoreDraftBtn" style="background:linear-gradient(135deg,#d92b2b,#ff8c00);color:#fdf6f2;border:none;font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:6px;cursor:pointer;">Restore draft</button>
+    <button type="button" id="discardDraftBtn" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#f4f1ea;font-size:12.5px;padding:8px 14px;border-radius:6px;cursor:pointer;">Discard</button>
+  </div>
+</div>
+
 <div class="sheet">
   <header>
     <p class="kicker">OFFICE OF THE STATE FIRE MARSHAL</p>
@@ -566,7 +580,10 @@ function updateAddButtonState(){
   document.getElementById('rowCapMsg').style.display = count >= MAX_ROWS ? 'block' : 'none';
 }
 
-function addPersonnelRow(){
+let lastRemovedPersonnel = null;
+let undoToastTimer = null;
+
+function addPersonnelRow(name, license, address, age){
   const currentCount = document.querySelectorAll('#personnelBody tr').length;
   if(currentCount >= MAX_ROWS) return;
   personnelCount++;
@@ -575,14 +592,39 @@ function addPersonnelRow(){
   const tr = document.createElement('tr');
   tr.id = 'prow-' + id;
   tr.innerHTML = `
-    <td data-label="Name"><input type="text" class="p-name" list="contactsList" oninput="autofillRow(this)"></td>
-    <td data-label="License number"><input type="text" class="p-license"></td>
-    <td data-label="Address / city / state / zip"><input type="text" class="p-address"></td>
-    <td data-label="Age"><input type="text" class="p-age" style="width:100%"></td>
-    <td data-label=""><button class="rm-row" type="button" onclick="document.getElementById('prow-${id}').remove(); updateAddButtonState();" aria-label="Remove row">&times;</button></td>
+    <td data-label="Name"><input type="text" class="p-name" list="contactsList" oninput="autofillRow(this)" value="${name ? name.replace(/"/g,'&quot;') : ''}"></td>
+    <td data-label="License number"><input type="text" class="p-license" value="${license ? license.replace(/"/g,'&quot;') : ''}"></td>
+    <td data-label="Address / city / state / zip"><input type="text" class="p-address" value="${address ? address.replace(/"/g,'&quot;') : ''}"></td>
+    <td data-label="Age"><input type="text" class="p-age" style="width:100%" value="${age ? age.replace(/"/g,'&quot;') : ''}"></td>
+    <td data-label=""><button class="rm-row" type="button" onclick="removePersonnelRow(document.getElementById('prow-${id}'))" aria-label="Remove row">&times;</button></td>
   `;
   tbody.appendChild(tr);
   updateAddButtonState();
+}
+
+function removePersonnelRow(row){
+  const name = row.querySelector('.p-name').value.trim();
+  const license = row.querySelector('.p-license').value.trim();
+  const address = row.querySelector('.p-address').value.trim();
+  const age = row.querySelector('.p-age').value.trim();
+
+  lastRemovedPersonnel = { name, license, address, age };
+  row.remove();
+  updateAddButtonState();
+
+  const toast = document.getElementById('undoToast');
+  document.getElementById('undoToastMsg').textContent = name ? `${name} removed` : 'Person removed';
+  toast.style.display = 'flex';
+  clearTimeout(undoToastTimer);
+  undoToastTimer = setTimeout(() => { toast.style.display = 'none'; lastRemovedPersonnel = null; }, 6000);
+}
+
+function undoRemovePersonnel(){
+  if(!lastRemovedPersonnel) return;
+  addPersonnelRow(lastRemovedPersonnel.name, lastRemovedPersonnel.license, lastRemovedPersonnel.address, lastRemovedPersonnel.age);
+  document.getElementById('undoToast').style.display = 'none';
+  clearTimeout(undoToastTimer);
+  lastRemovedPersonnel = null;
 }
 populateDatalist();
 addPersonnelRow();
@@ -951,6 +993,128 @@ function buildReportText(){
   return lines.join('\n');
 }
 
+const AAR_DRAFT_KEY = 'aarDraft_v1';
+const AAR_TEXT_FIELDS = ['opName','eventDate','company','license','address','event','venue','dept','ahj','permitNum','shells','sigName','sigDate','expl_duds','expl_injury','expl_fire','expl_viol'];
+
+function collectDraft(){
+  const draft = { fields:{}, radios:{}, checkboxes:{}, personnel:[], sig:null };
+  AAR_TEXT_FIELDS.forEach(id => { const el = document.getElementById(id); if(el) draft.fields[id] = el.value; });
+  draft.checkboxes.dtype = Array.from(document.querySelectorAll('input[name="dtype"]:checked')).map(el => el.value);
+  ['siteSafe','q_duds','q_injury','q_fire','q_viol'].forEach(name => {
+    const checked = document.querySelector(`input[name="${name}"]:checked`);
+    draft.radios[name] = checked ? checked.value : '';
+  });
+  document.querySelectorAll('#personnelBody tr').forEach(row => {
+    draft.personnel.push({
+      name: row.querySelector('.p-name').value,
+      license: row.querySelector('.p-license').value,
+      address: row.querySelector('.p-address').value,
+      age: row.querySelector('.p-age').value
+    });
+  });
+  if(typeof sigHasContent !== 'undefined' && sigHasContent){
+    try{ draft.sig = sigCanvas.toDataURL('image/png'); } catch(e){}
+  }
+  return draft;
+}
+
+function hasDraftContent(draft){
+  const anyField = Object.values(draft.fields).some(v => v && v.trim());
+  const anyRadio = Object.values(draft.radios).some(v => v);
+  const anyCheckbox = draft.checkboxes.dtype && draft.checkboxes.dtype.length > 0;
+  const anyPersonnel = draft.personnel.some(p => p.name || p.license || p.address || p.age);
+  return anyField || anyRadio || anyCheckbox || anyPersonnel || !!draft.sig;
+}
+
+let draftSaveTimer = null;
+function scheduleDraftSave(){
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(() => {
+    const draft = collectDraft();
+    try{
+      if(hasDraftContent(draft)){
+        localStorage.setItem(AAR_DRAFT_KEY, JSON.stringify(draft));
+      } else {
+        localStorage.removeItem(AAR_DRAFT_KEY);
+      }
+    } catch(e){}
+  }, 800);
+}
+
+function clearDraft(){
+  try{ localStorage.removeItem(AAR_DRAFT_KEY); } catch(e){}
+}
+
+function restoreDraft(draft){
+  Object.keys(draft.fields).forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = draft.fields[id];
+  });
+  (draft.checkboxes.dtype || []).forEach(val => {
+    const el = document.querySelector(`input[name="dtype"][value="${CSS.escape(val)}"]`);
+    if(el) el.checked = true;
+  });
+  Object.keys(draft.radios).forEach(name => {
+    if(!draft.radios[name]) return;
+    const el = document.querySelector(`input[name="${name}"][value="${CSS.escape(draft.radios[name])}"]`);
+    if(el) el.checked = true;
+  });
+  document.getElementById('personnelBody').innerHTML = '';
+  personnelCount = 0;
+  (draft.personnel || []).forEach(p => {
+    if(p.name || p.license || p.address || p.age){
+      addPersonnelRow(p.name, p.license, p.address, p.age);
+    }
+  });
+  if(document.querySelectorAll('#personnelBody tr').length === 0){
+    addPersonnelRow(); addPersonnelRow();
+  }
+  if(draft.sig){
+    const img = new Image();
+    img.onload = () => {
+      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+      sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
+      sigHasContent = true;
+    };
+    img.src = draft.sig;
+  }
+  const eventInput = document.getElementById('event');
+  if(eventInput && typeof autofillEventAddress === 'function') autofillEventAddress(eventInput);
+}
+
+function checkForSavedDraft(){
+  let raw;
+  try{ raw = localStorage.getItem(AAR_DRAFT_KEY); } catch(e){ return; }
+  if(!raw) return;
+  let draft;
+  try{ draft = JSON.parse(raw); } catch(e){ clearDraft(); return; }
+  if(!hasDraftContent(draft)){ clearDraft(); return; }
+
+  const banner = document.getElementById('draftBanner');
+  banner.style.display = 'flex';
+  document.getElementById('restoreDraftBtn').onclick = () => {
+    restoreDraft(draft);
+    banner.style.display = 'none';
+  };
+  document.getElementById('discardDraftBtn').onclick = () => {
+    clearDraft();
+    banner.style.display = 'none';
+  };
+}
+
+document.addEventListener('input', scheduleDraftSave);
+document.addEventListener('change', scheduleDraftSave);
+checkForSavedDraft();
+
+let aarSubmitted = false;
+window.addEventListener('beforeunload', (e) => {
+  if(aarSubmitted) return;
+  if(hasDraftContent(collectDraft())){
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
 function validate(){
   const errBox = document.getElementById('errMsg');
   const opName = document.getElementById('opName').value.trim();
@@ -990,6 +1154,8 @@ async function sendReport(){
           title: subject,
           text: `${recipientLine}\n\n${subject}`
         });
+        aarSubmitted = true;
+        clearDraft();
         return;
       }
     } catch(err){
@@ -1007,6 +1173,8 @@ async function sendReport(){
   const body = buildReportText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
   const mailto = `mailto:fireworks@utah.gov?cc=chuckj@xmission.com,vortexfireworksartists@gmail.com&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
+  aarSubmitted = true;
+  clearDraft();
 }
 </script>
 <script>

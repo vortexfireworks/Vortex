@@ -85,6 +85,10 @@
 <body>
 
 <div style="max-width:440px;width:100%;">
+<div id="queueBanner" style="display:none;margin:0 0 12px;background:rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.35);border-radius:10px;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:#f4f1ea;">
+  <span id="queueBannerMsg">Waiting to send…</span>
+  <button type="button" onclick="flushQueue()" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#f4f1ea;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;">Retry now</button>
+</div>
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 <div class="card">
   <header>
@@ -111,7 +115,7 @@
     </div>
     <div class="field">
       <label for="personPhone">Phone number</label>
-      <input type="text" id="personPhone" oninput="checkPhoneMatch()">
+      <input type="tel" id="personPhone" oninput="checkPhoneMatch()">
       <p style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">Enter the phone number on file to auto-fill your license and address.</p>
       <p id="phoneCheckStatus" style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;min-height:14px;"></p>
     </div>
@@ -363,6 +367,11 @@ function checkIn(){
     isHeadPyro: document.getElementById('isHeadPyro').checked
   };
 
+  submitCheckIn(payload, name, eventName);
+}
+
+function submitCheckIn(payload, name, eventName){
+  const btn = document.getElementById('submitBtn');
   fetch(CHECKIN_API_URL, {
     method: 'POST',
     mode: 'no-cors',
@@ -375,12 +384,64 @@ function checkIn(){
         <p>${name} — ${eventName}</p>
       </div>`;
   }).catch(() => {
-    msg.textContent = 'Could not check in — check your connection and try again.';
-    msg.className = 'msg err';
-    btn.disabled = false;
-    btn.textContent = 'Check in';
+    queueCheckIn(payload);
+    document.getElementById('formBody').innerHTML = `
+      <div class="success">
+        <div class="check">&#10003;</div>
+        <h2>Saved — will send automatically</h2>
+        <p>${name} — ${eventName}<br>No connection right now, but this is saved on your device and will send the moment you're back online.</p>
+      </div>`;
   });
 }
+
+const CHECKIN_QUEUE_KEY = 'checkinQueue_v1';
+
+function getQueue(){
+  try{ return JSON.parse(localStorage.getItem(CHECKIN_QUEUE_KEY) || '[]'); } catch(e){ return []; }
+}
+
+function setQueue(q){
+  try{ localStorage.setItem(CHECKIN_QUEUE_KEY, JSON.stringify(q)); } catch(e){}
+}
+
+function queueCheckIn(payload){
+  const q = getQueue();
+  q.push(payload);
+  setQueue(q);
+  updateQueueBanner();
+}
+
+async function flushQueue(){
+  const q = getQueue();
+  if(q.length === 0) return;
+  const remaining = [];
+  for(let i = 0; i < q.length; i++){
+    try{
+      await fetch(CHECKIN_API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(q[i]) });
+    } catch(err){
+      // still offline — keep this one and everything after it queued, stop trying for now
+      remaining.push(...q.slice(i));
+      break;
+    }
+  }
+  setQueue(remaining);
+  updateQueueBanner();
+}
+
+function updateQueueBanner(){
+  const q = getQueue();
+  const banner = document.getElementById('queueBanner');
+  if(q.length > 0){
+    banner.style.display = 'flex';
+    document.getElementById('queueBannerMsg').textContent = `${q.length} check-in${q.length > 1 ? 's' : ''} waiting to send`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+window.addEventListener('online', flushQueue);
+window.addEventListener('load', flushQueue);
+updateQueueBanner();
 </script>
 </body>
 </html>
