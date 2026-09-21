@@ -57,6 +57,8 @@
   .msg{font-size:13px;margin-top:14px;text-align:center;}
   .msg.ok{color:var(--ok);}
   .msg.err{color:var(--err);}
+  .field-err{font-size:11.5px;color:var(--err);margin:4px 0 0;}
+  input.invalid{border-color:var(--err) !important;}
   .success{
     padding:40px 24px;text-align:center;
   }
@@ -126,15 +128,18 @@
     </div>
     <div class="field">
       <label for="personDisplayLicense">Display Operator (D)</label>
-      <input type="text" id="personDisplayLicense">
+      <input type="text" id="personDisplayLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+      <p class="field-err" id="personDisplayLicenseErr" style="display:none;"></p>
     </div>
     <div class="field">
       <label for="personSFXLicense">Special Effects Operator (P)</label>
-      <input type="text" id="personSFXLicense">
+      <input type="text" id="personSFXLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+      <p class="field-err" id="personSFXLicenseErr" style="display:none;"></p>
     </div>
     <div class="field">
       <label for="personFlameLicense">Flame Effects Operator (F)</label>
-      <input type="text" id="personFlameLicense">
+      <input type="text" id="personFlameLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+      <p class="field-err" id="personFlameLicenseErr" style="display:none;"></p>
     </div>
     <div class="field">
       <label for="personAddress">Address</label>
@@ -332,6 +337,39 @@ async function verifyPhoneWithServer(){
   }
 }
 
+// The "Russ Check" — rejects license numbers that don't start with "FE"
+// followed by digits, to stop joke/garbage entries in the license fields.
+const LICENSE_FORMAT = /^FE\d+$/i;
+
+function validateLicenseField(input){
+  const errEl = document.getElementById(input.id + 'Err');
+  const value = input.value.trim();
+  if(!value){
+    input.classList.remove('invalid');
+    errEl.style.display = 'none';
+    return true;
+  }
+  if(LICENSE_FORMAT.test(value)){
+    input.classList.remove('invalid');
+    errEl.style.display = 'none';
+    return true;
+  }
+  input.classList.add('invalid');
+  errEl.textContent = 'Doesn\'t pass the Russ Check parameters — license numbers start with "FE" followed by numbers (example: FE123456).';
+  errEl.style.display = 'block';
+  return false;
+}
+
+function allLicenseFieldsValid(){
+  const ids = ['personDisplayLicense', 'personSFXLicense', 'personFlameLicense'];
+  let allValid = true;
+  ids.forEach(id => {
+    const valid = validateLicenseField(document.getElementById(id));
+    if(!valid) allValid = false;
+  });
+  return allValid;
+}
+
 function checkIn(){
   const eventName = document.getElementById('eventName').value.trim();
   const name = document.getElementById('personName').value.trim();
@@ -339,6 +377,12 @@ function checkIn(){
 
   if(!eventName || !name){
     msg.textContent = 'Enter the event and your name before checking in.';
+    msg.className = 'msg err';
+    return;
+  }
+
+  if(!allLicenseFieldsValid()){
+    msg.textContent = 'One or more license numbers don\'t pass the Russ Check parameters — please fix the format before checking in.';
     msg.className = 'msg err';
     return;
   }
