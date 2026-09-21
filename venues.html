@@ -140,8 +140,10 @@
         Import from CSV
         <input type="file" accept=".csv" style="display:none;" onchange="handleCsvImport(event)">
       </label>
+      <button class="secondary" type="button" onclick="findDuplicateVenues()">Find duplicates</button>
     </div>
     <p id="csvImportStatus" style="font-size:12px;color:var(--ok);margin:0 0 12px;"></p>
+    <div id="duplicatesWrap" style="margin:0 0 16px;"></div>
 
     <div class="field search-box">
       <input type="text" id="venueSearch" placeholder="Search by name…" oninput="renderVenueList()">
@@ -239,11 +241,71 @@ function populateVenueDatalist(){
 }
 
 function prefillVenueEdit(nameInput){
+  if(!nameInput.value.trim()){
+    originalVenueName = null;
+  }
   const match = VENUE_DIRECTORY[nameInput.value.trim().toLowerCase()];
   if(match){
     document.getElementById('vEditAddress').value = match.address || '';
     document.getElementById('vEditCounty').value = match.county || '';
   }
+}
+
+async function findDuplicateVenues(){
+  const wrap = document.getElementById('duplicatesWrap');
+  wrap.innerHTML = '<p class="loading-pulse">Checking for duplicates…</p>';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=findDuplicateVenues`);
+    if(!res.ok) throw new Error('Request failed');
+    const groups = await res.json();
+    renderDuplicateVenues(groups);
+  } catch(err){
+    wrap.innerHTML = '<p style="color:var(--brick);font-size:13px;">Could not check for duplicates — check your connection and try again.</p>';
+  }
+}
+
+function renderDuplicateVenues(groups){
+  const wrap = document.getElementById('duplicatesWrap');
+  if(!groups || groups.length === 0){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--ok);">No duplicates found — every venue name appears only once.</p>';
+    return;
+  }
+  wrap.innerHTML = `<p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;">${groups.length} DUPLICATE NAME${groups.length > 1 ? 'S' : ''} FOUND</p>` +
+    groups.map((g, gi) => `
+      <div style="background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.3);border-radius:10px;padding:14px;margin-bottom:12px;">
+        <p style="font-weight:700;margin:0 0 10px;">${g.rows[0].name}</p>
+        ${g.rows.map((r, ri) => `
+          <div style="background:rgba(10,14,26,0.4);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;">
+            <div style="color:var(--ink-soft);line-height:1.6;">
+              Address: ${r.address || '—'}<br>
+              County: ${r.county || '—'}
+            </div>
+            <button type="button" style="margin-top:8px;" onclick="keepDuplicateVenueRow(${gi}, ${ri})">Keep this one, delete the other${g.rows.length > 2 ? 's' : ''}</button>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  window._duplicateVenueGroups = groups;
+}
+
+async function keepDuplicateVenueRow(groupIndex, keepIndex){
+  const group = window._duplicateVenueGroups[groupIndex];
+  const keepRow = group.rows[keepIndex];
+  const toDelete = group.rows.filter((r, i) => i !== keepIndex);
+  if(!confirm(`Keep this entry for ${keepRow.name} and delete the other ${toDelete.length}? This can't be undone.`)) return;
+
+  for(const row of toDelete){
+    try{
+      await fetch(CHECKIN_API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({ recordType: 'deleteVenueRow', rowNumber: row.rowNumber })
+      });
+    } catch(err){}
+  }
+  await fetchVenueDirectory();
+  renderVenueList();
+  document.getElementById('duplicatesWrap').innerHTML = `<p style="font-size:13px;color:var(--ok);">Combined — kept one entry for ${keepRow.name}.</p>`;
 }
 
 function renderVenueList(){
@@ -420,9 +482,12 @@ async function handleCsvImport(event){
   }
 }
 
+let originalVenueName = null;
+
 function loadVenueIntoEditor(name){
   const match = VENUE_DIRECTORY[name.toLowerCase()];
   if(!match) return;
+  originalVenueName = match.name;
   document.getElementById('vEditName').value = match.name;
   document.getElementById('vEditAddress').value = match.address || '';
   document.getElementById('vEditCounty').value = match.county || '';
@@ -445,17 +510,24 @@ function saveVenue(){
   statusEl.style.color = 'var(--ink-soft)';
 
   const payload = { recordType: 'venue', name, address, county };
+  if(originalVenueName){
+    payload.originalName = originalVenueName;
+  }
 
   fetch(CHECKIN_API_URL, {
     method: 'POST',
     mode: 'no-cors',
     body: JSON.stringify(payload)
   }).then(() => {
+    if(originalVenueName && originalVenueName.toLowerCase() !== name.toLowerCase()){
+      delete VENUE_DIRECTORY[originalVenueName.toLowerCase()];
+    }
     VENUE_DIRECTORY[name.toLowerCase()] = { name, address, county };
     populateVenueDatalist();
     renderVenueList();
     statusEl.textContent = 'Saved.';
     statusEl.style.color = 'var(--ok)';
+    originalVenueName = null;
     document.getElementById('vEditName').value = '';
     document.getElementById('vEditAddress').value = '';
     document.getElementById('vEditCounty').value = '';
