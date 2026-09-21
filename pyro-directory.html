@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pyro Directory — Vortex Productions</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<style>
+  :root{
+    --accent1:#d92b2b; --accent2:#ff8c00; --accent3:#ffd23f; --accent4:#2f7ec9; --accent5:#123a63;
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --line:rgba(255,255,255,0.1);
+    --card:rgba(22,28,48,0.75); --ok:#4caf7d;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 60px;
+  }
+  .wrap{max-width:640px; margin:0 auto;}
+  .back-link{
+    display:block; margin:0 0 18px; font-size:12.5px;
+    color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:#ffb98a;}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:8px;}
+  header img{width:44px;height:44px;flex-shrink:0;border-radius:8px;}
+  .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 4px;font-weight:700;text-transform:uppercase;}
+  h1{
+    margin:0;font-size:20px;font-weight:800;
+    background:linear-gradient(90deg,#ff6a5a,#ff8c00 40%,#5a9de0 80%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  p.sub{font-size:12.5px;color:var(--ink-soft);margin:12px 0 18px;line-height:1.5;}
+  .search-box input{
+    width:100%; font-size:14px; padding:10px 12px; border:1px solid var(--line);
+    border-radius:8px; background:rgba(10,14,26,0.55); color:var(--ink); margin-bottom:16px;
+  }
+  .search-box input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .directory-list{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    backdrop-filter:blur(6px); overflow:hidden;
+  }
+  .directory-row{
+    padding:14px 18px; border-bottom:1px solid var(--line);
+  }
+  .directory-row:last-child{border-bottom:none;}
+  .directory-row .name{font-weight:700;font-size:15px;margin-bottom:4px;}
+  .directory-row .detail{font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+  .directory-row .detail a{color:#7fa8e8;text-decoration:none;}
+  .directory-row .detail a:hover{text-decoration:underline;}
+  .status{font-size:13px;color:var(--ink-soft);text-align:center;padding:30px 16px;}
+  .status.err{color:#ff6a5a;}
+  .loading-pulse{animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  footer{margin-top:24px;font-size:11px;color:#6b7290;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back-link" href="hp-tools.html">&larr; Back to HP Tools</a>
+  <header>
+    <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
+    <div>
+      <p class="kicker">Vortex Productions Inc.</p>
+      <h1>Pyro Directory</h1>
+    </div>
+  </header>
+  <p class="sub">Quick reference — name, license, phone, and email for everyone on file.</p>
+
+  <div class="search-box">
+    <input type="text" id="directorySearch" placeholder="Search by name…" oninput="renderDirectory()">
+  </div>
+
+  <div id="directoryWrap">
+    <p class="status loading-pulse">Loading directory…</p>
+  </div>
+
+  <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+let DIRECTORY = [];
+
+async function loadDirectory(){
+  const wrap = document.getElementById('directoryWrap');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=pyroDirectory`);
+    if(!res.ok) throw new Error('Request failed');
+    DIRECTORY = await res.json();
+    renderDirectory();
+  } catch(err){
+    wrap.innerHTML = '<p class="status err">Could not load the directory — check your connection and try again.</p>';
+  }
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderDirectory(){
+  const wrap = document.getElementById('directoryWrap');
+  const search = document.getElementById('directorySearch').value.trim().toLowerCase();
+  let people = DIRECTORY;
+  if(search){
+    people = people.filter(p => p.name.toLowerCase().includes(search));
+  }
+  if(people.length === 0){
+    wrap.innerHTML = '<p class="status">No matches found.</p>';
+    return;
+  }
+  wrap.innerHTML = `<div class="directory-list">${people.map(p => `
+    <div class="directory-row">
+      <div class="name">${escapeHtml(p.name)}</div>
+      <div class="detail">
+        ${p.license ? `License: ${escapeHtml(p.license)}<br>` : ''}
+        ${p.phone ? `Phone: <a href="tel:${escapeHtml(p.phone)}">${escapeHtml(p.phone)}</a><br>` : ''}
+        ${p.email ? `Email: <a href="mailto:${escapeHtml(p.email)}">${escapeHtml(p.email)}</a>` : ''}
+        ${!p.license && !p.phone && !p.email ? 'No details on file' : ''}
+      </div>
+    </div>
+  `).join('')}</div>`;
+}
+
+loadDirectory();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
