@@ -153,8 +153,10 @@
         Import from CSV
         <input type="file" accept=".csv" style="display:none;" onchange="handleContactsCsvImport(event)">
       </label>
+      <button class="secondary" type="button" onclick="findDuplicateOperators()">Find duplicates</button>
     </div>
     <p id="csvImportStatus" style="font-size:12px;color:var(--ok);margin:0 0 12px;"></p>
+    <div id="duplicatesWrap" style="margin:0 0 16px;"></div>
 
     <div class="field search-box">
       <input type="text" id="operatorSearch" placeholder="Search by name…" oninput="renderOperatorList()">
@@ -327,6 +329,9 @@ async function handlePhotoSelect(event){
 }
 
 function prefillOperatorEdit(nameInput){
+  if(!nameInput.value.trim()){
+    originalOperatorName = null;
+  }
   const match = CONTACTS_BY_NAME[nameInput.value.trim().toLowerCase()];
   if(match){
     document.getElementById('opEditDisplayLicense').value = match.displayLicense || '';
@@ -389,14 +394,18 @@ function renderOperatorList(){
       <div style="display:flex;gap:6px;flex-shrink:0;">
         <button type="button" onclick="openViewModal('${c.name.replace(/'/g,"\\'")}')">View</button>
         <button type="button" onclick="loadOperatorIntoEditor('${c.name.replace(/'/g,"\\'")}')">Edit</button>
+        <button type="button" style="color:var(--brick);border-color:var(--brick);" onclick="confirmDeleteOperator('${c.name.replace(/'/g,"\\'")}')">Delete</button>
       </div>
     </div>
   `).join('');
 }
 
+let originalOperatorName = null;
+
 function loadOperatorIntoEditor(name){
   const match = CONTACTS_BY_NAME[name.toLowerCase()];
   if(!match) return;
+  originalOperatorName = match.name;
   document.getElementById('opEditName').value = match.name;
   document.getElementById('opEditDisplayLicense').value = match.displayLicense || '';
   document.getElementById('opEditSFXLicense').value = match.specialEffectsLicense || '';
@@ -409,6 +418,88 @@ function loadOperatorIntoEditor(name){
   pendingPhotoBase64 = null;
   showExistingPhoto(match.photoUrl);
   document.getElementById('opEditName').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+async function findDuplicateOperators(){
+  const wrap = document.getElementById('duplicatesWrap');
+  wrap.innerHTML = '<p class="loading-pulse">Checking for duplicates…</p>';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=findDuplicateContacts`);
+    if(!res.ok) throw new Error('Request failed');
+    const groups = await res.json();
+    renderDuplicateOperators(groups);
+  } catch(err){
+    wrap.innerHTML = '<p style="color:var(--brick);font-size:13px;">Could not check for duplicates — check your connection and try again.</p>';
+  }
+}
+
+function renderDuplicateOperators(groups){
+  const wrap = document.getElementById('duplicatesWrap');
+  if(!groups || groups.length === 0){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--ok);">No duplicates found — every name appears only once.</p>';
+    return;
+  }
+  wrap.innerHTML = `<p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;">${groups.length} DUPLICATE NAME${groups.length > 1 ? 'S' : ''} FOUND</p>` +
+    groups.map((g, gi) => `
+      <div style="background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.3);border-radius:10px;padding:14px;margin-bottom:12px;">
+        <p style="font-weight:700;margin:0 0 10px;">${g.rows[0].name}</p>
+        ${g.rows.map((r, ri) => `
+          <div style="background:rgba(10,14,26,0.4);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;">
+            <div style="color:var(--ink-soft);line-height:1.6;">
+              License: ${[r.displayLicense, r.specialEffectsLicense, r.flameLicense].filter(Boolean).join(', ') || '—'}<br>
+              Phone: ${r.phone || '—'}<br>
+              Address: ${r.address || '—'}<br>
+              Age: ${r.age || '—'}
+            </div>
+            <button type="button" style="margin-top:8px;" onclick="keepDuplicateRow(${gi}, ${ri})">Keep this one, delete the other${g.rows.length > 2 ? 's' : ''}</button>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  window._duplicateGroups = groups;
+}
+
+async function keepDuplicateRow(groupIndex, keepIndex){
+  const group = window._duplicateGroups[groupIndex];
+  const keepRow = group.rows[keepIndex];
+  const toDelete = group.rows.filter((r, i) => i !== keepIndex);
+  if(!confirm(`Keep this entry for ${keepRow.name} and delete the other ${toDelete.length}? This can't be undone.`)) return;
+
+  for(const row of toDelete){
+    try{
+      await fetch(CHECKIN_API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({ recordType: 'deleteContactRow', rowNumber: row.rowNumber })
+      });
+    } catch(err){}
+  }
+  await fetchOperatorDirectory();
+  renderOperatorList();
+  document.getElementById('duplicatesWrap').innerHTML = `<p style="font-size:13px;color:var(--ok);">Combined — kept one entry for ${keepRow.name}.</p>`;
+}
+
+function confirmDeleteOperator(name){
+  if(!confirm(`Delete ${name} from the operator directory? This can't be undone.`)) return;
+
+  const statusEl = document.getElementById('operatorSaveStatus');
+  statusEl.textContent = `Deleting ${name}…`;
+  statusEl.style.color = 'var(--ink-soft)';
+
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify({ recordType: 'deleteContact', name })
+  }).then(async () => {
+    delete CONTACTS_BY_NAME[name.toLowerCase()];
+    await fetchOperatorDirectory();
+    renderOperatorList();
+    statusEl.textContent = `${name} deleted.`;
+    statusEl.style.color = 'var(--ok)';
+  }).catch(() => {
+    statusEl.textContent = 'Could not delete — check your connection and try again.';
+    statusEl.style.color = 'var(--brick)';
+  });
 }
 
 function saveOperator(){
@@ -436,6 +527,9 @@ function saveOperator(){
   if(pendingPhotoBase64){
     payload.photoBase64 = pendingPhotoBase64;
   }
+  if(originalOperatorName){
+    payload.originalName = originalOperatorName;
+  }
 
   fetch(CHECKIN_API_URL, {
     method: 'POST',
@@ -446,6 +540,7 @@ function saveOperator(){
     await fetchOperatorDirectory();
     statusEl.textContent = 'Saved.';
     statusEl.style.color = 'var(--ok)';
+    originalOperatorName = null;
     document.getElementById('opEditName').value = '';
     document.getElementById('opEditDisplayLicense').value = '';
     document.getElementById('opEditSFXLicense').value = '';
