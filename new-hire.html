@@ -8,16 +8,55 @@
 <meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
 <style>
   :root{
+    --kicker:#ffb98a; --surface-6:rgba(10,14,26,0.6); --surface-5:rgba(10,14,26,0.5); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
     --accent1:#d92b2b; --accent2:#ff8c00; --accent3:#ffd23f; --accent4:#2f7ec9; --accent5:#123a63;
     --ink:#f4f1ea; --ink-soft:#a3a9bf; --line:rgba(255,255,255,0.1);
     --card:rgba(22,28,48,0.7); --ok:#4caf7d;
   }
+
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
+  }
   *{box-sizing:border-box;}
   body{
     margin:0;
-    background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%);
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
     color:var(--ink);
     font-family:"Helvetica Neue",Arial,sans-serif;
     padding:32px 16px 80px;
@@ -31,7 +70,7 @@
   .back-link:hover{color:#ffb98a;}
   header{display:flex;align-items:center;gap:16px;margin-bottom:26px;}
   header img{width:52px;height:52px;flex-shrink:0;border-radius:8px;}
-  .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 4px;font-weight:700;text-transform:uppercase;}
+  .kicker{font-size:11px;letter-spacing:.08em;color:var(--kicker);margin:0 0 4px;font-weight:700;text-transform:uppercase;}
   h1{
     margin:0;font-size:21px;font-weight:800;
     background:linear-gradient(90deg,#ff6a5a,#ff8c00 40%,#5a9de0 80%);
@@ -46,7 +85,7 @@
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;line-height:1.5;}
   .doc-link{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
-    background:rgba(10,14,26,0.5); border:1px solid var(--line); border-radius:8px;
+    background:var(--surface-5); border:1px solid var(--line); border-radius:8px;
     padding:14px 16px; text-decoration:none; color:inherit;
     margin-bottom:10px; transition:border-color .15s;
   }
@@ -60,7 +99,7 @@
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
   input[type=text],input[type=email],input[type=tel],input[type=date],textarea{
     font-size:14px;padding:9px 11px;border:1px solid var(--line);
-    border-radius:6px;background:rgba(10,14,26,0.6);color:var(--ink);font-family:inherit;
+    border-radius:6px;background:var(--surface-6);color:var(--ink);font-family:inherit;
   }
   textarea{resize:vertical;min-height:70px;}
   input:focus,textarea:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
@@ -88,9 +127,21 @@
   @media(max-width:480px){
     .grid2{grid-template-columns:1fr;}
   }
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
 </style>
+
 </head>
 <body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
 <div class="wrap">
   <a class="back-link" href="index.html">&larr; Back to main menu</a>
   <header>
