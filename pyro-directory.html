@@ -55,6 +55,11 @@
   .directory-row .detail a:hover{text-decoration:underline;}
   .status{font-size:13px;color:var(--ink-soft);text-align:center;padding:30px 16px;}
   .status.err{color:#ff6a5a;}
+  .warning-banner{
+    background:rgba(255,140,0,0.12); border:1px solid rgba(255,140,0,0.35);
+    border-radius:10px; padding:10px 14px; margin-bottom:16px;
+    font-size:12px; font-weight:700; color:#ffb98a; text-align:center;
+  }
   .loading-pulse{animation:pulseFade 1.4s ease-in-out infinite;}
   @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
   footer{margin-top:24px;font-size:11px;color:#6b7290;text-align:center;}
@@ -71,6 +76,8 @@
     </div>
   </header>
   <p class="sub">Quick reference — name, license, phone, and email for everyone on file.</p>
+
+  <div class="warning-banner">⚠️ Use for official Vortex purposes only.</div>
 
   <div class="search-box">
     <input type="text" id="directorySearch" placeholder="Search by name…" oninput="renderDirectory()">
