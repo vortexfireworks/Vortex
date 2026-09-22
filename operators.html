@@ -116,11 +116,11 @@
       <div class="grid2" style="margin-bottom:10px;">
         <div class="field">
           <label for="opEditName">Name</label>
-          <input type="text" id="opEditName" list="operatorDirectoryList" oninput="prefillOperatorEdit(this)">
+          <input type="text" id="opEditName" list="operatorDirectoryList" oninput="prefillOperatorEdit(this)" onblur="this.value = toTitleCase(this.value)">
         </div>
         <div class="field"><label for="opEditPhone">Phone number</label><input type="tel" id="opEditPhone"></div>
         <div class="field"><label for="opEditEmail">Email</label><input type="email" id="opEditEmail"></div>
-        <div class="field full"><label for="opEditAddress">Address</label><input type="text" id="opEditAddress"></div>
+        <div class="field full"><label for="opEditAddress">Address</label><input type="text" id="opEditAddress" onblur="this.value = toTitleCase(this.value)"></div>
         <div class="field"><label for="opEditAge">Age</label><input type="text" id="opEditAge"></div>
       </div>
       <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">LICENSES</p>
@@ -402,6 +402,11 @@ function renderOperatorList(){
       </div>
     </div>
   `).join('');
+}
+
+function toTitleCase(str){
+  if(!str) return str;
+  return str.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
 
 let originalOperatorName = null;
