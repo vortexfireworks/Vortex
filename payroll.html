@@ -8,17 +8,56 @@
 <meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
 <style>
   :root{
+    --kicker:#ffb98a; --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
     --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
     --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
     --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
     --accent1:#d92b2b; --accent2:#ff8c00;
   }
+
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --navy:#c9601f;
+  }
   *{box-sizing:border-box;}
   body{
     margin:0;
-    background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%);
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
     color:var(--ink);
     font-family:"Helvetica Neue",Arial,sans-serif;
     padding:32px 16px 80px;
@@ -26,13 +65,13 @@
   }
   .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
   header{
-    background:rgba(10,14,26,0.5); color:var(--ink);
+    background:var(--surface-5); color:var(--ink);
     padding:22px 24px; border-bottom:3px solid transparent;
     border-image:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63) 1;
     display:flex; align-items:center; gap:14px;
   }
   header img{width:44px;height:44px;flex-shrink:0;border-radius:8px;background:#fff;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 4px;font-weight:700;text-transform:uppercase;}
+  header .kicker{font-size:11px;letter-spacing:.08em;color:var(--kicker);margin:0 0 4px;font-weight:700;text-transform:uppercase;}
   header h1{margin:0;font-size:19px;font-weight:700;}
   .section{padding:22px 24px;border-bottom:1px solid var(--line);}
   .section h2{font-size:13px;font-weight:600;color:#ffb98a;margin:0 0 14px;}
@@ -41,7 +80,7 @@
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
   input[type=text],input[type=date],input[type=number],select{
     font-size:14px;padding:9px 11px;border:1px solid var(--line);
-    border-radius:6px;background:rgba(10,14,26,0.55);color:var(--ink);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
   }
   input:focus,select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
   input[readonly]{background:rgba(255,255,255,0.04);color:var(--ink-soft);}
@@ -106,11 +145,23 @@
     font-size:12.5px; color:var(--ink-soft); text-decoration:none;
   }
   .back-link:hover{color:var(--navy);}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
 </style>
+
 </head>
 <body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
 
-<div id="undoToast" style="display:none;position:fixed;left:16px;right:16px;bottom:20px;max-width:400px;margin:0 auto;background:#1c2434;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;">
+
+<div id="undoToast" style="display:none;position:fixed;left:16px;right:16px;bottom:20px;max-width:400px;margin:0 auto;background:#1c2434;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;">
   <span id="undoToastMsg" style="font-size:13px;color:var(--ink);">Person removed</span>
   <button type="button" onclick="undoRemove()" style="background:none;border:none;color:#ffb98a;font-weight:700;font-size:13px;cursor:pointer;padding:4px 8px;">Undo</button>
 </div>
@@ -143,7 +194,7 @@
     </div>
     <div class="field" id="descriptionField" style="display:none;">
       <label for="hoursDescription">Description</label>
-      <textarea id="hoursDescription" rows="3" style="font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:rgba(10,14,26,0.55);color:var(--ink);resize:vertical;font-family:inherit;" placeholder="What was worked on during this time?"></textarea>
+      <textarea id="hoursDescription" rows="3" style="font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);resize:vertical;font-family:inherit;" placeholder="What was worked on during this time?"></textarea>
     </div>
     <button class="secondary" type="button" onclick="loadFromCheckins()">Load people who checked in</button>
     <p class="status" id="loadStatus"></p>

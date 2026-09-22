@@ -7,29 +7,68 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
 <style>
   :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
     --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
     --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
     --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
     --accent1:#d92b2b; --accent2:#ff8c00;
   }
+
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+  }
   *{box-sizing:border-box;}
   body{
-    margin:0; background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%); color:var(--ink);
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
     font-family:"Helvetica Neue",Arial,sans-serif;
     padding:32px 16px 80px;
     min-height:100vh;
   }
   .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
   header{
-    background:rgba(10,14,26,0.5); color:var(--ink);
+    background:var(--surface-5); color:var(--ink);
     padding:22px 24px; border-bottom:3px solid transparent;
     border-image:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63) 1;
     display:flex; align-items:center; gap:14px;
   }
   header img{width:44px;height:44px;flex-shrink:0;border-radius:8px;background:#fff;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 4px;font-weight:700;text-transform:uppercase;}
+  header .kicker{font-size:11px;letter-spacing:.08em;color:var(--kicker);margin:0 0 4px;font-weight:700;text-transform:uppercase;}
   header h1{margin:0;font-size:19px;font-weight:700;}
   .section{padding:22px 24px;}
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
@@ -39,7 +78,7 @@
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
   input[type=text]{
     font-size:14px;padding:9px 11px;border:1px solid var(--line);
-    border-radius:6px;background:rgba(10,14,26,0.55);color:var(--ink);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
   }
   input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
   button.primary{
@@ -49,7 +88,7 @@
   }
   button.primary:hover{filter:brightness(1.1);}
   .editor-box{
-    background:rgba(10,14,26,0.4);border:1px solid var(--line);border-radius:10px;
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
     padding:16px;margin-bottom:24px;
   }
   .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
@@ -93,9 +132,21 @@
   }
   .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
   .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
 </style>
+
 </head>
 <body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
 
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 
@@ -454,7 +505,7 @@ function renderDuplicateOperators(groups){
       <div style="background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.3);border-radius:10px;padding:14px;margin-bottom:12px;">
         <p style="font-weight:700;margin:0 0 10px;">${g.rows[0].name}</p>
         ${g.rows.map((r, ri) => `
-          <div style="background:rgba(10,14,26,0.4);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;">
+          <div style="background:var(--surface-4);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;">
             <div style="color:var(--ink-soft);line-height:1.6;">
               License: ${[r.displayLicense, r.specialEffectsLicense, r.flameLicense].filter(Boolean).join(', ') || '—'}<br>
               Phone: ${r.phone || '—'}<br>

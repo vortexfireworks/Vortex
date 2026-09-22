@@ -7,12 +7,58 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
 <style>
+  :root{
+    --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ink-faint:#6b7290; --entry-text:#d5d8e2;
+    --card:rgba(22,28,48,0.7); --line:rgba(255,255,255,0.1);
+    --kicker:#ffb98a;
+  }
+  :root[data-theme="light"]{
+    --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9;
+    --ink:#241f18; --ink-soft:#6b6152; --ink-faint:#8a8072; --entry-text:#3a3226;
+    --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
+    --kicker:#c9601f;
+  }
   *{box-sizing:border-box;}
   body{
     margin:0; min-height:100vh;
-    background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%);
-    color:#f4f1ea;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
     font-family:"Helvetica Neue",Arial,sans-serif;
     display:flex; align-items:flex-start; justify-content:center;
     padding:40px 16px 80px;
@@ -20,33 +66,45 @@
   .wrap{max-width:560px; width:100%;}
   .back-link{
     display:block; margin:0 0 18px; font-size:12.5px;
-    color:#a3a9bf; text-decoration:none;
+    color:var(--ink-soft); text-decoration:none;
   }
-  .back-link:hover{color:#ffb98a;}
+  .back-link:hover{color:var(--kicker);}
   header{margin-bottom:8px;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 6px;font-weight:700;text-transform:uppercase;}
+  header .kicker{font-size:11px;letter-spacing:.08em;color:var(--kicker);margin:0 0 6px;font-weight:700;text-transform:uppercase;}
   header h1{
     margin:0;font-size:22px;line-height:1.3;font-weight:800;
     background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
-  p.sub{font-size:12.5px;color:#a3a9bf;margin:8px 0 28px;line-height:1.5;}
+  p.sub{font-size:12.5px;color:var(--ink-soft);margin:8px 0 28px;line-height:1.5;}
   .entry{
-    background:rgba(22,28,48,0.7); border:1px solid rgba(255,255,255,0.1);
+    background:var(--card); border:1px solid var(--line);
     border-radius:12px; padding:18px 20px; margin-bottom:16px;
     backdrop-filter:blur(6px);
   }
   .entry .date{
     font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
-    color:#ffb98a; font-weight:700; margin:0 0 10px;
+    color:var(--kicker); font-weight:700; margin:0 0 10px;
   }
   .entry ul{margin:0; padding-left:18px;}
-  .entry li{font-size:13px; color:#d5d8e2; line-height:1.6; margin-bottom:4px;}
+  .entry li{font-size:13px; color:var(--entry-text); line-height:1.6; margin-bottom:4px;}
   .entry li:last-child{margin-bottom:0;}
-  footer{margin-top:28px;font-size:11px;color:#6b7290;text-align:center;}
+  footer{margin-top:28px;font-size:11px;color:var(--ink-faint);text-align:center;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
 </style>
+
 </head>
 <body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
 <div class="wrap">
   <a class="back-link" href="index.html">&larr; Back to main menu</a>
   <header>
