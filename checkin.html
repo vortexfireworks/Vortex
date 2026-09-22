@@ -123,7 +123,7 @@
     </div>
     <div class="field">
       <label for="personName">Your name</label>
-      <input type="text" id="personName" list="contactsList" oninput="autofill(this)" autocomplete="off">
+      <input type="text" id="personName" list="contactsList" oninput="autofill(this)" onblur="this.value = toTitleCase(this.value)" autocomplete="off">
       <datalist id="contactsList"></datalist>
     </div>
     <div class="field">
@@ -143,7 +143,7 @@
     </div>
     <div class="field">
       <label for="personAddress">Address</label>
-      <input type="text" id="personAddress">
+      <input type="text" id="personAddress" onblur="this.value = toTitleCase(this.value)">
     </div>
     <div class="field">
       <label for="personAge">Age</label>
@@ -340,6 +340,11 @@ async function verifyPhoneWithServer(){
 // The "Russ Check" — rejects license numbers that don't start with "FE"
 // followed by digits, to stop joke/garbage entries in the license fields.
 const LICENSE_FORMAT = /^FE\d+$/i;
+
+function toTitleCase(str){
+  if(!str) return str;
+  return str.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
 
 function validateLicenseField(input){
   const errEl = document.getElementById(input.id + 'Err');

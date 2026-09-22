@@ -123,7 +123,7 @@
           <label for="vEditName">Venue name</label>
           <input type="text" id="vEditName" list="venueDirectoryList" oninput="prefillVenueEdit(this)">
         </div>
-        <div class="field full"><label for="vEditAddress">Address</label><input type="text" id="vEditAddress"></div>
+        <div class="field full"><label for="vEditAddress">Address</label><input type="text" id="vEditAddress" onblur="this.value = toTitleCase(this.value)"></div>
         <div class="field"><label for="vEditCounty">County</label><input type="text" id="vEditCounty"></div>
       </div>
       <datalist id="venueDirectoryList"></datalist>
@@ -480,6 +480,11 @@ async function handleCsvImport(event){
   } finally {
     event.target.value = '';
   }
+}
+
+function toTitleCase(str){
+  if(!str) return str;
+  return str.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
 
 let originalVenueName = null;
