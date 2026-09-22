@@ -32,33 +32,30 @@
     background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
+  .cards{
+    display:flex; flex-wrap:wrap; justify-content:center; gap:28px 18px;
+    margin-bottom:12px;
+  }
   .card{
-    display:flex; align-items:flex-start; gap:14px;
-    background:rgba(22,28,48,0.7); border:1px solid rgba(255,255,255,0.08);
-    border-radius:12px; padding:18px 20px; margin-bottom:14px;
-    text-decoration:none; color:inherit;
-    position:relative; overflow:hidden;
-    backdrop-filter:blur(6px);
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
+    text-decoration:none;color:inherit;
+    width:26%;
+    transition:transform .15s ease;
   }
-  .card::before{
-    content:'';position:absolute;left:16px;right:16px;top:0;height:4px;border-radius:0 0 4px 4px;
-    background:var(--grad);
-  }
-  .card:hover{transform:translateY(-2px); border-color:rgba(255,255,255,0.16); box-shadow:0 8px 26px rgba(0,0,0,0.35);}
+  .card:hover{transform:translateY(-2px);}
   .icon-circle{
-    width:40px;height:40px;border-radius:50%;flex-shrink:0;margin-top:2px;
+    width:58px;height:58px;border-radius:18px;flex-shrink:0;
     background:var(--grad);
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 0 14px var(--glow);
+    box-shadow:0 4px 14px var(--glow);
   }
-  .icon-circle svg{width:21px;height:21px;}
-  .card h2{margin:0 0 4px;font-size:16px;color:#f4f1ea;}
-  .card p{margin:0;font-size:13.5px;color:#a3a9bf;line-height:1.5;}
-  .card .ext{font-size:11px;color:#ffb98a;font-weight:700;}
+  .icon-circle svg{width:29px;height:29px;}
+  .card .label{font-size:11.5px;font-weight:600;color:#f4f1ea;line-height:1.3;}
+  .card .ext{font-size:10px;color:#ffb98a;font-weight:700;}
   .section-heading{
     font-size:11.5px;letter-spacing:.06em;font-weight:600;
     color:#7d84a0;margin:26px 0 10px;text-transform:uppercase;
+    text-align:center;
   }
   .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00); --glow:rgba(255,140,0,0.4);}
   .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63); --glow:rgba(47,126,201,0.4);}
@@ -89,6 +86,7 @@
     </div>
   </header>
 
+  <div class="cards">
   <a class="card c3" href="checkin.html">
     <div class="icon-circle">
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
@@ -106,10 +104,7 @@
         <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
       </svg>
     </div>
-    <div>
-      <h2>Sign-In</h2>
-      <p>Same check-in as the main screen — check in to an event, and mark yourself as Head Pyro if that's you today.</p>
-    </div>
+    <div class="label">Sign-In</div>
   </a>
 
   <a class="card c1" href="form.html">
@@ -129,10 +124,7 @@
         <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
       </svg>
     </div>
-    <div>
-      <h2>Fill out After-Action Report</h2>
-      <p>The full OSFM Display/Special Effects/Flame Effects Operator report — operator info, personnel, incident summary, signature, and PDF export.</p>
-    </div>
+    <div class="label">After-Action Report</div>
   </a>
 
   <a class="card c2" href="payroll.html">
@@ -152,10 +144,7 @@
         <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
       </svg>
     </div>
-    <div>
-      <h2>Payroll Submit</h2>
-      <p>Pull in everyone checked in to an event, enter total payroll, and split it evenly (or manually) between them.</p>
-    </div>
+    <div class="label">Payroll Submit</div>
   </a>
 
   <a class="card c3" href="qr-codes.html">
@@ -175,10 +164,7 @@
         <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
       </svg>
     </div>
-    <div>
-      <h2>Generate Check-In QR Code</h2>
-      <p>One printable QR code linking straight to the check-in page — post it at any venue.</p>
-    </div>
+    <div class="label">Check-In QR Code</div>
   </a>
 
   <a class="card c1" href="manage.html">
@@ -198,10 +184,7 @@
         <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
       </svg>
     </div>
-    <div>
-      <h2>Manage/Edit</h2>
-      <p>Add or update operators and venues — changes show up for autofill and in dropdowns everywhere.</p>
-    </div>
+    <div class="label">Manage/Edit</div>
   </a>
 
   <a class="card c2" href="pyro-directory.html">
@@ -221,14 +204,13 @@
         <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
       </svg>
     </div>
-    <div>
-      <h2>Pyro Directory</h2>
-      <p>Quick reference — everyone's name, license, phone, and email in one place.</p>
-    </div>
+    <div class="label">Pyro Directory</div>
   </a>
+  </div>
 
   <p class="section-heading">Important Tools</p>
 
+  <div class="cards">
   <a class="card c2" href="https://fireworksfallout.com/" target="_blank" rel="noopener">
     <div class="icon-circle">
       <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
@@ -246,10 +228,7 @@
         <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
       </svg>
     </div>
-    <div>
-      <h2>Fireworks Fallout <span class="ext">↗</span></h2>
-      <p>Report and check for dud/fallout locations near a display site.</p>
-    </div>
+    <div class="label">Fireworks Fallout <span class="ext">↗</span></div>
   </a>
 
   <a class="card c3" href="https://drive.google.com/drive/folders/16oMKmXje8PKcFzCZxxnlv2tYS_V87FDQ?usp=drive_link" target="_blank" rel="noopener">
@@ -269,10 +248,7 @@
         <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
       </svg>
     </div>
-    <div>
-      <h2>Cobra Firing Systems Files <span class="ext">↗</span></h2>
-      <p>Manuals, wiring diagrams, and reference files for Cobra firing systems.</p>
-    </div>
+    <div class="label">Cobra Firing Files <span class="ext">↗</span></div>
   </a>
 
   <a class="card c1" href="https://drive.google.com/drive/folders/1oCWZGHPgGEdBmzfBM8ACOKSJNF0g33BA?usp=sharing" target="_blank" rel="noopener">
@@ -292,11 +268,9 @@
         <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
       </svg>
     </div>
-    <div>
-      <h2>NFPA Books <span class="ext">↗</span></h2>
-      <p>Reference copies of NFPA codes and standards.</p>
-    </div>
+    <div class="label">NFPA Books <span class="ext">↗</span></div>
   </a>
+  </div>
 
   <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>
 </div>
