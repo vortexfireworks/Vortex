@@ -73,34 +73,26 @@
     border-radius:2px;
     box-shadow:0 0 12px rgba(255,140,0,0.4);
   }
-  .cards{display:flex;flex-direction:column;gap:14px;}
+  .cards{
+    display:flex; flex-wrap:wrap; justify-content:center; gap:28px 18px;
+    max-width:420px; margin:0 auto;
+  }
   .card{
-    display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;
-    background:rgba(22,28,48,0.7);
-    border:1px solid rgba(255,255,255,0.08);
-    border-radius:14px;
-    padding:24px 20px 22px;
+    display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
     text-decoration:none;color:inherit;
-    position:relative;
-    backdrop-filter:blur(6px);
-    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-    overflow:hidden;
+    width:26%;
+    transition:transform .15s ease;
   }
-  .card::before{
-    content:'';position:absolute;left:16px;right:16px;top:0;height:4px;border-radius:0 0 4px 4px;
-    background:var(--grad);
-  }
-  .card:hover{transform:translateY(-2px); border-color:rgba(255,255,255,0.16); box-shadow:0 8px 26px rgba(0,0,0,0.35);}
+  .card:hover{transform:translateY(-2px);}
   .icon-circle{
-    width:52px;height:52px;border-radius:50%;flex-shrink:0;
+    width:58px;height:58px;border-radius:18px;flex-shrink:0;
     background:var(--grad);
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 0 18px var(--glow);
+    box-shadow:0 4px 14px var(--glow);
   }
-  .icon-circle svg{width:28px;height:28px;}
-  .card h2{font-size:16px;font-weight:700;margin-bottom:2px;color:#f4f1ea;}
-  .card p{font-size:12.5px;color:#a3a9bf;line-height:1.5;max-width:280px;}
-  .card .ext{font-size:12px;color:#ffb98a;font-weight:700;}
+  .icon-circle svg{width:29px;height:29px;}
+  .card .label{font-size:11.5px;font-weight:600;color:#f4f1ea;line-height:1.3;}
+  .card .ext{font-size:10px;color:#ffb98a;font-weight:700;}
   .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00); --glow:rgba(255,140,0,0.4);}
   .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63); --glow:rgba(47,126,201,0.4);}
   .c3{--grad:linear-gradient(135deg,#ff8c00,#ffd23f); --glow:rgba(255,210,63,0.4);}
@@ -205,10 +197,7 @@
           <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
         </svg>
       </div>
-      <div>
-        <h2>Check-In</h2>
-        <p>For crew arriving on-site — enter your name to check in to today's event. Usually reached by scanning a venue QR code.</p>
-      </div>
+      <div class="label">Check-In</div>
     </a>
 
     <a class="card c2" href="https://docs.google.com/spreadsheets/d/1ozZ24Xi7LPeMsCVps18pnUwMRZC2KKFf-iz8KkU3Rho/edit?usp=drive_link" target="_blank" rel="noopener">
@@ -228,10 +217,7 @@
           <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
         </svg>
       </div>
-      <div>
-        <h2>Sign-Up for a Show <span class="ext">↗</span></h2>
-        <p>Add your name to the sign-up sheet for an upcoming show.</p>
-      </div>
+      <div class="label">Sign-Up for a Show <span class="ext">↗</span></div>
     </a>
 
     <a class="card c3" href="hp-tools.html">
@@ -251,10 +237,7 @@
           <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
         </svg>
       </div>
-      <div>
-        <h2>HP Tools</h2>
-        <p>After-Action Report, payroll, QR codes, manage operators/venues, and reference links.</p>
-      </div>
+      <div class="label">HP Tools</div>
     </a>
 
     <a class="card c1" href="new-hire.html">
@@ -274,10 +257,7 @@
           <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
         </svg>
       </div>
-      <div>
-        <h2>New Hire Documents</h2>
-        <p>W-4, ATF form, and a get-to-know-you questionnaire you can fill out and email in.</p>
-      </div>
+      <div class="label">New Hire Documents</div>
     </a>
 
     <a class="card c2" href="update-info.html">
@@ -297,10 +277,7 @@
           <circle cx="5.5" cy="5.5" r="0.9" fill="#fff" stroke="none"/>
         </svg>
       </div>
-      <div>
-        <h2>Update My Info</h2>
-        <p>Verify your name and phone number to update your own license, address, age, or photo.</p>
-      </div>
+      <div class="label">Update My Info</div>
     </a>
   </div>
 
