@@ -113,6 +113,54 @@
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
   footer a:hover{color:#a3a9bf !important;}
+
+  .announcement-bubble{
+    display:none; max-width:420px; margin:0 auto 20px; position:relative;
+    background:linear-gradient(135deg,rgba(217,43,43,0.18),rgba(255,140,0,0.18));
+    border:1px solid rgba(255,140,0,0.35); border-radius:12px;
+    padding:14px 34px 14px 16px; font-size:13px; line-height:1.5; color:#f4f1ea;
+    animation:bubbleIn 0.35s ease both;
+  }
+  @keyframes bubbleIn{
+    0%{opacity:0; transform:translateY(-8px);}
+    100%{opacity:1; transform:translateY(0);}
+  }
+  .announcement-bubble .close-btn{
+    position:absolute; top:8px; right:10px; background:none; border:none;
+    color:#a3a9bf; font-size:18px; line-height:1; cursor:pointer; padding:4px;
+  }
+  .announcement-bubble .close-btn:hover{color:#f4f1ea;}
+
+  .admin-lock{
+    max-width:420px; margin:20px auto 0; text-align:center;
+  }
+  .admin-lock summary{
+    cursor:pointer; font-size:11px; color:#4a5170; list-style:none; user-select:none;
+  }
+  .admin-lock summary::-webkit-details-marker{display:none;}
+  .admin-lock summary:hover{color:#a3a9bf;}
+  .admin-panel{
+    margin-top:10px; background:rgba(22,28,48,0.7); border:1px solid rgba(255,255,255,0.1);
+    border-radius:10px; padding:16px; text-align:left;
+  }
+  .admin-panel input[type=password], .admin-panel textarea{
+    width:100%; font-size:13px; padding:9px 11px; border:1px solid rgba(255,255,255,0.15);
+    border-radius:6px; background:rgba(10,14,26,0.55); color:#f4f1ea; font-family:inherit;
+    box-sizing:border-box;
+  }
+  .admin-panel textarea{resize:vertical;min-height:60px;}
+  .admin-panel button{
+    margin-top:8px; background:linear-gradient(135deg,#d92b2b,#ff8c00); color:#fdf6f2;
+    border:none; font-size:12.5px; font-weight:700; padding:9px 16px; border-radius:6px; cursor:pointer;
+  }
+  .admin-panel .existing-item{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:8px;
+    padding:8px 0; border-top:1px solid rgba(255,255,255,0.08); font-size:12px; color:#a3a9bf;
+  }
+  .admin-panel .existing-item button{
+    margin:0; background:none; border:1px solid rgba(255,106,90,0.4); color:#ff6a5a;
+    font-size:11px; font-weight:400; padding:3px 8px;
+  }
 </style>
 </head>
 <body>
@@ -130,6 +178,11 @@
   </header>
 
   <div class="divider"></div>
+
+  <div class="announcement-bubble" id="announcementBubble">
+    <button class="close-btn" type="button" onclick="dismissAnnouncement()" aria-label="Dismiss">&times;</button>
+    <div id="announcementText"></div>
+  </div>
 
   <div class="cards">
     <a class="card c1" href="checkin.html">
@@ -259,7 +312,126 @@
             color:#7d84a0;text-decoration:none;font-size:11px;">
     💡 Submit a feature request
   </a>
+
+  <details class="admin-lock" id="adminLock">
+    <summary>🔒 Admin: Announcements</summary>
+    <div class="admin-panel" id="adminLoginPanel">
+      <input type="password" id="adminPassword" placeholder="Password" autocomplete="off">
+      <button type="button" onclick="checkAdminPassword()">Unlock</button>
+      <p id="adminLoginError" style="display:none;color:#ff6a5a;font-size:11.5px;margin-top:8px;">Incorrect password.</p>
+    </div>
+    <div class="admin-panel" id="adminEditPanel" style="display:none;">
+      <label style="font-size:11.5px;color:#a3a9bf;display:block;margin-bottom:6px;">New announcement</label>
+      <textarea id="newAnnouncementText" placeholder="Type an announcement to post…"></textarea>
+      <button type="button" onclick="postAnnouncement()">Post announcement</button>
+      <p id="postStatus" style="font-size:11.5px;margin-top:8px;"></p>
+      <div id="existingAnnouncementsList" style="margin-top:14px;"></div>
+    </div>
+  </details>
 </div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const ADMIN_PASSWORD_HASH = "cf7c3f3c216f72e7b13203c30ff418dfff1206d08139fe52411603eeda3aedb2";
+let ANNOUNCEMENTS = [];
+
+async function sha256Hex(text){
+  const data = new TextEncoder().encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function loadAnnouncements(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=announcements`);
+    if(!res.ok) return;
+    ANNOUNCEMENTS = await res.json();
+    showLatestAnnouncement();
+    renderExistingAnnouncements();
+  } catch(err){
+    // fail silently — announcements are a nice-to-have, not core functionality
+  }
+}
+
+function showLatestAnnouncement(){
+  if(!ANNOUNCEMENTS || ANNOUNCEMENTS.length === 0) return;
+  const latest = ANNOUNCEMENTS[0];
+  const dismissedTimestamp = localStorage.getItem('dismissedAnnouncementTimestamp');
+  if(dismissedTimestamp === latest.timestamp) return;
+  document.getElementById('announcementText').textContent = latest.message;
+  document.getElementById('announcementBubble').style.display = 'block';
+  document.getElementById('announcementBubble').dataset.timestamp = latest.timestamp;
+}
+
+function dismissAnnouncement(){
+  const bubble = document.getElementById('announcementBubble');
+  localStorage.setItem('dismissedAnnouncementTimestamp', bubble.dataset.timestamp || '');
+  bubble.style.display = 'none';
+}
+
+async function checkAdminPassword(){
+  const entered = document.getElementById('adminPassword').value;
+  const hash = await sha256Hex(entered);
+  if(hash === ADMIN_PASSWORD_HASH){
+    document.getElementById('adminLoginPanel').style.display = 'none';
+    document.getElementById('adminEditPanel').style.display = 'block';
+  } else {
+    document.getElementById('adminLoginError').style.display = 'block';
+    document.getElementById('adminPassword').value = '';
+  }
+}
+
+function postAnnouncement(){
+  const textEl = document.getElementById('newAnnouncementText');
+  const message = textEl.value.trim();
+  const statusEl = document.getElementById('postStatus');
+  if(!message){
+    statusEl.textContent = 'Type something before posting.';
+    statusEl.style.color = '#ff6a5a';
+    return;
+  }
+  statusEl.textContent = 'Posting…';
+  statusEl.style.color = '#a3a9bf';
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify({ recordType: 'announcement', message })
+  }).then(async () => {
+    textEl.value = '';
+    statusEl.textContent = 'Posted.';
+    statusEl.style.color = '#4caf7d';
+    await loadAnnouncements();
+  }).catch(() => {
+    statusEl.textContent = 'Could not post — check your connection and try again.';
+    statusEl.style.color = '#ff6a5a';
+  });
+}
+
+function renderExistingAnnouncements(){
+  const wrap = document.getElementById('existingAnnouncementsList');
+  if(!ANNOUNCEMENTS || ANNOUNCEMENTS.length === 0){
+    wrap.innerHTML = '<p style="font-size:11.5px;color:#6b7290;">No announcements posted yet.</p>';
+    return;
+  }
+  wrap.innerHTML = ANNOUNCEMENTS.map(a => `
+    <div class="existing-item">
+      <span>${a.message.replace(/</g,'&lt;')}</span>
+      <button type="button" onclick="deleteAnnouncement(${a.rowNumber})">Delete</button>
+    </div>
+  `).join('');
+}
+
+function deleteAnnouncement(rowNumber){
+  if(!confirm('Delete this announcement?')) return;
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify({ recordType: 'deleteAnnouncementRow', rowNumber })
+  }).then(() => loadAnnouncements());
+}
+
+loadAnnouncements();
+</script>
 
 <script>
 if ('serviceWorker' in navigator) {
