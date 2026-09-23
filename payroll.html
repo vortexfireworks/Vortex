@@ -384,7 +384,8 @@ async function fetchVenueDirectory(){
         VENUE_INFO[v.name.trim().toLowerCase()] = {
           name: v.name.trim(),
           address: v.address || '',
-          county: v.county || ''
+          county: v.county || '',
+          eventDate: v.eventDate || ''
         };
       });
       populateVenueSelect();
@@ -442,12 +443,46 @@ const VENUE_INFO = {
   "moab - music festival": { name: "Moab - Music Festival", address: "58 E 300 S, Moab, UT 84532", county: "Grand" }
 };
 
+const ALWAYS_AVAILABLE_NO_DATE = ['shop time', 'trailer loading', 'bunker time'];
+
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = dateStr.slice(0, 10);
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
+  return `${Number(m)}/${Number(d)}`;
+}
+
 function populateVenueSelect(){
   const select = document.getElementById('event');
   const currentValue = select.value;
-  const sorted = Object.values(VENUE_INFO).sort((a,b) => a.name.localeCompare(b.name));
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const threeMonthsAgo = new Date(today); threeMonthsAgo.setMonth(today.getMonth() - 3);
+  const threeMonthsAhead = new Date(today); threeMonthsAhead.setMonth(today.getMonth() + 3);
+
+  const sorted = Object.values(VENUE_INFO)
+    .filter(v => {
+      if(ALWAYS_AVAILABLE_NO_DATE.includes(v.name.trim().toLowerCase())) return true;
+      if(!v.eventDate) return false;
+      const d = new Date(v.eventDate.slice(0, 10) + 'T00:00:00');
+      return d >= threeMonthsAgo && d <= threeMonthsAhead;
+    })
+    .sort((a, b) => {
+      if(a.eventDate && b.eventDate) return a.eventDate.localeCompare(b.eventDate);
+      if(a.eventDate && !b.eventDate) return -1;
+      if(!a.eventDate && b.eventDate) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
   select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
-    sorted.map(v => `<option value="${v.name.replace(/"/g,'&quot;')}">${v.name}</option>`).join('');
+    sorted.map(v => {
+      const label = v.eventDate ? `${formatDateForOption(v.eventDate)} — ${v.name}` : v.name;
+      return `<option value="${v.name.replace(/"/g,'&quot;')}">${label.replace(/</g,'&lt;')}</option>`;
+    }).join('');
   if(currentValue){
     select.value = currentValue;
   } else {
