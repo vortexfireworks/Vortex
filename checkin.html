@@ -159,7 +159,7 @@ updateThemeToggleIcon();
       </select>
     </div>
     <div class="field">
-      <label for="eventDate">Date of event</label>
+      <label for="eventDate">Date of Check-In</label>
       <input type="date" id="eventDate">
     </div>
     <div class="field">
@@ -242,14 +242,34 @@ const VENUE_DIRECTORY = {};
   "Weber State University","Draper City","Bountiful City","American Fork City","Lehi City","Springville City",
   "West Valley City (West Fest)","Clinton City","Thanksgiving Point Waterfall Concert","Dugway City",
   "Taylorsville - Thursday","Taylorsville - Friday","Taylorsville - Saturday","Olympus High School","Moab - Music Festival"
-].forEach(name => { VENUE_DIRECTORY[name.toLowerCase()] = name; });
+].forEach(name => { VENUE_DIRECTORY[name.toLowerCase()] = { name: name, eventDate: '' }; });
+
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const parts = dateStr.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  return `${Number(m)}/${Number(d)}`;
+}
+
+const ALWAYS_AVAILABLE_NO_DATE = ['shop time', 'trailer loading', 'bunker time'];
 
 function populateVenueSelect(){
   const select = document.getElementById('eventName');
   const currentValue = select.value;
-  const sortedNames = Object.values(VENUE_DIRECTORY).sort((a,b) => a.localeCompare(b));
+  const sorted = Object.values(VENUE_DIRECTORY)
+    .filter(v => v.eventDate || ALWAYS_AVAILABLE_NO_DATE.includes(v.name.trim().toLowerCase()))
+    .sort((a, b) => {
+      if(a.eventDate && b.eventDate) return a.eventDate.localeCompare(b.eventDate);
+      if(a.eventDate && !b.eventDate) return -1;
+      if(!a.eventDate && b.eventDate) return 1;
+      return a.name.localeCompare(b.name);
+    });
   select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
-    sortedNames.map(name => `<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`).join('');
+    sorted.map(v => {
+      const label = v.eventDate ? `${formatDateForOption(v.eventDate)} — ${v.name}` : v.name;
+      return `<option value="${v.name.replace(/"/g,'&quot;')}">${label.replace(/</g,'&lt;')}</option>`;
+    }).join('');
   if(currentValue){
     select.value = currentValue;
   } else {
@@ -283,7 +303,7 @@ async function fetchVenueDirectory(){
     if(Array.isArray(sheetVenues)){
       sheetVenues.forEach(v => {
         if(!v.name) return;
-        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = v.name.trim();
+        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = { name: v.name.trim(), eventDate: v.eventDate || '' };
       });
       populateVenueSelect();
       applyEventFromUrl();

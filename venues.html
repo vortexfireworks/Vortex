@@ -519,7 +519,7 @@ async function handleCsvImport(event){
     const nameIdx = headers.indexOf('name');
     const addressIdx = headers.indexOf('address');
     const countyIdx = headers.indexOf('county');
-    const dateIdx = headers.indexOf('eventdate');
+    const dateIdx = ['eventdate', 'event date', 'date of event', 'date'].map(h => headers.indexOf(h)).find(i => i > -1) ?? -1;
     if(nameIdx === -1){
       statusEl.style.color = 'var(--brick)';
       statusEl.textContent = 'CSV needs a "Name" column header.';
