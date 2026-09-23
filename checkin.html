@@ -44,6 +44,7 @@ updateThemeToggleIcon();
 <style>
   :root{
     --kicker:#ffb98a; --surface-6:rgba(10,14,26,0.6); --surface-5:rgba(10,14,26,0.5); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
     --accent1:#d92b2b; --accent2:#ff8c00; --accent3:#ffd23f; --accent4:#2f7ec9; --accent5:#123a63;
     --ink:#f4f1ea; --ink-soft:#a3a9bf; --line:rgba(255,255,255,0.1);
     --card:rgba(22,28,48,0.75); --ok:#4caf7d; --err:#ff6a5a;
@@ -51,6 +52,7 @@ updateThemeToggleIcon();
 
   :root[data-theme="light"]{
     --kicker:#c9601f; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
+    --logo-ring-bg:#fffaf3;
   }
   *{box-sizing:border-box;}
   body{
@@ -67,15 +69,36 @@ updateThemeToggleIcon();
     border-radius:14px; overflow:hidden;
     backdrop-filter:blur(6px);
   }
-  header{
-    background:var(--surface-5); color:var(--ink);
-    padding:22px 24px; border-bottom:3px solid transparent;
-    border-image:linear-gradient(90deg,var(--accent1),var(--accent2) 35%,var(--accent3) 55%,var(--accent4) 80%,var(--accent5)) 1;
-    display:flex; align-items:center; gap:14px;
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
   }
-  header img{width:44px;height:44px;flex-shrink:0;border-radius:8px;background:#fff;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:var(--kicker);margin:0 0 4px;font-weight:700;text-transform:uppercase;}
-  header h1{margin:0;font-size:19px;font-weight:700;line-height:1.3;}
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
   .body{padding:24px;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
@@ -155,14 +178,16 @@ updateThemeToggleIcon();
   <button type="button" onclick="flushQueue()" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#f4f1ea;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;">Retry now</button>
 </div>
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1 id="eventTitle">Event Check-In</h1>
+</header>
+
+<div class="divider"></div>
+
 <div class="card">
-  <header>
-    <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
-    <div>
-      <p class="kicker">VORTEX PRODUCTIONS INC.</p>
-      <h1 id="eventTitle">Event Check-In</h1>
-    </div>
-  </header>
   <div class="body" id="formBody">
     <div class="field">
       <label for="eventName">Event / venue</label>

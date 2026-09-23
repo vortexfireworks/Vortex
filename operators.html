@@ -44,6 +44,7 @@ updateThemeToggleIcon();
 <style>
   :root{
     --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
     --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
     --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
     --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
@@ -52,6 +53,7 @@ updateThemeToggleIcon();
 
   :root[data-theme="light"]{
     --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
   }
   *{box-sizing:border-box;}
   body{
@@ -61,15 +63,36 @@ updateThemeToggleIcon();
     min-height:100vh;
   }
   .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
-  header{
-    background:var(--surface-5); color:var(--ink);
-    padding:22px 24px; border-bottom:3px solid transparent;
-    border-image:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63) 1;
-    display:flex; align-items:center; gap:14px;
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
   }
-  header img{width:44px;height:44px;flex-shrink:0;border-radius:8px;background:#fff;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:var(--kicker);margin:0 0 4px;font-weight:700;text-transform:uppercase;}
-  header h1{margin:0;font-size:19px;font-weight:700;}
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
   .section{padding:22px 24px;}
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
@@ -150,15 +173,15 @@ updateThemeToggleIcon();
 
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 
-<div class="sheet" id="mainContent">
-  <header>
-    <img src="logo.jpg" alt="Vortex Fireworks Artists logo">
-    <div>
-      <p class="kicker">VORTEX PRODUCTIONS INC.</p>
-      <h1>Manage Operators</h1>
-    </div>
-  </header>
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Manage Operators</h1>
+</header>
 
+<div class="divider"></div>
+
+<div class="sheet" id="mainContent">
   <div class="section">
     <p class="desc">Add a new operator or update an existing one's license, address, or age. Changes save to the shared operator list and show up for autofill on the After-Action Report and check-in pages right away.</p>
 
