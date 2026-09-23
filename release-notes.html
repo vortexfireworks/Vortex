@@ -46,13 +46,13 @@ updateThemeToggleIcon();
     --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
     --ink:#f4f1ea; --ink-soft:#a3a9bf; --ink-faint:#6b7290; --entry-text:#d5d8e2;
     --card:rgba(22,28,48,0.7); --line:rgba(255,255,255,0.1);
-    --kicker:#ffb98a;
+    --kicker:#ffb98a; --logo-ring-bg:#0d1220;
   }
   :root[data-theme="light"]{
     --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9;
     --ink:#241f18; --ink-soft:#6b6152; --ink-faint:#8a8072; --entry-text:#3a3226;
     --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
-    --kicker:#c9601f;
+    --kicker:#c9601f; --logo-ring-bg:#fffaf3;
   }
   *{box-sizing:border-box;}
   body{
@@ -69,12 +69,31 @@ updateThemeToggleIcon();
     color:var(--ink-soft); text-decoration:none;
   }
   .back-link:hover{color:var(--kicker);}
-  header{margin-bottom:8px;}
-  header .kicker{font-size:11px;letter-spacing:.08em;color:var(--kicker);margin:0 0 6px;font-weight:700;text-transform:uppercase;}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);margin:0 0 6px;font-weight:700;}
   header h1{
-    margin:0;font-size:22px;line-height:1.3;font-weight:800;
+    margin:0;font-size:22px;line-height:1.15;font-weight:800;letter-spacing:-0.02em;
     background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
   }
   p.sub{font-size:12.5px;color:var(--ink-soft);margin:8px 0 28px;line-height:1.5;}
   .entry{
@@ -108,9 +127,13 @@ updateThemeToggleIcon();
 <div class="wrap">
   <a class="back-link" href="index.html">&larr; Back to main menu</a>
   <header>
+    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
     <p class="kicker">Vortex Productions Inc.</p>
     <h1>Release Notes</h1>
   </header>
+
+  <div class="divider"></div>
+
   <p class="sub">A running log of what's changed in Pyrotechnician Tools.</p>
 
   <div class="entry">
