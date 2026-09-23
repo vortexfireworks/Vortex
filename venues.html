@@ -176,6 +176,7 @@ updateThemeToggleIcon();
         </div>
         <div class="field full"><label for="vEditAddress">Address</label><input type="text" id="vEditAddress" onblur="this.value = toTitleCase(this.value)"></div>
         <div class="field"><label for="vEditCounty">County</label><input type="text" id="vEditCounty"></div>
+        <div class="field"><label for="vEditDate">Event date</label><input type="date" id="vEditDate"></div>
       </div>
       <datalist id="venueDirectoryList"></datalist>
       <div class="save-row">
@@ -275,7 +276,8 @@ async function fetchVenueDirectory(){
         VENUE_DIRECTORY[v.name.trim().toLowerCase()] = {
           name: v.name.trim(),
           address: v.address || '',
-          county: v.county || ''
+          county: v.county || '',
+          eventDate: v.eventDate || ''
         };
       });
     }
@@ -299,6 +301,7 @@ function prefillVenueEdit(nameInput){
   if(match){
     document.getElementById('vEditAddress').value = match.address || '';
     document.getElementById('vEditCounty').value = match.county || '';
+    document.getElementById('vEditDate').value = match.eventDate || '';
   }
 }
 
@@ -362,7 +365,12 @@ async function keepDuplicateVenueRow(groupIndex, keepIndex){
 function renderVenueList(){
   const wrap = document.getElementById('venueListWrap');
   const search = document.getElementById('venueSearch').value.trim().toLowerCase();
-  let venues = Object.values(VENUE_DIRECTORY).sort((a,b) => a.name.localeCompare(b.name));
+  let venues = Object.values(VENUE_DIRECTORY).sort((a, b) => {
+    if(a.eventDate && b.eventDate) return a.eventDate.localeCompare(b.eventDate);
+    if(a.eventDate && !b.eventDate) return -1;
+    if(!a.eventDate && b.eventDate) return 1;
+    return a.name.localeCompare(b.name);
+  });
   if(search){
     venues = venues.filter(v => v.name.toLowerCase().includes(search));
   }
@@ -375,6 +383,7 @@ function renderVenueList(){
       <thead>
         <tr>
           <th style="text-align:left;padding:4px 6px 8px;color:var(--ink-soft);font-size:10.5px;">NAME</th>
+          <th style="text-align:left;padding:4px 6px 8px;color:var(--ink-soft);font-size:10.5px;width:100px;">DATE</th>
           <th style="text-align:left;padding:4px 6px 8px;color:var(--ink-soft);font-size:10.5px;">ADDRESS</th>
           <th style="text-align:left;padding:4px 6px 8px;color:var(--ink-soft);font-size:10.5px;width:90px;">COUNTY</th>
           <th style="width:60px;"></th>
@@ -386,6 +395,11 @@ function renderVenueList(){
           return `
           <tr style="border-bottom:1px solid var(--line);">
             <td style="padding:6px;font-weight:600;vertical-align:top;color:var(--ink);">${v.name}</td>
+            <td style="padding:6px;vertical-align:top;">
+              <input type="date" value="${v.eventDate || ''}"
+                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);"
+                oninput="updateVenueField('${key}','eventDate',this.value)">
+            </td>
             <td style="padding:6px;vertical-align:top;">
               <input type="text" value="${(v.address || '').replace(/"/g,'&quot;')}"
                 style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);"
@@ -421,7 +435,7 @@ async function saveAllVenues(){
       await fetch(CHECKIN_API_URL, {
         method: 'POST',
         mode: 'no-cors',
-        body: JSON.stringify({ recordType: 'venue', name: v.name, address: v.address || '', county: v.county || '' })
+        body: JSON.stringify({ recordType: 'venue', name: v.name, address: v.address || '', county: v.county || '', eventDate: v.eventDate || '' })
       });
     } catch(err){
       // continue on to the next venue even if one fails
@@ -441,8 +455,8 @@ function csvEscape(val){
 
 function exportVenuesCSV(){
   const venues = Object.values(VENUE_DIRECTORY).sort((a,b) => a.name.localeCompare(b.name));
-  const lines = ['Name,Address,County'];
-  venues.forEach(v => lines.push([csvEscape(v.name), csvEscape(v.address), csvEscape(v.county)].join(',')));
+  const lines = ['Name,Address,County,EventDate'];
+  venues.forEach(v => lines.push([csvEscape(v.name), csvEscape(v.address), csvEscape(v.county), csvEscape(v.eventDate)].join(',')));
   const blob = new Blob([lines.join('\n')], {type: 'text/csv'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -505,6 +519,7 @@ async function handleCsvImport(event){
     const nameIdx = headers.indexOf('name');
     const addressIdx = headers.indexOf('address');
     const countyIdx = headers.indexOf('county');
+    const dateIdx = headers.indexOf('eventdate');
     if(nameIdx === -1){
       statusEl.style.color = 'var(--brick)';
       statusEl.textContent = 'CSV needs a "Name" column header.';
@@ -517,9 +532,10 @@ async function handleCsvImport(event){
       if(!name) continue;
       const address = addressIdx > -1 ? (row[addressIdx] || '').trim() : '';
       const county = countyIdx > -1 ? (row[countyIdx] || '').trim() : '';
+      const eventDate = dateIdx > -1 ? (row[dateIdx] || '').trim() : '';
       const key = name.toLowerCase();
       if(VENUE_DIRECTORY[key]) updated++; else added++;
-      VENUE_DIRECTORY[key] = { name, address, county };
+      VENUE_DIRECTORY[key] = { name, address, county, eventDate };
     }
     populateVenueDatalist();
     renderVenueList();
@@ -547,6 +563,7 @@ function loadVenueIntoEditor(name){
   document.getElementById('vEditName').value = match.name;
   document.getElementById('vEditAddress').value = match.address || '';
   document.getElementById('vEditCounty').value = match.county || '';
+  document.getElementById('vEditDate').value = match.eventDate || '';
   document.getElementById('vEditName').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
@@ -555,6 +572,7 @@ function saveVenue(){
   const name = document.getElementById('vEditName').value.trim();
   const address = document.getElementById('vEditAddress').value.trim();
   const county = document.getElementById('vEditCounty').value.trim();
+  const eventDate = document.getElementById('vEditDate').value.trim();
 
   if(!name){
     statusEl.textContent = 'Enter a venue name first.';
@@ -565,7 +583,7 @@ function saveVenue(){
   statusEl.textContent = 'Saving…';
   statusEl.style.color = 'var(--ink-soft)';
 
-  const payload = { recordType: 'venue', name, address, county };
+  const payload = { recordType: 'venue', name, address, county, eventDate };
   if(originalVenueName){
     payload.originalName = originalVenueName;
   }
@@ -578,7 +596,7 @@ function saveVenue(){
     if(originalVenueName && originalVenueName.toLowerCase() !== name.toLowerCase()){
       delete VENUE_DIRECTORY[originalVenueName.toLowerCase()];
     }
-    VENUE_DIRECTORY[name.toLowerCase()] = { name, address, county };
+    VENUE_DIRECTORY[name.toLowerCase()] = { name, address, county, eventDate };
     populateVenueDatalist();
     renderVenueList();
     statusEl.textContent = 'Saved.';
@@ -587,6 +605,7 @@ function saveVenue(){
     document.getElementById('vEditName').value = '';
     document.getElementById('vEditAddress').value = '';
     document.getElementById('vEditCounty').value = '';
+    document.getElementById('vEditDate').value = '';
   }).catch(() => {
     statusEl.textContent = 'Could not save — check your connection and try again.';
     statusEl.style.color = 'var(--brick)';
