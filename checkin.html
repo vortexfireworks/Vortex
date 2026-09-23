@@ -167,15 +167,15 @@ updateThemeToggleIcon();
       <input type="time" id="checkInTime">
     </div>
     <div class="field">
-      <label for="personPhone">Phone number</label>
-      <input type="tel" id="personPhone" oninput="checkPhoneMatch()">
-      <p style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">Enter the phone number on file to auto-fill your license and address.</p>
-      <p id="phoneCheckStatus" style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;min-height:14px;"></p>
-    </div>
-    <div class="field">
       <label for="personName">Your name</label>
       <input type="text" id="personName" list="contactsList" oninput="autofill(this)" onblur="this.value = toTitleCase(this.value)" autocomplete="off">
       <datalist id="contactsList"></datalist>
+    </div>
+    <div class="field">
+      <label for="personPhone">Phone number</label>
+      <input type="tel" id="personPhone" oninput="checkPhoneMatch()">
+      <p style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">If your name and phone number match what's on file, your license and address will fill in automatically.</p>
+      <p id="phoneCheckStatus" style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;min-height:14px;"></p>
     </div>
     <div class="field">
       <label for="personDisplayLicense">Display Operator (D)</label>
@@ -246,9 +246,11 @@ const VENUE_DIRECTORY = {};
 
 function formatDateForOption(dateStr){
   if(!dateStr) return '';
-  const parts = dateStr.split('-');
+  const datePart = dateStr.slice(0, 10); // handles plain "YYYY-MM-DD" or a full ISO timestamp
+  const parts = datePart.split('-');
   if(parts.length !== 3) return dateStr;
   const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
   return `${Number(m)}/${Number(d)}`;
 }
 
