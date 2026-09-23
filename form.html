@@ -303,6 +303,13 @@ updateThemeToggleIcon();
   <div class="section">
     <h2>Operator &amp; event</h2>
     <div class="grid2">
+      <div class="field full">
+        <label for="signInAutofill">Autofill from Sign-In</label>
+        <select id="signInAutofill" onchange="autofillFromSignIn(this)">
+          <option value="" selected>Select an event to autofill…</option>
+        </select>
+        <p style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">Pulls the date, venue, and Head Pyro's name and license from whoever checked in as Head Pyro for that event.</p>
+      </div>
       <div class="field"><label for="opName">Name of operator or artisan</label><input type="text" id="opName" list="licensedContactsList" oninput="autofillOperator(this)"></div>
       <div class="field"><label for="eventDate">Date of event or show</label><input type="date" id="eventDate"></div>
       <div class="field"><label for="company">Name of company</label><input type="text" id="company" list="companyList"></div>
@@ -902,6 +909,64 @@ function populateVenueDatalist(){
   dl.innerHTML = sorted.map(v => `<option value="${v.name.replace(/"/g,'&quot;')}">`).join('');
 }
 populateVenueDatalist();
+
+let SIGNIN_EVENTS = {};
+
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = dateStr.slice(0, 10);
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
+  return `${Number(m)}/${Number(d)}`;
+}
+
+async function fetchSignInEvents(){
+  const select = document.getElementById('signInAutofill');
+  try{
+    const res = await fetch(CHECKIN_API_URL);
+    if(!res.ok) throw new Error('Request failed');
+    const checkins = await res.json();
+    if(!Array.isArray(checkins)) return;
+
+    SIGNIN_EVENTS = {};
+    checkins.forEach(c => {
+      if(!c.event || !c.eventDate) return;
+      const key = `${c.event.trim().toLowerCase()}|||${c.eventDate}`;
+      if(!SIGNIN_EVENTS[key]) SIGNIN_EVENTS[key] = { event: c.event.trim(), eventDate: c.eventDate, checkins: [] };
+      SIGNIN_EVENTS[key].checkins.push(c);
+    });
+
+    const sortedKeys = Object.keys(SIGNIN_EVENTS).sort((a, b) => SIGNIN_EVENTS[b].eventDate.localeCompare(SIGNIN_EVENTS[a].eventDate));
+    select.innerHTML = '<option value="" selected>Select an event to autofill…</option>' +
+      sortedKeys.map(key => {
+        const e = SIGNIN_EVENTS[key];
+        const label = `${formatDateForOption(e.eventDate)} — ${e.event}`;
+        return `<option value="${key.replace(/"/g,'&quot;')}">${label.replace(/</g,'&lt;')}</option>`;
+      }).join('');
+  } catch(err){
+    // fail silently — this is a convenience autofill, not core functionality
+  }
+}
+fetchSignInEvents();
+
+function autofillFromSignIn(select){
+  const key = select.value;
+  if(!key || !SIGNIN_EVENTS[key]) return;
+  const group = SIGNIN_EVENTS[key];
+
+  document.getElementById('eventDate').value = group.eventDate.slice(0, 10);
+  const eventInput = document.getElementById('event');
+  eventInput.value = group.event;
+  autofillEventAddress(eventInput);
+
+  const headPyro = group.checkins.find(c => c.isHeadPyro);
+  if(headPyro){
+    document.getElementById('opName').value = headPyro.name || '';
+    document.getElementById('license').value = headPyro.license || '';
+  }
+}
 
 function autofillEventAddress(eventInput){
   const match = VENUE_INFO[eventInput.value.trim().toLowerCase()];
