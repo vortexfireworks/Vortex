@@ -137,6 +137,21 @@ updateThemeToggleIcon();
   <p class="sub">A running log of what's changed in Pyrotechnician Tools.</p>
 
   <div class="entry">
+    <p class="date">September 23, 2026</p>
+    <ul>
+      <li>Rolled out the new centered header (glowing logo ring, gradient title, colored divider) to every remaining page — Check-In, the After-Action Report, Payroll, Manage Operators, Manage Venues, Manage/Edit, New Hire Documents, Update My Info, Pyro Directory, QR Codes, and Release Notes — so the whole app now looks consistent</li>
+      <li>Added an Event Date to Manage Venues, with the list sorted so the soonest upcoming show shows up first</li>
+      <li>Check-In's venue dropdown now shows "Date — Venue" combined and sorted by date, and only shows venues with a date set — except Shop Time, Trailer Loading, and Bunker Time, which are always available</li>
+      <li>Renamed "Date of event" to "Date of Check-In" on Check-In, and reordered the form so Name comes before Phone number, with a clearer note explaining what auto-fills</li>
+      <li>Fixed a bug where a venue's date could show up as "9/NaN" instead of the correct date</li>
+      <li>Added a pop-up on Check-In reminding first-timers to fill out New Hire Documents before signing in, if their name and phone don't match anyone on file</li>
+      <li>Fixed Payroll's venue dropdown, which wasn't using event dates at all — it now shows venues within 3 months of today, sorted soonest first, the same way Check-In does</li>
+      <li>Added "Autofill from Sign-In" to the After-Action Report — pick a real event from Check-In records and it fills in the date, venue, and the Head Pyro's name and license automatically</li>
+      <li>Venue CSV import now recognizes more header name variants for the event date column</li>
+    </ul>
+  </div>
+
+  <div class="entry">
     <p class="date">September 22, 2026</p>
     <ul>
       <li>Replaced the simple firework icon on every page with 6 distinct, more realistic burst designs, cycled so no two icons on the same screen match</li>
