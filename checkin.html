@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Event Check-In — Vortex Productions</title>
+<title>Event Check-In — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
@@ -279,7 +279,7 @@ const VENUE_DIRECTORY = {};
   "Weber State University","Draper City","Bountiful City","American Fork City","Lehi City","Springville City",
   "West Valley City (West Fest)","Clinton City","Thanksgiving Point Waterfall Concert","Dugway City",
   "Taylorsville - Thursday","Taylorsville - Friday","Taylorsville - Saturday","Olympus High School","Moab - Music Festival"
-].forEach(name => { VENUE_DIRECTORY[name.toLowerCase()] = { name: name, eventDate: '' }; });
+].forEach(name => { VENUE_DIRECTORY[name.toLowerCase()] = { name: name, eventDate: '', signInEnabled: false }; });
 
 function formatDateForOption(dateStr){
   if(!dateStr) return '';
@@ -293,11 +293,20 @@ function formatDateForOption(dateStr){
 
 const ALWAYS_AVAILABLE_NO_DATE = ['shop time', 'trailer loading', 'bunker time'];
 
+function isSignInEffectivelyEnabled(v){
+  if(!v.eventDate) return false;
+  if(!v.signInEnabled) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const eventDay = new Date(v.eventDate.slice(0, 10) + 'T00:00:00');
+  const expiresAt = new Date(eventDay); expiresAt.setDate(expiresAt.getDate() + 2);
+  return today <= expiresAt;
+}
+
 function populateVenueSelect(){
   const select = document.getElementById('eventName');
   const currentValue = select.value;
   const sorted = Object.values(VENUE_DIRECTORY)
-    .filter(v => v.eventDate || ALWAYS_AVAILABLE_NO_DATE.includes(v.name.trim().toLowerCase()))
+    .filter(v => ALWAYS_AVAILABLE_NO_DATE.includes(v.name.trim().toLowerCase()) || isSignInEffectivelyEnabled(v))
     .sort((a, b) => {
       if(a.eventDate && b.eventDate) return a.eventDate.localeCompare(b.eventDate);
       if(a.eventDate && !b.eventDate) return -1;
@@ -342,7 +351,7 @@ async function fetchVenueDirectory(){
     if(Array.isArray(sheetVenues)){
       sheetVenues.forEach(v => {
         if(!v.name) return;
-        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = { name: v.name.trim(), eventDate: v.eventDate || '' };
+        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = { name: v.name.trim(), eventDate: v.eventDate || '', signInEnabled: !!v.signInEnabled };
       });
       populateVenueSelect();
       applyEventFromUrl();
