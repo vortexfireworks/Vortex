@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Check-In QR Code — Vortex Productions</title>
+<title>Check-In QR Code — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
@@ -103,6 +103,16 @@ updateThemeToggleIcon();
   }
   p.sub{color:var(--ink-soft);font-size:13px;margin:0 0 20px;line-height:1.5;}
   .qr-holder{display:inline-flex;justify-content:center;margin-bottom:16px;padding:14px;background:#fff;border-radius:12px;}
+  .loading-pulse{animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .signin-toggle-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 0; border-bottom:1px solid var(--line);
+  }
+  .signin-toggle-row:last-child{border-bottom:none;}
+  .signin-toggle-row .info{font-size:13px;color:var(--ink);}
+  .signin-toggle-row .info .date{font-size:11.5px;color:var(--ink-soft);display:block;margin-top:2px;}
+  .signin-toggle-row input[type=checkbox]{width:20px;height:20px;flex-shrink:0;cursor:pointer;}
   .qr-holder canvas, .qr-holder img{width:220px !important;height:220px !important;}
   .link{font-size:11.5px;color:var(--ink-soft);word-break:break-all;margin-bottom:20px;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;text-align:left;}
@@ -177,6 +187,17 @@ updateThemeToggleIcon();
   <div class="actions">
     <button type="button" onclick="downloadQr()">Download PNG</button>
     <button class="secondary" type="button" onclick="downloadFlyerPDF()">Download flyer as PDF</button>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px;">
+  <h2 style="font-size:15px;margin:0 0 6px;color:var(--ink);">Enable Sign-In for an Event</h2>
+  <p class="sub" style="margin:0 0 14px;">
+    Check a venue to make it available on Check-In. It turns off automatically 2 days after the event date —
+    Shop Time, Trailer Loading, and Bunker Time are always available and don't need to be enabled.
+  </p>
+  <div id="signInToggleList">
+    <p class="loading-pulse" style="font-size:13px;color:var(--ink-soft);">Loading venues…</p>
   </div>
 </div>
 </div>
@@ -290,6 +311,67 @@ async function fetchVenueDirectory(){
   }
 }
 fetchVenueDirectory();
+
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = dateStr.slice(0, 10);
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
+  return `${Number(m)}/${Number(d)}`;
+}
+
+async function fetchSignInToggleList(){
+  const wrap = document.getElementById('signInToggleList');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const venues = await res.json();
+    if(!Array.isArray(venues)) return;
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const weekAgo = new Date(today); weekAgo.setDate(today.getDate() - 7);
+    const twoMonthsAhead = new Date(today); twoMonthsAhead.setMonth(today.getMonth() + 2);
+
+    const dated = venues
+      .filter(v => v.name && v.eventDate)
+      .map(v => {
+        const eventDay = new Date(v.eventDate.slice(0, 10) + 'T00:00:00');
+        const expiresAt = new Date(eventDay); expiresAt.setDate(expiresAt.getDate() + 2);
+        const expired = today > expiresAt;
+        return { name: v.name, eventDate: v.eventDate, eventDay, effectiveEnabled: !!v.signInEnabled && !expired, expired };
+      })
+      .filter(v => v.eventDay >= weekAgo && v.eventDay <= twoMonthsAhead)
+      .sort((a, b) => a.eventDay - b.eventDay);
+
+    if(dated.length === 0){
+      wrap.innerHTML = '<p style="font-size:13px;color:var(--ink-soft);">No venues with a date set in the next couple months. Add a date in Manage Venues first.</p>';
+      return;
+    }
+
+    wrap.innerHTML = dated.map(v => `
+      <div class="signin-toggle-row">
+        <div class="info">
+          ${v.name}
+          <span class="date">${formatDateForOption(v.eventDate)}${v.expired ? ' — expired' : ''}</span>
+        </div>
+        <input type="checkbox" ${v.effectiveEnabled ? 'checked' : ''} onchange="toggleVenueSignIn('${v.name.replace(/'/g,"\\'")}', this.checked)">
+      </div>
+    `).join('');
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:#ff6a5a;">Could not load venues — check your connection and try again.</p>';
+  }
+}
+fetchSignInToggleList();
+
+function toggleVenueSignIn(name, enabled){
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify({ recordType: 'toggleVenueSignIn', name, enabled })
+  });
+}
 
 function downloadFlyerPDF(){
   const canvas = document.getElementById('qr').querySelector('canvas');
