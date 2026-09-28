@@ -165,6 +165,16 @@ updateThemeToggleIcon();
     transition:transform 0.15s ease;
   }
   .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  /* Phone layout: let the View / Edit / Delete buttons drop under the operator's details instead of squeezing them */
+  @media (max-width:600px){
+    #operatorListWrap .op-row{flex-wrap:wrap;}
+    #operatorListWrap .op-row > div:first-child{flex:1 1 100%;}
+    #operatorListWrap .op-row > div:last-child{margin-top:8px;padding-left:46px;}
+  }
 </style>
 
 </head>
