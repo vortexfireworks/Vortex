@@ -170,6 +170,22 @@ updateThemeToggleIcon();
     transition:transform 0.15s ease;
   }
   .theme-toggle:hover{transform:scale(1.08);}
+
+  /* Phone layout for the venue list: stack each venue instead of a wide 5-column table */
+  @media (max-width:600px){
+    #venueListWrap{padding:6px 12px;}
+    #venueListWrap table, #venueListWrap tbody{display:block;width:100%;}
+    #venueListWrap thead{display:none;}
+    #venueListWrap tr{display:flex;flex-wrap:wrap;align-items:center;padding:10px 0;}
+    #venueListWrap td{display:block;padding:4px 0 !important;box-sizing:border-box;}
+    #venueListWrap td.v-name{order:1;flex:1 1 0;min-width:0;overflow-wrap:anywhere;}
+    #venueListWrap td.v-action{order:2;flex:0 0 auto;padding-left:10px !important;}
+    #venueListWrap td.v-field{order:3;flex:1 1 100%;}
+    #venueListWrap td.v-field::before{content:attr(data-label);display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px;}
+  }
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
 </style>
 
 </head>
@@ -418,23 +434,23 @@ function renderVenueList(){
           const key = v.name.toLowerCase().replace(/'/g, "\\'");
           return `
           <tr style="border-bottom:1px solid var(--line);">
-            <td style="padding:6px;font-weight:600;vertical-align:top;color:var(--ink);">${v.name}</td>
-            <td style="padding:6px;vertical-align:top;">
+            <td class="v-name" style="padding:6px;font-weight:600;vertical-align:top;color:var(--ink);">${v.name}</td>
+            <td class="v-field" data-label="Date" style="padding:6px;vertical-align:top;">
               <input type="date" value="${v.eventDate || ''}"
                 style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);"
                 oninput="updateVenueField('${key}','eventDate',this.value)">
             </td>
-            <td style="padding:6px;vertical-align:top;">
+            <td class="v-field" data-label="Address" style="padding:6px;vertical-align:top;">
               <input type="text" value="${(v.address || '').replace(/"/g,'&quot;')}"
                 style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);"
                 oninput="updateVenueField('${key}','address',this.value)">
             </td>
-            <td style="padding:6px;vertical-align:top;">
+            <td class="v-field" data-label="County" style="padding:6px;vertical-align:top;">
               <input type="text" value="${(v.county || '').replace(/"/g,'&quot;')}"
                 style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);"
                 oninput="updateVenueField('${key}','county',this.value)">
             </td>
-            <td style="padding:6px;vertical-align:top;">
+            <td class="v-action" style="padding:6px;vertical-align:top;">
               <button type="button" style="background:none;border:1px solid var(--line);color:var(--navy);font-size:11.5px;padding:5px 8px;border-radius:6px;cursor:pointer;" onclick="loadVenueIntoEditor('${key}')">Rename</button>
             </td>
           </tr>`;

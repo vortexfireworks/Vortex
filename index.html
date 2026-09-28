@@ -70,6 +70,7 @@
     position:relative;
     transition:background 0.25s ease, color 0.25s ease;
   }
+  .decor{position:absolute; top:0; left:0; right:0; bottom:0; overflow:hidden; pointer-events:none;}
   .burst{
     position:absolute; border-radius:50%;
     filter: blur(2px);
@@ -234,6 +235,9 @@
   }
   .splash-card img{display:block; width:62vw; max-width:260px; height:auto; border-radius:14px;}
   @keyframes splashIn{from{opacity:0; transform:scale(.94);} to{opacity:1; transform:scale(1);}}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
 </style>
 </head>
 <body>
@@ -262,10 +266,12 @@
 })();
 </script>
 
+<div class="decor" aria-hidden="true">
 <div class="burst" style="width:260px;height:260px;top:-70px;left:-70px;background:radial-gradient(circle,#ff8c00 0%,transparent 70%);"></div>
 <div class="burst" style="width:220px;height:220px;top:10px;right:-70px;background:radial-gradient(circle,#2f7ec9 0%,transparent 70%);"></div>
 <div class="burst" style="width:180px;height:180px;bottom:40px;left:-50px;background:radial-gradient(circle,#d92b2b 0%,transparent 70%);"></div>
 <div class="v-watermark"></div>
+</div>
 
 <div class="wrap">
   <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme">

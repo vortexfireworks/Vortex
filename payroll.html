@@ -178,6 +178,9 @@ updateThemeToggleIcon();
     transition:transform 0.15s ease;
   }
   .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
 </style>
 
 </head>
