@@ -213,9 +213,55 @@
     transition:transform 0.15s ease;
   }
   .theme-toggle:hover{transform:scale(1.08);}
+
+  /* Loading screen — "Presented by CueSheet" */
+  #splash{
+    position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    transition:opacity .45s ease, visibility .45s ease;
+  }
+  #splash.hide{opacity:0; visibility:hidden; pointer-events:none;}
+  .splash-presented{
+    font-size:11px; letter-spacing:.3em; text-transform:uppercase;
+    color:var(--ink-soft); font-weight:600; margin:0 0 20px;
+    animation:splashIn .6s ease both;
+  }
+  .splash-card{
+    background:#fff; border-radius:26px; padding:14px;
+    box-shadow:0 18px 50px rgba(0,0,0,.35);
+    animation:splashIn .6s ease .1s both;
+  }
+  .splash-card img{display:block; width:62vw; max-width:260px; height:auto; border-radius:14px;}
+  @keyframes splashIn{from{opacity:0; transform:scale(.94);} to{opacity:1; transform:scale(1);}}
 </style>
 </head>
 <body>
+<div id="splash" aria-hidden="true">
+  <p class="splash-presented">Presented by</p>
+  <div class="splash-card"><img src="cuesheet-logo.jpg" alt="CueSheet — Fireworks Organization Tool"></div>
+</div>
+<script>
+(function(){
+  var s = document.getElementById('splash');
+  var seen = false;
+  try{ seen = sessionStorage.getItem('cuesheetSplash') === '1'; }catch(e){}
+  if(seen){ s.parentNode.removeChild(s); return; }   // only once per visit, not every time you return to the main screen
+  try{ sessionStorage.setItem('cuesheetSplash', '1'); }catch(e){}
+  var img = s.querySelector('img');
+  var timer;
+  function hide(){
+    clearTimeout(timer);
+    s.classList.add('hide');
+    setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 600);
+  }
+  function arm(){ clearTimeout(timer); timer = setTimeout(hide, 1600); }
+  s.addEventListener('click', hide);                 // tap to skip
+  if(img.complete){ arm(); }
+  else { img.addEventListener('load', arm); img.addEventListener('error', hide); timer = setTimeout(hide, 4000); }
+})();
+</script>
+
 <div class="burst" style="width:260px;height:260px;top:-70px;left:-70px;background:radial-gradient(circle,#ff8c00 0%,transparent 70%);"></div>
 <div class="burst" style="width:220px;height:220px;top:10px;right:-70px;background:radial-gradient(circle,#2f7ec9 0%,transparent 70%);"></div>
 <div class="burst" style="width:180px;height:180px;bottom:40px;left:-50px;background:radial-gradient(circle,#d92b2b 0%,transparent 70%);"></div>
