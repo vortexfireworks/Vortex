@@ -103,6 +103,89 @@ function getOrCreateAnnouncementsSheet(ss) {
   return sheet;
 }
 
+const SITEMAP_FOLDER_NAME = 'Vortex Site Maps';
+
+function jsonOut(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getOrCreatePickListsSheet(ss) {
+  const requiredHeaders = ['Name', 'EventDate', 'SiteMapUrl', 'SiteMapFileId', 'DataJson', 'UpdatedAt'];
+  let sheet = ss.getSheetByName('PickLists');
+  if (!sheet) {
+    sheet = ss.insertSheet('PickLists');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
+function getOrCreatePickListSettingsSheet(ss) {
+  let sheet = ss.getSheetByName('PickListSettings');
+  if (!sheet) {
+    sheet = ss.insertSheet('PickListSettings');
+    sheet.appendRow(['Key', 'Value']);
+  }
+  return sheet;
+}
+
+function getPickListSetting(ss, key) {
+  const sheet = ss.getSheetByName('PickListSettings');
+  if (!sheet) return '';
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === key) return String(rows[i][1] == null ? '' : rows[i][1]);
+  }
+  return '';
+}
+
+function setPickListSetting(ss, key, value) {
+  const sheet = getOrCreatePickListSettingsSheet(ss);
+  const rows = sheet.getDataRange().getValues();
+  let rowNumber = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0]) === key) { rowNumber = i + 1; break; }
+  }
+  if (rowNumber < 0) {
+    sheet.appendRow([key, '']);
+    rowNumber = sheet.getLastRow();
+  }
+  const cell = sheet.getRange(rowNumber, 2);
+  cell.setNumberFormat('@');   // keep it as plain text so Sheets never treats a formula like "=..." as a real formula
+  cell.setValue(value);
+}
+
+function findPickListRow(sheet, map, name) {
+  const rows = sheet.getDataRange().getValues();
+  const key = String(name || '').trim().toLowerCase();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][map['Name']]).trim().toLowerCase() === key) return i + 1;
+  }
+  return -1;
+}
+
+function saveSiteMapToDrive(dataUrl, name) {
+  const matches = String(dataUrl || '').match(/^data:(image\/(?:jpeg|png|webp|gif));base64,(.*)$/);
+  if (!matches) return null;
+  const bytes = Utilities.base64Decode(matches[2]);
+  if (bytes.length > 8 * 1024 * 1024) return null;   // safety cap: 8 MB
+  const ext = matches[1] === 'image/png' ? 'png' : (matches[1] === 'image/jpeg' ? 'jpg' : matches[1].split('/')[1]);
+  const safeName = 'sitemap_' + String(name).replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().getTime() + '.' + ext;
+  const blob = Utilities.newBlob(bytes, matches[1], safeName);
+  const folders = DriveApp.getFoldersByName(SITEMAP_FOLDER_NAME);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(SITEMAP_FOLDER_NAME);
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return { fileId: file.getId(), url: 'https://lh3.googleusercontent.com/d/' + file.getId() + '=s1600' };
+}
+
 function headerMap(sheet) {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   const map = {};
@@ -267,6 +350,72 @@ function doPost(e) {
     CacheService.getScriptCache().remove(ANNOUNCEMENTS_CACHE_KEY);
     return ContentService.createTextOutput(JSON.stringify({status: 'ok'}))
       .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  if (data.recordType === 'pickList') {
+    const name = String(data.name || '').trim();
+    if (!name) return jsonOut({status: 'error', message: 'Missing show name'});
+    const dataJson = JSON.stringify(data.data && typeof data.data === 'object' ? data.data : {});
+    if (dataJson.length > 45000) return jsonOut({status: 'error', message: 'Pick list is too large'});
+    const sheet = getOrCreatePickListsSheet(ss);
+    const map = headerMap(sheet);
+    const row = findPickListRow(sheet, map, name);
+    const eventDate = normalizeDateValue(data.eventDate);
+    if (row > 0) {
+      // Only touch the fields this save owns, so an uploaded site map is never lost.
+      sheet.getRange(row, map['EventDate'] + 1).setValue(eventDate);
+      sheet.getRange(row, map['DataJson'] + 1).setValue(dataJson);
+      sheet.getRange(row, map['UpdatedAt'] + 1).setValue(new Date());
+    } else {
+      const newRow = ['', '', '', '', '', ''];
+      newRow[map['Name']] = name;
+      newRow[map['EventDate']] = eventDate;
+      newRow[map['SiteMapUrl']] = '';
+      newRow[map['SiteMapFileId']] = '';
+      newRow[map['DataJson']] = dataJson;
+      newRow[map['UpdatedAt']] = new Date();
+      sheet.appendRow(newRow);
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'pickListSiteMap') {
+    const name = String(data.name || '').trim();
+    if (!name) return jsonOut({status: 'error', message: 'Missing show name'});
+    const sheet = getOrCreatePickListsSheet(ss);
+    const map = headerMap(sheet);
+    let row = findPickListRow(sheet, map, name);
+    if (row < 0) {
+      const newRow = ['', '', '', '', '', ''];
+      newRow[map['Name']] = name;
+      newRow[map['DataJson']] = '{}';
+      newRow[map['UpdatedAt']] = new Date();
+      sheet.appendRow(newRow);
+      row = sheet.getLastRow();
+    }
+    const oldId = String(sheet.getRange(row, map['SiteMapFileId'] + 1).getValue() || '');
+    let newUrl = '';
+    let newId = '';
+    if (!data.remove) {
+      const saved = saveSiteMapToDrive(data.imageBase64, name);
+      if (!saved) return jsonOut({status: 'error', message: 'Could not read that image'});
+      newUrl = saved.url;
+      newId = saved.fileId;
+    }
+    sheet.getRange(row, map['SiteMapUrl'] + 1).setValue(newUrl);
+    sheet.getRange(row, map['SiteMapFileId'] + 1).setValue(newId);
+    sheet.getRange(row, map['UpdatedAt'] + 1).setValue(new Date());
+    if (oldId) {
+      try { DriveApp.getFileById(oldId).setTrashed(true); } catch (err) { /* already gone */ }
+    }
+    return jsonOut({status: 'ok', siteMapUrl: newUrl});
+  }
+
+  if (data.recordType === 'pickListFormula') {
+    const formula = String(data.formula == null ? '' : data.formula).trim();
+    if (formula.length > 300) return jsonOut({status: 'error', message: 'Formula is too long'});
+    setPickListSetting(ss, 'racksFormula', formula);
+    return jsonOut({status: 'ok'});
   }
 
   if (data.recordType === 'toggleVenueSignIn') {
@@ -464,10 +613,60 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  if (e.parameter.type === 'pickLists') {
+    // Show dates come live from the Venues sheet, so changing a venue's date never leaves a pick list behind.
+    const venueDates = {};
+    const vSheet = ss.getSheetByName('Venues');
+    if (vSheet && vSheet.getLastRow() > 1) {
+      const vm = headerMap(vSheet);
+      vSheet.getDataRange().getValues().slice(1).forEach(r => {
+        const n = String(r[vm['Name']] || '').trim().toLowerCase();
+        if (n) venueDates[n] = normalizeDateValue(r[vm['EventDate']]);
+      });
+    }
+    const lists = [];
+    const sheet = ss.getSheetByName('PickLists');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const name = String(r[map['Name']] || '').trim();
+        if (!name) return;
+        let parsed = {};
+        try { parsed = JSON.parse(r[map['DataJson']] || '{}'); } catch (err) { parsed = {}; }
+        const updated = r[map['UpdatedAt']];
+        lists.push({
+          name: name,
+          eventDate: venueDates[name.toLowerCase()] || normalizeDateValue(r[map['EventDate']]),
+          siteMapUrl: String(r[map['SiteMapUrl']] || ''),
+          data: parsed,
+          updatedAt: updated instanceof Date ? updated.toISOString() : String(updated || '')
+        });
+      });
+    }
+    return jsonOut({formula: getPickListSetting(ss, 'racksFormula'), lists: lists});
+  }
+
+  if (e.parameter.type === 'pickListSiteMapData') {
+    // Returns the site map as base64 so the PDF can embed it without any cross-site image restrictions.
+    const sheet = ss.getSheetByName('PickLists');
+    if (!sheet) return jsonOut({dataUrl: ''});
+    const map = headerMap(sheet);
+    const row = findPickListRow(sheet, map, e.parameter.name);
+    if (row < 0) return jsonOut({dataUrl: ''});
+    const fileId = String(sheet.getRange(row, map['SiteMapFileId'] + 1).getValue() || '');
+    if (!fileId) return jsonOut({dataUrl: ''});
+    try {
+      const blob = DriveApp.getFileById(fileId).getBlob();
+      return jsonOut({dataUrl: 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes())});
+    } catch (err) {
+      return jsonOut({dataUrl: '', error: 'Could not read the site map'});
+    }
+  }
+
   if (e.parameter.type === 'pyroDirectory') {
     const merged = getMergedContacts(ss);
     const results = Object.values(merged)
-      .map(c => ({ name: c.name, license: c.license || '', phone: c.phone || '', email: c.email || '' }))
+      .map(c => ({ name: c.name, license: c.license || '', phone: c.phone || '', email: c.email || '', photoUrl: c.photoUrl || '' }))
       .sort((a, b) => a.name.localeCompare(b.name));
     return ContentService.createTextOutput(JSON.stringify(results))
       .setMimeType(ContentService.MimeType.JSON);

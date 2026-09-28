@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Pick Lists — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .full{grid-column:1/-1;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+  }
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  .editor-box{
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;}
+  #venueSaveStatus{font-size:12.5px;}
+  .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .search-box{margin-bottom:10px;}
+  #venueListWrap{
+    max-height:400px;overflow-y:auto;border:1px solid var(--line);
+    border-radius:8px;padding:6px 14px;font-size:13px;
+  }
+  .venue-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:8px 0;border-bottom:1px solid var(--line);
+  }
+  .venue-row:last-child{border-bottom:none;}
+  .venue-row .venue-name{font-weight:600;}
+  .venue-row .venue-detail{color:var(--ink-soft);font-size:12px;}
+  .venue-row button{
+    background:none;border:1px solid var(--line);color:var(--navy);
+    font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;flex-shrink:0;
+  }
+  .venue-row button:hover{border-color:var(--navy);}
+  @media(max-width:480px){
+    .grid2{grid-template-columns:1fr;}
+  }
+  .back-link{
+    display:block; max-width:640px; margin:16px auto 0; padding:0 16px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{
+    color:var(--ink-soft); margin:4px 0;
+    animation:pulseFade 1.4s ease-in-out infinite;
+  }
+  @keyframes pulseFade{
+    0%,100%{opacity:0.4;} 50%{opacity:1;}
+  }
+  .empty-state{
+    text-align:center; padding:24px 12px; color:var(--ink-soft);
+  }
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* Phone layout for the venue list: stack each venue instead of a wide 5-column table */
+  @media (max-width:600px){
+    #venueListWrap{padding:6px 12px;}
+    #venueListWrap table, #venueListWrap tbody{display:block;width:100%;}
+    #venueListWrap thead{display:none;}
+    #venueListWrap tr{display:flex;flex-wrap:wrap;align-items:center;padding:10px 0;}
+    #venueListWrap td{display:block;padding:4px 0 !important;box-sizing:border-box;}
+    #venueListWrap td.v-name{order:1;flex:1 1 0;min-width:0;overflow-wrap:anywhere;}
+    #venueListWrap td.v-action{order:2;flex:0 0 auto;padding-left:10px !important;}
+    #venueListWrap td.v-field{order:3;flex:1 1 100%;}
+    #venueListWrap td.v-field::before{content:attr(data-label);display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px;}
+  }
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  /* ---- Pick list pages ---- */
+  select, input[type=number]{
+    font-size:14px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:6px; background:var(--surface-55); color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box;
+  }
+  select:focus, input[type=number]:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input[type=file]{font-size:13px;color:var(--ink-soft);max-width:100%;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .hint code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background:var(--surface-4);padding:1px 5px;border-radius:4px;}
+  .line{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;}
+  .line > *{min-width:0;}
+  .line .c-size{flex:1 1 92px;}
+  .line .c-qty{flex:1 1 84px;}
+  .line .c-unit{flex:1 1 104px;}
+  .line .c-title{flex:3 1 170px;}
+  .line .c-qty-s{flex:1 1 76px;}
+  .line button.rm{
+    flex:0 0 auto;width:36px;height:36px;border-radius:8px;border:1px solid var(--line);
+    background:none;color:var(--ink-soft);font-size:20px;line-height:1;cursor:pointer;padding:0;
+  }
+  .line button.rm:hover{color:var(--brick);border-color:var(--brick);}
+  .add-line{margin-top:4px;}
+  #saveStatus,#mapStatus,#formulaStatus{font-size:12.5px;}
+  #mapPreview{display:block;max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);margin:12px 0 4px;background:#fff;}
+  .racks-box{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px dashed var(--line);border-radius:8px;}
+  .racks-val{font-size:24px;font-weight:800;color:var(--ink);}
+  .racks-val.muted{font-size:13px;font-weight:600;color:var(--ink-soft);}
+
+  /* Phone layout for the editor lines: each line is a tidy two-row group */
+  @media (max-width:600px){
+    .line{padding-bottom:12px;margin-bottom:12px;border-bottom:1px dashed var(--line);}
+    .line:last-child{border-bottom:none;padding-bottom:0;margin-bottom:8px;}
+    .line .c-size, .line .c-qty{flex:1 1 calc(50% - 4px);}   /* shells, row 1: size | number */
+    .line .c-unit{flex:1 1 0;}                                 /* shells, row 2: unit | x     */
+    .line .c-title{flex:1 1 100%;}                             /* setup, row 1: item name     */
+    .line .c-qty-s{flex:0 1 140px;}                            /* setup, row 2: quantity | x  */
+    .line button.rm{margin-left:auto;}
+  }
+</style>
+
+<script src="picklist-common.js"></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Manage Pick Lists</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet" id="mainContent">
+  <div class="section">
+    <p class="desc">Build the pick list for a show: shells, cakes, setup items and a site map. Crews see the finished list under Pick Lists in Head Pyro Tools.</p>
+
+    <div class="field">
+      <label for="showSelect">Show</label>
+      <select id="showSelect" onchange="onShowChange()"><option value="">Loading shows…</option></select>
+      <p class="hint">Shows come from Manage Venues — a venue needs an event date to appear here. A ✓ means that show already has a pick list.</p>
+    </div>
+
+    <p class="hint" id="noShowMsg" style="margin:0 0 22px;">Choose a show to start its pick list.</p>
+
+    <div id="editorArea" style="display:none;">
+
+      <div class="editor-box">
+        <p class="label-title">SITE MAP</p>
+        <input type="file" id="mapFile" accept="image/*" onchange="onMapSelected(event)">
+        <div id="mapPreviewWrap" style="display:none;">
+          <img id="mapPreview" alt="Site map preview">
+        </div>
+        <div class="save-row" style="margin-top:10px;flex-wrap:wrap;">
+          <button type="button" class="secondary" id="mapUploadBtn" disabled onclick="uploadMap()">Upload site map</button>
+          <button type="button" class="secondary" id="mapRemoveBtn" style="display:none;" onclick="removeMap()">Remove site map</button>
+          <span id="mapStatus"></span>
+        </div>
+        <p class="hint">A photo or screenshot works (JPG or PNG). It is shrunk automatically so it uploads quickly.</p>
+      </div>
+
+      <div class="editor-box">
+        <p class="label-title">SHELLS</p>
+        <div id="shellLines"></div>
+        <button type="button" class="secondary add-line" onclick="addShellLine()">+ Add shell line</button>
+      </div>
+
+      <div class="editor-box">
+        <p class="label-title">CAKES</p>
+        <div class="field" style="margin-bottom:0;">
+          <label for="cakesInput">Number of cakes</label>
+          <input type="number" id="cakesInput" inputmode="numeric" min="0" step="1" placeholder="0" oninput="onCakes(this.value)">
+        </div>
+      </div>
+
+      <div class="editor-box">
+        <p class="label-title">RACKS</p>
+        <div class="racks-box">
+          <span class="hint" style="margin:0;">Worked out for you from the shells and cakes above.</span>
+          <span class="racks-val" id="racksVal">—</span>
+        </div>
+        <p class="hint" id="racksNote"></p>
+      </div>
+
+      <div class="editor-box">
+        <p class="label-title">SETUP ITEMS</p>
+        <div id="setupLines"></div>
+        <button type="button" class="secondary add-line" onclick="addSetupLine()">+ Add setup item</button>
+      </div>
+
+      <div class="save-row" style="flex-wrap:wrap;">
+        <button type="button" class="primary" onclick="savePickList()">Save pick list</button>
+        <span id="saveStatus"></span>
+      </div>
+    </div>
+
+    <div class="editor-box" style="margin-top:30px;margin-bottom:0;">
+      <p class="label-title">RACKS FORMULA (USED FOR EVERY SHOW)</p>
+      <div class="field" style="margin-bottom:0;">
+        <input type="text" id="formulaInput" placeholder="e.g. ceil(s3_shells / 20) + ceil(cakes / 4)" oninput="onFormulaInput()" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
+      </div>
+      <p class="hint" id="formulaMsg"></p>
+      <p class="hint">
+        You can use + − × ÷ ( ) and the functions <code>ceil()</code> <code>floor()</code> <code>round()</code> <code>min()</code> <code>max()</code> <code>abs()</code>.<br>
+        Numbers you can use: <code>cakes</code>, and the totals <code>shells</code>, <code>boxes</code>, <code>pairs</code> across all sizes.
+        For one size and unit, use <code>s3_shells</code>, <code>s3_boxes</code>, <code>s3_pairs</code>. The sizes are
+        <code>s2_5</code> (2-1/2"), <code>s3</code>, <code>s4</code>, <code>s5</code>, <code>s6</code> and <code>s8</code>.
+      </p>
+      <div class="save-row" style="margin-top:10px;flex-wrap:wrap;">
+        <button type="button" class="secondary" onclick="saveFormula()">Save formula</button>
+        <span id="formulaStatus"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const $ = (id) => document.getElementById(id);
+const keyOf = (name) => String(name || '').trim().toLowerCase();
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function setStatus(el, msg, kind){
+  el.textContent = msg;
+  el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
+}
+async function getJson(url){
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('Request failed');
+  return res.json();
+}
+function postJson(payload){
+  return fetch(CHECKIN_API_URL, { method:'POST', mode:'no-cors', body: JSON.stringify(payload) });
+}
+
+let SHOWS = [];          // venues that have an event date
+let LISTS = {};          // saved pick lists, keyed by lower-case show name
+let FORMULA = '';        // the saved racks formula
+let currentShow = null;
+let shellLines = [], setupLines = [], cakes = '';
+let dirty = false;
+let pendingMap = null;   // a resized image waiting to be uploaded
+
+/* ---------- loading ---------- */
+async function loadLists(){
+  const res = await getJson(`${CHECKIN_API_URL}?type=pickLists`);
+  LISTS = {};
+  (res.lists || []).forEach(l => { LISTS[keyOf(l.name)] = l; });
+  FORMULA = res.formula || '';
+}
+
+async function init(){
+  try{
+    const [venues] = await Promise.all([ getJson(`${CHECKIN_API_URL}?type=venues`), loadLists() ]);
+    SHOWS = (Array.isArray(venues) ? venues : [])
+      .filter(v => v.name && v.eventDate)
+      .map(v => ({ name: v.name, eventDate: String(v.eventDate).slice(0, 10) }));
+    $('formulaInput').value = FORMULA;
+    buildShowOptions('');
+    onFormulaInput();
+  } catch(err){
+    $('showSelect').innerHTML = '<option value="">Could not load shows</option>';
+    $('noShowMsg').textContent = 'Could not load shows — check your connection and reload this page.';
+  }
+}
+
+function buildShowOptions(selectedName){
+  const sel = $('showSelect');
+  const cutoff = new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate() - 14);
+  const shows = SHOWS
+    .filter(s => new Date(s.eventDate + 'T00:00:00') >= cutoff)
+    .sort((a, b) => a.eventDate.localeCompare(b.eventDate) || a.name.localeCompare(b.name));
+  sel.innerHTML = '<option value="">' + (shows.length ? 'Select a show…' : 'No upcoming shows with a date') + '</option>' +
+    shows.map(s => `<option value="${esc(s.name)}">${esc(PickList.formatDateShort(s.eventDate))} — ${esc(s.name)}${LISTS[keyOf(s.name)] ? ' ✓' : ''}</option>`).join('');
+  sel.value = selectedName || '';
+}
+
+function onShowChange(){
+  const sel = $('showSelect');
+  if(dirty && !confirm('You have unsaved changes for this show. Switch anyway and lose them?')){
+    sel.value = currentShow ? currentShow.name : '';
+    return;
+  }
+  pendingMap = null;
+  $('mapFile').value = '';
+  setStatus($('saveStatus'), '');
+  setStatus($('mapStatus'), '');
+  currentShow = sel.value ? (SHOWS.find(s => s.name === sel.value) || null) : null;
+  loadShowIntoForm();
+}
+
+/* ---------- form state ---------- */
+const blankShell = () => ({ id: PickList.newId(), size: '', qty: '', unit: 'boxes' });
+const blankSetup = () => ({ id: PickList.newId(), title: '', qty: '' });
+
+function loadShowIntoForm(){
+  dirty = false;
+  if(currentShow){
+    const L = LISTS[keyOf(currentShow.name)];
+    const d = PickList.normalizeData(L && L.data);
+    shellLines = d.shells.map(s => ({ id: s.id, size: s.size, qty: String(s.qty), unit: s.unit }));
+    setupLines = d.setup.map(s => ({ id: s.id, title: s.title, qty: s.qty == null ? '' : String(s.qty) }));
+    cakes = d.cakes ? String(d.cakes) : '';
+    if(!shellLines.length) shellLines.push(blankShell());
+    if(!setupLines.length) setupLines.push(blankSetup());
+  }
+  $('editorArea').style.display = currentShow ? 'block' : 'none';
+  $('noShowMsg').style.display = currentShow ? 'none' : 'block';
+  if(currentShow){
+    renderLines();
+    const L = LISTS[keyOf(currentShow.name)];
+    showMap(L && L.siteMapUrl ? L.siteMapUrl : '');
+  }
+}
+
+function renderLines(){
+  $('shellLines').innerHTML = shellLines.map(shellRow).join('');
+  $('setupLines').innerHTML = setupLines.map(setupRow).join('');
+  $('cakesInput').value = cakes;
+  updateRacksPreview();
+}
+
+function shellRow(l){
+  return `<div class="line">
+    <select class="c-size" aria-label="Shell size" onchange="setShell('${l.id}','size',this.value)">
+      <option value="">Size…</option>${PickList.SIZES.map(s => `<option value="${s.value}"${l.size === s.value ? ' selected' : ''}>${esc(s.label)}</option>`).join('')}
+    </select>
+    <input class="c-qty" type="number" inputmode="numeric" min="0" step="1" placeholder="Number" aria-label="Number of shells" value="${esc(l.qty)}" oninput="setShell('${l.id}','qty',this.value)">
+    <select class="c-unit" aria-label="Unit" onchange="setShell('${l.id}','unit',this.value)">
+      ${PickList.UNITS.map(u => `<option value="${u.value}"${l.unit === u.value ? ' selected' : ''}>${esc(u.label)}</option>`).join('')}
+    </select>
+    <button type="button" class="rm" aria-label="Remove this shell line" onclick="removeShell('${l.id}')">&times;</button>
+  </div>`;
+}
+
+function setupRow(l){
+  return `<div class="line">
+    <input class="c-title" type="text" placeholder="Item name" aria-label="Item name" value="${esc(l.title)}" oninput="setSetup('${l.id}','title',this.value)">
+    <input class="c-qty-s" type="number" inputmode="numeric" min="0" step="1" placeholder="Qty" aria-label="Quantity" value="${esc(l.qty)}" oninput="setSetup('${l.id}','qty',this.value)">
+    <button type="button" class="rm" aria-label="Remove this setup item" onclick="removeSetup('${l.id}')">&times;</button>
+  </div>`;
+}
+
+function touch(){ dirty = true; setStatus($('saveStatus'), ''); }
+
+function addShellLine(){ shellLines.push(blankShell()); touch(); renderLines(); }
+function removeShell(id){ shellLines = shellLines.filter(l => l.id !== id); if(!shellLines.length) shellLines.push(blankShell()); touch(); renderLines(); }
+function setShell(id, field, value){
+  const l = shellLines.find(x => x.id === id); if(!l) return;
+  l[field] = value; touch(); updateRacksPreview();
+}
+function addSetupLine(){ setupLines.push(blankSetup()); touch(); renderLines(); }
+function removeSetup(id){ setupLines = setupLines.filter(l => l.id !== id); if(!setupLines.length) setupLines.push(blankSetup()); touch(); renderLines(); }
+function setSetup(id, field, value){
+  const l = setupLines.find(x => x.id === id); if(!l) return;
+  l[field] = value; touch();
+}
+function onCakes(value){ cakes = value; touch(); updateRacksPreview(); }
+
+/* ---------- racks ---------- */
+function draftData(){ return PickList.normalizeData({ shells: shellLines, cakes: cakes, setup: [] }); }
+
+function updateRacksPreview(){
+  const el = $('racksVal'), note = $('racksNote');
+  const r = PickList.computeRacks(draftData(), $('formulaInput').value);
+  el.classList.remove('muted');
+  if(r.state === 'ok'){
+    el.textContent = String(r.value);
+    note.textContent = '';
+  } else {
+    el.classList.add('muted');
+    el.textContent = r.state === 'unset' ? 'Formula not set yet' : 'Check formula';
+    note.textContent = r.state === 'error' ? r.error : 'Racks fill in on their own once a racks formula is saved at the bottom of this page.';
+  }
+}
+
+function onFormulaInput(){
+  const f = $('formulaInput').value, msg = $('formulaMsg');
+  updateRacksPreview();
+  if(!f.trim()){ setStatus(msg, ''); return; }
+  const r = PickList.evalFormula(f, PickList.buildVariables(currentShow ? draftData() : {}));
+  if(r.ok) setStatus(msg, currentShow ? `✓ Works — gives ${r.value} for the show above.` : '✓ The formula looks valid.', 'ok');
+  else if(r.error === 'Division by zero') setStatus(msg, 'Heads up: this divides by zero for the numbers entered right now.', 'muted');
+  else setStatus(msg, '✗ ' + r.error, 'err');
+}
+
+async function saveFormula(){
+  const f = $('formulaInput').value.trim(), st = $('formulaStatus');
+  if(f){
+    const r = PickList.evalFormula(f, PickList.buildVariables({}));
+    if(!r.ok && r.error !== 'Division by zero'){ setStatus(st, 'Fix the formula first: ' + r.error, 'err'); return; }
+  }
+  setStatus(st, 'Saving…');
+  try{
+    await postJson({ recordType: 'pickListFormula', formula: f });
+    FORMULA = f;
+    setStatus(st, f ? 'Formula saved ✓' : 'Formula cleared ✓', 'ok');
+    loadLists().catch(() => {});
+  } catch(err){
+    setStatus(st, 'Could not save — check your connection and try again.', 'err');
+  }
+}
+
+/* ---------- saving the list ---------- */
+function collectForSave(){
+  const errors = [], shells = [], setup = [];
+  shellLines.forEach((l, i) => {
+    if(!l.size && String(l.qty).trim() === '') return;          // an untouched line is just ignored
+    const qty = PickList.toQty(l.qty);
+    if(!l.size) errors.push(`Shell line ${i + 1} needs a size.`);
+    else if(!qty) errors.push(`Shell line ${i + 1} needs a number greater than 0.`);
+    else shells.push({ id: l.id, size: l.size, qty: qty, unit: l.unit });
+  });
+  setupLines.forEach((l, i) => {
+    const title = l.title.trim();
+    if(!title && String(l.qty).trim() === '') return;
+    if(!title) errors.push(`Setup item ${i + 1} needs a name.`);
+    else setup.push({ id: l.id, title: title, qty: PickList.toQty(l.qty) });
+  });
+  return { errors, data: { shells: shells, cakes: PickList.toQty(cakes), setup: setup } };
+}
+
+async function savePickList(){
+  if(!currentShow) return;
+  const st = $('saveStatus');
+  const { errors, data } = collectForSave();
+  if(errors.length){ setStatus(st, errors[0], 'err'); return; }
+  if(pendingMap){
+    // A picture was chosen but "Upload site map" wasn't pressed — upload it now so it isn't silently lost.
+    await uploadMap();
+    if(pendingMap){ setStatus(st, 'The site map did not upload, so nothing was saved. Fix that (see above) and save again.', 'err'); return; }
+  }
+  setStatus(st, 'Saving…');
+  try{
+    await postJson({ recordType: 'pickList', name: currentShow.name, eventDate: currentShow.eventDate, data: data });
+    const key = keyOf(currentShow.name), prev = LISTS[key];
+    LISTS[key] = { name: currentShow.name, eventDate: currentShow.eventDate, siteMapUrl: prev ? prev.siteMapUrl : '', data: data };
+    // show the cleaned-up version (empty lines dropped) and refresh the ✓ marks
+    const d = PickList.normalizeData(data);
+    shellLines = d.shells.map(s => ({ id: s.id, size: s.size, qty: String(s.qty), unit: s.unit }));
+    setupLines = d.setup.map(s => ({ id: s.id, title: s.title, qty: s.qty == null ? '' : String(s.qty) }));
+    cakes = d.cakes ? String(d.cakes) : '';
+    if(!shellLines.length) shellLines.push(blankShell());
+    if(!setupLines.length) setupLines.push(blankSetup());
+    renderLines();
+    buildShowOptions(currentShow.name);
+    dirty = false;
+    setStatus(st, 'Saved ✓', 'ok');
+    loadLists().catch(() => {});
+  } catch(err){
+    setStatus(st, 'Could not save — check your connection and try again.', 'err');
+  }
+}
+
+/* ---------- site map ---------- */
+function resizeImageToDataUrl(file, maxSize, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxSize){ h = Math.round(h * maxSize / w); w = maxSize; } }
+        else { if(h > maxSize){ w = Math.round(w * maxSize / h); h = maxSize; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);      // so a transparent PNG doesn't turn black
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function currentMapUrl(){
+  const L = currentShow && LISTS[keyOf(currentShow.name)];
+  return L && L.siteMapUrl ? L.siteMapUrl : '';
+}
+
+function showMap(url){
+  const wrap = $('mapPreviewWrap'), img = $('mapPreview');
+  if(url){ img.src = url; wrap.style.display = 'block'; }
+  else { img.removeAttribute('src'); wrap.style.display = 'none'; }
+  $('mapRemoveBtn').style.display = currentMapUrl() ? 'inline-block' : 'none';
+  $('mapUploadBtn').disabled = !pendingMap;
+}
+
+async function onMapSelected(ev){
+  const file = ev.target.files[0], st = $('mapStatus');
+  if(!file) return;
+  if(!currentShow){ setStatus(st, 'Pick a show first.', 'err'); ev.target.value = ''; return; }
+  if(!/^image\//.test(file.type)){ setStatus(st, 'Please choose a picture (JPG or PNG).', 'err'); ev.target.value = ''; return; }
+  try{
+    pendingMap = await resizeImageToDataUrl(file, 1800, 0.82);
+    showMap(pendingMap);
+    setStatus(st, 'Preview only — tap "Upload site map" to save it to this show.', 'muted');
+  } catch(err){
+    pendingMap = null;
+    setStatus(st, 'Could not read that picture — try a different one.', 'err');
+  }
+}
+
+async function uploadMap(){
+  if(!currentShow || !pendingMap) return;
+  const st = $('mapStatus'), btn = $('mapUploadBtn'), uploaded = pendingMap;
+  btn.disabled = true;
+  setStatus(st, 'Uploading…');
+  try{
+    await postJson({ recordType: 'pickListSiteMap', name: currentShow.name, imageBase64: uploaded });
+    await loadLists();
+    if(currentMapUrl()){
+      pendingMap = null;
+      $('mapFile').value = '';
+      showMap(uploaded);
+      buildShowOptions(currentShow.name);
+      setStatus(st, 'Site map uploaded ✓', 'ok');
+    } else {
+      btn.disabled = false;
+      setStatus(st, 'The upload may not have gone through — check your connection and try again.', 'err');
+    }
+  } catch(err){
+    btn.disabled = false;
+    setStatus(st, 'Could not upload — check your connection and try again.', 'err');
+  }
+}
+
+async function removeMap(){
+  if(!currentShow || !currentMapUrl()) return;
+  if(!confirm('Remove the site map from this show?')) return;
+  const st = $('mapStatus');
+  setStatus(st, 'Removing…');
+  try{
+    await postJson({ recordType: 'pickListSiteMap', name: currentShow.name, remove: true });
+    await loadLists();
+    pendingMap = null;
+    $('mapFile').value = '';
+    showMap(currentMapUrl());
+    setStatus(st, currentMapUrl() ? 'Could not remove it — try again.' : 'Site map removed.', currentMapUrl() ? 'err' : 'ok');
+  } catch(err){
+    setStatus(st, 'Could not remove — check your connection and try again.', 'err');
+  }
+}
+
+init();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

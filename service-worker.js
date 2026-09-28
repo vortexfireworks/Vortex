@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuesheet-v3';
+const CACHE_NAME = 'cuesheet-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -13,6 +13,9 @@ const ASSETS = [
   './pyro-directory.html',
   './operators.html',
   './venues.html',
+  './pick-lists.html',
+  './manage-picklists.html',
+  './picklist-common.js',
   './release-notes.html',
   './manifest.json',
   './icon-192.png',
