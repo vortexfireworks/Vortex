@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aar-form-v2';
+const CACHE_NAME = 'cuesheet-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -18,6 +18,7 @@ const ASSETS = [
   './icon-192.png',
   './icon-512.png',
   './logo.jpg',
+  './cuesheet-logo.jpg',
   './menu-bg.jpg'
 ];
 
