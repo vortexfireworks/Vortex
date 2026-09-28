@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pick Lists — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .full{grid-column:1/-1;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+  }
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  .editor-box{
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;}
+  #venueSaveStatus{font-size:12.5px;}
+  .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .search-box{margin-bottom:10px;}
+  #venueListWrap{
+    max-height:400px;overflow-y:auto;border:1px solid var(--line);
+    border-radius:8px;padding:6px 14px;font-size:13px;
+  }
+  .venue-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:8px 0;border-bottom:1px solid var(--line);
+  }
+  .venue-row:last-child{border-bottom:none;}
+  .venue-row .venue-name{font-weight:600;}
+  .venue-row .venue-detail{color:var(--ink-soft);font-size:12px;}
+  .venue-row button{
+    background:none;border:1px solid var(--line);color:var(--navy);
+    font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;flex-shrink:0;
+  }
+  .venue-row button:hover{border-color:var(--navy);}
+  @media(max-width:480px){
+    .grid2{grid-template-columns:1fr;}
+  }
+  .back-link{
+    display:block; max-width:640px; margin:16px auto 0; padding:0 16px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{
+    color:var(--ink-soft); margin:4px 0;
+    animation:pulseFade 1.4s ease-in-out infinite;
+  }
+  @keyframes pulseFade{
+    0%,100%{opacity:0.4;} 50%{opacity:1;}
+  }
+  .empty-state{
+    text-align:center; padding:24px 12px; color:var(--ink-soft);
+  }
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* Phone layout for the venue list: stack each venue instead of a wide 5-column table */
+  @media (max-width:600px){
+    #venueListWrap{padding:6px 12px;}
+    #venueListWrap table, #venueListWrap tbody{display:block;width:100%;}
+    #venueListWrap thead{display:none;}
+    #venueListWrap tr{display:flex;flex-wrap:wrap;align-items:center;padding:10px 0;}
+    #venueListWrap td{display:block;padding:4px 0 !important;box-sizing:border-box;}
+    #venueListWrap td.v-name{order:1;flex:1 1 0;min-width:0;overflow-wrap:anywhere;}
+    #venueListWrap td.v-action{order:2;flex:0 0 auto;padding-left:10px !important;}
+    #venueListWrap td.v-field{order:3;flex:1 1 100%;}
+    #venueListWrap td.v-field::before{content:attr(data-label);display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px;}
+  }
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  /* ---- Pick list pages ---- */
+  select, input[type=number]{
+    font-size:14px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:6px; background:var(--surface-55); color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box;
+  }
+  select:focus, input[type=number]:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input[type=file]{font-size:13px;color:var(--ink-soft);max-width:100%;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .hint code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;background:var(--surface-4);padding:1px 5px;border-radius:4px;}
+  .line{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;}
+  .line > *{min-width:0;}
+  .line .c-size{flex:1 1 92px;}
+  .line .c-qty{flex:1 1 84px;}
+  .line .c-unit{flex:1 1 104px;}
+  .line .c-title{flex:3 1 170px;}
+  .line .c-qty-s{flex:1 1 76px;}
+  .line button.rm{
+    flex:0 0 auto;width:36px;height:36px;border-radius:8px;border:1px solid var(--line);
+    background:none;color:var(--ink-soft);font-size:20px;line-height:1;cursor:pointer;padding:0;
+  }
+  .line button.rm:hover{color:var(--brick);border-color:var(--brick);}
+  .add-line{margin-top:4px;}
+  #saveStatus,#mapStatus,#formulaStatus{font-size:12.5px;}
+  .show-title{font-size:19px;font-weight:800;color:var(--ink);margin:0;overflow-wrap:anywhere;line-height:1.25;}
+  .show-date{font-size:13px;color:var(--ink-soft);margin:3px 0 0;}
+  .map-img{display:block;width:100%;height:auto;border-radius:10px;border:1px solid var(--line);background:#fff;}
+  .pl-h{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:24px 0 2px;}
+  .check-row{display:flex;align-items:center;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line);cursor:pointer;min-height:48px;}
+  .check-row:last-child{border-bottom:none;}
+  .check-row input[type=checkbox]{width:24px;height:24px;flex-shrink:0;accent-color:#ff8c00;margin:0;}
+  .check-row .txt{flex:1 1 auto;min-width:0;font-size:15px;font-weight:600;color:var(--ink);overflow-wrap:anywhere;}
+  .check-row .qty{flex:0 0 auto;max-width:45%;font-size:14px;color:var(--ink-soft);text-align:right;}
+  .check-row.done .txt{text-decoration:line-through;opacity:.55;}
+  .check-row.done .qty{opacity:.55;}
+  .check-row.static{cursor:default;padding-left:36px;}
+  .check-row.static .qty{font-style:italic;}
+  .progress{font-size:12.5px;color:var(--ink-soft);margin:16px 0 0;font-weight:600;}
+  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;}
+  .actions button:disabled{opacity:.55;cursor:default;}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="picklist-common.js"></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="hp-tools.html">&larr; Back to Head Pyro Tools</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Pick Lists</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet" id="mainContent">
+  <div class="section">
+    <div class="field">
+      <label for="showSelect">Show</label>
+      <select id="showSelect" onchange="onShowChange()"><option value="">Loading pick lists…</option></select>
+    </div>
+
+    <p class="hint" id="noShowMsg" style="margin:0;">Choose a show to see its pick list.</p>
+
+    <div id="listArea" style="display:none;">
+      <p class="show-title" id="showTitle"></p>
+      <p class="show-date" id="showDate"></p>
+
+      <div id="mapBlock" style="display:none;margin-top:16px;">
+        <a id="mapLink" href="#" target="_blank" rel="noopener"><img id="mapImg" class="map-img" alt="Site map"></a>
+        <p class="hint">Site map — tap it to open it full size.</p>
+      </div>
+
+      <div id="listBody"></div>
+
+      <p class="progress" id="progress"></p>
+
+      <div class="actions">
+        <button type="button" class="primary" id="pdfBtn" onclick="downloadPDF()">Download as PDF</button>
+        <button type="button" class="secondary" id="emailBtn" onclick="emailPDF()">Email PDF</button>
+        <button type="button" class="secondary" onclick="clearChecks()">Clear checks</button>
+      </div>
+      <p class="hint" id="actionStatus" style="min-height:16px;"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const $ = (id) => document.getElementById(id);
+const keyOf = (name) => String(name || '').trim().toLowerCase();
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function setStatus(msg, kind){
+  const el = $('actionStatus');
+  el.textContent = msg;
+  el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
+}
+
+let LISTS = [];
+let FORMULA = '';
+let current = null;
+const mapCache = {};                   // site map as a data URL, kept ready so the PDF can be made instantly
+const CHECK_PREFIX = 'cuesheet.pickChecks.';
+
+/* ---------- loading ---------- */
+async function init(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=pickLists`);
+    if(!res.ok) throw new Error('Request failed');
+    const j = await res.json();
+    FORMULA = j.formula || '';
+    LISTS = (j.lists || []).map(l => ({
+      name: l.name, eventDate: l.eventDate ? String(l.eventDate).slice(0, 10) : '',
+      siteMapUrl: l.siteMapUrl || '', data: l.data || {}
+    }));
+    buildOptions();
+  } catch(err){
+    $('showSelect').innerHTML = '<option value="">Could not load pick lists</option>';
+    $('noShowMsg').textContent = 'Could not load pick lists — check your connection and reload this page.';
+  }
+}
+
+function buildOptions(){
+  const cutoff = new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate() - 14);
+  const shows = LISTS
+    .filter(l => !l.eventDate || new Date(l.eventDate + 'T00:00:00') >= cutoff)
+    .sort((a, b) => (a.eventDate || '9999').localeCompare(b.eventDate || '9999') || a.name.localeCompare(b.name));
+  const sel = $('showSelect');
+  sel.innerHTML = '<option value="">' + (shows.length ? 'Select a show…' : 'No pick lists yet') + '</option>' +
+    shows.map(l => `<option value="${esc(l.name)}">${l.eventDate ? esc(PickList.formatDateShort(l.eventDate)) + ' — ' : ''}${esc(l.name)}</option>`).join('');
+  if(!shows.length) $('noShowMsg').textContent = "No pick lists have been built yet. They are created under Manage/Edit \u2192 Manage Pick Lists.";
+}
+
+function onShowChange(){
+  const name = $('showSelect').value;
+  current = name ? (LISTS.find(l => l.name === name) || null) : null;
+  setStatus('');
+  render();
+  if(current && current.siteMapUrl) getMapDataUrl(current.name);   // start fetching it for the PDF now
+}
+
+/* ---------- what's on the list ---------- */
+function buildSections(){
+  const data = PickList.normalizeData(current.data);
+  const racks = PickList.computeRacks(data, FORMULA);
+  const sections = [];
+  if(data.shells.length){
+    sections.push({ title: 'Shells', rows: data.shells.map(s => ({
+      id: s.id, main: PickList.sizeLabel(s.size), qty: `${s.qty} ${PickList.unitText(s.unit, s.qty)}` })) });
+  }
+  if(data.cakes){
+    sections.push({ title: 'Cakes', rows: [{ id: 'cakes', main: 'Cakes', qty: String(data.cakes) }] });
+  }
+  if(racks.state === 'ok' && racks.value > 0){
+    sections.push({ title: 'Racks', rows: [{ id: 'racks', main: 'Racks', qty: String(racks.value) }] });
+  } else if(racks.state === 'error' && (data.shells.length || data.cakes)){   // 'unset' = nobody uses racks yet, so show nothing
+    sections.push({ title: 'Racks', rows: [{ id: 'racks', main: 'Racks', note: racks.state === 'unset' ? 'formula not set yet' : 'check the formula' }] });
+  }
+  if(data.setup.length){
+    sections.push({ title: 'Setup items', rows: data.setup.map(s => ({
+      id: s.id, main: s.title, qty: s.qty == null ? '' : String(s.qty) })) });
+  }
+  return sections;
+}
+
+function loadChecks(){
+  try{ return JSON.parse(localStorage.getItem(CHECK_PREFIX + keyOf(current.name)) || '{}') || {}; }
+  catch(e){ return {}; }
+}
+function saveChecks(obj){
+  try{ localStorage.setItem(CHECK_PREFIX + keyOf(current.name), JSON.stringify(obj)); } catch(e){}
+}
+
+function render(){
+  const area = $('listArea');
+  if(!current){ area.style.display = 'none'; $('noShowMsg').style.display = 'block'; return; }
+  $('noShowMsg').style.display = 'none';
+  area.style.display = 'block';
+  $('showTitle').textContent = current.name;
+  $('showDate').textContent = PickList.formatDateLong(current.eventDate);
+
+  if(current.siteMapUrl){
+    $('mapImg').src = current.siteMapUrl;
+    $('mapLink').href = current.siteMapUrl;
+    $('mapBlock').style.display = 'block';
+  } else {
+    $('mapImg').removeAttribute('src');
+    $('mapBlock').style.display = 'none';
+  }
+
+  const checks = loadChecks();
+  let html = '';
+  buildSections().forEach(sec => {
+    html += `<p class="pl-h">${esc(sec.title)}</p>`;
+    sec.rows.forEach(r => {
+      if(r.note){
+        html += `<div class="check-row static"><span class="txt">${esc(r.main)}</span><span class="qty">${esc(r.note)}</span></div>`;
+      } else {
+        const on = !!checks[r.id];
+        html += `<label class="check-row${on ? ' done' : ''}"><input type="checkbox" data-id="${esc(r.id)}"${on ? ' checked' : ''}><span class="txt">${esc(r.main)}</span><span class="qty">${esc(r.qty)}</span></label>`;
+      }
+    });
+  });
+  if(!html) html = '<p class="hint" style="margin-top:18px;">Nothing has been added to this pick list yet.</p>';
+  $('listBody').innerHTML = html;
+  updateProgress();
+}
+
+function updateProgress(){
+  const boxes = Array.from(document.querySelectorAll('#listBody input[type=checkbox]'));
+  const done = boxes.filter(b => b.checked).length;
+  $('progress').textContent = boxes.length ? `${done} of ${boxes.length} checked off` + (done === boxes.length ? ' — all packed \u2713' : '') : '';
+}
+
+$('listBody').addEventListener('change', (e) => {
+  const cb = e.target;
+  if(!cb.matches || !cb.matches('input[type=checkbox]') || !current) return;
+  const checks = loadChecks();
+  if(cb.checked) checks[cb.dataset.id] = true; else delete checks[cb.dataset.id];
+  saveChecks(checks);
+  cb.closest('.check-row').classList.toggle('done', cb.checked);
+  updateProgress();
+});
+
+function clearChecks(){
+  if(!current) return;
+  if(!confirm('Clear every check mark on this pick list?')) return;
+  saveChecks({});
+  render();
+}
+
+/* ---------- PDF + email ---------- */
+async function getMapDataUrl(name){
+  const k = keyOf(name);
+  if(mapCache[k] !== undefined) return mapCache[k];
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=pickListSiteMapData&name=${encodeURIComponent(name)}`);
+    const j = await res.json();
+    mapCache[k] = (j && j.dataUrl) ? j.dataUrl : '';
+    return mapCache[k];
+  } catch(err){
+    return '';                        // not cached, so the next try can succeed
+  }
+}
+function loadImageSize(dataUrl){
+  return new Promise(resolve => {
+    const im = new Image();
+    im.onload = () => resolve({ w: im.naturalWidth, h: im.naturalHeight });
+    im.onerror = () => resolve(null);
+    im.src = dataUrl;
+  });
+}
+
+async function buildPDF(){
+  if(!window.jspdf) throw new Error('The PDF tool did not load — check your connection and try again.');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  const M = 48, FOOT = 36;
+  const dateLong = PickList.formatDateLong(current.eventDate);
+  let y = M;
+  const ensure = (need) => { if(y + need > H - M - FOOT){ doc.addPage(); y = M; } };
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(217, 90, 20);
+  doc.text('PICK LIST', M, y + 9); y += 22;
+  doc.setFontSize(22); doc.setTextColor(20);
+  const titleLines = doc.splitTextToSize(current.name, W - 2 * M);
+  doc.text(titleLines, M, y + 18); y += titleLines.length * 26;
+  if(dateLong){
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(90);
+    doc.text(dateLong, M, y + 10); y += 24;
+  }
+  doc.setDrawColor(255, 140, 0); doc.setLineWidth(2); doc.line(M, y, W - M, y); y += 6;
+
+  buildSections().forEach(sec => {
+    ensure(60);
+    y += 14;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(90);
+    doc.text(sec.title.toUpperCase(), M, y + 10); y += 16;
+    doc.setDrawColor(200); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); y += 2;
+    sec.rows.forEach(r => {
+      doc.setFontSize(12);
+      if(r.note){
+        ensure(24);
+        doc.setFont('helvetica', 'italic'); doc.setTextColor(120);
+        doc.text(`${r.main} \u2014 ${r.note}`, M + 22, y + 15);
+        y += 24; return;
+      }
+      doc.setFont('helvetica', 'normal');
+      const qtyW = r.qty ? doc.getTextWidth(r.qty) : 0;
+      doc.setFont('helvetica', 'bold');
+      const lines = doc.splitTextToSize(r.main, W - 2 * M - 22 - (qtyW ? qtyW + 16 : 0));
+      const h = Math.max(24, lines.length * 15 + 9);
+      ensure(h);
+      doc.setDrawColor(60); doc.setLineWidth(1); doc.rect(M, y + 6, 11, 11);
+      doc.setTextColor(20); doc.text(lines, M + 22, y + 15);
+      if(r.qty){
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(70);
+        doc.text(r.qty, W - M, y + 15, { align: 'right' });
+      }
+      y += h;
+    });
+  });
+
+  let mapSkipped = false;
+  if(current.siteMapUrl){
+    const dataUrl = await getMapDataUrl(current.name);
+    const size = dataUrl ? await loadImageSize(dataUrl) : null;
+    if(size){
+      doc.addPage(); y = M;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(90);
+      doc.text('SITE MAP', M, y + 10); y += 22;
+      const maxW = W - 2 * M, maxH = H - y - M - FOOT;
+      const scale = Math.min(maxW / size.w, maxH / size.h);
+      const w = size.w * scale, h = size.h * scale;
+      doc.addImage(dataUrl, /^data:image\/png/.test(dataUrl) ? 'PNG' : 'JPEG', M + (maxW - w) / 2, y, w, h);
+    } else {
+      mapSkipped = true;
+    }
+  }
+
+  const pages = doc.getNumberOfPages();
+  for(let i = 1; i <= pages; i++){
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(140);
+    doc.text(`${current.name} \u2014 Pick list`, M, H - 28);
+    doc.text(`Page ${i} of ${pages}`, W - M, H - 28, { align: 'right' });
+  }
+  return { doc, mapSkipped };
+}
+
+function buildText(){
+  const dateLong = PickList.formatDateLong(current.eventDate);
+  let t = `Pick List \u2014 ${current.name}${dateLong ? ' \u2014 ' + dateLong : ''}\n`;
+  buildSections().forEach(sec => {
+    t += `\n${sec.title.toUpperCase()}\n`;
+    sec.rows.forEach(r => {
+      t += r.note ? `   ${r.main} \u2014 ${r.note}\n` : `[ ] ${r.main}${r.qty ? ' \u2014 ' + r.qty : ''}\n`;
+    });
+  });
+  return t.trim();
+}
+
+function fileNameFor(){
+  const safe = current.name.replace(/[^\w\- ]+/g, '').trim() || 'Show';
+  return `PickList - ${safe} - ${current.eventDate || 'undated'}.pdf`;
+}
+
+async function withBusy(fn){
+  const buttons = [$('pdfBtn'), $('emailBtn')];
+  buttons.forEach(b => b.disabled = true);
+  try{ await fn(); }
+  catch(err){ setStatus(err && err.message ? err.message : 'Something went wrong — please try again.', 'err'); }
+  finally{ buttons.forEach(b => b.disabled = false); }
+}
+
+function downloadPDF(){
+  if(!current) return;
+  return withBusy(async () => {
+    setStatus('Making the PDF…');
+    const { doc, mapSkipped } = await buildPDF();
+    doc.save(fileNameFor());
+    setStatus(mapSkipped ? 'PDF saved — but the site map could not be added to it. Check your connection and try again.' : 'PDF saved \u2713', mapSkipped ? 'err' : 'ok');
+  });
+}
+
+function emailPDF(){
+  if(!current) return;
+  return withBusy(async () => {
+    setStatus('Making the PDF…');
+    const { doc, mapSkipped } = await buildPDF();
+    const fileName = fileNameFor();
+    const dateShort = current.eventDate || '';
+    const subject = `Pick List - ${current.name}${dateShort ? ' - ' + dateShort : ''}`;
+    const note = mapSkipped ? ' (The site map could not be added to the PDF.)' : '';
+
+    // Best case: the phone's share sheet attaches the real PDF to Mail (or any app).
+    if(navigator.canShare){
+      try{
+        const file = new File([doc.output('blob')], fileName, { type: 'application/pdf' });
+        if(navigator.canShare({ files: [file] })){
+          setStatus('Opening the share sheet…' + note);
+          await navigator.share({ files: [file], title: subject, text: subject });
+          setStatus('');
+          return;
+        }
+      } catch(err){
+        if(err && err.name === 'AbortError'){ setStatus(''); return; }   // they closed the share sheet
+        // any other problem: fall through to the email fallback below
+      }
+    }
+
+    // Fallback: download the PDF and open an email with the list typed out in it.
+    doc.save(fileName);
+    let body = buildText();
+    if(body.length > 1500) body = body.slice(0, 1500).replace(/\n[^\n]*$/, '') + '\n...';
+    body += '\n\n(The PDF was downloaded separately — please attach it to this email before sending.)';
+    setStatus('PDF downloaded — attach it in the email that opens.' + note, 'ok');
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  });
+}
+
+init();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
