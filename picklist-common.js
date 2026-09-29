@@ -65,7 +65,10 @@
       setup.push({ id: String(l.id || newId()), title: title, qty: toQty(l.qty) });
     });
     var cakes = toQty(raw.cakes);
-    return { shells: shells, cakes: cakes, setup: setup };
+    var finale = toQty(raw.finale);
+    var quint = toQty(raw.quint);
+    var special = toQty(raw.special);
+    return { shells: shells, cakes: cakes, finale: finale, quint: quint, special: special, setup: setup };
   }
 
   /* Every number a racks formula is allowed to use. Missing things count as 0. */

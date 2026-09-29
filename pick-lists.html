@@ -345,6 +345,13 @@ function buildSections(){
   if(data.cakes){
     sections.push({ title: 'Cakes', rows: [{ id: 'cakes', main: 'Cakes', qty: String(data.cakes) }] });
   }
+  const otherRows = [];
+  if(data.finale) otherRows.push({ id: 'finale', main: 'Finale — Fan Rack', qty: String(data.finale) });
+  if(data.quint) otherRows.push({ id: 'quint', main: 'Quint — Quint Rack', qty: String(data.quint) });
+  if(data.special) otherRows.push({ id: 'special', main: 'Special — Fan Rack', qty: String(data.special) });
+  if(otherRows.length){
+    sections.push({ title: 'Finale / Quint / Special', rows: otherRows });
+  }
   if(racks.value > 0 || racks.state === 'partial'){
     const rows = [];
     if(racks.value > 0) rows.push({ id: 'racks', main: 'Racks', qty: String(racks.value) });
