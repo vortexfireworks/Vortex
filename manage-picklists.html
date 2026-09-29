@@ -210,11 +210,17 @@ updateThemeToggleIcon();
   }
   .line button.rm:hover{color:var(--brick);border-color:var(--brick);}
   .add-line{margin-top:4px;}
-  #saveStatus,#mapStatus,#formulaStatus{font-size:12.5px;}
+  #saveStatus,#mapStatus,#racksConfigStatus{font-size:12.5px;}
   #mapPreview{display:block;max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);margin:12px 0 4px;background:#fff;}
   .racks-box{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px dashed var(--line);border-radius:8px;}
   .racks-val{font-size:24px;font-weight:800;color:var(--ink);}
   .racks-val.muted{font-size:13px;font-weight:600;color:var(--ink-soft);}
+
+  .rack-size-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  .rack-size-row:last-child{border-bottom:none;}
+  .rack-size-row .rs-label{flex:0 0 52px;font-weight:700;font-size:13px;}
+  .rack-size-row .rs-field{flex:1 1 130px;display:flex;flex-direction:column;gap:3px;}
+  .rack-size-row .rs-field label{font-size:10.5px;}
 
   /* Phone layout for the editor lines: each line is a tidy two-row group */
   @media (max-width:600px){
@@ -307,20 +313,16 @@ updateThemeToggleIcon();
     </div>
 
     <div class="editor-box" style="margin-top:30px;margin-bottom:0;">
-      <p class="label-title">RACKS FORMULA (USED FOR EVERY SHOW)</p>
-      <div class="field" style="margin-bottom:0;">
-        <input type="text" id="formulaInput" placeholder="e.g. ceil(s3_shells / 20) + ceil(cakes / 4)" oninput="onFormulaInput()" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false">
-      </div>
-      <p class="hint" id="formulaMsg"></p>
-      <p class="hint">
-        You can use + − × ÷ ( ) and the functions <code>ceil()</code> <code>floor()</code> <code>round()</code> <code>min()</code> <code>max()</code> <code>abs()</code>.<br>
-        Numbers you can use: <code>cakes</code>, and the totals <code>shells</code>, <code>boxes</code>, <code>pairs</code> across all sizes.
-        For one size and unit, use <code>s3_shells</code>, <code>s3_boxes</code>, <code>s3_pairs</code>. The sizes are
-        <code>s2_5</code> (2-1/2"), <code>s3</code>, <code>s4</code>, <code>s5</code>, <code>s6</code> and <code>s8</code>.
+      <p class="label-title">RACK SETTINGS (USED FOR EVERY SHOW)</p>
+      <p class="hint" style="margin:0 0 14px;">
+        Racks are worked out automatically from the shells above. Shells and pairs always count toward racks
+        (1 pair = 2 shells). A box only counts once you fill in how many shells are in a box of that size —
+        until then, boxes of that size just won't be included in the racks count yet.
       </p>
+      <div id="rackSettingsRows"></div>
       <div class="save-row" style="margin-top:10px;flex-wrap:wrap;">
-        <button type="button" class="secondary" onclick="saveFormula()">Save formula</button>
-        <span id="formulaStatus"></span>
+        <button type="button" class="secondary" onclick="saveRacksConfig()">Save rack settings</button>
+        <span id="racksConfigStatus"></span>
       </div>
     </div>
   </div>
@@ -348,7 +350,7 @@ function postJson(payload){
 
 let SHOWS = [];          // venues that have an event date
 let LISTS = {};          // saved pick lists, keyed by lower-case show name
-let FORMULA = '';        // the saved racks formula
+let RACKS_CONFIG = {};   // the saved rack settings: { capacity: {...}, shellsPerBox: {...} }
 let currentShow = null;
 let shellLines = [], setupLines = [], cakes = '';
 let dirty = false;
@@ -359,7 +361,7 @@ async function loadLists(){
   const res = await getJson(`${CHECKIN_API_URL}?type=pickLists`);
   LISTS = {};
   (res.lists || []).forEach(l => { LISTS[keyOf(l.name)] = l; });
-  FORMULA = res.formula || '';
+  RACKS_CONFIG = PickList.normalizeRacksConfig(res.racksConfig);
 }
 
 async function init(){
@@ -368,9 +370,9 @@ async function init(){
     SHOWS = (Array.isArray(venues) ? venues : [])
       .filter(v => v.name && v.eventDate)
       .map(v => ({ name: v.name, eventDate: String(v.eventDate).slice(0, 10) }));
-    $('formulaInput').value = FORMULA;
+    renderRackSettings();
     buildShowOptions('');
-    onFormulaInput();
+    updateRacksPreview();
   } catch(err){
     $('showSelect').innerHTML = '<option value="">Could not load shows</option>';
     $('noShowMsg').textContent = 'Could not load shows — check your connection and reload this page.';
@@ -475,40 +477,54 @@ function draftData(){ return PickList.normalizeData({ shells: shellLines, cakes:
 
 function updateRacksPreview(){
   const el = $('racksVal'), note = $('racksNote');
-  const r = PickList.computeRacks(draftData(), $('formulaInput').value);
+  const r = PickList.computeRacks(draftData(), RACKS_CONFIG);
   el.classList.remove('muted');
-  if(r.state === 'ok'){
-    el.textContent = String(r.value);
-    note.textContent = '';
+  el.textContent = String(r.value);
+  if(r.state === 'partial'){
+    note.textContent = `Not counting boxes of ${r.unknownSizes.join(', ')} yet — fill in shells/box for ${r.unknownSizes.length > 1 ? 'those sizes' : 'that size'} below.`;
   } else {
-    el.classList.add('muted');
-    el.textContent = r.state === 'unset' ? 'Formula not set yet' : 'Check formula';
-    note.textContent = r.state === 'error' ? r.error : 'Racks fill in on their own once a racks formula is saved at the bottom of this page.';
+    note.textContent = '';
   }
 }
 
-function onFormulaInput(){
-  const f = $('formulaInput').value, msg = $('formulaMsg');
-  updateRacksPreview();
-  if(!f.trim()){ setStatus(msg, ''); return; }
-  const r = PickList.evalFormula(f, PickList.buildVariables(currentShow ? draftData() : {}));
-  if(r.ok) setStatus(msg, currentShow ? `✓ Works — gives ${r.value} for the show above.` : '✓ The formula looks valid.', 'ok');
-  else if(r.error === 'Division by zero') setStatus(msg, 'Heads up: this divides by zero for the numbers entered right now.', 'muted');
-  else setStatus(msg, '✗ ' + r.error, 'err');
+/* ---------- rack settings ---------- */
+function renderRackSettings(){
+  $('rackSettingsRows').innerHTML = PickList.SIZES.map(s => {
+    const cap = RACKS_CONFIG.capacity[s.value];
+    const spb = RACKS_CONFIG.shellsPerBox[s.value];
+    return `
+      <div class="rack-size-row">
+        <span class="rs-label">${s.label}</span>
+        <div class="rs-field">
+          <label for="cap-${s.key}">Shells/rack</label>
+          <input type="number" id="cap-${s.key}" inputmode="numeric" min="1" step="1" value="${cap}" oninput="setRackCapacity('${s.value}',this.value)">
+        </div>
+        <div class="rs-field">
+          <label for="spb-${s.key}">Shells/box</label>
+          <input type="number" id="spb-${s.key}" inputmode="numeric" min="1" step="1" placeholder="not set" value="${spb == null ? '' : spb}" oninput="setRackShellsPerBox('${s.value}',this.value)">
+        </div>
+      </div>`;
+  }).join('');
 }
 
-async function saveFormula(){
-  const f = $('formulaInput').value.trim(), st = $('formulaStatus');
-  if(f){
-    const r = PickList.evalFormula(f, PickList.buildVariables({}));
-    if(!r.ok && r.error !== 'Division by zero'){ setStatus(st, 'Fix the formula first: ' + r.error, 'err'); return; }
-  }
+function setRackCapacity(size, value){
+  const n = PickList.toQty(value);
+  RACKS_CONFIG.capacity[size] = (n && n > 0) ? n : PickList.DEFAULT_RACK_CAPACITY[size];
+  touchRacksConfig(); updateRacksPreview();
+}
+function setRackShellsPerBox(size, value){
+  const n = PickList.toQty(value);
+  RACKS_CONFIG.shellsPerBox[size] = (n && n > 0) ? n : null;
+  touchRacksConfig(); updateRacksPreview();
+}
+function touchRacksConfig(){ setStatus($('racksConfigStatus'), ''); }
+
+async function saveRacksConfig(){
+  const st = $('racksConfigStatus');
   setStatus(st, 'Saving…');
   try{
-    await postJson({ recordType: 'pickListFormula', formula: f });
-    FORMULA = f;
-    setStatus(st, f ? 'Formula saved ✓' : 'Formula cleared ✓', 'ok');
-    loadLists().catch(() => {});
+    await postJson({ recordType: 'pickListRacksConfig', racksConfig: RACKS_CONFIG });
+    setStatus(st, 'Rack settings saved ✓', 'ok');
   } catch(err){
     setStatus(st, 'Could not save — check your connection and try again.', 'err');
   }

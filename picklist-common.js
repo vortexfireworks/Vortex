@@ -83,112 +83,50 @@
     return vars;
   }
 
-  var FUNCS = {
-    ceil: { fn: Math.ceil, args: 1 },
-    floor: { fn: Math.floor, args: 1 },
-    round: { fn: Math.round, args: 1 },
-    abs: { fn: Math.abs, args: 1 },
-    min: { fn: Math.min, args: -1 },
-    max: { fn: Math.max, args: -1 }
-  };
-  function has(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+  /* How many shells fit in one rack, by size. A rack holds one caliber at a time,
+     so racks are worked out per size and then added up. */
+  var DEFAULT_RACK_CAPACITY = { '2.5': 50, '3': 50, '4': 25, '5': 15, '6': 9, '8': 4 };
 
-  function tokenize(src) {
-    var tokens = [], i = 0, m;
-    while (i < src.length) {
-      var ch = src.charAt(i);
-      if (/\s/.test(ch)) { i++; continue; }
-      if (/[0-9.]/.test(ch)) {
-        m = /^(?:\d+\.?\d*|\.\d+)/.exec(src.slice(i));
-        if (!m) throw new Error('Unexpected "' + ch + '"');
-        tokens.push({ t: 'num', v: parseFloat(m[0]) }); i += m[0].length; continue;
-      }
-      if (/[A-Za-z_]/.test(ch)) {
-        m = /^[A-Za-z_][A-Za-z0-9_]*/.exec(src.slice(i));
-        tokens.push({ t: 'id', v: m[0].toLowerCase() }); i += m[0].length; continue;
-      }
-      if ('+-*/(),'.indexOf(ch) !== -1) { tokens.push({ t: ch }); i++; continue; }
-      if (ch === '\u00d7') { tokens.push({ t: '*' }); i++; continue; }   // ×
-      if (ch === '\u00f7') { tokens.push({ t: '/' }); i++; continue; }   // ÷
-      throw new Error('Unexpected "' + ch + '"');
-    }
-    return tokens;
+  /* Accepts whatever came back from the server (or nothing yet) and fills in defaults
+     for anything the admin hasn't customized. shellsPerBox has no built-in default —
+     it stays null (meaning "not set yet") until the admin fills it in. */
+  function normalizeRacksConfig(raw) {
+    raw = (raw && typeof raw === 'object') ? raw : {};
+    var capacity = {}, shellsPerBox = {};
+    SIZES.forEach(function (s) {
+      var cap = Number(raw.capacity && raw.capacity[s.value]);
+      capacity[s.value] = (isFinite(cap) && cap > 0) ? cap : DEFAULT_RACK_CAPACITY[s.value];
+      var spb = Number(raw.shellsPerBox && raw.shellsPerBox[s.value]);
+      shellsPerBox[s.value] = (isFinite(spb) && spb > 0) ? spb : null;
+    });
+    return { capacity: capacity, shellsPerBox: shellsPerBox };
   }
 
-  function evalFormula(formula, vars) {
-    var src = String(formula == null ? '' : formula).trim();
-    if (!src) return { ok: false, empty: true, error: 'No formula yet' };
-    if (src.length > 300) return { ok: false, error: 'Formula is too long' };
-    try {
-      var toks = tokenize(src), pos = 0;
-      var peek = function () { return toks[pos]; };
-      var take = function (t) {
-        var k = toks[pos];
-        if (!k || (t && k.t !== t)) throw new Error(t ? 'Expected "' + t + '"' : 'Unexpected end of formula');
-        pos++; return k;
-      };
-      var parseExpr, parseTerm, parseUnary, parsePrimary;
-      parseExpr = function () {
-        var v = parseTerm();
-        while (peek() && (peek().t === '+' || peek().t === '-')) {
-          var op = take().t, r = parseTerm();
-          v = op === '+' ? v + r : v - r;
-        }
-        return v;
-      };
-      parseTerm = function () {
-        var v = parseUnary();
-        while (peek() && (peek().t === '*' || peek().t === '/')) {
-          var op = take().t, r = parseUnary();
-          if (op === '/' && r === 0) throw new Error('Division by zero');
-          v = op === '*' ? v * r : v / r;
-        }
-        return v;
-      };
-      parseUnary = function () {
-        if (peek() && peek().t === '-') { take(); return -parseUnary(); }
-        if (peek() && peek().t === '+') { take(); return parseUnary(); }
-        return parsePrimary();
-      };
-      parsePrimary = function () {
-        var k = take();
-        if (k.t === 'num') return k.v;
-        if (k.t === '(') { var v = parseExpr(); take(')'); return v; }
-        if (k.t === 'id') {
-          if (peek() && peek().t === '(') {
-            if (!has(FUNCS, k.v)) throw new Error('Unknown function "' + k.v + '"');
-            take('(');
-            var args = [];
-            if (peek() && peek().t !== ')') {
-              args.push(parseExpr());
-              while (peek() && peek().t === ',') { take(','); args.push(parseExpr()); }
-            }
-            take(')');
-            var f = FUNCS[k.v];
-            if (f.args === 1 && args.length !== 1) throw new Error(k.v + '() takes one value');
-            if (f.args === -1 && args.length < 1) throw new Error(k.v + '() needs at least one value');
-            return f.fn.apply(null, args);
-          }
-          if (!vars || !has(vars, k.v)) throw new Error('Unknown variable "' + k.v + '"');
-          return vars[k.v];
-        }
-        throw new Error('Unexpected "' + k.t + '"');
-      };
-      var result = parseExpr();
-      if (pos < toks.length) throw new Error('Unexpected "' + toks[pos].t + '"');
-      if (!isFinite(result)) return { ok: false, error: 'The result is not a number' };
-      return { ok: true, value: Math.round(result * 100) / 100 };
-    } catch (e) {
-      return { ok: false, error: e.message };
+  /* state: 'ok' (every line could be converted to a shell count) |
+            'partial' (still gives a number, but some box quantities couldn't count
+            yet because shells-per-box isn't set for that size) */
+  function computeRacks(data, racksConfigRaw) {
+    var d = normalizeData(data);
+    var cfg = normalizeRacksConfig(racksConfigRaw);
+    var totals = {};
+    SIZES.forEach(function (s) { totals[s.value] = 0; });
+    var unknownSizes = [];
+    d.shells.forEach(function (l) {
+      if (l.unit === 'pairs') { totals[l.size] += l.qty * 2; return; }        // a pair is 2 shells
+      if (l.unit === 'shells') { totals[l.size] += l.qty; return; }
+      // boxes: only counts once we know how many shells are in a box of this size
+      var spb = cfg.shellsPerBox[l.size];
+      if (spb) { totals[l.size] += l.qty * spb; }
+      else if (unknownSizes.indexOf(l.size) === -1) { unknownSizes.push(l.size); }
+    });
+    var racks = 0;
+    SIZES.forEach(function (s) {
+      if (totals[s.value] > 0) racks += Math.ceil(totals[s.value] / cfg.capacity[s.value]);
+    });
+    if (unknownSizes.length) {
+      return { state: 'partial', value: racks, unknownSizes: unknownSizes.map(sizeLabel) };
     }
-  }
-
-  /* state: 'unset' (no formula saved yet) | 'ok' | 'error' */
-  function computeRacks(data, formula) {
-    var r = evalFormula(formula, buildVariables(data));
-    if (r.ok) return { state: 'ok', value: r.value };
-    if (r.empty) return { state: 'unset' };
-    return { state: 'error', error: r.error };
+    return { state: 'ok', value: racks };
   }
 
   function formatDateLong(iso) {
@@ -209,7 +147,7 @@
     SIZES: SIZES, UNITS: UNITS,
     sizeByValue: sizeByValue, unitByValue: unitByValue, sizeLabel: sizeLabel, unitText: unitText,
     newId: newId, toQty: toQty, normalizeData: normalizeData, buildVariables: buildVariables,
-    evalFormula: evalFormula, computeRacks: computeRacks,
+    DEFAULT_RACK_CAPACITY: DEFAULT_RACK_CAPACITY, normalizeRacksConfig: normalizeRacksConfig, computeRacks: computeRacks,
     formatDateLong: formatDateLong, formatDateShort: formatDateShort
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
