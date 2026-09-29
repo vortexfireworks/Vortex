@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Inventory — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=number], select{
+    font-size:14px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:6px; background:var(--surface-55); color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus, select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.primary:disabled{opacity:0.55;cursor:default;filter:none;}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary:disabled{opacity:0.45;cursor:default;}
+  .editor-box{
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .back-link{
+    display:block; max-width:680px; margin:16px auto 0; padding:0 16px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  /* ---- Item lines ---- */
+  .item-line{
+    background:var(--surface-5); border:1px solid var(--line); border-radius:8px;
+    padding:12px; margin-bottom:10px;
+  }
+  .item-line .row1{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
+  .item-line .row1 > *{min-width:0;}
+  .item-line .c-type{flex:1 1 100px;}
+  .item-line .c-size{flex:1 1 84px;}
+  .item-line .c-qty{flex:1 1 76px;}
+  .item-line .c-unit{flex:1 1 96px;}
+  .item-line .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;}
+  .item-line .sku-row{display:flex; gap:8px; align-items:stretch;}
+  .item-line .sku-row input{flex:1 1 auto;}
+  .item-line .sku-row button{flex:0 0 auto; white-space:nowrap;}
+  .item-line .rm-row{display:flex; justify-content:flex-end;}
+  .item-line button.rm{
+    background:none;color:var(--ink-soft);font-size:12.5px;border:1px solid var(--line);
+    border-radius:6px;padding:5px 10px;cursor:pointer;
+  }
+  .item-line button.rm:hover{color:var(--brick);border-color:var(--brick);}
+  .add-line{margin-top:4px;}
+  @media (max-width:480px){ .item-line .row2{grid-template-columns:1fr;} }
+
+  #saveStatus, #containerStatus, #scanStatus{font-size:12.5px;}
+  .status.ok{color:var(--ok);}
+  .status.err{color:var(--brick);}
+
+  .container-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;
+  }
+  .container-row:last-child{border-bottom:none;}
+  .container-row .c-name{font-weight:600;}
+  .container-row .c-count{color:var(--ink-soft);font-size:12px;}
+
+  /* ---- Camera scan modal ---- */
+  #scanModal{
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(0,0,0,0.7); align-items:center; justify-content:center; padding:20px;
+  }
+  #scanModal .box{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px;
+    padding:16px; max-width:420px; width:100%; text-align:center;
+  }
+  #scanVideo{width:100%; border-radius:10px; background:#000; display:block; max-height:60vh;}
+  #scanModal .box p{font-size:12.5px;color:var(--ink-soft);margin:10px 0;}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Manage Inventory</h1>
+</header>
+
+<div class="divider"></div>
+
+<div id="scanModal">
+  <div class="box">
+    <video id="scanVideo" playsinline muted autoplay></video>
+    <p id="scanStatus">Point the camera at a barcode.</p>
+    <button type="button" class="secondary" onclick="closeScanner()">Cancel</button>
+  </div>
+</div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Track what's on hand, organized by container — a trailer, conex box, or shelf. Each item can be a shell (with size and how it's packed) or a cake, plus its manufacturer, effects, and SKU.</p>
+
+    <div class="field">
+      <label for="containerSelect">Container</label>
+      <select id="containerSelect" onchange="onContainerSelectChange()"><option value="">Loading containers…</option></select>
+    </div>
+
+    <div class="field" id="newContainerField" style="display:none;">
+      <label for="newContainerInput">New container name</label>
+      <input type="text" id="newContainerInput" placeholder="e.g. Trailer 2" autocomplete="off">
+      <div class="save-row">
+        <button type="button" class="secondary" onclick="confirmNewContainer()">Create container</button>
+        <button type="button" class="secondary" onclick="cancelNewContainer()">Cancel</button>
+      </div>
+    </div>
+
+    <p class="hint" id="noContainerMsg">Choose a container above, or add a new one.</p>
+
+    <div id="editorArea" style="display:none;">
+      <div class="editor-box">
+        <p class="label-title">ITEMS</p>
+        <div id="itemLines"></div>
+        <button type="button" class="secondary add-line" onclick="addItemLine()">+ Add item</button>
+      </div>
+
+      <div class="save-row" style="flex-wrap:wrap;">
+        <button type="button" class="primary" onclick="saveContainer()">Save container</button>
+        <span id="saveStatus"></span>
+      </div>
+
+      <div class="save-row" style="margin-top:16px;flex-wrap:wrap;">
+        <button type="button" class="secondary" onclick="renameContainer()">Rename container</button>
+        <button type="button" class="secondary" onclick="deleteContainer()">Delete container</button>
+        <span id="containerStatus"></span>
+      </div>
+    </div>
+
+    <div class="editor-box" style="margin-top:30px;margin-bottom:0;">
+      <p class="label-title">EXPORT / SIGN-OFF</p>
+      <p class="hint" style="margin:0 0 12px;">Each PDF includes a signature line for whoever counted the inventory.</p>
+      <div class="save-row" style="flex-wrap:wrap;">
+        <button type="button" class="secondary" id="pdfCurrentBtn" onclick="downloadPDF('current')" disabled>Download PDF — this container</button>
+        <button type="button" class="secondary" id="pdfAllBtn" onclick="downloadPDF('all')">Download PDF — all containers</button>
+      </div>
+      <span id="pdfStatus" class="hint" style="display:block;"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+const SIZES = [
+  { value:'2.5', label:'2-1/2"' }, { value:'3', label:'3"' }, { value:'4', label:'4"' },
+  { value:'5', label:'5"' }, { value:'6', label:'6"' }, { value:'8', label:'8"' }
+];
+const UNITS = [
+  { value:'boxes', label:'Box(s)' }, { value:'shells', label:'Shells' }, { value:'pairs', label:'Pairs' }
+];
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function newId(){ return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-2); }
+function toQty(v){
+  if(v === '' || v === null || v === undefined) return null;
+  const n = Number(v);
+  if(!isFinite(n) || n < 0) return null;
+  return Math.round(n);
+}
+function setStatus(el, msg, kind){
+  el.textContent = msg || '';
+  el.className = kind ? 'status ' + kind : 'status';
+}
+function sizeLabel(v){ const s = SIZES.find(x => x.value === String(v)); return s ? s.label : String(v || ''); }
+function unitLabel(v, qty){
+  const u = UNITS.find(x => x.value === String(v));
+  if(!u) return String(v || '');
+  if(v === 'boxes') return Number(qty) === 1 ? 'box' : 'boxes';
+  if(v === 'shells') return Number(qty) === 1 ? 'shell' : 'shells';
+  if(v === 'pairs') return Number(qty) === 1 ? 'pair' : 'pairs';
+  return u.label;
+}
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error'){
+    throw new Error((data && data.message) || 'Request failed');
+  }
+  return data;
+}
+
+let CONTAINERS = {};           // keyed by lowercase name -> { container, items, updatedAt }
+let itemLines = [];
+let currentContainer = null;   // the container name currently loaded in the editor
+let originalContainerName = null;
+let dirty = false;
+
+function blankItem(){
+  return { id:newId(), type:'shell', size:'', unit:'boxes', qty:'', manufacturer:'', effects:'', sku:'' };
+}
+
+function keyOf(name){ return String(name || '').trim().toLowerCase(); }
+
+async function loadInventory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=inventory`);
+    if(!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+    CONTAINERS = {};
+    (json.containers || []).forEach(c => { CONTAINERS[keyOf(c.container)] = c; });
+  } catch(err){
+    CONTAINERS = {};
+  }
+  buildContainerOptions();
+}
+
+function buildContainerOptions(keepSelected){
+  const select = $('containerSelect');
+  const names = Object.values(CONTAINERS).map(c => c.container).sort((a, b) => a.localeCompare(b));
+  let html = '<option value="">Select a container…</option>';
+  names.forEach(n => {
+    const count = (CONTAINERS[keyOf(n)].items || []).length;
+    html += `<option value="${esc(n)}">${esc(n)} (${count} item${count === 1 ? '' : 's'})</option>`;
+  });
+  html += '<option value="__new__">+ Add new container</option>';
+  select.innerHTML = html;
+  const want = keepSelected || currentContainer;
+  if(want && CONTAINERS[keyOf(want)]) select.value = want;
+}
+
+function onContainerSelectChange(){
+  const val = $('containerSelect').value;
+  if(val === '__new__'){
+    $('newContainerField').style.display = '';
+    $('editorArea').style.display = 'none';
+    $('noContainerMsg').style.display = 'none';
+    $('newContainerInput').value = '';
+    $('newContainerInput').focus();
+    return;
+  }
+  $('newContainerField').style.display = 'none';
+  if(!val){
+    currentContainer = null;
+    $('editorArea').style.display = 'none';
+    $('noContainerMsg').style.display = '';
+    $('pdfCurrentBtn').disabled = true;
+    return;
+  }
+  openContainer(val);
+}
+
+function cancelNewContainer(){
+  $('newContainerField').style.display = 'none';
+  $('containerSelect').value = currentContainer || '';
+  if(!currentContainer){ $('noContainerMsg').style.display = ''; }
+}
+
+function confirmNewContainer(){
+  const name = $('newContainerInput').value.trim();
+  if(!name){ $('newContainerInput').focus(); return; }
+  if(CONTAINERS[keyOf(name)]){ openContainer(name); $('newContainerField').style.display = 'none'; return; }
+  CONTAINERS[keyOf(name)] = { container:name, items:[], updatedAt:'' };
+  buildContainerOptions(name);
+  $('newContainerField').style.display = 'none';
+  openContainer(name, /*isNew*/true);
+}
+
+function openContainer(name, isNew){
+  currentContainer = name;
+  originalContainerName = name;
+  const c = CONTAINERS[keyOf(name)] || { container:name, items:[] };
+  itemLines = (c.items || []).map(it => ({
+    id: newId(), type: it.type === 'cake' ? 'cake' : 'shell',
+    size: it.size || '', unit: it.unit || 'boxes',
+    qty: it.qty == null ? '' : String(it.qty),
+    manufacturer: it.manufacturer || '', effects: it.effects || '', sku: it.sku || ''
+  }));
+  if(!itemLines.length) itemLines.push(blankItem());
+  $('editorArea').style.display = '';
+  $('noContainerMsg').style.display = 'none';
+  $('pdfCurrentBtn').disabled = false;
+  dirty = false;
+  setStatus($('saveStatus'), '');
+  setStatus($('containerStatus'), '');
+  renderLines();
+}
+
+function touch(){ dirty = true; setStatus($('saveStatus'), ''); }
+
+function addItemLine(){ itemLines.push(blankItem()); touch(); renderLines(); }
+function removeItem(id){
+  itemLines = itemLines.filter(l => l.id !== id);
+  if(!itemLines.length) itemLines.push(blankItem());
+  touch(); renderLines();
+}
+function setItem(id, field, value){
+  const l = itemLines.find(x => x.id === id); if(!l) return;
+  l[field] = value; touch();
+}
+function setItemAndRerender(id, field, value){ setItem(id, field, value); renderLines(); }
+
+function renderLines(){
+  $('itemLines').innerHTML = itemLines.map(l => {
+    const isShell = l.type !== 'cake';
+    return `
+      <div class="item-line" data-id="${l.id}">
+        <div class="row1">
+          <select class="c-type" onchange="setItemAndRerender('${l.id}','type',this.value)">
+            <option value="shell" ${isShell ? 'selected' : ''}>Shell</option>
+            <option value="cake" ${!isShell ? 'selected' : ''}>Cake</option>
+          </select>
+          ${isShell ? `
+          <select class="c-size" onchange="setItem('${l.id}','size',this.value)">
+            <option value="">Size…</option>
+            ${SIZES.map(s => `<option value="${s.value}" ${l.size === s.value ? 'selected' : ''}>${s.label}</option>`).join('')}
+          </select>` : ''}
+          <input type="number" class="c-qty" inputmode="numeric" min="0" step="1" placeholder="Qty" value="${esc(l.qty)}" oninput="setItem('${l.id}','qty',this.value)">
+          ${isShell ? `
+          <select class="c-unit" onchange="setItem('${l.id}','unit',this.value)">
+            ${UNITS.map(u => `<option value="${u.value}" ${l.unit === u.value ? 'selected' : ''}>${u.label}</option>`).join('')}
+          </select>` : ''}
+        </div>
+        <div class="row2">
+          <input type="text" placeholder="Manufacturer" value="${esc(l.manufacturer)}" oninput="setItem('${l.id}','manufacturer',this.value)">
+          <input type="text" placeholder="Effects (e.g. gold willow, crackle)" value="${esc(l.effects)}" oninput="setItem('${l.id}','effects',this.value)">
+        </div>
+        <div class="sku-row">
+          <input type="text" placeholder="SKU" value="${esc(l.sku)}" oninput="setItem('${l.id}','sku',this.value)" autocapitalize="off" autocorrect="off" spellcheck="false">
+          <button type="button" class="secondary scan-btn" onclick="openScanner('${l.id}')">📷 Scan</button>
+        </div>
+        <div class="rm-row"><button type="button" class="rm" onclick="removeItem('${l.id}')">Remove</button></div>
+      </div>`;
+  }).join('');
+  updateScanButtons();
+}
+
+function collectForSave(){
+  const errors = [], items = [];
+  itemLines.forEach((l, i) => {
+    const untouched = !l.size && String(l.qty).trim() === '' && !l.manufacturer.trim() && !l.effects.trim() && !l.sku.trim();
+    if(untouched) return;
+    const qty = toQty(l.qty);
+    if(l.type === 'shell' && !l.size){ errors.push(`Item ${i + 1} needs a shell size.`); return; }
+    if(!qty){ errors.push(`Item ${i + 1} needs a quantity greater than 0.`); return; }
+    items.push({
+      type: l.type, size: l.type === 'shell' ? l.size : '', unit: l.type === 'shell' ? l.unit : '',
+      qty: qty, manufacturer: l.manufacturer.trim(), effects: l.effects.trim(), sku: l.sku.trim()
+    });
+  });
+  return { errors, items };
+}
+
+async function saveContainer(){
+  if(!currentContainer) return;
+  const st = $('saveStatus');
+  const { errors, items } = collectForSave();
+  if(errors.length){ setStatus(st, errors[0], 'err'); return; }
+  setStatus(st, 'Saving…');
+  try{
+    await postJson({ recordType:'inventoryContainer', container: currentContainer, originalContainer: originalContainerName, items: items });
+    CONTAINERS[keyOf(currentContainer)] = { container: currentContainer, items: items, updatedAt: new Date().toISOString() };
+    originalContainerName = currentContainer;
+    itemLines = items.map(it => ({ id:newId(), type:it.type, size:it.size, unit:it.unit || 'boxes', qty:String(it.qty), manufacturer:it.manufacturer, effects:it.effects, sku:it.sku }));
+    if(!itemLines.length) itemLines.push(blankItem());
+    renderLines();
+    buildContainerOptions(currentContainer);
+    dirty = false;
+    setStatus(st, 'Saved ✓', 'ok');
+  } catch(err){
+    setStatus(st, 'Could not save — check your connection and try again.', 'err');
+  }
+}
+
+async function renameContainer(){
+  if(!currentContainer) return;
+  const next = prompt('Rename this container to:', currentContainer);
+  if(!next) return;
+  const name = next.trim();
+  if(!name || name === currentContainer) return;
+  if(CONTAINERS[keyOf(name)]){ setStatus($('containerStatus'), 'A container with that name already exists.', 'err'); return; }
+  setStatus($('containerStatus'), 'Renaming…');
+  try{
+    const { errors, items } = collectForSave();
+    if(errors.length){ setStatus($('containerStatus'), errors[0], 'err'); return; }
+    await postJson({ recordType:'inventoryContainer', container:name, originalContainer:originalContainerName, items: items });
+    delete CONTAINERS[keyOf(currentContainer)];
+    CONTAINERS[keyOf(name)] = { container:name, items:items, updatedAt:new Date().toISOString() };
+    currentContainer = name; originalContainerName = name;
+    buildContainerOptions(name);
+    setStatus($('containerStatus'), 'Renamed ✓', 'ok');
+  } catch(err){
+    setStatus($('containerStatus'), 'Could not rename — check your connection and try again.', 'err');
+  }
+}
+
+async function deleteContainer(){
+  if(!currentContainer) return;
+  if(!confirm(`Delete "${currentContainer}" and everything in it? This can't be undone.`)) return;
+  setStatus($('containerStatus'), 'Deleting…');
+  try{
+    await postJson({ recordType:'deleteInventoryContainer', container: currentContainer });
+    delete CONTAINERS[keyOf(currentContainer)];
+    currentContainer = null; originalContainerName = null;
+    buildContainerOptions('');
+    $('containerSelect').value = '';
+    $('editorArea').style.display = 'none';
+    $('noContainerMsg').style.display = '';
+    $('pdfCurrentBtn').disabled = true;
+    setStatus($('containerStatus'), '');
+  } catch(err){
+    setStatus($('containerStatus'), 'Could not delete — check your connection and try again.', 'err');
+  }
+}
+
+/* ---------------- SKU camera scanning ---------------- */
+let scanStream = null, scanLoopId = null, scanTargetLineId = null, scanDetector = null;
+const SCAN_SUPPORTED = (typeof window.BarcodeDetector !== 'undefined') &&
+                       !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+function updateScanButtons(){
+  document.querySelectorAll('.scan-btn').forEach(b => {
+    if(!SCAN_SUPPORTED){
+      b.disabled = true;
+      b.title = 'Barcode scanning needs a supported browser with camera access — type the SKU instead.';
+    }
+  });
+}
+
+async function openScanner(lineId){
+  if(!SCAN_SUPPORTED) return;
+  scanTargetLineId = lineId;
+  $('scanModal').style.display = 'flex';
+  setStatus($('scanStatus'), 'Point the camera at a barcode.');
+  try{
+    scanDetector = new window.BarcodeDetector();
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = $('scanVideo');
+    video.srcObject = scanStream;
+    await video.play().catch(() => {});
+    scanLoop();
+  } catch(err){
+    setStatus($('scanStatus'), 'Could not open the camera — you can type the SKU instead.', 'err');
+  }
+}
+
+async function scanLoop(){
+  const video = $('scanVideo');
+  if(!scanStream || !video.videoWidth){ scanLoopId = requestAnimationFrame(scanLoop); return; }
+  try{
+    const codes = await scanDetector.detect(video);
+    if(codes && codes.length){
+      const value = codes[0].rawValue;
+      setItem(scanTargetLineId, 'sku', value);
+      renderLines();
+      closeScanner();
+      return;
+    }
+  } catch(err){ /* keep trying on transient frame errors */ }
+  scanLoopId = requestAnimationFrame(scanLoop);
+}
+
+function closeScanner(){
+  if(scanLoopId) cancelAnimationFrame(scanLoopId);
+  scanLoopId = null;
+  if(scanStream){ scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  $('scanModal').style.display = 'none';
+  scanTargetLineId = null;
+}
+
+/* ---------------- PDF export with signature section ---------------- */
+function containerSections(c){
+  const rows = (c.items || []).map(it => {
+    const main = it.type === 'cake'
+      ? `Cake${it.manufacturer ? ' — ' + it.manufacturer : ''}${it.effects ? ' (' + it.effects + ')' : ''}`
+      : `${sizeLabel(it.size)}${it.manufacturer ? ' — ' + it.manufacturer : ''}${it.effects ? ' (' + it.effects + ')' : ''}`;
+    const qty = it.type === 'cake' ? `${it.qty}` : `${it.qty} ${unitLabel(it.unit, it.qty)}`;
+    return { main, qty, sku: it.sku || '' };
+  });
+  return rows;
+}
+
+function addSignatureBlock(doc, y, M, W, H){
+  const lineY = y + 40;
+  if(lineY > H - 60){ doc.addPage(); y = 48; }
+  doc.setDrawColor(120); doc.setLineWidth(1);
+  doc.line(M, y + 40, M + 220, y + 40);
+  doc.line(M + 260, y + 40, W - M, y + 40);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(110);
+  doc.text('Counted / verified by (signature)', M, y + 52);
+  doc.text('Date', M + 260, y + 52);
+  return y + 70;
+}
+
+function drawContainerPage(doc, c, W, H, M){
+  const FOOT = 36;
+  let y = M;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(217, 90, 20);
+  doc.text('INVENTORY', M, y + 9); y += 22;
+  doc.setFontSize(22); doc.setTextColor(20);
+  const titleLines = doc.splitTextToSize(c.container, W - 2 * M);
+  doc.text(titleLines, M, y + 18); y += titleLines.length * 26 + 6;
+  doc.setDrawColor(255, 140, 0); doc.setLineWidth(2); doc.line(M, y, W - M, y); y += 16;
+
+  const rows = containerSections(c);
+  const ensure = (need) => { if(y + need > H - M - FOOT){ doc.addPage(); y = M; } };
+  if(!rows.length){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(12); doc.setTextColor(120);
+    doc.text('No items recorded yet.', M, y + 14); y += 30;
+  }
+  rows.forEach(r => {
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    const qtyW = r.qty ? doc.getTextWidth(r.qty) : 0;
+    const lines = doc.splitTextToSize(r.main, W - 2 * M - (qtyW ? qtyW + 16 : 0));
+    const skuLine = r.sku ? 1 : 0;
+    const h = Math.max(22, lines.length * 15 + (skuLine ? 13 : 0) + 8);
+    ensure(h);
+    doc.setTextColor(20); doc.text(lines, M, y + 13);
+    if(r.qty){ doc.setFont('helvetica', 'normal'); doc.setTextColor(70); doc.text(r.qty, W - M, y + 13, { align:'right' }); }
+    if(r.sku){
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(130);
+      doc.text(`SKU: ${r.sku}`, M, y + 13 + lines.length * 14);
+    }
+    y += h;
+  });
+
+  y += 10;
+  y = addSignatureBlock(doc, y, M, W, H);
+  return y;
+}
+
+function stampFooters(doc, label){
+  const pages = doc.getNumberOfPages();
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+  for(let i = 1; i <= pages; i++){
+    doc.setPage(i);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(140);
+    doc.text(label, 48, H - 28);
+    doc.text(`Page ${i} of ${pages}`, W - 48, H - 28, { align:'right' });
+  }
+}
+
+async function buildPDF(scope){
+  if(!window.jspdf) throw new Error('The PDF tool did not load — check your connection and try again.');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'letter' });
+  const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 48;
+  if(scope === 'current'){
+    if(!currentContainer) throw new Error('Choose a container first.');
+    drawContainerPage(doc, CONTAINERS[keyOf(currentContainer)], W, H, M);
+    stampFooters(doc, `${currentContainer} — Inventory`);
+    return { doc, fileName:`Inventory - ${currentContainer.replace(/[^\w\- ]+/g,'').trim() || 'Container'}.pdf` };
+  }
+  const names = Object.values(CONTAINERS).map(c => c.container).sort((a,b) => a.localeCompare(b));
+  if(!names.length) throw new Error('No containers to export yet.');
+  names.forEach((n, i) => {
+    if(i > 0) doc.addPage();
+    drawContainerPage(doc, CONTAINERS[keyOf(n)], W, H, M);
+  });
+  stampFooters(doc, 'All containers — Inventory');
+  return { doc, fileName:'Inventory - All Containers.pdf' };
+}
+
+async function downloadPDF(scope){
+  const st = $('pdfStatus');
+  const btn = scope === 'current' ? $('pdfCurrentBtn') : $('pdfAllBtn');
+  btn.disabled = true;
+  setStatus(st, 'Making the PDF…');
+  try{
+    const { doc, fileName } = await buildPDF(scope);
+    doc.save(fileName);
+    setStatus(st, 'PDF saved ✓', 'ok');
+  } catch(err){
+    setStatus(st, err && err.message ? err.message : 'Could not build the PDF.', 'err');
+  } finally {
+    btn.disabled = scope === 'current' ? !currentContainer : false;
+  }
+}
+
+loadInventory();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

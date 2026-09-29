@@ -110,6 +110,32 @@ function jsonOut(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function getOrCreateInventorySheet(ss) {
+  const requiredHeaders = ['Container', 'ItemsJson', 'UpdatedAt'];
+  let sheet = ss.getSheetByName('Inventory');
+  if (!sheet) {
+    sheet = ss.insertSheet('Inventory');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
+function findInventoryRow(sheet, map, container) {
+  const rows = sheet.getDataRange().getValues();
+  const key = String(container || '').trim().toLowerCase();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][map['Container']]).trim().toLowerCase() === key) return i + 1;
+  }
+  return -1;
+}
+
 function getOrCreatePickListsSheet(ss) {
   const requiredHeaders = ['Name', 'EventDate', 'SiteMapUrl', 'SiteMapFileId', 'DataJson', 'UpdatedAt'];
   let sheet = ss.getSheetByName('PickLists');
@@ -411,6 +437,39 @@ function doPost(e) {
     return jsonOut({status: 'ok', siteMapUrl: newUrl});
   }
 
+  if (data.recordType === 'inventoryContainer') {
+    const container = String(data.container || '').trim();
+    if (!container) return jsonOut({status: 'error', message: 'Missing container name'});
+    const itemsJson = JSON.stringify(Array.isArray(data.items) ? data.items : []);
+    if (itemsJson.length > 45000) return jsonOut({status: 'error', message: 'This container has too many items to save at once'});
+    const sheet = getOrCreateInventorySheet(ss);
+    const map = headerMap(sheet);
+    // originalContainer lets a rename update the same row instead of creating a duplicate, same as venues.
+    const row = findInventoryRow(sheet, map, data.originalContainer || container);
+    if (row > 0) {
+      sheet.getRange(row, map['Container'] + 1).setValue(container);
+      sheet.getRange(row, map['ItemsJson'] + 1).setValue(itemsJson);
+      sheet.getRange(row, map['UpdatedAt'] + 1).setValue(new Date());
+    } else {
+      const newRow = ['', '', ''];
+      newRow[map['Container']] = container;
+      newRow[map['ItemsJson']] = itemsJson;
+      newRow[map['UpdatedAt']] = new Date();
+      sheet.appendRow(newRow);
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'deleteInventoryContainer') {
+    const sheet = ss.getSheetByName('Inventory');
+    if (sheet) {
+      const map = headerMap(sheet);
+      const row = findInventoryRow(sheet, map, data.container);
+      if (row > 0) sheet.deleteRow(row);
+    }
+    return jsonOut({status: 'ok'});
+  }
+
   if (data.recordType === 'pickListFormula') {
     const formula = String(data.formula == null ? '' : data.formula).trim();
     if (formula.length > 300) return jsonOut({status: 'error', message: 'Formula is too long'});
@@ -644,6 +703,28 @@ function doGet(e) {
       });
     }
     return jsonOut({formula: getPickListSetting(ss, 'racksFormula'), lists: lists});
+  }
+
+  if (e.parameter.type === 'inventory') {
+    const containers = [];
+    const sheet = ss.getSheetByName('Inventory');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const name = String(r[map['Container']] || '').trim();
+        if (!name) return;
+        let items = [];
+        try { items = JSON.parse(r[map['ItemsJson']] || '[]'); } catch (err) { items = []; }
+        const updated = r[map['UpdatedAt']];
+        containers.push({
+          container: name,
+          items: items,
+          updatedAt: updated instanceof Date ? updated.toISOString() : String(updated || '')
+        });
+      });
+    }
+    containers.sort((a, b) => a.container.localeCompare(b.container));
+    return jsonOut({containers: containers});
   }
 
   if (e.parameter.type === 'pickListSiteMapData') {
