@@ -470,10 +470,10 @@ function doPost(e) {
     return jsonOut({status: 'ok'});
   }
 
-  if (data.recordType === 'pickListFormula') {
-    const formula = String(data.formula == null ? '' : data.formula).trim();
-    if (formula.length > 300) return jsonOut({status: 'error', message: 'Formula is too long'});
-    setPickListSetting(ss, 'racksFormula', formula);
+  if (data.recordType === 'pickListRacksConfig') {
+    const json = JSON.stringify(data.racksConfig && typeof data.racksConfig === 'object' ? data.racksConfig : {});
+    if (json.length > 2000) return jsonOut({status: 'error', message: 'Rack settings are too large'});
+    setPickListSetting(ss, 'racksConfig', json);
     return jsonOut({status: 'ok'});
   }
 
@@ -702,7 +702,9 @@ function doGet(e) {
         });
       });
     }
-    return jsonOut({formula: getPickListSetting(ss, 'racksFormula'), lists: lists});
+    let racksConfig = {};
+    try { racksConfig = JSON.parse(getPickListSetting(ss, 'racksConfig') || '{}'); } catch (err) { racksConfig = {}; }
+    return jsonOut({racksConfig: racksConfig, lists: lists});
   }
 
   if (e.parameter.type === 'inventory') {

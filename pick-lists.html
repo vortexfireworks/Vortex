@@ -291,7 +291,7 @@ function setStatus(msg, kind){
 }
 
 let LISTS = [];
-let FORMULA = '';
+let RACKS_CONFIG = {};
 let current = null;
 const mapCache = {};                   // site map as a data URL, kept ready so the PDF can be made instantly
 const CHECK_PREFIX = 'cuesheet.pickChecks.';
@@ -302,7 +302,7 @@ async function init(){
     const res = await fetch(`${CHECKIN_API_URL}?type=pickLists`);
     if(!res.ok) throw new Error('Request failed');
     const j = await res.json();
-    FORMULA = j.formula || '';
+    RACKS_CONFIG = PickList.normalizeRacksConfig(j.racksConfig);
     LISTS = (j.lists || []).map(l => ({
       name: l.name, eventDate: l.eventDate ? String(l.eventDate).slice(0, 10) : '',
       siteMapUrl: l.siteMapUrl || '', data: l.data || {}
@@ -336,7 +336,7 @@ function onShowChange(){
 /* ---------- what's on the list ---------- */
 function buildSections(){
   const data = PickList.normalizeData(current.data);
-  const racks = PickList.computeRacks(data, FORMULA);
+  const racks = PickList.computeRacks(data, RACKS_CONFIG);
   const sections = [];
   if(data.shells.length){
     sections.push({ title: 'Shells', rows: data.shells.map(s => ({
@@ -345,10 +345,11 @@ function buildSections(){
   if(data.cakes){
     sections.push({ title: 'Cakes', rows: [{ id: 'cakes', main: 'Cakes', qty: String(data.cakes) }] });
   }
-  if(racks.state === 'ok' && racks.value > 0){
-    sections.push({ title: 'Racks', rows: [{ id: 'racks', main: 'Racks', qty: String(racks.value) }] });
-  } else if(racks.state === 'error' && (data.shells.length || data.cakes)){   // 'unset' = nobody uses racks yet, so show nothing
-    sections.push({ title: 'Racks', rows: [{ id: 'racks', main: 'Racks', note: racks.state === 'unset' ? 'formula not set yet' : 'check the formula' }] });
+  if(racks.value > 0 || racks.state === 'partial'){
+    const rows = [];
+    if(racks.value > 0) rows.push({ id: 'racks', main: 'Racks', qty: String(racks.value) });
+    if(racks.state === 'partial') rows.push({ id: 'racks-note', main: 'Racks', note: `not counting ${racks.unknownSizes.join(', ')} boxes yet` });
+    sections.push({ title: 'Racks', rows: rows });
   }
   if(data.setup.length){
     sections.push({ title: 'Setup items', rows: data.setup.map(s => ({
