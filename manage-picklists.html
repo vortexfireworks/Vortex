@@ -292,9 +292,25 @@ updateThemeToggleIcon();
       </div>
 
       <div class="editor-box">
+        <p class="label-title">FINALE / QUINT / SPECIAL</p>
+        <div class="field">
+          <label for="finaleInput">Finale — Fan Rack</label>
+          <input type="number" id="finaleInput" inputmode="numeric" min="0" step="1" placeholder="0" oninput="onOtherCount('finale',this.value)">
+        </div>
+        <div class="field">
+          <label for="quintInput">Quint — Quint Rack</label>
+          <input type="number" id="quintInput" inputmode="numeric" min="0" step="1" placeholder="0" oninput="onOtherCount('quint',this.value)">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label for="specialInput">Special — Fan Rack</label>
+          <input type="number" id="specialInput" inputmode="numeric" min="0" step="1" placeholder="0" oninput="onOtherCount('special',this.value)">
+        </div>
+      </div>
+
+      <div class="editor-box">
         <p class="label-title">RACKS</p>
         <div class="racks-box">
-          <span class="hint" style="margin:0;">Worked out for you from the shells and cakes above.</span>
+          <span class="hint" style="margin:0;">Worked out for you from the shells above. Cakes, finale, quint, and special don't need racks.</span>
           <span class="racks-val" id="racksVal">—</span>
         </div>
         <p class="hint" id="racksNote"></p>
@@ -352,7 +368,7 @@ let SHOWS = [];          // venues that have an event date
 let LISTS = {};          // saved pick lists, keyed by lower-case show name
 let RACKS_CONFIG = {};   // the saved rack settings: { capacity: {...}, shellsPerBox: {...} }
 let currentShow = null;
-let shellLines = [], setupLines = [], cakes = '';
+let shellLines = [], setupLines = [], cakes = '', finale = '', quint = '', special = '';
 let dirty = false;
 let pendingMap = null;   // a resized image waiting to be uploaded
 
@@ -416,6 +432,9 @@ function loadShowIntoForm(){
     shellLines = d.shells.map(s => ({ id: s.id, size: s.size, qty: String(s.qty), unit: s.unit }));
     setupLines = d.setup.map(s => ({ id: s.id, title: s.title, qty: s.qty == null ? '' : String(s.qty) }));
     cakes = d.cakes ? String(d.cakes) : '';
+    finale = d.finale ? String(d.finale) : '';
+    quint = d.quint ? String(d.quint) : '';
+    special = d.special ? String(d.special) : '';
     if(!shellLines.length) shellLines.push(blankShell());
     if(!setupLines.length) setupLines.push(blankSetup());
   }
@@ -432,6 +451,9 @@ function renderLines(){
   $('shellLines').innerHTML = shellLines.map(shellRow).join('');
   $('setupLines').innerHTML = setupLines.map(setupRow).join('');
   $('cakesInput').value = cakes;
+  $('finaleInput').value = finale;
+  $('quintInput').value = quint;
+  $('specialInput').value = special;
   updateRacksPreview();
 }
 
@@ -471,9 +493,15 @@ function setSetup(id, field, value){
   l[field] = value; touch();
 }
 function onCakes(value){ cakes = value; touch(); updateRacksPreview(); }
+function onOtherCount(field, value){
+  if(field === 'finale') finale = value;
+  else if(field === 'quint') quint = value;
+  else if(field === 'special') special = value;
+  touch(); updateRacksPreview();
+}
 
 /* ---------- racks ---------- */
-function draftData(){ return PickList.normalizeData({ shells: shellLines, cakes: cakes, setup: [] }); }
+function draftData(){ return PickList.normalizeData({ shells: shellLines, cakes: cakes, finale: finale, quint: quint, special: special, setup: [] }); }
 
 function updateRacksPreview(){
   const el = $('racksVal'), note = $('racksNote');
@@ -546,7 +574,7 @@ function collectForSave(){
     if(!title) errors.push(`Setup item ${i + 1} needs a name.`);
     else setup.push({ id: l.id, title: title, qty: PickList.toQty(l.qty) });
   });
-  return { errors, data: { shells: shells, cakes: PickList.toQty(cakes), setup: setup } };
+  return { errors, data: { shells: shells, cakes: PickList.toQty(cakes), finale: PickList.toQty(finale), quint: PickList.toQty(quint), special: PickList.toQty(special), setup: setup } };
 }
 
 async function savePickList(){
@@ -569,6 +597,9 @@ async function savePickList(){
     shellLines = d.shells.map(s => ({ id: s.id, size: s.size, qty: String(s.qty), unit: s.unit }));
     setupLines = d.setup.map(s => ({ id: s.id, title: s.title, qty: s.qty == null ? '' : String(s.qty) }));
     cakes = d.cakes ? String(d.cakes) : '';
+    finale = d.finale ? String(d.finale) : '';
+    quint = d.quint ? String(d.quint) : '';
+    special = d.special ? String(d.special) : '';
     if(!shellLines.length) shellLines.push(blankShell());
     if(!setupLines.length) setupLines.push(blankSetup());
     renderLines();
