@@ -15,6 +15,7 @@ const ASSETS = [
   './venues.html',
   './pick-lists.html',
   './manage-picklists.html',
+  './manage-inventory.html',
   './picklist-common.js',
   './release-notes.html',
   './manifest.json',
