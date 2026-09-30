@@ -111,7 +111,7 @@ function jsonOut(obj) {
 }
 
 function getOrCreateFireworkProductsSheet(ss) {
-  const requiredHeaders = ['Name', 'Type', 'Size', 'Manufacturer', 'Effects', 'SKU'];
+  const requiredHeaders = ['Name', 'Type', 'Size', 'Manufacturer', 'Effects', 'SKU', 'IsAssortment', 'AssortmentJson'];
   let sheet = ss.getSheetByName('FireworkProducts');
   if (!sheet) {
     sheet = ss.insertSheet('FireworkProducts');
@@ -495,17 +495,38 @@ function doPost(e) {
   if (data.recordType === 'fireworkProduct') {
     const name = String(data.name || '').trim();
     if (!name) return jsonOut({status: 'error', message: 'Missing product name'});
+
+    const isAssortment = !!data.isAssortment;
+    let assortment = [];
+    let effects = String(data.effects || '').trim();
+    if (isAssortment) {
+      assortment = (Array.isArray(data.assortment) ? data.assortment : [])
+        .map(a => ({ effect: String(a.effect || '').trim(), qty: Math.max(0, Math.round(Number(a.qty) || 0)) }))
+        .filter(a => a.effect && a.qty > 0)
+        .slice(0, 50);   // 36 is the expected norm; this is just a generous safety cap
+      if (!assortment.length) return jsonOut({status: 'error', message: 'Add at least one effect and quantity for this box'});
+      // Auto-build a plain-text summary so anything that only reads the simple
+      // Effects column (like Manage Inventory's autofill) still gets something useful.
+      const total = assortment.reduce((sum, a) => sum + a.qty, 0);
+      effects = `Assorted (${assortment.length} effects, ${total} shells): ` +
+        assortment.map(a => `${a.effect} x${a.qty}`).join(', ');
+    }
+    const assortmentJson = JSON.stringify(assortment);
+    if (assortmentJson.length > 12000) return jsonOut({status: 'error', message: 'That box has too many effects listed at once'});
+
     const sheet = getOrCreateFireworkProductsSheet(ss);
     const map = headerMap(sheet);
     // originalName lets a rename update the same row instead of creating a duplicate, same as operators/venues.
     const row = findFireworkProductRow(sheet, map, data.originalName || name);
-    const newRow = ['', '', '', '', '', ''];
+    const newRow = ['', '', '', '', '', '', '', ''];
     newRow[map['Name']] = name;
     newRow[map['Type']] = data.type === 'cake' ? 'cake' : 'shell';
     newRow[map['Size']] = data.type === 'cake' ? '' : (data.size || '');
     newRow[map['Manufacturer']] = data.manufacturer || '';
-    newRow[map['Effects']] = data.effects || '';
+    newRow[map['Effects']] = effects;
     newRow[map['SKU']] = data.sku || '';
+    newRow[map['IsAssortment']] = isAssortment ? 'Yes' : 'No';
+    newRow[map['AssortmentJson']] = assortmentJson;
     if (row > 0) {
       sheet.getRange(row, 1, 1, newRow.length).setValues([newRow]);
     } else {
@@ -888,13 +909,17 @@ function doGet(e) {
       sheet.getDataRange().getValues().slice(1).forEach(r => {
         const name = String(r[map['Name']] || '').trim();
         if (!name) return;
+        let assortment = [];
+        try { assortment = JSON.parse(r[map['AssortmentJson']] || '[]'); } catch (err) { assortment = []; }
         products.push({
           name: name,
           type: r[map['Type']] === 'cake' ? 'cake' : 'shell',
           size: String(r[map['Size']] || ''),
           manufacturer: String(r[map['Manufacturer']] || ''),
           effects: String(r[map['Effects']] || ''),
-          sku: String(r[map['SKU']] || '')
+          sku: String(r[map['SKU']] || ''),
+          isAssortment: r[map['IsAssortment']] === 'Yes',
+          assortment: assortment
         });
       });
     }

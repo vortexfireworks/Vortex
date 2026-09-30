@@ -143,6 +143,12 @@ updateThemeToggleIcon();
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   @media (max-width:480px){ .row2{grid-template-columns:1fr;} }
 
+  .assort-line{display:flex;gap:8px;margin-bottom:8px;align-items:center;}
+  .assort-line input[type=text]{flex:1 1 auto;min-width:0;width:auto;}
+  .assort-line input[type=number]{flex:0 0 74px;min-width:0;text-align:center;}
+  .assort-line button{flex:0 0 auto;background:none;color:var(--brick);border:1px solid var(--line);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:13px;}
+  .assort-line button:hover{border-color:var(--brick);}
+
   #saveStatus, #searchStatus{font-size:12.5px;}
   .status.ok{color:var(--ok);}
   .status.err{color:var(--brick);}
@@ -209,9 +215,25 @@ updateThemeToggleIcon();
         <input type="text" id="manufacturerInput" autocomplete="off">
       </div>
       <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
+          <input type="checkbox" id="isAssortmentCheckbox" onchange="onAssortmentToggle()" style="width:auto;">
+          This is an assortment box (multiple effects)
+        </label>
+      </div>
+
+      <div class="field" id="effectsField">
         <label for="effectsInput">Effects</label>
         <input type="text" id="effectsInput" placeholder="e.g. gold willow, crackle finale" autocomplete="off">
       </div>
+
+      <div class="field" id="assortmentField" style="display:none;">
+        <label>Box contents</label>
+        <p class="hint" style="margin:0 0 8px;">Up to around 36 different effects, each with its own quantity.</p>
+        <div id="assortmentLines"></div>
+        <button type="button" class="secondary" onclick="addAssortmentLine()" style="margin-top:6px;">+ Add effect</button>
+        <p class="hint" id="assortmentTotal" style="margin-top:10px;font-weight:600;"></p>
+      </div>
+
       <div class="field" style="margin-bottom:0;">
         <label for="skuInput">SKU</label>
         <input type="text" id="skuInput" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
@@ -247,6 +269,12 @@ function esc(s){
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 function keyOf(name){ return String(name || '').trim().toLowerCase(); }
+function toQty(v){
+  if(v === '' || v === null || v === undefined) return null;
+  const n = Number(v);
+  if(!isFinite(n) || n < 0) return null;
+  return Math.round(n);
+}
 function setStatus(el, msg, kind){
   el.textContent = msg || '';
   el.className = kind ? 'status ' + kind : 'status';
@@ -269,6 +297,41 @@ async function postJson(payload){
 
 let PRODUCTS = {};        // keyed by lowercase name -> product object
 let originalProductName = null;   // set while editing an existing product, for rename-in-place
+let assortmentLines = []; // [{ id, effect, qty }] — only used while isAssortmentCheckbox is checked
+function blankAssortLine(){ return { id: Math.random().toString(36).slice(2,8), effect:'', qty:'' }; }
+
+function onAssortmentToggle(){
+  const on = $('isAssortmentCheckbox').checked;
+  $('effectsField').style.display = on ? 'none' : '';
+  $('assortmentField').style.display = on ? '' : 'none';
+  if(on && !assortmentLines.length){ assortmentLines = [blankAssortLine()]; }
+  renderAssortmentLines();
+}
+function addAssortmentLine(){ assortmentLines.push(blankAssortLine()); renderAssortmentLines(); }
+function removeAssortmentLine(id){
+  assortmentLines = assortmentLines.filter(l => l.id !== id);
+  if(!assortmentLines.length) assortmentLines.push(blankAssortLine());
+  renderAssortmentLines();
+}
+function setAssortmentLine(id, field, value){
+  const l = assortmentLines.find(x => x.id === id); if(!l) return;
+  l[field] = value;
+  updateAssortmentTotal();
+}
+function renderAssortmentLines(){
+  $('assortmentLines').innerHTML = assortmentLines.map(l => `
+    <div class="assort-line" data-id="${l.id}">
+      <input type="text" placeholder="Effect (e.g. gold willow)" value="${esc(l.effect)}" oninput="setAssortmentLine('${l.id}','effect',this.value)">
+      <input type="number" placeholder="Qty" min="0" step="1" inputmode="numeric" value="${esc(l.qty)}" oninput="setAssortmentLine('${l.id}','qty',this.value)">
+      <button type="button" onclick="removeAssortmentLine('${l.id}')">✕</button>
+    </div>`).join('');
+  updateAssortmentTotal();
+}
+function updateAssortmentTotal(){
+  const count = assortmentLines.filter(l => l.effect.trim() && Number(l.qty) > 0).length;
+  const total = assortmentLines.reduce((sum, l) => sum + (Number(l.qty) > 0 ? Number(l.qty) : 0), 0);
+  $('assortmentTotal').textContent = count ? `${count} effect${count===1?'':'s'} — ${total} shell${total===1?'':'s'} total in this box` : '';
+}
 
 $('sizeSelect').innerHTML =
   '<option value="">Size…</option>' + SIZES.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
@@ -311,6 +374,9 @@ function resetForm(){
   $('manufacturerInput').value = '';
   $('effectsInput').value = '';
   $('skuInput').value = '';
+  $('isAssortmentCheckbox').checked = false;
+  assortmentLines = [];
+  onAssortmentToggle();
   onTypeChange();
   $('formTitle').textContent = 'ADD / UPDATE PRODUCT';
   $('cancelEditBtn').style.display = 'none';
@@ -327,6 +393,11 @@ function loadIntoEditor(name, fromTypeAhead){
   $('manufacturerInput').value = p.manufacturer || '';
   $('effectsInput').value = p.effects || '';
   $('skuInput').value = p.sku || '';
+  $('isAssortmentCheckbox').checked = !!p.isAssortment;
+  assortmentLines = (p.isAssortment && Array.isArray(p.assortment) && p.assortment.length)
+    ? p.assortment.map(a => ({ id: Math.random().toString(36).slice(2,8), effect: a.effect || '', qty: a.qty == null ? '' : String(a.qty) }))
+    : [];
+  onAssortmentToggle();
   onTypeChange();
   $('formTitle').textContent = 'EDITING: ' + p.name;
   $('cancelEditBtn').style.display = '';
@@ -342,16 +413,27 @@ async function saveProduct(){
   const size = type === 'shell' ? $('sizeSelect').value : '';
   if(type === 'shell' && !size){ setStatus(st, 'Choose a shell size.', 'err'); return; }
   const manufacturer = $('manufacturerInput').value.trim();
-  const effects = $('effectsInput').value.trim();
   const sku = $('skuInput').value.trim();
+  const isAssortment = $('isAssortmentCheckbox').checked;
+
+  let effects = $('effectsInput').value.trim();
+  let assortment = [];
+  if(isAssortment){
+    assortment = assortmentLines
+      .map(l => ({ effect: l.effect.trim(), qty: toQty(l.qty) }))
+      .filter(l => l.effect && l.qty);
+    if(!assortment.length){ setStatus(st, 'Add at least one effect and quantity for this box.', 'err'); return; }
+    const total = assortment.reduce((sum, a) => sum + a.qty, 0);
+    effects = `Assorted (${assortment.length} effects, ${total} shells): ` + assortment.map(a => `${a.effect} x${a.qty}`).join(', ');
+  }
 
   setStatus(st, 'Saving…');
   try{
-    await postJson({ recordType:'fireworkProduct', name, originalName: originalProductName, type, size, manufacturer, effects, sku });
+    await postJson({ recordType:'fireworkProduct', name, originalName: originalProductName, type, size, manufacturer, effects, sku, isAssortment, assortment });
     if(originalProductName && keyOf(originalProductName) !== keyOf(name)){
       delete PRODUCTS[keyOf(originalProductName)];
     }
-    PRODUCTS[keyOf(name)] = { name, type, size, manufacturer, effects, sku };
+    PRODUCTS[keyOf(name)] = { name, type, size, manufacturer, effects, sku, isAssortment, assortment };
     buildDatalist();
     renderProductList();
     setStatus(st, 'Saved ✓', 'ok');
@@ -378,7 +460,16 @@ function renderProductList(){
   const wrap = $('productList');
   const search = $('searchInput').value.trim().toLowerCase();
   let products = Object.values(PRODUCTS).sort((a, b) => a.name.localeCompare(b.name));
-  if(search) products = products.filter(p => p.name.toLowerCase().includes(search));
+  if(search){
+    products = products.filter(p => {
+      if(p.name.toLowerCase().includes(search)) return true;
+      if((p.manufacturer || '').toLowerCase().includes(search)) return true;
+      if((p.effects || '').toLowerCase().includes(search)) return true;
+      if((p.sku || '').toLowerCase().includes(search)) return true;
+      if(Array.isArray(p.assortment) && p.assortment.some(a => (a.effect || '').toLowerCase().includes(search))) return true;
+      return false;
+    });
+  }
   if(!products.length){
     wrap.innerHTML = '<p class="hint" style="margin:0;">No products yet — add one above.</p>';
     return;
@@ -392,7 +483,7 @@ function renderProductList(){
       <div class="product-row">
         <div class="p-top">
           <span class="p-name">${esc(p.name)}</span>
-          <span class="p-size">${esc(main)}</span>
+          <span class="p-size">${p.isAssortment ? '📦 Assortment · ' : ''}${esc(main)}</span>
         </div>
         ${detailBits.length ? `<div class="p-detail">${detailBits.join(' — ')}</div>` : ''}
         ${p.sku ? `<div class="p-sku">SKU: ${esc(p.sku)}</div>` : ''}
