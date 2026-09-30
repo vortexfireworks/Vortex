@@ -148,6 +148,8 @@ updateThemeToggleIcon();
     background:var(--surface-5); border:1px solid var(--line); border-radius:8px;
     padding:12px; margin-bottom:10px;
   }
+  .item-line .product-row{margin-bottom:8px;}
+  .item-line .product-row input{border-color:var(--navy);}
   .item-line .row1{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px;}
   .item-line .row1 > *{min-width:0;}
   .item-line .c-type{flex:1 1 100px;}
@@ -302,6 +304,7 @@ updateThemeToggleIcon();
     <div id="editorArea" style="display:none;">
       <div class="editor-box">
         <p class="label-title">ITEMS</p>
+        <datalist id="productDirectoryList"></datalist>
         <div id="itemLines"></div>
         <button type="button" class="secondary add-line" onclick="addItemLine()">+ Add item</button>
       </div>
@@ -393,7 +396,7 @@ let originalContainerName = null;
 let dirty = false;
 
 function blankItem(){
-  return { id:newId(), type:'shell', size:'', unit:'boxes', qty:'', manufacturer:'', effects:'', sku:'' };
+  return { id:newId(), product:'', type:'shell', size:'', unit:'boxes', qty:'', manufacturer:'', effects:'', sku:'' };
 }
 
 function keyOf(name){ return String(name || '').trim().toLowerCase(); }
@@ -467,7 +470,7 @@ function openContainer(name, isNew){
   originalContainerName = name;
   const c = CONTAINERS[keyOf(name)] || { container:name, items:[] };
   itemLines = (c.items || []).map(it => ({
-    id: it.id || newId(), type: it.type === 'cake' ? 'cake' : 'shell',
+    id: it.id || newId(), product: it.product || '', type: it.type === 'cake' ? 'cake' : 'shell',
     size: it.size || '', unit: it.unit || 'boxes',
     qty: it.qty == null ? '' : String(it.qty),
     manufacturer: it.manufacturer || '', effects: it.effects || '', sku: it.sku || ''
@@ -501,6 +504,9 @@ function renderLines(){
     const isShell = l.type !== 'cake';
     return `
       <div class="item-line" data-id="${l.id}">
+        <div class="product-row">
+          <input type="text" class="c-product" list="productDirectoryList" placeholder="Product (optional) — pick one to fill in the rest" value="${esc(l.product || '')}" oninput="onProductInput('${l.id}', this.value)" autocomplete="off">
+        </div>
         <div class="row1">
           <select class="c-type" onchange="setItemAndRerender('${l.id}','type',this.value)">
             <option value="shell" ${isShell ? 'selected' : ''}>Shell</option>
@@ -543,7 +549,7 @@ function collectForSave(){
     if(l.type === 'shell' && !l.size){ errors.push(`Item ${i + 1} needs a shell size.`); return; }
     if(!qty){ errors.push(`Item ${i + 1} needs a quantity greater than 0.`); return; }
     items.push({
-      id: l.id, type: l.type, size: l.type === 'shell' ? l.size : '', unit: l.type === 'shell' ? l.unit : '',
+      id: l.id, product: (l.product || '').trim(), type: l.type, size: l.type === 'shell' ? l.size : '', unit: l.type === 'shell' ? l.unit : '',
       qty: qty, manufacturer: l.manufacturer.trim(), effects: l.effects.trim(), sku: l.sku.trim()
     });
   });
@@ -694,6 +700,47 @@ async function fetchShows(){
     SHOWS = [];
   }
   showsLoaded = true;
+}
+
+let PRODUCTS = {};   // keyed by lowercase name -> { name, type, size, manufacturer, effects, sku }
+function productKeyOf(name){ return String(name || '').trim().toLowerCase(); }
+
+async function fetchProducts(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=fireworkProducts`);
+    if(!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+    PRODUCTS = {};
+    (json.products || []).forEach(p => { PRODUCTS[productKeyOf(p.name)] = p; });
+  } catch(err){
+    PRODUCTS = {};
+  }
+  $('productDirectoryList').innerHTML = Object.values(PRODUCTS)
+    .map(p => p.name).sort((a, b) => a.localeCompare(b))
+    .map(n => `<option value="${esc(n)}">`).join('');
+}
+fetchProducts();
+
+function onProductInput(lineId, value){
+  const l = itemLines.find(x => x.id === lineId);
+  if(!l) return;
+  l.product = value;
+  const match = PRODUCTS[productKeyOf(value)];
+  if(match){
+    l.type = match.type === 'cake' ? 'cake' : 'shell';
+    l.size = match.type === 'cake' ? '' : (match.size || l.size);
+    if(!l.unit) l.unit = 'boxes';
+    l.manufacturer = match.manufacturer || '';
+    l.effects = match.effects || '';
+    l.sku = match.sku || '';
+    touch();
+    renderLines();
+    // renderLines rebuilds the input, which drops focus — put it back and land the cursor at the end.
+    const input = document.querySelector(`.item-line[data-id="${lineId}"] .c-product`);
+    if(input){ input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+  } else {
+    touch();
+  }
 }
 fetchShows();
 
