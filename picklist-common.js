@@ -105,8 +105,13 @@
     return { capacity: capacity, shellsPerBox: shellsPerBox };
   }
 
-  /* state: 'ok' (every line could be converted to a shell count) |
-            'partial' (still gives a number, but some box quantities couldn't count
+  /* Returns a breakdown list — one entry per rack type actually needed — rather than
+     a single total, since a crew needs to know how many OF EACH kind to bring/set up.
+     Each item has a stable `key` (not tied to array position) so a crew's checkmarks
+     on the viewer page stay attached to the right rack type even if the list's
+     composition changes later (a shell size added/removed, etc).
+     state: 'ok' (every shell line could be converted to a count) |
+            'partial' (still gives a list, but some box quantities couldn't count
             yet because shells-per-box isn't set for that size) */
   function computeRacks(data, racksConfigRaw) {
     var d = normalizeData(data);
@@ -122,14 +127,22 @@
       if (spb) { totals[l.size] += l.qty * spb; }
       else if (unknownSizes.indexOf(l.size) === -1) { unknownSizes.push(l.size); }
     });
-    var racks = 0;
+    var items = [];
     SIZES.forEach(function (s) {
-      if (totals[s.value] > 0) racks += Math.ceil(totals[s.value] / cfg.capacity[s.value]);
+      if (totals[s.value] > 0) {
+        items.push({ key: 'size-' + s.value, label: s.label + ' Racks', qty: Math.ceil(totals[s.value] / cfg.capacity[s.value]) });
+      }
     });
+    // Finale, Quint, and Special are already rack counts as entered — a "quint" is
+    // by definition 5 shells on one quint rack, so these pass straight through.
+    if (d.finale) items.push({ key: 'finale', label: 'Finale — Fan Rack', qty: d.finale });
+    if (d.quint) items.push({ key: 'quint', label: 'Quint — Quint Rack', qty: d.quint });
+    if (d.special) items.push({ key: 'special', label: 'Special — Fan Rack', qty: d.special });
+    var total = items.reduce(function (sum, it) { return sum + it.qty; }, 0);
     if (unknownSizes.length) {
-      return { state: 'partial', value: racks, unknownSizes: unknownSizes.map(sizeLabel) };
+      return { state: 'partial', items: items, total: total, unknownSizes: unknownSizes.map(sizeLabel) };
     }
-    return { state: 'ok', value: racks };
+    return { state: 'ok', items: items, total: total };
   }
 
   function formatDateLong(iso) {

@@ -345,16 +345,10 @@ function buildSections(){
   if(data.cakes){
     sections.push({ title: 'Cakes', rows: [{ id: 'cakes', main: 'Cakes', qty: String(data.cakes) }] });
   }
-  const otherRows = [];
-  if(data.finale) otherRows.push({ id: 'finale', main: 'Finale — Fan Rack', qty: String(data.finale) });
-  if(data.quint) otherRows.push({ id: 'quint', main: 'Quint — Quint Rack', qty: String(data.quint) });
-  if(data.special) otherRows.push({ id: 'special', main: 'Special — Fan Rack', qty: String(data.special) });
-  if(otherRows.length){
-    sections.push({ title: 'Finale / Quint / Special', rows: otherRows });
-  }
-  if(racks.value > 0 || racks.state === 'partial'){
-    const rows = [];
-    if(racks.value > 0) rows.push({ id: 'racks', main: 'Racks', qty: String(racks.value) });
+  // Finale, Quint, and Special are shown below as part of the Racks list — showing
+  // them again in their own section here would just duplicate the same line twice.
+  if(racks.items.length || racks.state === 'partial'){
+    const rows = racks.items.map(it => ({ id: 'racks-' + it.key, main: it.label, qty: String(it.qty) }));
     if(racks.state === 'partial') rows.push({ id: 'racks-note', main: 'Racks', note: `not counting ${racks.unknownSizes.join(', ')} boxes yet` });
     sections.push({ title: 'Racks', rows: rows });
   }
