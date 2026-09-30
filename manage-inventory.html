@@ -158,7 +158,9 @@ updateThemeToggleIcon();
   .item-line .sku-row{display:flex; gap:8px; align-items:stretch;}
   .item-line .sku-row input{flex:1 1 auto;}
   .item-line .sku-row button{flex:0 0 auto; white-space:nowrap;}
-  .item-line .rm-row{display:flex; justify-content:flex-end;}
+  .item-line .rm-row{display:flex; justify-content:space-between; align-items:center; gap:8px;}
+  .item-line .transfer-btn{background:none;color:var(--navy);font-size:12.5px;border:1px solid var(--navy);border-radius:6px;padding:5px 10px;cursor:pointer;}
+  .item-line .transfer-btn:disabled{opacity:0.4;cursor:default;}
   .item-line button.rm{
     background:none;color:var(--ink-soft);font-size:12.5px;border:1px solid var(--line);
     border-radius:6px;padding:5px 10px;cursor:pointer;
@@ -179,6 +181,17 @@ updateThemeToggleIcon();
   .container-row .c-name{font-weight:600;}
   .container-row .c-count{color:var(--ink-soft);font-size:12px;}
 
+  .history-row{padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;}
+  .history-row:last-child{border-bottom:none;}
+  .history-row .h-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+  .history-row .h-badge{font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:5px;flex-shrink:0;}
+  .history-row .h-badge.transfer{background:rgba(47,126,201,0.18);color:#5a9de0;}
+  .history-row .h-badge.pull{background:rgba(255,140,0,0.18);color:var(--navy);}
+  .history-row .h-badge.remove{background:rgba(255,106,90,0.18);color:var(--brick);}
+  .history-row .h-when{color:var(--ink-soft);font-size:11px;}
+  .history-row .h-detail{margin-top:4px;color:var(--ink);}
+  .history-row .h-note{margin-top:2px;color:var(--ink-soft);font-style:italic;}
+
   /* ---- Camera scan modal ---- */
   #scanModal{
     display:none; position:fixed; inset:0; z-index:200;
@@ -190,6 +203,21 @@ updateThemeToggleIcon();
   }
   #scanVideo{width:100%; border-radius:10px; background:#000; display:block; max-height:60vh;}
   #scanModal .box p{font-size:12.5px;color:var(--ink-soft);margin:10px 0;}
+
+  /* ---- Transfer / Pull / Remove modal ---- */
+  #transferModal{
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(0,0,0,0.7); align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  }
+  #transferModal .box{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px;
+    padding:20px; max-width:420px; width:100%; margin:auto;
+  }
+  #transferModal h3{margin:0 0 4px;font-size:16px;color:var(--ink);}
+  #transferModal .item-summary{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;}
+  #transferModal .dest-type{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+  #transferModal .dest-type label{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);font-weight:400;}
+  #transferModal .modal-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
 </style>
 </head>
 <body>
@@ -210,6 +238,44 @@ updateThemeToggleIcon();
     <video id="scanVideo" playsinline muted autoplay></video>
     <p id="scanStatus">Point the camera at a barcode.</p>
     <button type="button" class="secondary" onclick="closeScanner()">Cancel</button>
+  </div>
+</div>
+
+<div id="transferModal">
+  <div class="box">
+    <h3>Transfer / Pull / Remove</h3>
+    <p class="item-summary" id="transferItemSummary"></p>
+
+    <div class="field">
+      <label for="transferQty">Quantity</label>
+      <input type="number" id="transferQty" inputmode="numeric" min="1" step="1">
+    </div>
+
+    <div class="dest-type">
+      <label><input type="radio" name="destType" value="container" checked onchange="onDestTypeChange()"> Move to another container</label>
+      <label><input type="radio" name="destType" value="show" onchange="onDestTypeChange()"> Pull for a show</label>
+      <label><input type="radio" name="destType" value="remove" onchange="onDestTypeChange()"> Remove from inventory (used, damaged, disposed of)</label>
+    </div>
+
+    <div class="field" id="transferDestContainerField">
+      <label for="transferDestContainer">Destination container</label>
+      <select id="transferDestContainer"></select>
+    </div>
+    <div class="field" id="transferDestShowField" style="display:none;">
+      <label for="transferDestShow">Show</label>
+      <select id="transferDestShow"><option value="">Loading shows…</option></select>
+    </div>
+
+    <div class="field" style="margin-bottom:0;">
+      <label for="transferNote">Note (optional)</label>
+      <input type="text" id="transferNote" placeholder="e.g. for the finale segment" autocomplete="off">
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="primary" onclick="confirmTransfer()">Confirm</button>
+      <button type="button" class="secondary" onclick="closeTransfer()">Cancel</button>
+    </div>
+    <p class="hint" id="transferStatus" style="margin-top:10px;"></p>
   </div>
 </div>
 
@@ -260,6 +326,12 @@ updateThemeToggleIcon();
         <button type="button" class="secondary" id="pdfAllBtn" onclick="downloadPDF('all')">Download PDF — all containers</button>
       </div>
       <span id="pdfStatus" class="hint" style="display:block;"></span>
+    </div>
+
+    <div class="editor-box" style="margin-top:30px;margin-bottom:0;">
+      <p class="label-title">TRANSACTION HISTORY</p>
+      <p class="hint" style="margin:0 0 12px;">Every transfer, pull, and removal, most recent first.</p>
+      <div id="historyList"><p class="hint" style="margin:0;">Loading…</p></div>
     </div>
   </div>
 </div>
@@ -395,7 +467,7 @@ function openContainer(name, isNew){
   originalContainerName = name;
   const c = CONTAINERS[keyOf(name)] || { container:name, items:[] };
   itemLines = (c.items || []).map(it => ({
-    id: newId(), type: it.type === 'cake' ? 'cake' : 'shell',
+    id: it.id || newId(), type: it.type === 'cake' ? 'cake' : 'shell',
     size: it.size || '', unit: it.unit || 'boxes',
     qty: it.qty == null ? '' : String(it.qty),
     manufacturer: it.manufacturer || '', effects: it.effects || '', sku: it.sku || ''
@@ -453,7 +525,10 @@ function renderLines(){
           <input type="text" placeholder="SKU" value="${esc(l.sku)}" oninput="setItem('${l.id}','sku',this.value)" autocapitalize="off" autocorrect="off" spellcheck="false">
           <button type="button" class="secondary scan-btn" onclick="openScanner('${l.id}')">📷 Scan</button>
         </div>
-        <div class="rm-row"><button type="button" class="rm" onclick="removeItem('${l.id}')">Remove</button></div>
+        <div class="rm-row">
+          <button type="button" class="transfer-btn" onclick="openTransfer('${l.id}')" ${(!l.qty || Number(l.qty) <= 0) ? 'disabled title="Enter a quantity first"' : ''}>⇄ Transfer / Pull / Remove</button>
+          <button type="button" class="rm" onclick="removeItem('${l.id}')">Delete line</button>
+        </div>
       </div>`;
   }).join('');
   updateScanButtons();
@@ -468,7 +543,7 @@ function collectForSave(){
     if(l.type === 'shell' && !l.size){ errors.push(`Item ${i + 1} needs a shell size.`); return; }
     if(!qty){ errors.push(`Item ${i + 1} needs a quantity greater than 0.`); return; }
     items.push({
-      type: l.type, size: l.type === 'shell' ? l.size : '', unit: l.type === 'shell' ? l.unit : '',
+      id: l.id, type: l.type, size: l.type === 'shell' ? l.size : '', unit: l.type === 'shell' ? l.unit : '',
       qty: qty, manufacturer: l.manufacturer.trim(), effects: l.effects.trim(), sku: l.sku.trim()
     });
   });
@@ -591,6 +666,191 @@ function closeScanner(){
   $('scanModal').style.display = 'none';
   scanTargetLineId = null;
 }
+
+/* ---------------- Transfer / Pull / Remove ---------------- */
+let SHOWS = [];
+let showsLoaded = false;
+let transferTargetLineId = null;
+
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = dateStr.slice(0, 10);
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
+  return `${Number(m)}/${Number(d)}`;
+}
+
+async function fetchShows(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const venues = await res.json();
+    SHOWS = (Array.isArray(venues) ? venues : [])
+      .filter(v => v.name && v.eventDate)
+      .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+  } catch(err){
+    SHOWS = [];
+  }
+  showsLoaded = true;
+}
+fetchShows();
+
+function itemSummaryText(l){
+  const isShell = l.type !== 'cake';
+  const main = isShell ? (SIZES.find(s => s.value === l.size)?.label || l.size || 'Shell') : 'Cake';
+  const bits = [main];
+  if(l.manufacturer) bits.push(l.manufacturer);
+  if(l.effects) bits.push(l.effects);
+  let text = bits.join(' — ');
+  if(isShell && l.unit) text += ` (${UNITS.find(u => u.value === l.unit)?.label || l.unit})`;
+  return text;
+}
+
+function openTransfer(lineId){
+  const l = itemLines.find(x => x.id === lineId);
+  if(!l || !l.qty || Number(l.qty) <= 0) return;
+  transferTargetLineId = lineId;
+  $('transferItemSummary').textContent = `${itemSummaryText(l)} · ${l.qty} available in ${currentContainer}`;
+  const qtyInput = $('transferQty');
+  qtyInput.value = l.qty;
+  qtyInput.max = l.qty;
+  $('transferNote').value = '';
+  document.querySelector('input[name="destType"][value="container"]').checked = true;
+  buildDestContainerOptions();
+  buildDestShowOptions();
+  onDestTypeChange();
+  setStatus($('transferStatus'), '');
+  $('transferModal').style.display = 'flex';
+}
+
+function closeTransfer(){
+  $('transferModal').style.display = 'none';
+  transferTargetLineId = null;
+}
+
+function buildDestContainerOptions(){
+  const names = Object.keys(CONTAINERS)
+    .map(k => CONTAINERS[k].container)
+    .filter(n => keyOf(n) !== keyOf(currentContainer))
+    .sort((a, b) => a.localeCompare(b));
+  const select = $('transferDestContainer');
+  select.innerHTML = names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
+    || '<option value="">No other containers yet</option>';
+}
+
+function buildDestShowOptions(){
+  const select = $('transferDestShow');
+  if(!showsLoaded){
+    select.innerHTML = '<option value="">Loading shows…</option>';
+    fetchShows().then(buildDestShowOptions);
+    return;
+  }
+  if(!SHOWS.length){
+    select.innerHTML = '<option value="">No upcoming shows with a date set</option>';
+    return;
+  }
+  select.innerHTML = SHOWS.map(s => {
+    const label = `${formatDateForOption(s.eventDate)} — ${s.name}`;
+    return `<option value="${esc(s.name)}">${esc(label)}</option>`;
+  }).join('');
+}
+
+function onDestTypeChange(){
+  const type = document.querySelector('input[name="destType"]:checked').value;
+  $('transferDestContainerField').style.display = type === 'container' ? '' : 'none';
+  $('transferDestShowField').style.display = type === 'show' ? '' : 'none';
+}
+
+async function confirmTransfer(){
+  const l = itemLines.find(x => x.id === transferTargetLineId);
+  if(!l) return;
+  const st = $('transferStatus');
+  const qty = toQty($('transferQty').value);
+  if(!qty){ setStatus(st, 'Enter a quantity greater than 0.', 'err'); return; }
+  if(qty > Number(l.qty)){ setStatus(st, `Only ${l.qty} available to move.`, 'err'); return; }
+
+  const destType = document.querySelector('input[name="destType"]:checked').value;
+  let destinationName = '';
+  if(destType === 'container'){
+    destinationName = $('transferDestContainer').value;
+    if(!destinationName){ setStatus(st, 'Choose a destination container.', 'err'); return; }
+  } else if(destType === 'show'){
+    destinationName = $('transferDestShow').value;
+    if(!destinationName){ setStatus(st, 'Choose a show.', 'err'); return; }
+  }
+  const note = $('transferNote').value.trim();
+
+  setStatus(st, 'Saving current container first…');
+  const { errors, items } = collectForSave();
+  if(errors.length){ setStatus(st, 'Fix the item list first: ' + errors[0], 'err'); return; }
+  try{
+    await postJson({ recordType:'inventoryContainer', container: currentContainer, originalContainer: originalContainerName, items: items });
+  } catch(err){
+    setStatus(st, 'Could not save the container — check your connection and try again.', 'err');
+    return;
+  }
+
+  setStatus(st, destType === 'container' ? 'Transferring…' : destType === 'show' ? 'Recording pull…' : 'Removing…');
+  try{
+    await postJson({
+      recordType: 'inventoryTransfer', fromContainer: currentContainer, itemId: transferTargetLineId,
+      qty: qty, destinationType: destType, destinationName: destinationName, note: note
+    });
+  } catch(err){
+    setStatus(st, 'Could not complete that — check your connection and try again.', 'err');
+    return;
+  }
+
+  closeTransfer();
+  await loadInventory();
+  openContainer(currentContainer);
+  setStatus($('saveStatus'),
+    destType === 'container' ? `Moved ${qty} to ${destinationName} ✓` :
+    destType === 'show' ? `Pulled ${qty} for ${destinationName} ✓` : `Removed ${qty} ✓`,
+    'ok');
+  loadHistory();
+}
+
+function formatWhen(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) + ' ' +
+         d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+}
+
+async function loadHistory(){
+  const wrap = $('historyList');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=inventoryHistory`);
+    if(!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+    const rows = json.history || [];
+    if(!rows.length){
+      wrap.innerHTML = '<p class="hint" style="margin:0;">No transfers, pulls, or removals yet.</p>';
+      return;
+    }
+    wrap.innerHTML = rows.map(r => {
+      const badgeClass = r.type === 'Transfer' ? 'transfer' : r.type === 'Pull' ? 'pull' : 'remove';
+      const destLine = r.type === 'Transfer' ? `Moved to ${esc(r.destination)}` :
+                        r.type === 'Pull' ? `Pulled for ${esc(r.destination)}` : 'Removed from inventory';
+      return `
+        <div class="history-row">
+          <div class="h-top">
+            <span class="h-badge ${badgeClass}">${esc(r.type)}</span>
+            <span class="h-when">${esc(formatWhen(r.timestamp))}</span>
+          </div>
+          <div class="h-detail"><strong>${esc(r.qty)}×</strong> ${esc(r.item)} — from ${esc(r.from)} — ${destLine}</div>
+          ${r.note ? `<div class="h-note">${esc(r.note)}</div>` : ''}
+        </div>`;
+    }).join('');
+  } catch(err){
+    wrap.innerHTML = '<p class="hint" style="margin:0;">Could not load history — check your connection and try again.</p>';
+  }
+}
+loadHistory();
 
 /* ---------------- PDF export with signature section ---------------- */
 function containerSections(c){
