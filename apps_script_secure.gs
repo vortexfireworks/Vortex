@@ -136,6 +136,35 @@ function findInventoryRow(sheet, map, container) {
   return -1;
 }
 
+function getOrCreateInventoryHistorySheet(ss) {
+  const requiredHeaders = ['Timestamp', 'Type', 'FromContainer', 'Item', 'Quantity', 'Destination', 'Note'];
+  let sheet = ss.getSheetByName('InventoryHistory');
+  if (!sheet) {
+    sheet = ss.insertSheet('InventoryHistory');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
+function describeInventoryItem(item) {
+  const sizeLabels = {'2.5': '2-1/2"', '3': '3"', '4': '4"', '5': '5"', '6': '6"', '8': '8"'};
+  const unitLabels = {'boxes': 'boxes', 'shells': 'shells', 'pairs': 'pairs'};
+  const main = item.type === 'cake' ? 'Cake' : (sizeLabels[item.size] || item.size || 'Shell');
+  const bits = [main];
+  if (item.manufacturer) bits.push(item.manufacturer);
+  if (item.effects) bits.push(item.effects);
+  let label = bits.join(' — ');
+  if (item.type !== 'cake' && item.unit) label += ' (' + unitLabels[item.unit] + ')';
+  return label;
+}
+
 function getOrCreatePickListsSheet(ss) {
   const requiredHeaders = ['Name', 'EventDate', 'SiteMapUrl', 'SiteMapFileId', 'DataJson', 'UpdatedAt'];
   let sheet = ss.getSheetByName('PickLists');
@@ -470,6 +499,92 @@ function doPost(e) {
     return jsonOut({status: 'ok'});
   }
 
+  if (data.recordType === 'inventoryTransfer') {
+    const fromContainer = String(data.fromContainer || '').trim();
+    const itemId = String(data.itemId || '').trim();
+    const qtyToMove = Number(data.qty);
+    const destinationType = data.destinationType; // 'container' | 'show' | 'remove'
+    const destinationName = String(data.destinationName || '').trim();
+    const note = String(data.note || '').trim().slice(0, 300);
+
+    if (!fromContainer || !itemId) return jsonOut({status: 'error', message: 'Missing container or item'});
+    if (!qtyToMove || qtyToMove <= 0) return jsonOut({status: 'error', message: 'Enter a quantity greater than 0'});
+    if (destinationType === 'container' && !destinationName) return jsonOut({status: 'error', message: 'Choose a destination container'});
+    if (destinationType === 'show' && !destinationName) return jsonOut({status: 'error', message: 'Choose a show'});
+    if (destinationType === 'container' && destinationName.toLowerCase() === fromContainer.toLowerCase()) {
+      return jsonOut({status: 'error', message: 'Choose a different container to transfer to'});
+    }
+
+    const sheet = getOrCreateInventorySheet(ss);
+    const map = headerMap(sheet);
+    const fromRow = findInventoryRow(sheet, map, fromContainer);
+    if (fromRow < 0) return jsonOut({status: 'error', message: 'Source container not found — try reloading the page'});
+
+    let fromItems = [];
+    try { fromItems = JSON.parse(sheet.getRange(fromRow, map['ItemsJson'] + 1).getValue() || '[]'); } catch (err) { fromItems = []; }
+    const itemIndex = fromItems.findIndex(it => String(it.id) === itemId);
+    if (itemIndex < 0) return jsonOut({status: 'error', message: 'That item could not be found — try reloading the page'});
+    const item = fromItems[itemIndex];
+    const available = Number(item.qty) || 0;
+    if (qtyToMove > available) return jsonOut({status: 'error', message: 'Only ' + available + ' available to move'});
+
+    const itemDescription = describeInventoryItem(item);
+
+    // Update the source: reduce quantity, drop the line entirely once it hits zero.
+    if (qtyToMove >= available) {
+      fromItems.splice(itemIndex, 1);
+    } else {
+      fromItems[itemIndex] = Object.assign({}, item, { qty: available - qtyToMove });
+    }
+    sheet.getRange(fromRow, map['ItemsJson'] + 1).setValue(JSON.stringify(fromItems));
+    sheet.getRange(fromRow, map['UpdatedAt'] + 1).setValue(new Date());
+
+    let destinationLabel = '';
+    let historyType = '';
+
+    if (destinationType === 'container') {
+      historyType = 'Transfer';
+      destinationLabel = destinationName;
+      const destRow = findInventoryRow(sheet, map, destinationName);
+      let destItems = [];
+      if (destRow > 0) {
+        try { destItems = JSON.parse(sheet.getRange(destRow, map['ItemsJson'] + 1).getValue() || '[]'); } catch (err) { destItems = []; }
+      }
+      // Merge into a matching existing item if one exists, otherwise add it as a new line.
+      const matchIndex = destItems.findIndex(it =>
+        it.type === item.type && it.size === item.size && it.unit === item.unit &&
+        (it.manufacturer || '') === (item.manufacturer || '') && (it.effects || '') === (item.effects || '') &&
+        (it.sku || '') === (item.sku || '')
+      );
+      if (matchIndex > -1) {
+        destItems[matchIndex] = Object.assign({}, destItems[matchIndex], { qty: (Number(destItems[matchIndex].qty) || 0) + qtyToMove });
+      } else {
+        destItems.push(Object.assign({}, item, { id: Utilities.getUuid(), qty: qtyToMove }));
+      }
+      if (destRow > 0) {
+        sheet.getRange(destRow, map['ItemsJson'] + 1).setValue(JSON.stringify(destItems));
+        sheet.getRange(destRow, map['UpdatedAt'] + 1).setValue(new Date());
+      } else {
+        const newDestRow = ['', '', ''];
+        newDestRow[map['Container']] = destinationName;
+        newDestRow[map['ItemsJson']] = JSON.stringify(destItems);
+        newDestRow[map['UpdatedAt']] = new Date();
+        sheet.appendRow(newDestRow);
+      }
+    } else if (destinationType === 'show') {
+      historyType = 'Pull';
+      destinationLabel = destinationName;
+    } else {
+      historyType = 'Remove';
+      destinationLabel = 'Removed';
+    }
+
+    const historySheet = getOrCreateInventoryHistorySheet(ss);
+    historySheet.appendRow([new Date(), historyType, fromContainer, itemDescription, qtyToMove, destinationLabel, note]);
+
+    return jsonOut({status: 'ok', historyType: historyType});
+  }
+
   if (data.recordType === 'pickListRacksConfig') {
     const json = JSON.stringify(data.racksConfig && typeof data.racksConfig === 'object' ? data.racksConfig : {});
     if (json.length > 2000) return jsonOut({status: 'error', message: 'Rack settings are too large'});
@@ -727,6 +842,28 @@ function doGet(e) {
     }
     containers.sort((a, b) => a.container.localeCompare(b.container));
     return jsonOut({containers: containers});
+  }
+
+  if (e.parameter.type === 'inventoryHistory') {
+    const rows = [];
+    const sheet = ss.getSheetByName('InventoryHistory');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const ts = r[map['Timestamp']];
+        rows.push({
+          timestamp: ts instanceof Date ? ts.toISOString() : String(ts || ''),
+          type: String(r[map['Type']] || ''),
+          from: String(r[map['FromContainer']] || ''),
+          item: String(r[map['Item']] || ''),
+          qty: r[map['Quantity']],
+          destination: String(r[map['Destination']] || ''),
+          note: String(r[map['Note']] || '')
+        });
+      });
+    }
+    rows.reverse(); // newest first
+    return jsonOut({history: rows.slice(0, 300)}); // cap payload size
   }
 
   if (e.parameter.type === 'pickListSiteMapData') {
