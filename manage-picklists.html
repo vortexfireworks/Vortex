@@ -212,8 +212,13 @@ updateThemeToggleIcon();
   .add-line{margin-top:4px;}
   #saveStatus,#mapStatus,#racksConfigStatus{font-size:12.5px;}
   #mapPreview{display:block;max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);margin:12px 0 4px;background:#fff;}
-  .racks-box{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px dashed var(--line);border-radius:8px;}
-  .racks-val{font-size:24px;font-weight:800;color:var(--ink);}
+  .racks-box{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border:1px dashed var(--line);border-radius:8px;margin-bottom:8px;}
+  .racks-box:last-child{margin-bottom:0;}
+  .racks-box.total{border-style:solid;border-color:var(--navy);}
+  .racks-box .rb-label{font-size:13px;color:var(--ink);}
+  .racks-box.total .rb-label{font-weight:700;}
+  .racks-val{font-size:18px;font-weight:800;color:var(--ink);}
+  .racks-box.total .racks-val{font-size:22px;}
   .racks-val.muted{font-size:13px;font-weight:600;color:var(--ink-soft);}
 
   .rack-size-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;}
@@ -309,10 +314,8 @@ updateThemeToggleIcon();
 
       <div class="editor-box">
         <p class="label-title">RACKS</p>
-        <div class="racks-box">
-          <span class="hint" style="margin:0;">Worked out for you from the shells above. Cakes, finale, quint, and special don't need racks.</span>
-          <span class="racks-val" id="racksVal">—</span>
-        </div>
+        <p class="hint" style="margin:0 0 10px;">Worked out for you from the shells, finale, quint, and special above. Cakes don't need racks.</p>
+        <div id="racksList"></div>
         <p class="hint" id="racksNote"></p>
       </div>
 
@@ -504,10 +507,21 @@ function onOtherCount(field, value){
 function draftData(){ return PickList.normalizeData({ shells: shellLines, cakes: cakes, finale: finale, quint: quint, special: special, setup: [] }); }
 
 function updateRacksPreview(){
-  const el = $('racksVal'), note = $('racksNote');
+  const wrap = $('racksList'), note = $('racksNote');
   const r = PickList.computeRacks(draftData(), RACKS_CONFIG);
-  el.classList.remove('muted');
-  el.textContent = String(r.value);
+  if(!r.items.length){
+    wrap.innerHTML = '<p class="hint" style="margin:0;">Nothing needs a rack yet.</p>';
+  } else {
+    wrap.innerHTML = r.items.map(it => `
+      <div class="racks-box">
+        <span class="rb-label">${it.label}</span>
+        <span class="racks-val">${it.qty}</span>
+      </div>`).join('') + `
+      <div class="racks-box total">
+        <span class="rb-label">Total racks</span>
+        <span class="racks-val">${r.total}</span>
+      </div>`;
+  }
   if(r.state === 'partial'){
     note.textContent = `Not counting boxes of ${r.unknownSizes.join(', ')} yet — fill in shells/box for ${r.unknownSizes.length > 1 ? 'those sizes' : 'that size'} below.`;
   } else {
