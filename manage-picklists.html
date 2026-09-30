@@ -274,6 +274,18 @@ updateThemeToggleIcon();
     <div id="editorArea" style="display:none;">
 
       <div class="editor-box">
+        <p class="label-title">COPY FROM ANOTHER SHOW</p>
+        <p class="hint" style="margin:0 0 10px;">If this show is the same as one you've already built, copy everything below into it and just tweak what's different. The site map is never copied, since that's specific to the venue.</p>
+        <div class="field" style="margin-bottom:0;">
+          <select id="copyFromSelect"><option value="">Choose a show to copy from…</option></select>
+        </div>
+        <div class="save-row" style="margin-top:10px;">
+          <button type="button" class="secondary" onclick="copyFromShow()">Copy into this show</button>
+          <span id="copyStatus" class="hint"></span>
+        </div>
+      </div>
+
+      <div class="editor-box">
         <p class="label-title">SITE MAP</p>
         <input type="file" id="mapFile" accept="image/*" onchange="onMapSelected(event)">
         <div id="mapPreviewWrap" style="display:none;">
@@ -439,32 +451,66 @@ function onShowChange(){
 const blankShell = () => ({ id: PickList.newId(), size: '', qty: '', unit: 'boxes' });
 const blankSetup = () => ({ id: PickList.newId(), title: '', qty: '' });
 
+// keepIds: true when loading a show's own saved data (so re-saving without changes
+// is a no-op); false when copying from a different show, so the copied lines get
+// their own fresh identity rather than sharing ids with the source show's data.
+function applyDataToForm(d, keepIds){
+  shellLines = d.shells.map(s => ({ id: keepIds ? s.id : PickList.newId(), size: s.size, qty: String(s.qty), unit: s.unit }));
+  setupLines = d.setup.map(s => ({ id: keepIds ? s.id : PickList.newId(), title: s.title, qty: s.qty == null ? '' : String(s.qty) }));
+  cakes = d.cakes ? String(d.cakes) : '';
+  finale = d.finale ? String(d.finale) : '';
+  quint = d.quint ? String(d.quint) : '';
+  special = d.special ? String(d.special) : '';
+  permanentQty = {};
+  PickList.PERMANENT_ITEMS.forEach(name => {
+    const k = PickList.permanentItemKey(name);
+    permanentQty[k] = d.permanent[k] ? String(d.permanent[k]) : '';
+  });
+  if(!shellLines.length) shellLines.push(blankShell());
+  if(!setupLines.length) setupLines.push(blankSetup());
+}
+
 function loadShowIntoForm(){
   dirty = false;
   if(currentShow){
     const L = LISTS[keyOf(currentShow.name)];
-    const d = PickList.normalizeData(L && L.data);
-    shellLines = d.shells.map(s => ({ id: s.id, size: s.size, qty: String(s.qty), unit: s.unit }));
-    setupLines = d.setup.map(s => ({ id: s.id, title: s.title, qty: s.qty == null ? '' : String(s.qty) }));
-    cakes = d.cakes ? String(d.cakes) : '';
-    finale = d.finale ? String(d.finale) : '';
-    quint = d.quint ? String(d.quint) : '';
-    special = d.special ? String(d.special) : '';
-    permanentQty = {};
-    PickList.PERMANENT_ITEMS.forEach(name => {
-      const k = PickList.permanentItemKey(name);
-      permanentQty[k] = d.permanent[k] ? String(d.permanent[k]) : '';
-    });
-    if(!shellLines.length) shellLines.push(blankShell());
-    if(!setupLines.length) setupLines.push(blankSetup());
+    applyDataToForm(PickList.normalizeData(L && L.data), true);
   }
   $('editorArea').style.display = currentShow ? 'block' : 'none';
   $('noShowMsg').style.display = currentShow ? 'none' : 'block';
   if(currentShow){
     renderLines();
+    buildCopyFromOptions();
     const L = LISTS[keyOf(currentShow.name)];
     showMap(L && L.siteMapUrl ? L.siteMapUrl : '');
   }
+}
+
+function buildCopyFromOptions(){
+  const sel = $('copyFromSelect');
+  const names = Object.keys(LISTS)
+    .map(k => LISTS[k].name)
+    .filter(n => keyOf(n) !== keyOf(currentShow.name))
+    .sort((a, b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">Choose a show to copy from…</option>' +
+    names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+}
+
+function copyFromShow(){
+  const sourceName = $('copyFromSelect').value;
+  const st = $('copyStatus');
+  if(!sourceName){ setStatus(st, 'Choose a show to copy from first.', 'err'); return; }
+  const hasExistingData = LISTS[keyOf(currentShow.name)] || shellLines.some(l => l.size || String(l.qty).trim()) ||
+    setupLines.some(l => l.title.trim()) || cakes || finale || quint || special ||
+    Object.values(permanentQty).some(v => String(v).trim());
+  if(hasExistingData && !confirm(`Copy "${sourceName}" into "${currentShow.name}"? This will replace the shells, cakes, finale/quint/special, permanent items, and setup items currently entered for this show. The site map won't be touched.`)){
+    return;
+  }
+  const source = LISTS[keyOf(sourceName)];
+  applyDataToForm(PickList.normalizeData(source && source.data), false);
+  touch();
+  renderLines();
+  setStatus(st, `Copied from ${sourceName} — review below, then Save pick list.`, 'ok');
 }
 
 function renderLines(){
