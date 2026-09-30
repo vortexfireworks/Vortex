@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Firework Selection — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], select{
+    font-size:14px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:6px; background:var(--surface-55); color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus, select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  .editor-box{
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .back-link{
+    display:block; max-width:680px; margin:16px auto 0; padding:0 16px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  @media (max-width:480px){ .row2{grid-template-columns:1fr;} }
+
+  #saveStatus, #searchStatus{font-size:12.5px;}
+  .status.ok{color:var(--ok);}
+  .status.err{color:var(--brick);}
+
+  .product-row{
+    padding:12px 0;border-bottom:1px solid var(--line);font-size:13px;
+  }
+  .product-row:last-child{border-bottom:none;}
+  .product-row .p-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .product-row .p-name{font-weight:700;color:var(--ink);}
+  .product-row .p-size{font-size:11.5px;color:var(--kicker);font-weight:700;}
+  .product-row .p-detail{margin-top:3px;color:var(--ink-soft);font-size:12px;}
+  .product-row .p-sku{margin-top:2px;color:var(--ink-soft);font-size:11.5px;font-family:monospace;}
+  .product-row .p-actions{display:flex;gap:8px;margin-top:8px;}
+  .product-row .p-actions button{font-size:12px;padding:5px 10px;}
+  .product-row .p-actions button.danger{color:var(--brick);border-color:var(--brick);}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Manage Firework Selection</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Keep a master list of products — shells and cakes — with their SKU and effects. Once a product is listed here, you can pick it by name in Manage Inventory instead of retyping the manufacturer, effects, and SKU every time — or just type those in by hand as usual.</p>
+
+    <div class="editor-box">
+      <p class="label-title" id="formTitle">ADD / UPDATE PRODUCT</p>
+
+      <div class="field">
+        <label for="nameInput">Product name</label>
+        <input type="text" id="nameInput" list="productDirectoryList" oninput="onNameInput(this.value)" placeholder="e.g. BC Gold Willow 3&quot;" autocomplete="off">
+        <datalist id="productDirectoryList"></datalist>
+        <p class="hint">This is how you'll find it later — in this list and in Manage Inventory.</p>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label for="typeSelect">Type</label>
+          <select id="typeSelect" onchange="onTypeChange()">
+            <option value="shell">Shell</option>
+            <option value="cake">Cake</option>
+          </select>
+        </div>
+        <div class="field" id="sizeField">
+          <label for="sizeSelect">Size</label>
+          <select id="sizeSelect">
+            <option value="">Size…</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="manufacturerInput">Manufacturer</label>
+        <input type="text" id="manufacturerInput" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="effectsInput">Effects</label>
+        <input type="text" id="effectsInput" placeholder="e.g. gold willow, crackle finale" autocomplete="off">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label for="skuInput">SKU</label>
+        <input type="text" id="skuInput" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
+      </div>
+
+      <div class="save-row">
+        <button type="button" class="primary" onclick="saveProduct()">Save product</button>
+        <button type="button" class="secondary" id="cancelEditBtn" onclick="resetForm()" style="display:none;">Cancel edit</button>
+        <span id="saveStatus"></span>
+      </div>
+    </div>
+
+    <div class="editor-box" style="margin-bottom:0;">
+      <p class="label-title">CURRENT PRODUCTS</p>
+      <div class="field" style="margin-bottom:14px;">
+        <input type="text" id="searchInput" placeholder="Search by name…" oninput="renderProductList()">
+      </div>
+      <div id="productList"><p class="hint" style="margin:0;">Loading…</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+const SIZES = [
+  { value:'2.5', label:'2-1/2"' }, { value:'3', label:'3"' }, { value:'4', label:'4"' },
+  { value:'5', label:'5"' }, { value:'6', label:'6"' }, { value:'8', label:'8"' }
+];
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function keyOf(name){ return String(name || '').trim().toLowerCase(); }
+function setStatus(el, msg, kind){
+  el.textContent = msg || '';
+  el.className = kind ? 'status ' + kind : 'status';
+}
+function sizeLabel(v){ const s = SIZES.find(x => x.value === String(v)); return s ? s.label : String(v || ''); }
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error'){
+    throw new Error((data && data.message) || 'Request failed');
+  }
+  return data;
+}
+
+let PRODUCTS = {};        // keyed by lowercase name -> product object
+let originalProductName = null;   // set while editing an existing product, for rename-in-place
+
+$('sizeSelect').innerHTML =
+  '<option value="">Size…</option>' + SIZES.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
+
+function onTypeChange(){
+  $('sizeField').style.display = $('typeSelect').value === 'cake' ? 'none' : '';
+}
+
+async function fetchProducts(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=fireworkProducts`);
+    if(!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+    PRODUCTS = {};
+    (json.products || []).forEach(p => { PRODUCTS[keyOf(p.name)] = p; });
+  } catch(err){
+    PRODUCTS = {};
+  }
+  buildDatalist();
+  renderProductList();
+}
+
+function buildDatalist(){
+  const names = Object.values(PRODUCTS).map(p => p.name).sort((a, b) => a.localeCompare(b));
+  $('productDirectoryList').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+}
+
+function onNameInput(value){
+  const match = PRODUCTS[keyOf(value)];
+  if(match && keyOf(value) !== keyOf(originalProductName)){
+    loadIntoEditor(match.name, /*fromTypeAhead*/true);
+  }
+}
+
+function resetForm(){
+  originalProductName = null;
+  $('nameInput').value = '';
+  $('typeSelect').value = 'shell';
+  $('sizeSelect').value = '';
+  $('manufacturerInput').value = '';
+  $('effectsInput').value = '';
+  $('skuInput').value = '';
+  onTypeChange();
+  $('formTitle').textContent = 'ADD / UPDATE PRODUCT';
+  $('cancelEditBtn').style.display = 'none';
+  setStatus($('saveStatus'), '');
+}
+
+function loadIntoEditor(name, fromTypeAhead){
+  const p = PRODUCTS[keyOf(name)];
+  if(!p) return;
+  originalProductName = p.name;
+  $('nameInput').value = p.name;
+  $('typeSelect').value = p.type === 'cake' ? 'cake' : 'shell';
+  $('sizeSelect').value = p.size || '';
+  $('manufacturerInput').value = p.manufacturer || '';
+  $('effectsInput').value = p.effects || '';
+  $('skuInput').value = p.sku || '';
+  onTypeChange();
+  $('formTitle').textContent = 'EDITING: ' + p.name;
+  $('cancelEditBtn').style.display = '';
+  setStatus($('saveStatus'), '');
+  if(!fromTypeAhead) $('nameInput').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+async function saveProduct(){
+  const st = $('saveStatus');
+  const name = $('nameInput').value.trim();
+  if(!name){ setStatus(st, 'Enter a product name first.', 'err'); return; }
+  const type = $('typeSelect').value;
+  const size = type === 'shell' ? $('sizeSelect').value : '';
+  if(type === 'shell' && !size){ setStatus(st, 'Choose a shell size.', 'err'); return; }
+  const manufacturer = $('manufacturerInput').value.trim();
+  const effects = $('effectsInput').value.trim();
+  const sku = $('skuInput').value.trim();
+
+  setStatus(st, 'Saving…');
+  try{
+    await postJson({ recordType:'fireworkProduct', name, originalName: originalProductName, type, size, manufacturer, effects, sku });
+    if(originalProductName && keyOf(originalProductName) !== keyOf(name)){
+      delete PRODUCTS[keyOf(originalProductName)];
+    }
+    PRODUCTS[keyOf(name)] = { name, type, size, manufacturer, effects, sku };
+    buildDatalist();
+    renderProductList();
+    setStatus(st, 'Saved ✓', 'ok');
+    resetForm();
+  } catch(err){
+    setStatus(st, 'Could not save — check your connection and try again.', 'err');
+  }
+}
+
+async function deleteProduct(name){
+  if(!confirm(`Delete "${name}" from the product list? This won't change any inventory already recorded with these details.`)) return;
+  try{
+    await postJson({ recordType:'deleteFireworkProduct', name });
+    delete PRODUCTS[keyOf(name)];
+    buildDatalist();
+    renderProductList();
+    if(keyOf(originalProductName) === keyOf(name)) resetForm();
+  } catch(err){
+    alert('Could not delete — check your connection and try again.');
+  }
+}
+
+function renderProductList(){
+  const wrap = $('productList');
+  const search = $('searchInput').value.trim().toLowerCase();
+  let products = Object.values(PRODUCTS).sort((a, b) => a.name.localeCompare(b.name));
+  if(search) products = products.filter(p => p.name.toLowerCase().includes(search));
+  if(!products.length){
+    wrap.innerHTML = '<p class="hint" style="margin:0;">No products yet — add one above.</p>';
+    return;
+  }
+  wrap.innerHTML = products.map(p => {
+    const main = p.type === 'cake' ? 'Cake' : sizeLabel(p.size);
+    const detailBits = [];
+    if(p.manufacturer) detailBits.push(esc(p.manufacturer));
+    if(p.effects) detailBits.push(esc(p.effects));
+    return `
+      <div class="product-row">
+        <div class="p-top">
+          <span class="p-name">${esc(p.name)}</span>
+          <span class="p-size">${esc(main)}</span>
+        </div>
+        ${detailBits.length ? `<div class="p-detail">${detailBits.join(' — ')}</div>` : ''}
+        ${p.sku ? `<div class="p-sku">SKU: ${esc(p.sku)}</div>` : ''}
+        <div class="p-actions">
+          <button type="button" class="secondary" onclick="loadIntoEditor('${esc(p.name).replace(/'/g,"\\'")}')">Edit</button>
+          <button type="button" class="secondary danger" onclick="deleteProduct('${esc(p.name).replace(/'/g,"\\'")}')">Delete</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+onTypeChange();
+fetchProducts();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

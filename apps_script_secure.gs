@@ -110,6 +110,32 @@ function jsonOut(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function getOrCreateFireworkProductsSheet(ss) {
+  const requiredHeaders = ['Name', 'Type', 'Size', 'Manufacturer', 'Effects', 'SKU'];
+  let sheet = ss.getSheetByName('FireworkProducts');
+  if (!sheet) {
+    sheet = ss.insertSheet('FireworkProducts');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
+function findFireworkProductRow(sheet, map, name) {
+  const rows = sheet.getDataRange().getValues();
+  const key = String(name || '').trim().toLowerCase();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][map['Name']]).trim().toLowerCase() === key) return i + 1;
+  }
+  return -1;
+}
+
 function getOrCreateInventorySheet(ss) {
   const requiredHeaders = ['Container', 'ItemsJson', 'UpdatedAt'];
   let sheet = ss.getSheetByName('Inventory');
@@ -466,6 +492,38 @@ function doPost(e) {
     return jsonOut({status: 'ok', siteMapUrl: newUrl});
   }
 
+  if (data.recordType === 'fireworkProduct') {
+    const name = String(data.name || '').trim();
+    if (!name) return jsonOut({status: 'error', message: 'Missing product name'});
+    const sheet = getOrCreateFireworkProductsSheet(ss);
+    const map = headerMap(sheet);
+    // originalName lets a rename update the same row instead of creating a duplicate, same as operators/venues.
+    const row = findFireworkProductRow(sheet, map, data.originalName || name);
+    const newRow = ['', '', '', '', '', ''];
+    newRow[map['Name']] = name;
+    newRow[map['Type']] = data.type === 'cake' ? 'cake' : 'shell';
+    newRow[map['Size']] = data.type === 'cake' ? '' : (data.size || '');
+    newRow[map['Manufacturer']] = data.manufacturer || '';
+    newRow[map['Effects']] = data.effects || '';
+    newRow[map['SKU']] = data.sku || '';
+    if (row > 0) {
+      sheet.getRange(row, 1, 1, newRow.length).setValues([newRow]);
+    } else {
+      sheet.appendRow(newRow);
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'deleteFireworkProduct') {
+    const sheet = ss.getSheetByName('FireworkProducts');
+    if (sheet) {
+      const map = headerMap(sheet);
+      const row = findFireworkProductRow(sheet, map, data.name);
+      if (row > 0) sheet.deleteRow(row);
+    }
+    return jsonOut({status: 'ok'});
+  }
+
   if (data.recordType === 'inventoryContainer') {
     const container = String(data.container || '').trim();
     if (!container) return jsonOut({status: 'error', message: 'Missing container name'});
@@ -820,6 +878,28 @@ function doGet(e) {
     let racksConfig = {};
     try { racksConfig = JSON.parse(getPickListSetting(ss, 'racksConfig') || '{}'); } catch (err) { racksConfig = {}; }
     return jsonOut({racksConfig: racksConfig, lists: lists});
+  }
+
+  if (e.parameter.type === 'fireworkProducts') {
+    const products = [];
+    const sheet = ss.getSheetByName('FireworkProducts');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const name = String(r[map['Name']] || '').trim();
+        if (!name) return;
+        products.push({
+          name: name,
+          type: r[map['Type']] === 'cake' ? 'cake' : 'shell',
+          size: String(r[map['Size']] || ''),
+          manufacturer: String(r[map['Manufacturer']] || ''),
+          effects: String(r[map['Effects']] || ''),
+          sku: String(r[map['SKU']] || '')
+        });
+      });
+    }
+    products.sort((a, b) => a.name.localeCompare(b.name));
+    return jsonOut({products: products});
   }
 
   if (e.parameter.type === 'inventory') {
