@@ -352,6 +352,11 @@ function buildSections(){
     if(racks.state === 'partial') rows.push({ id: 'racks-note', main: 'Racks', note: `not counting ${racks.unknownSizes.join(', ')} boxes yet` });
     sections.push({ title: 'Racks', rows: rows });
   }
+  sections.push({ title: 'Permanent items', rows: PickList.PERMANENT_ITEMS.map(name => {
+    const k = PickList.permanentItemKey(name);
+    const qty = data.permanent[k];
+    return { id: 'perm-' + k, main: name, qty: qty == null ? '' : String(qty) };
+  }) });
   if(data.setup.length){
     sections.push({ title: 'Setup items', rows: data.setup.map(s => ({
       id: s.id, main: s.title, qty: s.qty == null ? '' : String(s.qty) })) });

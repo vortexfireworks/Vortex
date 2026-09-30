@@ -227,6 +227,11 @@ updateThemeToggleIcon();
   .rack-size-row .rs-field{flex:1 1 130px;display:flex;flex-direction:column;gap:3px;}
   .rack-size-row .rs-field label{font-size:10.5px;}
 
+  .perm-item-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);}
+  .perm-item-row:last-child{border-bottom:none;}
+  .perm-item-row .pi-label{font-size:13.5px;color:var(--ink);}
+  .perm-item-row input{width:76px;flex:0 0 auto;text-align:center;}
+
   /* Phone layout for the editor lines: each line is a tidy two-row group */
   @media (max-width:600px){
     .line{padding-bottom:12px;margin-bottom:12px;border-bottom:1px dashed var(--line);}
@@ -320,6 +325,12 @@ updateThemeToggleIcon();
       </div>
 
       <div class="editor-box">
+        <p class="label-title">PERMANENT ITEMS</p>
+        <p class="hint" style="margin:0 0 10px;">Used on every show. Just fill in a quantity — nothing here can be renamed or removed.</p>
+        <div id="permanentItems"></div>
+      </div>
+
+      <div class="editor-box">
         <p class="label-title">SETUP ITEMS</p>
         <div id="setupLines"></div>
         <button type="button" class="secondary add-line" onclick="addSetupLine()">+ Add setup item</button>
@@ -372,6 +383,7 @@ let LISTS = {};          // saved pick lists, keyed by lower-case show name
 let RACKS_CONFIG = {};   // the saved rack settings: { capacity: {...}, shellsPerBox: {...} }
 let currentShow = null;
 let shellLines = [], setupLines = [], cakes = '', finale = '', quint = '', special = '';
+let permanentQty = {};   // keyed by PickList.permanentItemKey(name) -> quantity string
 let dirty = false;
 let pendingMap = null;   // a resized image waiting to be uploaded
 
@@ -438,6 +450,11 @@ function loadShowIntoForm(){
     finale = d.finale ? String(d.finale) : '';
     quint = d.quint ? String(d.quint) : '';
     special = d.special ? String(d.special) : '';
+    permanentQty = {};
+    PickList.PERMANENT_ITEMS.forEach(name => {
+      const k = PickList.permanentItemKey(name);
+      permanentQty[k] = d.permanent[k] ? String(d.permanent[k]) : '';
+    });
     if(!shellLines.length) shellLines.push(blankShell());
     if(!setupLines.length) setupLines.push(blankSetup());
   }
@@ -457,8 +474,21 @@ function renderLines(){
   $('finaleInput').value = finale;
   $('quintInput').value = quint;
   $('specialInput').value = special;
+  renderPermanentItems();
   updateRacksPreview();
 }
+
+function renderPermanentItems(){
+  $('permanentItems').innerHTML = PickList.PERMANENT_ITEMS.map(name => {
+    const k = PickList.permanentItemKey(name);
+    return `
+      <div class="perm-item-row">
+        <span class="pi-label">${name}</span>
+        <input type="number" inputmode="numeric" min="0" step="1" placeholder="0" value="${permanentQty[k] || ''}" oninput="onPermanentQty('${k}',this.value)">
+      </div>`;
+  }).join('');
+}
+function onPermanentQty(key, value){ permanentQty[key] = value; touch(); }
 
 function shellRow(l){
   return `<div class="line">
@@ -588,7 +618,12 @@ function collectForSave(){
     if(!title) errors.push(`Setup item ${i + 1} needs a name.`);
     else setup.push({ id: l.id, title: title, qty: PickList.toQty(l.qty) });
   });
-  return { errors, data: { shells: shells, cakes: PickList.toQty(cakes), finale: PickList.toQty(finale), quint: PickList.toQty(quint), special: PickList.toQty(special), setup: setup } };
+  const permanent = {};
+  PickList.PERMANENT_ITEMS.forEach(name => {
+    const k = PickList.permanentItemKey(name);
+    permanent[k] = PickList.toQty(permanentQty[k]);
+  });
+  return { errors, data: { shells: shells, cakes: PickList.toQty(cakes), finale: PickList.toQty(finale), quint: PickList.toQty(quint), special: PickList.toQty(special), permanent: permanent, setup: setup } };
 }
 
 async function savePickList(){
@@ -614,6 +649,11 @@ async function savePickList(){
     finale = d.finale ? String(d.finale) : '';
     quint = d.quint ? String(d.quint) : '';
     special = d.special ? String(d.special) : '';
+    permanentQty = {};
+    PickList.PERMANENT_ITEMS.forEach(name => {
+      const k = PickList.permanentItemKey(name);
+      permanentQty[k] = d.permanent[k] ? String(d.permanent[k]) : '';
+    });
     if(!shellLines.length) shellLines.push(blankShell());
     if(!setupLines.length) setupLines.push(blankSetup());
     renderLines();

@@ -1,7 +1,6 @@
 /* Shared pick-list logic used by Manage Pick Lists and Pick Lists.
-   Nothing in here runs typed text as code: the racks formula is parsed by a small
-   arithmetic parser that only understands numbers, + - * /, parentheses, a short
-   list of functions, and named variables. */
+   Racks are worked out from a per-size shells-per-rack table (see DEFAULT_RACK_CAPACITY
+   below), not from any typed-in formula — there's no arithmetic parser here. */
 (function (root) {
   'use strict';
 
@@ -19,6 +18,20 @@
     { value: 'shells', label: 'Shells', one: 'shell', many: 'shells' },
     { value: 'pairs',  label: 'Pairs',  one: 'pair',  many: 'pairs'  }
   ];
+
+  /* Gear used on every show. Fixed names (not addable/removable in the UI) — only
+     the quantity next to each one is meant to change per show. Kept in this exact
+     order (alphabetical, with cable lengths sorted shortest to longest). */
+  var PERMANENT_ITEMS = [
+    "Batteries", "Bern Box", "Boards", "Cables 15'", "Cables 25'", "Cables 50'", "Cables 100'",
+    "Canopy", "Chairs", "Clock", "E-match", "Fire Extinguisher", "Garbage Bags",
+    "HOLOTRON Receiver", "HOLOTRON Remote", "Leaners", "Music Kit", "Pinboard",
+    "Pinboard Controller", "Plastics", "Pokers", "Probes", "Radios", "Rakes",
+    "Rubber Bands", "Shooting Table"
+  ];
+  function permanentItemKey(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
 
   function sizeByValue(v) {
     for (var i = 0; i < SIZES.length; i++) if (SIZES[i].value === String(v)) return SIZES[i];
@@ -68,7 +81,12 @@
     var finale = toQty(raw.finale);
     var quint = toQty(raw.quint);
     var special = toQty(raw.special);
-    return { shells: shells, cakes: cakes, finale: finale, quint: quint, special: special, setup: setup };
+    var rawPermanent = (raw.permanent && typeof raw.permanent === 'object') ? raw.permanent : {};
+    var permanent = {};
+    PERMANENT_ITEMS.forEach(function (name) {
+      permanent[permanentItemKey(name)] = toQty(rawPermanent[permanentItemKey(name)]);
+    });
+    return { shells: shells, cakes: cakes, finale: finale, quint: quint, special: special, permanent: permanent, setup: setup };
   }
 
   /* Every number a racks formula is allowed to use. Missing things count as 0. */
@@ -160,7 +178,7 @@
   }
 
   var api = {
-    SIZES: SIZES, UNITS: UNITS,
+    SIZES: SIZES, UNITS: UNITS, PERMANENT_ITEMS: PERMANENT_ITEMS, permanentItemKey: permanentItemKey,
     sizeByValue: sizeByValue, unitByValue: unitByValue, sizeLabel: sizeLabel, unitText: unitText,
     newId: newId, toQty: toQty, normalizeData: normalizeData, buildVariables: buildVariables,
     DEFAULT_RACK_CAPACITY: DEFAULT_RACK_CAPACITY, normalizeRacksConfig: normalizeRacksConfig, computeRacks: computeRacks,
