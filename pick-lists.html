@@ -462,6 +462,16 @@ async function buildPDF(){
   let y = M;
   const ensure = (need) => { if(y + need > H - M - FOOT){ doc.addPage(); y = M; } };
 
+  // Fetched up front and placed right after the title — on long pick lists (lots of
+  // permanent items, say) the map would otherwise end up buried several pages in.
+  let mapSkipped = false;
+  let mapDataUrl = '', mapSize = null;
+  if(current.siteMapUrl){
+    mapDataUrl = await getMapDataUrl(current.name);
+    mapSize = mapDataUrl ? await loadImageSize(mapDataUrl) : null;
+    if(!mapSize) mapSkipped = true;
+  }
+
   doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(217, 90, 20);
   doc.text('PICK LIST', M, y + 9); y += 22;
   doc.setFontSize(22); doc.setTextColor(20);
@@ -472,6 +482,18 @@ async function buildPDF(){
     doc.text(dateLong, M, y + 10); y += 24;
   }
   doc.setDrawColor(255, 140, 0); doc.setLineWidth(2); doc.line(M, y, W - M, y); y += 6;
+
+  if(mapSize){
+    y += 16;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(90);
+    doc.text('SITE MAP', M, y + 10); y += 18;
+    const maxW = W - 2 * M, maxH = 300;   // capped height so the checklist still starts on this same page when it fits
+    const scale = Math.min(maxW / mapSize.w, maxH / mapSize.h, 1);
+    const w = mapSize.w * scale, h = mapSize.h * scale;
+    doc.addImage(mapDataUrl, /^data:image\/png/.test(mapDataUrl) ? 'PNG' : 'JPEG', M + (maxW - w) / 2, y, w, h);
+    y += h + 16;
+    doc.setDrawColor(200); doc.setLineWidth(0.5); doc.line(M, y, W - M, y); y += 6;
+  }
 
   buildSections().forEach(sec => {
     ensure(60);
@@ -502,23 +524,6 @@ async function buildPDF(){
       y += h;
     });
   });
-
-  let mapSkipped = false;
-  if(current.siteMapUrl){
-    const dataUrl = await getMapDataUrl(current.name);
-    const size = dataUrl ? await loadImageSize(dataUrl) : null;
-    if(size){
-      doc.addPage(); y = M;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(90);
-      doc.text('SITE MAP', M, y + 10); y += 22;
-      const maxW = W - 2 * M, maxH = H - y - M - FOOT;
-      const scale = Math.min(maxW / size.w, maxH / size.h);
-      const w = size.w * scale, h = size.h * scale;
-      doc.addImage(dataUrl, /^data:image\/png/.test(dataUrl) ? 'PNG' : 'JPEG', M + (maxW - w) / 2, y, w, h);
-    } else {
-      mapSkipped = true;
-    }
-  }
 
   const pages = doc.getNumberOfPages();
   for(let i = 1; i <= pages; i++){
