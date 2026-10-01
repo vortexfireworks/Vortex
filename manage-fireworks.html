@@ -165,10 +165,44 @@ updateThemeToggleIcon();
   .product-row .p-actions{display:flex;gap:8px;margin-top:8px;}
   .product-row .p-actions button{font-size:12px;padding:5px 10px;}
   .product-row .p-actions button.danger{color:var(--brick);border-color:var(--brick);}
+
+  #viewAssortmentModal{
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(0,0,0,0.7); align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  }
+  #viewAssortmentModal .box{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px;
+    padding:20px; max-width:420px; width:100%; margin:auto;
+  }
+  #viewAssortmentModal h3{margin:0 0 4px;font-size:17px;color:var(--ink);}
+  .va-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    padding:9px 0; border-bottom:1px solid var(--line); font-size:13.5px;
+  }
+  .va-row:last-child{border-bottom:none;}
+  .va-row .va-effect{color:var(--ink);}
+  .va-row .va-qty{color:var(--navy);font-weight:700;flex-shrink:0;}
+  .va-total{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top:12px; padding-top:12px; border-top:2px solid var(--line);
+    font-size:14px; font-weight:700; color:var(--ink);
+  }
 </style>
 </head>
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<div id="viewAssortmentModal">
+  <div class="box">
+    <h3 id="viewAssortName"></h3>
+    <p class="hint" id="viewAssortMeta" style="margin:2px 0 16px;"></p>
+    <div id="viewAssortRows"></div>
+    <div class="va-total" id="viewAssortTotal"></div>
+    <div class="save-row" style="margin-top:16px;">
+      <button type="button" class="secondary" onclick="closeAssortmentView()">Close</button>
+    </div>
+  </div>
+</div>
 
 <a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
 
@@ -456,6 +490,29 @@ async function deleteProduct(name){
   }
 }
 
+function viewAssortment(name){
+  const p = PRODUCTS[keyOf(name)];
+  if(!p || !Array.isArray(p.assortment)) return;
+  $('viewAssortName').textContent = p.name;
+  const metaBits = [];
+  if(p.manufacturer) metaBits.push(p.manufacturer);
+  if(p.type !== 'cake' && p.size) metaBits.push(sizeLabel(p.size));
+  if(p.sku) metaBits.push('SKU: ' + p.sku);
+  $('viewAssortMeta').textContent = metaBits.join(' — ');
+  const rows = [...p.assortment].sort((a, b) => b.qty - a.qty);   // largest quantity first, easiest to scan
+  $('viewAssortRows').innerHTML = rows.map(a => `
+    <div class="va-row">
+      <span class="va-effect">${esc(a.effect)}</span>
+      <span class="va-qty">${esc(a.qty)}</span>
+    </div>`).join('');
+  const total = rows.reduce((sum, a) => sum + (Number(a.qty) || 0), 0);
+  $('viewAssortTotal').innerHTML = `<span>Total</span><span>${total} shells</span>`;
+  $('viewAssortmentModal').style.display = 'flex';
+}
+function closeAssortmentView(){
+  $('viewAssortmentModal').style.display = 'none';
+}
+
 function renderProductList(){
   const wrap = $('productList');
   const search = $('searchInput').value.trim().toLowerCase();
@@ -478,7 +535,13 @@ function renderProductList(){
     const main = p.type === 'cake' ? 'Cake' : sizeLabel(p.size);
     const detailBits = [];
     if(p.manufacturer) detailBits.push(esc(p.manufacturer));
-    if(p.effects) detailBits.push(esc(p.effects));
+    if(p.isAssortment && Array.isArray(p.assortment)){
+      const total = p.assortment.reduce((sum, a) => sum + (Number(a.qty) || 0), 0);
+      detailBits.push(`${p.assortment.length} effect${p.assortment.length===1?'':'s'}, ${total} shell${total===1?'':'s'} total`);
+    } else if(p.effects){
+      detailBits.push(esc(p.effects));
+    }
+    const nameAttr = esc(p.name).replace(/'/g,"\\'");
     return `
       <div class="product-row">
         <div class="p-top">
@@ -488,8 +551,9 @@ function renderProductList(){
         ${detailBits.length ? `<div class="p-detail">${detailBits.join(' — ')}</div>` : ''}
         ${p.sku ? `<div class="p-sku">SKU: ${esc(p.sku)}</div>` : ''}
         <div class="p-actions">
-          <button type="button" class="secondary" onclick="loadIntoEditor('${esc(p.name).replace(/'/g,"\\'")}')">Edit</button>
-          <button type="button" class="secondary danger" onclick="deleteProduct('${esc(p.name).replace(/'/g,"\\'")}')">Delete</button>
+          ${p.isAssortment ? `<button type="button" class="secondary" onclick="viewAssortment('${nameAttr}')">View contents</button>` : ''}
+          <button type="button" class="secondary" onclick="loadIntoEditor('${nameAttr}')">Edit</button>
+          <button type="button" class="secondary danger" onclick="deleteProduct('${nameAttr}')">Delete</button>
         </div>
       </div>`;
   }).join('');
