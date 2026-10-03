@@ -110,6 +110,66 @@ function jsonOut(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+function getOrCreateShellProductsSheet(ss) {
+  const requiredHeaders = ['Id', 'Size', 'Manufacturer', 'IsAssortment', 'AssortmentNumber', 'Colors', 'Effect', 'ItemNumber', 'SKU'];
+  let sheet = ss.getSheetByName('ShellProducts');
+  if (!sheet) {
+    sheet = ss.insertSheet('ShellProducts');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
+function getOrCreateCakeProductsSheet(ss) {
+  const requiredHeaders = ['Id', 'Manufacturer', 'Name', 'ShotCount', 'Gram', 'Effects', 'Colors'];
+  let sheet = ss.getSheetByName('CakeProducts');
+  if (!sheet) {
+    sheet = ss.insertSheet('CakeProducts');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
+function getOrCreateShowPlansSheet(ss) {
+  const requiredHeaders = ['Name', 'ItemsJson', 'UpdatedAt'];
+  let sheet = ss.getSheetByName('ShowPlans');
+  if (!sheet) {
+    sheet = ss.insertSheet('ShowPlans');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
+function findShowPlanRow(sheet, map, name) {
+  const rows = sheet.getDataRange().getValues();
+  const key = String(name || '').trim().toLowerCase();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][map['Name']]).trim().toLowerCase() === key) return i + 1;
+  }
+  return -1;
+}
+
 function getOrCreateFireworkProductsSheet(ss) {
   const requiredHeaders = ['Name', 'Type', 'Size', 'Manufacturer', 'Effects', 'SKU', 'IsAssortment', 'AssortmentJson'];
   let sheet = ss.getSheetByName('FireworkProducts');
@@ -490,6 +550,106 @@ function doPost(e) {
       try { DriveApp.getFileById(oldId).setTrashed(true); } catch (err) { /* already gone */ }
     }
     return jsonOut({status: 'ok', siteMapUrl: newUrl});
+  }
+
+  if (data.recordType === 'shellProductsImport') {
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    if (!rows.length) return jsonOut({status: 'error', message: 'No rows to import'});
+    if (rows.length > 3000) return jsonOut({status: 'error', message: 'That CSV has too many rows to import at once (max 3000)'});
+    const sheet = getOrCreateShellProductsSheet(ss);
+    const map = headerMap(sheet);
+    const bulk = rows.map(r => {
+      const row = new Array(Object.keys(map).length).fill('');
+      row[map['Id']] = Utilities.getUuid();
+      row[map['Size']] = String(r.size || '');
+      row[map['Manufacturer']] = String(r.manufacturer || '');
+      row[map['IsAssortment']] = r.isAssortment ? 'Yes' : 'No';
+      row[map['AssortmentNumber']] = String(r.assortmentNumber || '');
+      row[map['Colors']] = String(r.colors || '');
+      row[map['Effect']] = String(r.effect || '');
+      row[map['ItemNumber']] = String(r.itemNumber || '');
+      row[map['SKU']] = String(r.sku || '');
+      return row;
+    });
+    sheet.getRange(sheet.getLastRow() + 1, 1, bulk.length, bulk[0].length).setValues(bulk);
+    return jsonOut({status: 'ok', imported: bulk.length});
+  }
+
+  if (data.recordType === 'cakeProductsImport') {
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    if (!rows.length) return jsonOut({status: 'error', message: 'No rows to import'});
+    if (rows.length > 3000) return jsonOut({status: 'error', message: 'That CSV has too many rows to import at once (max 3000)'});
+    const sheet = getOrCreateCakeProductsSheet(ss);
+    const map = headerMap(sheet);
+    const bulk = rows.map(r => {
+      const row = new Array(Object.keys(map).length).fill('');
+      row[map['Id']] = Utilities.getUuid();
+      row[map['Manufacturer']] = String(r.manufacturer || '');
+      row[map['Name']] = String(r.name || '');
+      row[map['ShotCount']] = String(r.shotCount || '');
+      row[map['Gram']] = String(r.gram || '');
+      row[map['Effects']] = String(r.effects || '');
+      row[map['Colors']] = String(r.colors || '');
+      return row;
+    });
+    sheet.getRange(sheet.getLastRow() + 1, 1, bulk.length, bulk[0].length).setValues(bulk);
+    return jsonOut({status: 'ok', imported: bulk.length});
+  }
+
+  if (data.recordType === 'deleteShellProduct') {
+    const sheet = ss.getSheetByName('ShellProducts');
+    if (sheet) {
+      const map = headerMap(sheet);
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][map['Id']]) === String(data.id)) { sheet.deleteRow(i + 1); break; }
+      }
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'deleteCakeProduct') {
+    const sheet = ss.getSheetByName('CakeProducts');
+    if (sheet) {
+      const map = headerMap(sheet);
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][map['Id']]) === String(data.id)) { sheet.deleteRow(i + 1); break; }
+      }
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'showPlan') {
+    const name = String(data.name || '').trim();
+    if (!name) return jsonOut({status: 'error', message: 'Missing plan name'});
+    const itemsJson = JSON.stringify(Array.isArray(data.items) ? data.items : []);
+    if (itemsJson.length > 200000) return jsonOut({status: 'error', message: 'That plan is too large to save at once'});
+    const sheet = getOrCreateShowPlansSheet(ss);
+    const map = headerMap(sheet);
+    const row = findShowPlanRow(sheet, map, data.originalName || name);
+    if (row > 0) {
+      sheet.getRange(row, map['Name'] + 1).setValue(name);
+      sheet.getRange(row, map['ItemsJson'] + 1).setValue(itemsJson);
+      sheet.getRange(row, map['UpdatedAt'] + 1).setValue(new Date());
+    } else {
+      const newRow = ['', '', ''];
+      newRow[map['Name']] = name;
+      newRow[map['ItemsJson']] = itemsJson;
+      newRow[map['UpdatedAt']] = new Date();
+      sheet.appendRow(newRow);
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'deleteShowPlan') {
+    const sheet = ss.getSheetByName('ShowPlans');
+    if (sheet) {
+      const map = headerMap(sheet);
+      const row = findShowPlanRow(sheet, map, data.name);
+      if (row > 0) sheet.deleteRow(row);
+    }
+    return jsonOut({status: 'ok'});
   }
 
   if (data.recordType === 'fireworkProduct') {
@@ -899,6 +1059,74 @@ function doGet(e) {
     let racksConfig = {};
     try { racksConfig = JSON.parse(getPickListSetting(ss, 'racksConfig') || '{}'); } catch (err) { racksConfig = {}; }
     return jsonOut({racksConfig: racksConfig, lists: lists});
+  }
+
+  if (e.parameter.type === 'shellProducts') {
+    const products = [];
+    const sheet = ss.getSheetByName('ShellProducts');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const id = String(r[map['Id']] || '').trim();
+        if (!id) return;
+        products.push({
+          id: id,
+          size: String(r[map['Size']] || ''),
+          manufacturer: String(r[map['Manufacturer']] || ''),
+          isAssortment: r[map['IsAssortment']] === 'Yes',
+          assortmentNumber: String(r[map['AssortmentNumber']] || ''),
+          colors: String(r[map['Colors']] || ''),
+          effect: String(r[map['Effect']] || ''),
+          itemNumber: String(r[map['ItemNumber']] || ''),
+          sku: String(r[map['SKU']] || '')
+        });
+      });
+    }
+    return jsonOut({products: products});
+  }
+
+  if (e.parameter.type === 'cakeProducts') {
+    const products = [];
+    const sheet = ss.getSheetByName('CakeProducts');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const id = String(r[map['Id']] || '').trim();
+        if (!id) return;
+        products.push({
+          id: id,
+          manufacturer: String(r[map['Manufacturer']] || ''),
+          name: String(r[map['Name']] || ''),
+          shotCount: String(r[map['ShotCount']] || ''),
+          gram: String(r[map['Gram']] || ''),
+          effects: String(r[map['Effects']] || ''),
+          colors: String(r[map['Colors']] || '')
+        });
+      });
+    }
+    return jsonOut({products: products});
+  }
+
+  if (e.parameter.type === 'showPlans') {
+    const plans = [];
+    const sheet = ss.getSheetByName('ShowPlans');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const name = String(r[map['Name']] || '').trim();
+        if (!name) return;
+        let items = [];
+        try { items = JSON.parse(r[map['ItemsJson']] || '[]'); } catch (err) { items = []; }
+        const updated = r[map['UpdatedAt']];
+        plans.push({
+          name: name,
+          items: items,
+          updatedAt: updated instanceof Date ? updated.toISOString() : String(updated || '')
+        });
+      });
+    }
+    plans.sort((a, b) => a.name.localeCompare(b.name));
+    return jsonOut({plans: plans});
   }
 
   if (e.parameter.type === 'fireworkProducts') {
