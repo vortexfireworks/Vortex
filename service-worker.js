@@ -18,6 +18,9 @@ const ASSETS = [
   './manage-inventory.html',
   './manage-fireworks.html',
   './plan-show.html',
+  './plan-a-show.html',
+  './catalog.html',
+  './import-products.html',
   './picklist-common.js',
   './release-notes.html',
   './manifest.json',
@@ -50,6 +53,11 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
+  // Only ever handle this app's own files. Anything cross-origin (the Apps Script
+  // backend, Google fonts, CDN scripts, etc.) must go straight to the network,
+  // untouched — caching or retrying a live API call here would risk silently
+  // serving stale or empty data if the pass-through fetch below ever hiccups.
+  if (new URL(event.request.url).origin !== self.location.origin) return;
   event.respondWith(
     fetch(event.request).then(response => {
       const copy = response.clone();

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plan a Show — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=number], select{
+    font-size:14px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:6px; background:var(--surface-55); color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus, select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.secondary{background:none; border:1px solid var(--line); color:var(--navy);font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;}
+  button.secondary:hover{border-color:var(--navy);}
+  .editor-box{background:var(--surface-4);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:24px;}
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .theme-toggle{position:fixed; top:14px; right:14px; z-index:50;width:36px;height:36px;border-radius:50%;background:var(--card); border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:16px; cursor:pointer;transition:transform 0.15s ease;}
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .plan-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .plan-row:last-child{border-bottom:none;}
+  .plan-row .pr-main{flex:1 1 auto;min-width:0;}
+  .plan-row .pr-title{font-weight:700;color:var(--ink);}
+  .plan-row .pr-sub{color:var(--ink-soft);font-size:11.5px;margin-top:2px;}
+  .plan-row input[type=number]{width:64px;flex:0 0 auto;text-align:center;}
+  .plan-row .pr-remove{flex:0 0 auto;background:none;border:1px solid var(--line);color:var(--brick);border-radius:6px;padding:6px 9px;font-size:12px;cursor:pointer;}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="plan-show.html">&larr; Back to Plan a Firework Show</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Plan a Show</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Create or load a named show plan. Everything here saves automatically — add items from the Catalog page any time and they'll show up here too.</p>
+
+    <div class="field">
+      <label for="planSelect">Show plan</label>
+      <select id="planSelect" onchange="onPlanSelectChange()"><option value="">Loading plans…</option></select>
+    </div>
+    <div class="field" id="newPlanField" style="display:none;">
+      <label for="newPlanInput">New plan name</label>
+      <input type="text" id="newPlanInput" placeholder="e.g. July 4th 2027 — Copper Hills" autocomplete="off">
+      <div class="save-row">
+        <button type="button" class="secondary" onclick="confirmNewPlan()">Create plan</button>
+        <button type="button" class="secondary" onclick="cancelNewPlan()">Cancel</button>
+      </div>
+    </div>
+    <p class="hint" id="noPlanMsg">Choose a saved plan above, or create a new one.</p>
+
+    <div id="planArea" style="display:none;">
+      <div class="editor-box">
+        <p class="label-title">ITEMS</p>
+        <div id="planItems"><p class="hint" style="margin:0;">Nothing added yet — add items from the Catalog page.</p></div>
+        <p class="hint" id="planStatus"></p>
+      </div>
+
+      <div class="save-row" style="flex-wrap:wrap;">
+        <button type="button" class="secondary" onclick="renamePlan()">Rename plan</button>
+        <button type="button" class="secondary" onclick="deletePlan()">Delete plan</button>
+        <span id="actionStatus" class="hint"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const ACTIVE_PLAN_KEY = 'planShowActivePlan';
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function keyOf(s){ return String(s || '').trim().toLowerCase(); }
+function newId(){ return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-2); }
+function toQty(v){
+  if(v === '' || v === null || v === undefined) return null;
+  const n = Number(v);
+  if(!isFinite(n) || n < 0) return null;
+  return Math.round(n);
+}
+function setStatus(el, msg, kind){
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
+}
+const SIZE_LABELS = {'2.5':'2-1/2"','3':'3"','4':'4"','5':'5"','6':'6"','8':'8"'};
+function sizeLabel(v){ return SIZE_LABELS[String(v)] || String(v || ''); }
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error'){
+    throw new Error((data && data.message) || 'Request failed');
+  }
+  return data;
+}
+function setActivePlan(name){
+  try{
+    if(name) localStorage.setItem(ACTIVE_PLAN_KEY, name);
+    else localStorage.removeItem(ACTIVE_PLAN_KEY);
+  } catch(e){}
+}
+
+let PLANS = {};
+let currentPlanName = null;
+let originalPlanName = null;
+let planItems = [];
+let qtySaveTimer = null;
+
+async function loadPlans(keepSelected){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=showPlans`, { cache: 'no-store' });
+    const json = await res.json();
+    PLANS = {};
+    (json.plans || []).forEach(p => { PLANS[keyOf(p.name)] = p; });
+  } catch(err){
+    PLANS = {};
+  }
+  buildPlanOptions(keepSelected);
+}
+function buildPlanOptions(keepSelected){
+  const sel = $('planSelect');
+  const names = Object.values(PLANS).map(p => p.name).sort((a,b) => a.localeCompare(b));
+  sel.innerHTML = '<option value="">Select a plan…</option>' +
+    names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('') +
+    '<option value="__new__">+ Create new plan</option>';
+  const want = keepSelected || currentPlanName;
+  if(want && PLANS[keyOf(want)]) sel.value = want;
+}
+function onPlanSelectChange(){
+  const val = $('planSelect').value;
+  if(val === '__new__'){
+    $('newPlanField').style.display = '';
+    $('planArea').style.display = 'none';
+    $('noPlanMsg').style.display = 'none';
+    $('newPlanInput').value = '';
+    $('newPlanInput').focus();
+    return;
+  }
+  $('newPlanField').style.display = 'none';
+  if(!val){
+    currentPlanName = null; originalPlanName = null; planItems = [];
+    setActivePlan(null);
+    $('planArea').style.display = 'none';
+    $('noPlanMsg').style.display = '';
+    return;
+  }
+  openPlan(val);
+}
+function cancelNewPlan(){
+  $('newPlanField').style.display = 'none';
+  $('planSelect').value = currentPlanName || '';
+  if(!currentPlanName) $('noPlanMsg').style.display = '';
+}
+async function confirmNewPlan(){
+  const name = $('newPlanInput').value.trim();
+  if(!name){ $('newPlanInput').focus(); return; }
+  if(PLANS[keyOf(name)]){ openPlan(name); $('newPlanField').style.display = 'none'; return; }
+  try{
+    await postJson({ recordType: 'showPlan', name, originalName: name, items: [] });
+  } catch(err){
+    alert('Could not create the plan — check your connection and try again.');
+    return;
+  }
+  PLANS[keyOf(name)] = { name, items: [], updatedAt: new Date().toISOString() };
+  buildPlanOptions(name);
+  $('newPlanField').style.display = 'none';
+  openPlan(name);
+}
+function openPlan(name){
+  currentPlanName = name;
+  originalPlanName = name;
+  setActivePlan(name);
+  const p = PLANS[keyOf(name)] || { name, items: [] };
+  planItems = (p.items || []).map(it => Object.assign({}, it, { id: it.id || newId() }));
+  $('planArea').style.display = '';
+  $('noPlanMsg').style.display = 'none';
+  setStatus($('planStatus'), '');
+  setStatus($('actionStatus'), '');
+  renderPlanItems();
+}
+function renderPlanItems(){
+  const wrap = $('planItems');
+  if(!planItems.length){ wrap.innerHTML = '<p class="hint" style="margin:0;">Nothing added yet — add items from the Catalog page.</p>'; return; }
+  wrap.innerHTML = planItems.map(it => {
+    let title, sub;
+    if(it.refType === 'cake'){
+      title = it.name || '(unnamed cake)';
+      const bits = [it.manufacturer, it.shotCount ? it.shotCount + ' shots' : '', it.gram ? it.gram + 'g' : '', it.colors].filter(Boolean);
+      sub = bits.join(' · ') + (it.effects ? ' — ' + it.effects : '');
+    } else {
+      title = sizeLabel(it.size) + (it.effect ? ' — ' + it.effect : '');
+      const bits = [it.manufacturer, it.colors, it.itemNumber ? 'Item# ' + it.itemNumber : '', it.sku ? 'SKU ' + it.sku : ''].filter(Boolean);
+      sub = bits.join(' · ');
+    }
+    return `
+      <div class="plan-row" data-id="${it.id}">
+        <div class="pr-main">
+          <div class="pr-title">${esc(title)}</div>
+          ${sub ? `<div class="pr-sub">${esc(sub)}</div>` : ''}
+        </div>
+        <input type="number" min="0" step="1" inputmode="numeric" value="${esc(it.qty)}" oninput="setPlanItemQty('${it.id}',this.value)">
+        <button type="button" class="pr-remove" onclick="removePlanItem('${it.id}')">✕</button>
+      </div>`;
+  }).join('');
+}
+function setPlanItemQty(id, value){
+  const it = planItems.find(x => x.id === id); if(!it) return;
+  it.qty = value;
+  setStatus($('planStatus'), 'Saving…');
+  clearTimeout(qtySaveTimer);
+  qtySaveTimer = setTimeout(savePlanNow, 600);
+}
+function removePlanItem(id){
+  planItems = planItems.filter(x => x.id !== id);
+  renderPlanItems();
+  setStatus($('planStatus'), 'Saving…');
+  clearTimeout(qtySaveTimer);
+  savePlanNow();
+}
+async function savePlanNow(){
+  if(!currentPlanName) return;
+  const st = $('planStatus');
+  const items = planItems.map(it => Object.assign({}, it, { qty: toQty(it.qty) || 0 }));
+  try{
+    await postJson({ recordType: 'showPlan', name: currentPlanName, originalName: originalPlanName, items });
+    PLANS[keyOf(currentPlanName)] = { name: currentPlanName, items, updatedAt: new Date().toISOString() };
+    setStatus(st, 'Saved ✓', 'ok');
+  } catch(err){
+    setStatus(st, 'Could not save — check your connection. Your change is still on screen; it will try again if you edit something else.', 'err');
+  }
+}
+async function renamePlan(){
+  if(!currentPlanName) return;
+  const next = prompt('Rename this plan to:', currentPlanName);
+  if(!next) return;
+  const name = next.trim();
+  if(!name || name === currentPlanName) return;
+  if(PLANS[keyOf(name)]){ setStatus($('actionStatus'), 'A plan with that name already exists.', 'err'); return; }
+  setStatus($('actionStatus'), 'Renaming…');
+  try{
+    const items = planItems.map(it => Object.assign({}, it, { qty: toQty(it.qty) || 0 }));
+    await postJson({ recordType: 'showPlan', name, originalName: originalPlanName, items });
+    delete PLANS[keyOf(currentPlanName)];
+    PLANS[keyOf(name)] = { name, items, updatedAt: new Date().toISOString() };
+    currentPlanName = name; originalPlanName = name;
+    setActivePlan(name);
+    buildPlanOptions(name);
+    setStatus($('actionStatus'), 'Renamed ✓', 'ok');
+  } catch(err){
+    setStatus($('actionStatus'), 'Could not rename — check your connection and try again.', 'err');
+  }
+}
+async function deletePlan(){
+  if(!currentPlanName) return;
+  if(!confirm(`Delete the plan "${currentPlanName}"? This can't be undone.`)) return;
+  setStatus($('actionStatus'), 'Deleting…');
+  try{
+    await postJson({ recordType: 'deleteShowPlan', name: currentPlanName });
+    delete PLANS[keyOf(currentPlanName)];
+    currentPlanName = null; originalPlanName = null; planItems = [];
+    setActivePlan(null);
+    buildPlanOptions('');
+    $('planSelect').value = '';
+    $('planArea').style.display = 'none';
+    $('noPlanMsg').style.display = '';
+  } catch(err){
+    setStatus($('actionStatus'), 'Could not delete — check your connection and try again.', 'err');
+  }
+}
+
+(async function init(){
+  await loadPlans();
+  let saved = null;
+  try{ saved = localStorage.getItem(ACTIVE_PLAN_KEY); } catch(e){}
+  if(saved && PLANS[keyOf(saved)]){
+    $('planSelect').value = PLANS[keyOf(saved)].name;
+    openPlan(PLANS[keyOf(saved)].name);
+  }
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
