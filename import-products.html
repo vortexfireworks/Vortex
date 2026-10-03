@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Import Product Lists — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=file]{font-size:14px; padding:9px 11px; border:1px solid var(--line);border-radius:6px; background:var(--surface-55); color:var(--ink);width:100%; min-width:0; box-sizing:border-box; font-family:inherit;}
+  .editor-box{background:var(--surface-4);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:24px;}
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .status-ok{color:var(--ok);}
+  .status-err{color:var(--brick);}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .theme-toggle{position:fixed; top:14px; right:14px; z-index:50;width:36px;height:36px;border-radius:50%;background:var(--card); border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:16px; cursor:pointer;transition:transform 0.15s ease;}
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input{font-size:16px !important;} }
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="plan-show.html">&larr; Back to Plan a Firework Show</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Import Product Lists</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Import your full shell and cake catalog from a CSV. Imported items show up in the Catalog page right away, ready to search and add to a show plan.</p>
+
+    <div class="editor-box">
+      <p class="label-title">SHELLS</p>
+      <div class="field" style="margin-bottom:0;">
+        <label for="shellCsvFile">Shells CSV</label>
+        <input type="file" id="shellCsvFile" accept=".csv,text/csv" onchange="handleShellCsv(event)">
+        <p class="hint">Columns: Shell Size, Manufacturer, Assortment (yes/no), Assortment Number, Colors, Effect, Item Number, SKU</p>
+        <p class="hint"><a href="#" onclick="downloadTemplate('shells');return false;" style="color:var(--navy);">⬇ Download shells template</a></p>
+      </div>
+      <p class="hint" id="shellImportStatus"></p>
+    </div>
+
+    <div class="editor-box" style="margin-bottom:0;">
+      <p class="label-title">CAKES</p>
+      <div class="field" style="margin-bottom:0;">
+        <label for="cakeCsvFile">Cakes CSV</label>
+        <input type="file" id="cakeCsvFile" accept=".csv,text/csv" onchange="handleCakeCsv(event)">
+        <p class="hint">Columns: Manufacturer, Name, Shot Count, Gram, Effects, Colors</p>
+        <p class="hint"><a href="#" onclick="downloadTemplate('cakes');return false;" style="color:var(--navy);">⬇ Download cakes template</a></p>
+      </div>
+      <p class="hint" id="cakeImportStatus"></p>
+    </div>
+
+    <p class="hint" style="margin-top:-14px;">Importing adds rows as new catalog entries — importing the same file twice will create duplicates, so remove a row in the Catalog page if you need to undo one.</p>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function $(id){ return document.getElementById(id); }
+function setStatus(el, msg, kind){
+  el.textContent = msg || '';
+  el.className = kind === 'ok' ? 'hint status-ok' : kind === 'err' ? 'hint status-err' : 'hint';
+}
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error'){
+    throw new Error((data && data.message) || 'Request failed');
+  }
+  return data;
+}
+
+/* ---------------- CSV templates ---------------- */
+function csvField(v){
+  v = String(v == null ? '' : v);
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+function downloadCsv(filename, rows){
+  const text = rows.map(r => r.map(csvField).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function downloadTemplate(kind){
+  if(kind === 'shells'){
+    downloadCsv('shells-template.csv', [
+      ['Shell Size', 'Manufacturer', 'Assortment (yes/no)', 'Assortment Number', 'Colors', 'Effect', 'Item Number', 'SKU'],
+      ['3', 'Black Cat', 'Yes', 'A-247', 'Red', 'Peony', 'BC-1001', 'BC-3-RED']
+    ]);
+  } else {
+    downloadCsv('cakes-template.csv', [
+      ['Manufacturer', 'Name', 'Shot Count', 'Gram', 'Effects', 'Colors'],
+      ['Alpha', 'Crossette Mega', '25', '15', 'Crossette finale', 'Red/Gold']
+    ]);
+  }
+}
+
+/* ---------------- CSV parsing (handles quoted fields with embedded commas) ---------------- */
+function parseCSV(text){
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  while(i < text.length){
+    const char = text[i];
+    if(inQuotes){
+      if(char === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += char;
+      }
+    } else {
+      if(char === '"'){
+        inQuotes = true;
+      } else if(char === ','){
+        row.push(field); field = '';
+      } else if(char === '\n' || char === '\r'){
+        if(char === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field = '';
+        if(row.some(c => c !== '')) rows.push(row);
+        row = [];
+      } else {
+        field += char;
+      }
+    }
+    i++;
+  }
+  if(field.length || row.length){
+    row.push(field);
+    if(row.some(c => c !== '')) rows.push(row);
+  }
+  return rows;
+}
+function normalizeHeader(h){ return String(h || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function buildHeaderIndex(headerRow, aliasMap){
+  const normalized = headerRow.map(normalizeHeader);
+  const idx = {};
+  Object.keys(aliasMap).forEach(field => {
+    const pos = normalized.findIndex(h => aliasMap[field].includes(h));
+    idx[field] = pos;
+  });
+  return idx;
+}
+function rowsToObjects(rows, idx){
+  return rows.slice(1).map(r => {
+    const obj = {};
+    Object.keys(idx).forEach(field => { obj[field] = idx[field] > -1 ? (r[idx[field]] || '').trim() : ''; });
+    return obj;
+  }).filter(obj => Object.values(obj).some(v => v !== ''));
+}
+
+const SHELL_ALIASES = {
+  size: ['shellsize','size'],
+  manufacturer: ['manufacturer'],
+  isAssortment: ['assortment','isassortment','assortmentyesno'],
+  assortmentNumber: ['assortmentnumber','assortmentno','assortment#'],
+  colors: ['colors','color'],
+  effect: ['effect','effects'],
+  itemNumber: ['itemnumber','itemno','item#'],
+  sku: ['sku']
+};
+const CAKE_ALIASES = {
+  manufacturer: ['manufacturer'],
+  name: ['name'],
+  shotCount: ['shotcount','shots','shotct'],
+  gram: ['gram','grams','gramweight'],
+  effects: ['effects','effect'],
+  colors: ['colors','color']
+};
+
+function normalizeSizeValue(v){
+  const s = String(v || '').trim().replace(/["”]/g, '').replace(/\s+/g, '');
+  if(/^2[-.]?1\/2$/.test(s) || s === '2.5') return '2.5';
+  if(['3','4','5','6','8'].includes(s)) return s;
+  return s;
+}
+
+async function handleShellCsv(event){
+  const file = event.target.files[0];
+  const st = $('shellImportStatus');
+  if(!file) return;
+  setStatus(st, 'Reading file…');
+  try{
+    const text = await file.text();
+    const rows = parseCSV(text);
+    if(rows.length < 2){ setStatus(st, 'That file has no data rows.', 'err'); return; }
+    const idx = buildHeaderIndex(rows[0], SHELL_ALIASES);
+    if(idx.size === -1 && idx.manufacturer === -1){ setStatus(st, 'Could not find expected columns — check the header row.', 'err'); return; }
+    const objs = rowsToObjects(rows, idx).map(o => ({
+      size: normalizeSizeValue(o.size),
+      manufacturer: o.manufacturer,
+      isAssortment: /^y(es)?$/i.test(o.isAssortment),
+      assortmentNumber: o.assortmentNumber,
+      colors: o.colors,
+      effect: o.effect,
+      itemNumber: o.itemNumber,
+      sku: o.sku
+    }));
+    if(!objs.length){ setStatus(st, 'No usable rows found in that file.', 'err'); return; }
+    setStatus(st, `Importing ${objs.length} rows…`);
+    await postJson({ recordType: 'shellProductsImport', rows: objs });
+    setStatus(st, `Imported ${objs.length} shells ✓`, 'ok');
+  } catch(err){
+    setStatus(st, 'Could not import — check your connection and the file, then try again.', 'err');
+  } finally {
+    event.target.value = '';
+  }
+}
+
+async function handleCakeCsv(event){
+  const file = event.target.files[0];
+  const st = $('cakeImportStatus');
+  if(!file) return;
+  setStatus(st, 'Reading file…');
+  try{
+    const text = await file.text();
+    const rows = parseCSV(text);
+    if(rows.length < 2){ setStatus(st, 'That file has no data rows.', 'err'); return; }
+    const idx = buildHeaderIndex(rows[0], CAKE_ALIASES);
+    if(idx.manufacturer === -1 && idx.name === -1){ setStatus(st, 'Could not find expected columns — check the header row.', 'err'); return; }
+    const objs = rowsToObjects(rows, idx);
+    if(!objs.length){ setStatus(st, 'No usable rows found in that file.', 'err'); return; }
+    setStatus(st, `Importing ${objs.length} rows…`);
+    await postJson({ recordType: 'cakeProductsImport', rows: objs });
+    setStatus(st, `Imported ${objs.length} cakes ✓`, 'ok');
+  } catch(err){
+    setStatus(st, 'Could not import — check your connection and the file, then try again.', 'err');
+  } finally {
+    event.target.value = '';
+  }
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catalog — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], select{
+    font-size:14px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:6px; background:var(--surface-55); color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus, select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.secondary{background:none; border:1px solid var(--line); color:var(--navy);font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;}
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary:disabled{opacity:0.4;cursor:default;}
+  .editor-box{background:var(--surface-4);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:24px;}
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .theme-toggle{position:fixed; top:14px; right:14px; z-index:50;width:36px;height:36px;border-radius:50%;background:var(--card); border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:16px; cursor:pointer;transition:transform 0.15s ease;}
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tabs button{flex:1 1 0;background:var(--surface-5);border:1px solid var(--line);color:var(--ink-soft);font-size:13px;font-weight:700;padding:9px 10px;border-radius:7px;cursor:pointer;}
+  .tabs button.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fdf6f2;border-color:transparent;}
+
+  .cat-group{border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden;}
+  .cat-group-head{background:var(--surface-5);padding:8px 12px;font-size:11.5px;font-weight:700;color:var(--kicker);display:flex;justify-content:space-between;gap:8px;}
+  .cat-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line);font-size:13px;}
+  .cat-row:first-of-type{border-top:none;}
+  .cat-row .cr-main{flex:1 1 auto;min-width:0;}
+  .cat-row .cr-title{font-weight:700;color:var(--ink);}
+  .cat-row .cr-sub{color:var(--ink-soft);font-size:11.5px;margin-top:2px;}
+  .cat-row button{flex:0 0 auto;font-size:12px;padding:6px 10px;}
+  .cat-empty{font-size:12.5px;color:var(--ink-soft);padding:10px 0;}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="plan-show.html">&larr; Back to Plan a Firework Show</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Catalog</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Search every shell and cake you've imported, and add anything you need straight to your active show plan.</p>
+
+    <div class="editor-box">
+      <p class="label-title">ACTIVE PLAN</p>
+      <div class="field" style="margin-bottom:0;">
+        <label for="activePlanSelect">Adding items to</label>
+        <select id="activePlanSelect" onchange="onActivePlanChange()"><option value="">Loading plans…</option></select>
+      </div>
+      <p class="hint" id="activePlanHint">Choose a plan here (or create one in Plan a Show) before adding items below.</p>
+    </div>
+
+    <div class="editor-box" style="margin-bottom:0;">
+      <p class="label-title">CATALOG</p>
+      <div class="field" style="margin-bottom:12px;">
+        <input type="text" id="catalogSearch" placeholder="Search manufacturer, effect, colors, item #, SKU, name…" oninput="renderCatalog()">
+      </div>
+      <div class="tabs">
+        <button type="button" id="tabShells" class="active" onclick="setCatalogTab('shells')">Shells</button>
+        <button type="button" id="tabCakes" onclick="setCatalogTab('cakes')">Cakes</button>
+      </div>
+      <div id="catalogList"><p class="hint" style="margin:0;">Loading…</p></div>
+      <p class="hint" id="addStatus"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const ACTIVE_PLAN_KEY = 'planShowActivePlan';
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function keyOf(s){ return String(s || '').trim().toLowerCase(); }
+function newId(){ return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-2); }
+function setStatus(el, msg, kind){
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
+}
+const SIZE_LABELS = {'2.5':'2-1/2"','3':'3"','4':'4"','5':'5"','6':'6"','8':'8"'};
+function sizeLabel(v){ return SIZE_LABELS[String(v)] || String(v || ''); }
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error'){
+    throw new Error((data && data.message) || 'Request failed');
+  }
+  return data;
+}
+
+/* ---------------- Active plan switcher (shared across pages via localStorage) ---------------- */
+let PLAN_NAMES = [];
+let activePlanName = null;
+
+async function loadPlanSwitcher(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=showPlans`, { cache: 'no-store' });
+    const json = await res.json();
+    PLAN_NAMES = (json.plans || []).map(p => p.name).sort((a,b) => a.localeCompare(b));
+  } catch(err){
+    PLAN_NAMES = [];
+  }
+  const sel = $('activePlanSelect');
+  sel.innerHTML = '<option value="">No plan selected…</option>' + PLAN_NAMES.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  let saved = null;
+  try{ saved = localStorage.getItem(ACTIVE_PLAN_KEY); } catch(e){}
+  if(saved && PLAN_NAMES.some(n => keyOf(n) === keyOf(saved))){
+    sel.value = PLAN_NAMES.find(n => keyOf(n) === keyOf(saved));
+    activePlanName = sel.value;
+  }
+  updateActivePlanHint();
+  renderCatalog();
+}
+function onActivePlanChange(){
+  activePlanName = $('activePlanSelect').value || null;
+  try{
+    if(activePlanName) localStorage.setItem(ACTIVE_PLAN_KEY, activePlanName);
+    else localStorage.removeItem(ACTIVE_PLAN_KEY);
+  } catch(e){}
+  updateActivePlanHint();
+  renderCatalog();
+}
+function updateActivePlanHint(){
+  const hint = $('activePlanHint');
+  if(activePlanName) hint.textContent = `Items you add below go straight into "${activePlanName}".`;
+  else hint.textContent = 'Choose a plan here (or create one in Plan a Show) before adding items below.';
+}
+
+/* ---------------- Catalog: load, search, render ---------------- */
+let SHELL_PRODUCTS = [];
+let CAKE_PRODUCTS = [];
+let catalogTab = 'shells';
+
+async function loadCatalog(){
+  try{
+    const [sRes, cRes] = await Promise.all([
+      fetch(`${CHECKIN_API_URL}?type=shellProducts`, { cache: 'no-store' }),
+      fetch(`${CHECKIN_API_URL}?type=cakeProducts`, { cache: 'no-store' })
+    ]);
+    const sJson = await sRes.json(), cJson = await cRes.json();
+    SHELL_PRODUCTS = sJson.products || [];
+    CAKE_PRODUCTS = cJson.products || [];
+  } catch(err){
+    SHELL_PRODUCTS = []; CAKE_PRODUCTS = [];
+  }
+  renderCatalog();
+}
+
+function setCatalogTab(tab){
+  catalogTab = tab;
+  $('tabShells').classList.toggle('active', tab === 'shells');
+  $('tabCakes').classList.toggle('active', tab === 'cakes');
+  renderCatalog();
+}
+
+function matchesSearch(hay, term){ return hay.some(v => keyOf(v).includes(term)); }
+
+function renderCatalog(){
+  const term = keyOf($('catalogSearch').value);
+  const wrap = $('catalogList');
+  const addDisabled = activePlanName ? '' : 'disabled title="Choose an active plan above first"';
+
+  if(catalogTab === 'shells'){
+    let items = SHELL_PRODUCTS;
+    if(term) items = items.filter(p => matchesSearch([p.manufacturer, p.colors, p.effect, p.itemNumber, p.sku, sizeLabel(p.size), p.assortmentNumber], term));
+    if(!items.length){ wrap.innerHTML = '<p class="cat-empty">No shells match yet. Import a CSV, or adjust your search.</p>'; return; }
+
+    const groups = {}; const solo = [];
+    items.forEach(p => {
+      if(p.isAssortment && p.assortmentNumber){
+        const gKey = keyOf(p.manufacturer) + '|' + keyOf(p.size) + '|' + keyOf(p.assortmentNumber);
+        (groups[gKey] = groups[gKey] || []).push(p);
+      } else solo.push(p);
+    });
+
+    let html = '';
+    Object.values(groups).forEach(group => {
+      const first = group[0];
+      html += `<div class="cat-group">
+        <div class="cat-group-head"><span>📦 Assortment #${esc(first.assortmentNumber)} — ${esc(first.manufacturer)} ${esc(sizeLabel(first.size))}</span><span>${group.length} colors</span></div>
+        ${group.map(p => shellRowHtml(p, addDisabled)).join('')}
+      </div>`;
+    });
+    if(solo.length) html += solo.map(p => shellRowHtml(p, addDisabled)).join('');
+    wrap.innerHTML = html;
+  } else {
+    let items = CAKE_PRODUCTS;
+    if(term) items = items.filter(p => matchesSearch([p.manufacturer, p.name, p.effects, p.colors], term));
+    if(!items.length){ wrap.innerHTML = '<p class="cat-empty">No cakes match yet. Import a CSV, or adjust your search.</p>'; return; }
+    wrap.innerHTML = items.map(p => cakeRowHtml(p, addDisabled)).join('');
+  }
+}
+
+function shellRowHtml(p, addDisabled){
+  const bits = [];
+  if(p.manufacturer) bits.push(esc(p.manufacturer));
+  if(p.colors) bits.push(esc(p.colors));
+  if(p.itemNumber) bits.push('Item# ' + esc(p.itemNumber));
+  if(p.sku) bits.push('SKU ' + esc(p.sku));
+  return `
+    <div class="cat-row">
+      <div class="cr-main">
+        <div class="cr-title">${esc(sizeLabel(p.size))}${p.effect ? ' — ' + esc(p.effect) : ''}</div>
+        ${bits.length ? `<div class="cr-sub">${bits.join(' · ')}</div>` : ''}
+      </div>
+      <button type="button" class="secondary" onclick="addShellToPlan('${p.id}')" ${addDisabled}>+ Add</button>
+    </div>`;
+}
+function cakeRowHtml(p, addDisabled){
+  const bits = [];
+  if(p.manufacturer) bits.push(esc(p.manufacturer));
+  if(p.shotCount) bits.push(p.shotCount + ' shot' + (Number(p.shotCount)===1?'':'s'));
+  if(p.gram) bits.push(esc(p.gram) + 'g');
+  if(p.colors) bits.push(esc(p.colors));
+  return `
+    <div class="cat-row">
+      <div class="cr-main">
+        <div class="cr-title">${esc(p.name || '(unnamed cake)')}</div>
+        ${bits.length ? `<div class="cr-sub">${bits.join(' · ')}${p.effects ? ' — ' + esc(p.effects) : ''}</div>` : (p.effects ? `<div class="cr-sub">${esc(p.effects)}</div>` : '')}
+      </div>
+      <button type="button" class="secondary" onclick="addCakeToPlan('${p.id}')" ${addDisabled}>+ Add</button>
+    </div>`;
+}
+
+/* ---------------- Add to plan: always fetch the latest saved state first, then save immediately ---------------- */
+async function fetchPlanFresh(name){
+  const res = await fetch(`${CHECKIN_API_URL}?type=showPlans`, { cache: 'no-store' });
+  const json = await res.json();
+  const match = (json.plans || []).find(p => keyOf(p.name) === keyOf(name));
+  return match ? { name: match.name, items: match.items || [] } : { name, items: [] };
+}
+
+async function addShellToPlan(productId){
+  if(!activePlanName) return;
+  const p = SHELL_PRODUCTS.find(x => x.id === productId); if(!p) return;
+  const st = $('addStatus');
+  setStatus(st, 'Adding…');
+  try{
+    const plan = await fetchPlanFresh(activePlanName);
+    plan.items.push({ id: newId(), refType: 'shell', qty: 1, size: p.size, manufacturer: p.manufacturer, colors: p.colors, effect: p.effect, itemNumber: p.itemNumber, sku: p.sku });
+    await postJson({ recordType: 'showPlan', name: plan.name, originalName: plan.name, items: plan.items });
+    setStatus(st, `Added ${sizeLabel(p.size)}${p.effect ? ' — ' + p.effect : ''} to "${activePlanName}" ✓`, 'ok');
+  } catch(err){
+    setStatus(st, 'Could not add — check your connection and try again.', 'err');
+  }
+}
+async function addCakeToPlan(productId){
+  if(!activePlanName) return;
+  const p = CAKE_PRODUCTS.find(x => x.id === productId); if(!p) return;
+  const st = $('addStatus');
+  setStatus(st, 'Adding…');
+  try{
+    const plan = await fetchPlanFresh(activePlanName);
+    plan.items.push({ id: newId(), refType: 'cake', qty: 1, manufacturer: p.manufacturer, name: p.name, shotCount: p.shotCount, gram: p.gram, effects: p.effects, colors: p.colors });
+    await postJson({ recordType: 'showPlan', name: plan.name, originalName: plan.name, items: plan.items });
+    setStatus(st, `Added ${p.name || 'cake'} to "${activePlanName}" ✓`, 'ok');
+  } catch(err){
+    setStatus(st, 'Could not add — check your connection and try again.', 'err');
+  }
+}
+
+loadCatalog();
+loadPlanSwitcher();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
