@@ -103,7 +103,7 @@ updateThemeToggleIcon();
   .body{padding:24px;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
-  input[type=text],input[type=number],input[type=date],input[type=time],select{
+  input[type=text],input[type=tel],input[type=number],input[type=date],input[type=time],select{
     font-size:15px;padding:10px 12px;border:1px solid var(--line);
     border-radius:6px;background:var(--surface-6);color:var(--ink);
   }
@@ -117,6 +117,17 @@ updateThemeToggleIcon();
   }
   button.primary:disabled{opacity:.6;cursor:default;box-shadow:none;}
   button.primary:hover:not(:disabled){filter:brightness(1.1);}
+  .link-btn, .welcome-back a{color:#ffb98a;text-decoration:underline;background:none;border:none;padding:0;font:inherit;font-size:12.5px;cursor:pointer;}
+  :root[data-theme="light"] .link-btn, :root[data-theme="light"] .welcome-back a{color:#c9601f;}
+  .welcome-back{font-size:13px;color:var(--ink-soft);margin:0 0 16px;}
+  .welcome-back strong{color:var(--ink);}
+  .verified-card{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.4);border-radius:10px;padding:11px 14px;margin:0 0 16px;font-size:13px;color:var(--ink);}
+  .verified-card .vc-text{flex:1 1 200px;line-height:1.4;}
+  .when-line{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;}
+  .when-line strong{color:var(--ink);font-weight:600;}
+  .remember-row{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);font-weight:400;}
+  .remember-row input{width:auto;}
+  .remember-note{margin-top:14px !important;font-size:12.5px !important;}
   .msg{font-size:13px;margin-top:14px;text-align:center;}
   .msg.ok{color:var(--ok);}
   .msg.err{color:var(--err);}
@@ -193,19 +204,12 @@ updateThemeToggleIcon();
 
 <div class="card">
   <div class="body" id="formBody">
+    <p class="welcome-back" id="welcomeBack" style="display:none;">Welcome back, <strong id="welcomeName"></strong>. <a href="#" onclick="forgetMe();return false;">Not you?</a></p>
     <div class="field">
       <label for="eventName">Event / venue</label>
       <select id="eventName">
         <option value="" disabled selected>Select a venue…</option>
       </select>
-    </div>
-    <div class="field">
-      <label for="eventDate">Date of Check-In</label>
-      <input type="date" id="eventDate">
-    </div>
-    <div class="field">
-      <label for="checkInTime">Time</label>
-      <input type="time" id="checkInTime">
     </div>
     <div class="field">
       <label for="personName">Your name</label>
@@ -214,37 +218,59 @@ updateThemeToggleIcon();
     </div>
     <div class="field">
       <label for="personPhone">Phone number</label>
-      <input type="tel" id="personPhone" oninput="checkPhoneMatch()">
-      <p style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">If your name and phone number match what's on file, your license and address will fill in automatically.</p>
+      <input type="tel" id="personPhone" inputmode="tel" autocomplete="tel" oninput="checkPhoneMatch()">
+      <p id="phoneHint" style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">If your name and phone number match what's on file, your license and address will fill in automatically.</p>
       <p id="phoneCheckStatus" style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;min-height:14px;"></p>
     </div>
-    <div class="field">
-      <label for="personDisplayLicense">Display Operator (D)</label>
-      <input type="text" id="personDisplayLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
-      <p class="field-err" id="personDisplayLicenseErr" style="display:none;"></p>
+
+    <div class="verified-card" id="verifiedCard" style="display:none;">
+      <span class="vc-text">&#10003; Found you &mdash; your license, address and age are filled in from your file.</span>
+      <button type="button" class="link-btn" id="toggleDetailsBtn" onclick="toggleDetails()">Review or edit</button>
     </div>
-    <div class="field">
-      <label for="personSFXLicense">Special Effects Operator (P)</label>
-      <input type="text" id="personSFXLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
-      <p class="field-err" id="personSFXLicenseErr" style="display:none;"></p>
+
+    <div id="detailsBlock">
+      <div class="field">
+        <label for="personDisplayLicense">Display Operator (D)</label>
+        <input type="text" id="personDisplayLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+        <p class="field-err" id="personDisplayLicenseErr" style="display:none;"></p>
+      </div>
+      <div class="field">
+        <label for="personSFXLicense">Special Effects Operator (P)</label>
+        <input type="text" id="personSFXLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+        <p class="field-err" id="personSFXLicenseErr" style="display:none;"></p>
+      </div>
+      <div class="field">
+        <label for="personFlameLicense">Flame Effects Operator (F)</label>
+        <input type="text" id="personFlameLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+        <p class="field-err" id="personFlameLicenseErr" style="display:none;"></p>
+      </div>
+      <div class="field">
+        <label for="personAddress">Address</label>
+        <input type="text" id="personAddress" onblur="this.value = toTitleCase(this.value)">
+      </div>
+      <div class="field">
+        <label for="personAge">Age</label>
+        <input type="text" id="personAge">
+      </div>
     </div>
-    <div class="field">
-      <label for="personFlameLicense">Flame Effects Operator (F)</label>
-      <input type="text" id="personFlameLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
-      <p class="field-err" id="personFlameLicenseErr" style="display:none;"></p>
+
+    <p class="when-line">Checking in <strong id="whenText">now</strong> &middot; <button type="button" class="link-btn" onclick="toggleWhenEditor()">Change</button></p>
+    <div id="whenEditor" style="display:none;">
+      <div class="field">
+        <label for="eventDate">Date of Check-In</label>
+        <input type="date" id="eventDate">
+      </div>
+      <div class="field">
+        <label for="checkInTime">Time</label>
+        <input type="time" id="checkInTime">
+      </div>
     </div>
-    <div class="field">
-      <label for="personAddress">Address</label>
-      <input type="text" id="personAddress" onblur="this.value = toTitleCase(this.value)">
-    </div>
-    <div class="field">
-      <label for="personAge">Age</label>
-      <input type="text" id="personAge">
-    </div>
+
     <div class="field" style="flex-direction:row;align-items:center;gap:8px;">
       <input type="checkbox" id="isHeadPyro" style="width:auto;" disabled>
       <label for="isHeadPyro" id="isHeadPyroLabel" style="font-weight:400;color:var(--ink-soft);">Head Pyro for this event (verify your phone number first)</label>
     </div>
+    <label class="remember-row"><input type="checkbox" id="rememberMe" checked> Remember me on this phone</label>
     <button class="primary" id="submitBtn" onclick="checkIn()">Check in</button>
     <p class="msg" id="msg"></p>
   </div>
@@ -400,6 +426,90 @@ function normalizePhoneDigits(str){
   return (str || '').replace(/\D/g, '');
 }
 
+/* ---------- Keep the screen short for people we already know ---------- */
+let verifyState = 'idle';          // idle | verified | notfound | error
+let detailsOpen = false;           // the person tapped "Review or edit"
+let holdDetailsClosed = false;     // a remembered person is being checked: don't flash the long form meanwhile
+let whenTouched = false;           // the person set their own date or time
+
+function renderVerifyUI(){
+  const verified = verifyState === 'verified';
+  document.getElementById('verifiedCard').style.display = verified ? 'flex' : 'none';
+  document.getElementById('phoneHint').style.display = verified ? 'none' : '';
+  document.getElementById('phoneCheckStatus').style.display = verified ? 'none' : '';
+  const hide = holdDetailsClosed || (verified && !detailsOpen);
+  document.getElementById('detailsBlock').style.display = hide ? 'none' : '';
+  document.getElementById('toggleDetailsBtn').textContent = detailsOpen ? 'Hide details' : 'Review or edit';
+}
+function setVerifyState(state){
+  verifyState = state;
+  if(state !== 'verified') detailsOpen = false;
+  renderVerifyUI();
+}
+function toggleDetails(){ detailsOpen = !detailsOpen; renderVerifyUI(); }
+
+function escHtml(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* Date and time stay out of the way unless changed. "now" is worked out when Check in is tapped. */
+function updateWhenText(){
+  let text = 'now';
+  if(whenTouched){
+    const d = document.getElementById('eventDate').value, t = document.getElementById('checkInTime').value;
+    const dt = d && t ? new Date(d + 'T' + t) : null;
+    if(dt && !isNaN(dt.getTime())){
+      const time = dt.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+      text = (d === new Date().toLocaleDateString('en-CA') ? 'today' : dt.toLocaleDateString([], { month:'short', day:'numeric' })) + ' at ' + time;
+    }
+  }
+  document.getElementById('whenText').textContent = text;
+}
+function toggleWhenEditor(){
+  const ed = document.getElementById('whenEditor');
+  ed.style.display = ed.style.display === 'none' ? '' : 'none';
+}
+function refreshCheckInMoment(){
+  if(whenTouched) return;
+  const now = new Date();
+  document.getElementById('eventDate').value = now.toLocaleDateString('en-CA');
+  document.getElementById('checkInTime').value = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+}
+['eventDate','checkInTime'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => { whenTouched = true; updateWhenText(); });
+});
+
+/* ---------- Remember me on this phone (name and number only; details are always re-checked against the file) ---------- */
+const REMEMBER_KEY = 'checkinRememberMe_v1';
+function readRemembered(){
+  try{
+    const r = JSON.parse(localStorage.getItem(REMEMBER_KEY) || 'null');
+    return r && r.name && r.phone ? r : null;
+  } catch(e){ return null; }
+}
+function saveRemembered(name, phone){ try{ localStorage.setItem(REMEMBER_KEY, JSON.stringify({ name, phone })); } catch(e){} }
+function clearRemembered(){ try{ localStorage.removeItem(REMEMBER_KEY); } catch(e){} }
+
+function restoreRemembered(){
+  const r = readRemembered();
+  if(!r) return;
+  document.getElementById('personName').value = r.name;
+  document.getElementById('personPhone').value = r.phone;
+  document.getElementById('welcomeName').textContent = r.name.split(' ')[0];
+  document.getElementById('welcomeBack').style.display = '';
+  checkPhoneMatch({ restoring: true });
+  holdDetailsClosed = true;
+  renderVerifyUI();
+}
+function forgetMe(){
+  clearRemembered();
+  document.getElementById('personName').value = '';
+  document.getElementById('personPhone').value = '';
+  document.getElementById('welcomeBack').style.display = 'none';
+  checkPhoneMatch();
+  document.getElementById('personName').focus();
+}
+
 let phoneCheckTimer = null;
 let phoneCheckToken = 0;
 let hasShownNewHirePopup = false;
@@ -419,8 +529,10 @@ function setHeadPyroLock(enabled, message){
     : `Head Pyro for this event (${message})`;
 }
 
-function checkPhoneMatch(){
+function checkPhoneMatch(opts){
+  if(!(opts && opts.restoring)) holdDetailsClosed = false;
   clearTimeout(phoneCheckTimer);
+  setVerifyState('idle');
   const statusEl = document.getElementById('phoneCheckStatus');
   const enteredPhone = normalizePhoneDigits(document.getElementById('personPhone').value);
   if(enteredPhone.length < 7){
@@ -443,6 +555,8 @@ async function verifyPhoneWithServer(){
   const phone = document.getElementById('personPhone').value.trim();
   if(!name || !phone){
     statusEl.textContent = '';
+    holdDetailsClosed = false;
+    setVerifyState('idle');
     return;
   }
   const myToken = ++phoneCheckToken;
@@ -450,7 +564,7 @@ async function verifyPhoneWithServer(){
     const url = `${CHECKIN_API_URL}?type=verifyPerson&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`;
     const res = await fetch(url);
     if(!res.ok){
-      if(myToken === phoneCheckToken) statusEl.textContent = '';
+      if(myToken === phoneCheckToken){ statusEl.textContent = ''; holdDetailsClosed = false; setVerifyState('error'); }
       return;
     }
     const data = await res.json();
@@ -464,6 +578,8 @@ async function verifyPhoneWithServer(){
       const hasLicense = !!(data.displayLicense || data.specialEffectsLicense || data.flameLicense);
       setHeadPyroLock(hasLicense, hasLicense ? '' : 'no license on file');
       hasShownNewHirePopup = false;
+      holdDetailsClosed = false;
+      setVerifyState('verified');
     } else {
       document.getElementById('personDisplayLicense').value = '';
       document.getElementById('personSFXLicense').value = '';
@@ -471,6 +587,8 @@ async function verifyPhoneWithServer(){
       document.getElementById('personAddress').value = '';
       document.getElementById('personAge').value = '';
       setHeadPyroLock(false, 'verify your phone number first');
+      holdDetailsClosed = false;
+      setVerifyState('notfound');
       if(!hasShownNewHirePopup){
         document.getElementById('newHirePopup').style.display = 'flex';
         hasShownNewHirePopup = true;
@@ -479,7 +597,7 @@ async function verifyPhoneWithServer(){
     statusEl.textContent = '';
   } catch(err){
     // silent fail — the person can still fill everything in manually
-    if(myToken === phoneCheckToken) statusEl.textContent = '';
+    if(myToken === phoneCheckToken){ statusEl.textContent = ''; holdDetailsClosed = false; setVerifyState('error'); }
   }
 }
 
@@ -533,6 +651,8 @@ function checkIn(){
   }
 
   if(!allLicenseFieldsValid()){
+    detailsOpen = true;            // the license fields may be tucked away: show them so the problem can be fixed
+    renderVerifyUI();
     msg.textContent = 'One or more license numbers don\'t pass the Russ Check parameters — please fix the format before checking in.';
     msg.className = 'msg err';
     return;
@@ -541,6 +661,7 @@ function checkIn(){
   const btn = document.getElementById('submitBtn');
   btn.disabled = true;
   btn.textContent = 'Checking in…';
+  refreshCheckInMoment();
 
   const displayLicense = document.getElementById('personDisplayLicense').value.trim();
   const sfxLicense = document.getElementById('personSFXLicense').value.trim();
@@ -562,11 +683,23 @@ function checkIn(){
     isHeadPyro: document.getElementById('isHeadPyro').checked
   };
 
-  submitCheckIn(payload, name, eventName);
+  // Only a person we actually found on file is remembered, so a typo is never kept.
+  const wasRemembered = !!readRemembered();
+  let newlyRemembered = false;
+  if(!document.getElementById('rememberMe').checked){
+    clearRemembered();
+  } else if(verifyState === 'verified'){
+    saveRemembered(name, payload.phone);
+    newlyRemembered = !wasRemembered;
+  }
+  submitCheckIn(payload, name, eventName, newlyRemembered);
 }
 
-function submitCheckIn(payload, name, eventName){
+function submitCheckIn(payload, name, eventName, newlyRemembered){
   const btn = document.getElementById('submitBtn');
+  const timeText = new Date(payload.eventDate + 'T' + payload.checkInTime).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+  const rememberNote = newlyRemembered
+    ? '<p class="remember-note">We\'ll remember you on this phone &mdash; next time, just tap Check in.</p>' : '';
   fetch(CHECKIN_API_URL, {
     method: 'POST',
     mode: 'no-cors',
@@ -576,7 +709,8 @@ function submitCheckIn(payload, name, eventName){
       <div class="success">
         <div class="check">&#10003;</div>
         <h2>You're checked in</h2>
-        <p>${name} — ${eventName}</p>
+        <p>${escHtml(name)} — ${escHtml(eventName)}<br>${escHtml(timeText)}</p>
+        ${rememberNote}
       </div>`;
   }).catch(() => {
     queueCheckIn(payload);
@@ -584,7 +718,8 @@ function submitCheckIn(payload, name, eventName){
       <div class="success">
         <div class="check">&#10003;</div>
         <h2>Saved — will send automatically</h2>
-        <p>${name} — ${eventName}<br>No connection right now, but this is saved on your device and will send the moment you're back online.</p>
+        <p>${escHtml(name)} — ${escHtml(eventName)}<br>${escHtml(timeText)}<br>No connection right now, but this is saved on your device and will send the moment you're back online.</p>
+        ${rememberNote}
       </div>`;
   });
 }
@@ -637,6 +772,8 @@ function updateQueueBanner(){
 window.addEventListener('online', flushQueue);
 window.addEventListener('load', flushQueue);
 updateQueueBanner();
+updateWhenText();
+restoreRemembered();
 </script>
 </body>
 </html>
