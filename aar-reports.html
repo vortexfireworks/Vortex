@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Saved After Action Reports — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .full{grid-column:1/-1;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=date]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary.danger{color:var(--brick);}
+  button.secondary.danger:hover{border-color:var(--brick);}
+  .editor-box{
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .search-box{margin-bottom:14px;}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media(max-width:480px){ .grid2{grid-template-columns:1fr;} }
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .venue-group{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+  .venue-group-head{background:var(--surface-5);padding:10px 14px;}
+  .venue-group-head .vg-name{font-weight:700;font-size:14px;color:var(--ink);}
+  .venue-group-head .vg-detail{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .venue-date-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 14px;border-top:1px solid var(--line);font-size:13px;
+  }
+  .venue-date-row .vd-date{font-weight:600;color:var(--ink);}
+  .venue-date-row .vd-date.no-date{font-weight:400;color:var(--ink-soft);font-style:italic;}
+  .venue-date-row .vd-date.past{color:var(--ink-soft);font-weight:400;}
+  .venue-date-row .vd-actions{display:flex;gap:6px;flex-shrink:0;}
+  .venue-date-row .vd-actions button{
+    background:none;border:1px solid var(--line);color:var(--navy);
+    font-size:11.5px;padding:5px 9px;border-radius:6px;cursor:pointer;
+  }
+  .venue-date-row .vd-actions button:hover{border-color:var(--navy);}
+  .venue-date-row .vd-actions button.danger{color:var(--brick);}
+  .venue-date-row .vd-actions button.danger:hover{border-color:var(--brick);}
+  .venue-group-foot{padding:8px 14px;border-top:1px solid var(--line);}
+  .venue-group-foot button{
+    background:none;border:none;color:var(--navy);font-size:12px;cursor:pointer;padding:2px 0;
+  }
+  .venue-group-foot button:hover{text-decoration:underline;}
+
+  .report-card{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+  .report-main{padding:12px 14px;}
+  .report-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .report-date{font-weight:700;font-size:14px;color:var(--ink);}
+  .report-saved{font-size:11px;color:var(--ink-soft);}
+  .report-venue{font-size:13.5px;color:var(--ink);margin-top:3px;}
+  .report-meta{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .report-flags{font-size:12px;color:var(--brick);margin-top:5px;font-weight:600;}
+  .report-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-5);}
+  .report-actions button{background:none;border:1px solid var(--line);color:var(--navy);font-size:12px;padding:6px 11px;border-radius:6px;cursor:pointer;}
+  .report-actions button:hover:not(:disabled){border-color:var(--navy);}
+  .report-actions button:disabled{opacity:0.5;cursor:wait;}
+  .report-actions button.danger{color:var(--brick);}
+  .report-actions a{font-size:12px;color:var(--ink-soft);text-decoration:none;margin-left:auto;}
+  .report-actions a:hover{color:var(--navy);}
+  .report-note{font-size:11.5px;color:var(--brick);padding:0 14px 10px;}
+  .filters{display:grid;grid-template-columns:1fr 130px;gap:10px;margin-bottom:8px;}
+  .filters select{font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);width:100%;min-width:0;font-family:inherit;}
+  .check-line{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;}
+  .check-line input{width:auto;}
+  .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  @media (max-width:420px){ .filters{grid-template-columns:1fr;} }
+
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Saved After Action Reports</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Every After-Action Report saved from the report form (with Save to Drive, or automatically when it's emailed), newest event first. Search by operator, venue, date, or license number. The PDFs are kept privately in the Drive folder "Vortex After Action Reports".</p>
+
+    <div class="filters">
+      <input type="text" id="searchBox" placeholder="Search reports…" oninput="renderReports()" autocomplete="off">
+      <select id="yearSelect" onchange="renderReports()" aria-label="Year"><option value="">All years</option></select>
+    </div>
+    <label class="check-line"><input type="checkbox" id="incidentsOnly" onchange="renderReports()"> Only show reports where something was reported (duds, injuries, fire, or violations)</label>
+
+    <p class="count-line" id="countLine"></p>
+    <div id="reportList"><p class="loading-pulse">Loading…</p></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function keyOf(s){ return String(s || '').trim().toLowerCase(); }
+function formatEventDate(d){
+  if(!d) return 'No date';
+  const p = d.slice(0,10).split('-');
+  if(p.length !== 3) return d;
+  return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+}
+function formatSaved(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return 'Saved ' + d.toLocaleDateString(undefined, { month:'short', day:'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+}
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+  return data;
+}
+
+let REPORTS = [];
+
+async function loadReports(){
+  const wrap = $('reportList');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=aarReports`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    const data = await res.json();
+    REPORTS = Array.isArray(data.reports) ? data.reports : [];
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the saved reports \u2014 check your connection and try again.</p>';
+    $('countLine').textContent = '';
+    return;
+  }
+  const years = [...new Set(REPORTS.map(r => (r.eventDate || '').slice(0,4)).filter(Boolean))].sort().reverse();
+  $('yearSelect').innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+  renderReports();
+}
+
+function renderReports(){
+  const wrap = $('reportList');
+  const term = keyOf($('searchBox').value);
+  const year = $('yearSelect').value;
+  const incidentsOnly = $('incidentsOnly').checked;
+
+  const shown = REPORTS.filter(r => {
+    if(year && (r.eventDate || '').slice(0,4) !== year) return false;
+    if(incidentsOnly && !r.incidents) return false;
+    if(!term) return true;
+    const hay = [r.operator, r.venue, r.license, r.eventDate, formatEventDate(r.eventDate), r.incidents];
+    return hay.some(v => keyOf(v).includes(term));
+  });
+
+  $('countLine').textContent = REPORTS.length ? `${shown.length} of ${REPORTS.length} REPORT${REPORTS.length === 1 ? '' : 'S'}` : '';
+
+  if(!REPORTS.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">\ud83d\udcc4</div><p>No reports saved yet. Fill in an After-Action Report and tap Save to Drive, or email it \u2014 a copy is saved automatically.</p></div>';
+    return;
+  }
+  if(!shown.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">\ud83d\udd0d</div><p>No reports match. Try a different search.</p></div>';
+    return;
+  }
+
+  wrap.innerHTML = shown.map(r => `
+    <div class="report-card" data-id="${esc(r.id)}">
+      <div class="report-main">
+        <div class="report-top">
+          <span class="report-date">${esc(formatEventDate(r.eventDate))}</span>
+          <span class="report-saved">${esc(formatSaved(r.savedAt))}</span>
+        </div>
+        <div class="report-venue">${esc(r.venue || '(no venue entered)')}</div>
+        <div class="report-meta">${esc(r.operator || '(no operator)')}${r.license ? ' \u00b7 License ' + esc(r.license) : ''}</div>
+        ${r.incidents ? `<div class="report-flags">Reported: ${esc(r.incidents)}</div>` : ''}
+      </div>
+      <div class="report-note" style="display:none;"></div>
+      <div class="report-actions">
+        <button type="button" data-action="open">Open PDF</button>
+        <button type="button" class="danger" data-action="delete">Delete</button>
+        ${r.fileId ? `<a href="https://drive.google.com/file/d/${encodeURIComponent(r.fileId)}/view" target="_blank" rel="noopener">Open in Drive</a>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function setCardNote(card, text){
+  const note = card.querySelector('.report-note');
+  note.textContent = text || '';
+  note.style.display = text ? 'block' : 'none';
+}
+
+async function openReport(card, btn){
+  const id = card.dataset.id;
+  const report = REPORTS.find(r => r.id === id);
+  // Open the tab right away, while the tap still counts, then point it at the PDF once it has loaded.
+  const tab = window.open('', '_blank');
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Loading\u2026';
+  setCardNote(card, '');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=aarReportFile&id=${encodeURIComponent(id)}`, { cache: 'no-store' });
+    const data = await res.json();
+    if(!data.dataUrl) throw new Error(data.error || 'Could not load that report');
+    const bytes = Uint8Array.from(atob(data.dataUrl.split('base64,')[1]), c => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type:'application/pdf' }));
+    if(tab && !tab.closed){
+      tab.location.href = url;
+    } else {
+      const a = document.createElement('a');          // pop-up blocked: download instead
+      a.href = url; a.download = data.fileName || (report && report.fileName) || 'After-Action-Report.pdf';
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch(err){
+    if(tab && !tab.closed) tab.close();
+    setCardNote(card, err.message && err.message !== 'Failed to fetch' ? err.message : "Couldn't load that report \u2014 check your connection and try again.");
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+
+async function deleteReport(card, btn){
+  const id = card.dataset.id;
+  const r = REPORTS.find(x => x.id === id);
+  const label = r ? `${formatEventDate(r.eventDate)} \u2014 ${r.venue || 'no venue'} (${r.operator || 'no operator'})` : 'this report';
+  if(!confirm(`Delete the saved report for ${label}? The PDF moves to the Drive trash, where it stays recoverable for a while.`)) return;
+  btn.disabled = true;
+  try{
+    await postJson({ recordType:'deleteAarReport', id });
+    REPORTS = REPORTS.filter(x => x.id !== id);
+    renderReports();
+  } catch(err){
+    btn.disabled = false;
+    setCardNote(card, "Couldn't delete \u2014 check your connection and try again.");
+  }
+}
+
+$('reportList').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const card = btn.closest('.report-card');
+  if(btn.dataset.action === 'open') openReport(card, btn);
+  if(btn.dataset.action === 'delete') deleteReport(card, btn);
+});
+
+loadReports();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

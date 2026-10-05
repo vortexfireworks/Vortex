@@ -476,10 +476,13 @@ updateThemeToggleIcon();
   <div class="actions">
     <button class="primary" type="button" onclick="sendReport()">Email to state fire marshal</button>
     <button class="secondary" type="button" onclick="exportPDF()">Export as PDF</button>
+    <button class="secondary" type="button" id="saveDriveBtn" onclick="saveReportToDrive()">Save to Drive</button>
     <button class="secondary" type="button" onclick="downloadSignature()">Download signature image</button>
   </div>
-  <p class="status" id="emailStatus" style="padding:0 28px;font-size:12px;color:var(--brick);"></p>
+  <p class="status" id="emailStatus" style="padding:0 28px;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;color:var(--brick);"></p>
+  <p class="status" id="driveStatus" style="padding:0 28px;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;" aria-live="polite"></p>
   <p class="footer-note">Office of the State Fire Marshal · 410 W. 9800 South, Suite 372, Sandy, UT 84070 · 801‑256‑2390 · fireworks@utah.gov<br>
+  "Save to Drive" keeps a copy of the PDF in Vortex's Drive so it can be found again under Manage/Edit &rarr; Saved After Action Reports. Emailing the report saves a copy there automatically.<br>
   "Email to state fire marshal" addresses a message to fireworks@utah.gov (CC: Chuck &amp; Vortex). On phones that support it, this opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
 </div>
 
@@ -1255,6 +1258,78 @@ function validate(){
   return true;
 }
 
+// Once this report has a saved copy, saving again replaces that copy instead of adding a second one.
+let savedAarId = null;
+let driveSaving = null;
+
+function incidentSummary(){
+  const out = [];
+  if(radioVal('q_duds') === 'Yes') out.push('Duds');
+  if(radioVal('q_injury') === 'Yes') out.push('Injuries');
+  if(radioVal('q_fire') === 'Yes') out.push('Fire');
+  if(radioVal('q_viol') === 'Yes') out.push('Violations');
+  return out.join(', ');
+}
+
+function setDriveStatus(msg, kind){
+  const el = document.getElementById('driveStatus');
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? '#4caf7d' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft, #a3a9bf)';
+}
+
+async function postReportToDrive(doc){
+  const dataUrl = doc.output('datauristring');
+  const pdfBase64 = dataUrl.slice(dataUrl.indexOf('base64,') + 7);
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      recordType: 'aarReport', id: savedAarId || undefined, fileName: buildAarFileName(),
+      eventDate: val('eventDate'), venue: val('event'), operator: val('opName'), license: val('license'),
+      incidents: incidentSummary(), pdfBase64
+    })
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status !== 'ok') throw new Error((data && data.message) || 'Request failed');
+  savedAarId = data.id;
+  return data;
+}
+
+// Only one save at a time, so pressing the button while an email-triggered save is running can't create a duplicate.
+function saveToDriveOnce(doc){
+  if(!driveSaving) driveSaving = postReportToDrive(doc).finally(() => { driveSaving = null; });
+  return driveSaving;
+}
+
+async function saveReportToDrive(){
+  if(!validate()) return;
+  const btn = document.getElementById('saveDriveBtn');
+  const hadCopy = !!savedAarId;
+  btn.disabled = true;
+  setDriveStatus('Saving to Drive…');
+  try{
+    await saveToDriveOnce(buildReportPDF());
+    setDriveStatus(hadCopy ? 'Updated the copy saved in Drive \u2713' : 'Saved to Drive \u2713 \u2014 find it again under Manage/Edit \u2192 Saved After Action Reports', 'ok');
+  } catch(err){
+    setDriveStatus("Couldn't save to Drive \u2014 check your connection and try again. Your report is still here.", 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Runs alongside the email/share step and never blocks or breaks it.
+async function autoSaveOnSend(doc){
+  const hadCopy = !!savedAarId;
+  setDriveStatus('Saving a copy to Drive…');
+  try{
+    await saveToDriveOnce(doc);
+    setDriveStatus(hadCopy ? 'Updated the copy saved in Drive \u2713' : 'Saved to Drive \u2713', 'ok');
+  } catch(err){
+    setDriveStatus("Couldn't save a copy to Drive (no signal?). Sending isn't affected \u2014 tap Save to Drive to try again.", 'err');
+  }
+}
+
 async function sendReport(){
   if(!validate()) return;
   const opName = document.getElementById('opName').value.trim();
@@ -1266,6 +1341,7 @@ async function sendReport(){
 
   const doc = buildReportPDF();
   const pdfBlob = doc.output('blob');
+  const driveCopy = autoSaveOnSend(doc);   // not awaited here: the share sheet needs the tap that started this
 
   // Try the device's native share sheet first — this can attach the real PDF
   // to Mail (or any app) on supported browsers, unlike a mailto: link.
@@ -1283,6 +1359,7 @@ async function sendReport(){
         });
         aarSubmitted = true;
         clearDraft();
+        await driveCopy;
         return;
       }
     } catch(err){

@@ -344,7 +344,16 @@ async function fetchVenueDirectory(){
         VENUE_INFO[v.name.trim().toLowerCase()] = entry;
         fetchedList.push(entry);
       });
-      VENUE_LIST = fetchedList.concat(ALWAYS_AVAILABLE_NO_DATE.map(key => VENUE_INFO[key]).filter(Boolean));
+      // The sheet usually has its own Shop Time / Trailer Loading / Bunker Time rows too, so collapse anything
+      // with the same name AND date into one — otherwise those three would each appear twice.
+      const seen = new Set();
+      VENUE_LIST = fetchedList.concat(ALWAYS_AVAILABLE_NO_DATE.map(key => VENUE_INFO[key]).filter(Boolean))
+        .filter(v => {
+          const k = v.name.trim().toLowerCase() + '|' + (v.eventDate || '');
+          if(seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
       populateVenueSelect();
     }
   } catch(err){

@@ -285,6 +285,11 @@ const VENUE_DIRECTORY = {};
   "Taylorsville - Thursday","Taylorsville - Friday","Taylorsville - Saturday","Olympus High School","Moab - Music Festival"
 ].forEach(name => { VENUE_DIRECTORY[name.toLowerCase()] = { name: name, eventDate: '', signInEnabled: false }; });
 
+function venueKey(name, eventDate){
+  const base = String(name || '').trim().toLowerCase();
+  return eventDate ? base + '|||' + eventDate : base;
+}
+
 function formatDateForOption(dateStr){
   if(!dateStr) return '';
   const datePart = dateStr.slice(0, 10); // handles plain "YYYY-MM-DD" or a full ISO timestamp
@@ -309,6 +314,7 @@ function isSignInEffectivelyEnabled(v){
 function populateVenueSelect(){
   const select = document.getElementById('eventName');
   const currentValue = select.value;
+  const currentKey = select.selectedOptions[0] ? (select.selectedOptions[0].dataset.key || '') : '';
   const sorted = Object.values(VENUE_DIRECTORY)
     .filter(v => ALWAYS_AVAILABLE_NO_DATE.includes(v.name.trim().toLowerCase()) || isSignInEffectivelyEnabled(v))
     .sort((a, b) => {
@@ -320,10 +326,12 @@ function populateVenueSelect(){
   select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
     sorted.map(v => {
       const label = v.eventDate ? `${formatDateForOption(v.eventDate)} — ${v.name}` : v.name;
-      return `<option value="${v.name.replace(/"/g,'&quot;')}">${label.replace(/</g,'&lt;')}</option>`;
+      return `<option value="${v.name.replace(/"/g,'&quot;')}" data-key="${venueKey(v.name, v.eventDate).replace(/"/g,'&quot;')}">${label.replace(/</g,'&lt;')}</option>`;
     }).join('');
   if(currentValue){
-    select.value = currentValue;
+    // keep the same DATED entry selected, not just the first one that shares the name
+    const exact = currentKey && Array.from(select.options).find(o => o.dataset.key === currentKey);
+    if(exact) exact.selected = true; else select.value = currentValue;
   } else {
     select.selectedIndex = 0;
   }
@@ -357,7 +365,9 @@ async function fetchVenueDirectory(){
         if(!v.name) return;
         // Keyed by name+date, not name alone — the same venue can legitimately have
         // more than one entry (different dates), and each needs its own dropdown row.
-        const key = v.name.trim().toLowerCase() + '|||' + (v.eventDate || '');
+        // Dateless entries (Shop Time, Trailer Loading, Bunker Time) keep the plain-name key so they
+        // replace the built-in copy instead of appearing twice.
+        const key = venueKey(v.name, v.eventDate);
         VENUE_DIRECTORY[key] = { name: v.name.trim(), eventDate: v.eventDate || '', signInEnabled: !!v.signInEnabled };
       });
       populateVenueSelect();

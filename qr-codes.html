@@ -114,6 +114,11 @@ updateThemeToggleIcon();
   .signin-toggle-row .info{font-size:13px;color:var(--ink);}
   .signin-toggle-row .info .date{font-size:11.5px;color:var(--ink-soft);display:block;margin-top:2px;}
   .signin-toggle-row input[type=checkbox]{width:20px;height:20px;flex-shrink:0;cursor:pointer;}
+  .signin-toggle-row input[type=checkbox]:disabled{cursor:wait;opacity:0.5;}
+  .signin-toggle-row .controls{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .signin-toggle-row .signin-status{font-size:11.5px;color:var(--ink-soft);text-align:right;max-width:150px;line-height:1.3;}
+  .signin-toggle-row .signin-status.ok{color:#4caf7d;}
+  .signin-toggle-row .signin-status.err{color:#ff6a5a;}
   .qr-holder canvas, .qr-holder img{width:220px !important;height:220px !important;}
   .link{font-size:11.5px;color:var(--ink-soft);word-break:break-all;margin-bottom:20px;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;text-align:left;}
@@ -199,6 +204,7 @@ updateThemeToggleIcon();
   <p class="sub" style="margin:0 0 14px;">
     Check a venue to make it available on Check-In. It turns off automatically 2 days after the event date —
     Shop Time, Trailer Loading, and Bunker Time are always available and don't need to be enabled.
+    Changes save automatically when you check or uncheck a box, and each row confirms it saved.
   </p>
   <div id="signInToggleList">
     <p class="loading-pulse" style="font-size:13px;color:var(--ink-soft);">Loading venues…</p>
@@ -326,13 +332,41 @@ function formatDateForOption(dateStr){
   return `${Number(m)}/${Number(d)}`;
 }
 
+function esc(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+  return data;
+}
+
+async function fetchVenuesFresh(){
+  const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
+  if(!res.ok) throw new Error('Request failed');
+  const venues = await res.json();
+  return Array.isArray(venues) ? venues : [];
+}
+
+// Two days after the event the sign-in closes by itself, whatever the checkbox says.
+function signInExpired(eventDate){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const expiresAt = new Date(String(eventDate).slice(0, 10) + 'T00:00:00');
+  expiresAt.setDate(expiresAt.getDate() + 2);
+  return today > expiresAt;
+}
+
 async function fetchSignInToggleList(){
   const wrap = document.getElementById('signInToggleList');
   try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
-    if(!res.ok) throw new Error('Request failed');
-    const venues = await res.json();
-    if(!Array.isArray(venues)) return;
+    const venues = await fetchVenuesFresh();
 
     const today = new Date(); today.setHours(0,0,0,0);
     const weekAgo = new Date(today); weekAgo.setDate(today.getDate() - 7);
@@ -342,42 +376,101 @@ async function fetchSignInToggleList(){
       .filter(v => v.name && v.eventDate)
       .map(v => {
         const eventDay = new Date(v.eventDate.slice(0, 10) + 'T00:00:00');
-        const expiresAt = new Date(eventDay); expiresAt.setDate(expiresAt.getDate() + 2);
-        const expired = today > expiresAt;
+        const expired = signInExpired(v.eventDate);
         return { id: v.id || '', name: v.name, eventDate: v.eventDate, eventDay, effectiveEnabled: !!v.signInEnabled && !expired, expired };
       })
       .filter(v => v.eventDay >= weekAgo && v.eventDay <= twoMonthsAhead)
-      .sort((a, b) => a.eventDay - b.eventDay);
+      .sort((a, b) => a.eventDay - b.eventDay || a.name.localeCompare(b.name));
 
     if(dated.length === 0){
       wrap.innerHTML = '<p style="font-size:13px;color:var(--ink-soft);">No venues with a date set in the next couple months. Add a date in Manage Venues first.</p>';
       return;
     }
 
+    // Every row carries its own id and date, so two dates of the same venue are always told apart.
     wrap.innerHTML = dated.map(v => `
-      <div class="signin-toggle-row">
+      <div class="signin-toggle-row" data-id="${esc(v.id)}" data-name="${esc(v.name)}" data-date="${esc(v.eventDate.slice(0,10))}">
         <div class="info">
-          ${v.name}
-          <span class="date">${formatDateForOption(v.eventDate)}${v.expired ? ' — expired' : ''}</span>
+          ${esc(v.name)}
+          <span class="date">${esc(formatDateForOption(v.eventDate))}${v.expired ? ' — expired' : ''}</span>
         </div>
-        <input type="checkbox" ${v.effectiveEnabled ? 'checked' : ''} onchange="toggleVenueSignIn('${v.id}', '${v.name.replace(/'/g,"\\'")}', '${v.eventDate}', this.checked)">
+        <div class="controls">
+          <span class="signin-status" aria-live="polite"></span>
+          <input type="checkbox" ${v.effectiveEnabled ? 'checked' : ''} aria-label="Enable sign-in for ${esc(v.name)} on ${esc(formatDateForOption(v.eventDate))}">
+        </div>
       </div>
     `).join('');
+
+    wrap.querySelectorAll('.signin-toggle-row input[type=checkbox]').forEach(box => {
+      box.addEventListener('change', () => saveSignInToggle(box));
+    });
   } catch(err){
     wrap.innerHTML = '<p style="font-size:13px;color:#ff6a5a;">Could not load venues — check your connection and try again.</p>';
   }
 }
-fetchSignInToggleList();
 
-// Sends the venue's id and date along with its name: the same venue can have several
-// dates, so the name alone isn't enough to know which entry's checkbox was ticked.
-function toggleVenueSignIn(id, name, eventDate, enabled){
-  fetch(CHECKIN_API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify({ recordType: 'toggleVenueSignIn', id, name, eventDate, enabled })
+function setRowStatus(row, text, kind, clearAfterMs){
+  const el = row.querySelector('.signin-status');
+  el.textContent = text || '';
+  el.className = 'signin-status' + (kind ? ' ' + kind : '');
+  clearTimeout(row._statusTimer);
+  if(clearAfterMs) row._statusTimer = setTimeout(() => { el.textContent = ''; el.className = 'signin-status'; }, clearAfterMs);
+}
+
+// After a save, make every row match what the sheet actually says right now, so a change that landed
+// on the wrong row (or that someone else just made) is visible instead of hidden.
+function syncRowsFromSheet(fresh, exceptRow){
+  document.querySelectorAll('.signin-toggle-row').forEach(row => {
+    if(row === exceptRow) return;
+    const { id, name, date } = row.dataset;
+    const rec = fresh.find(v => (id && v.id === id) || (!v.id && v.name === name && String(v.eventDate).slice(0,10) === date))
+             || fresh.find(v => v.name === name && String(v.eventDate).slice(0,10) === date);
+    if(!rec) return;
+    const shouldBeChecked = !!rec.signInEnabled && !signInExpired(date);
+    const box = row.querySelector('input[type=checkbox]');
+    if(!box.disabled && box.checked !== shouldBeChecked){
+      box.checked = shouldBeChecked;
+      setRowStatus(row, 'Updated to match the sheet', 'err', 6000);
+    }
   });
 }
+
+// Saves as soon as a box is ticked or unticked, then re-reads the sheet and checks that THIS row (this
+// venue on this date) really changed. If it did not, the box goes back and the row says so.
+async function saveSignInToggle(box){
+  const row = box.closest('.signin-toggle-row');
+  const { id, name, date } = row.dataset;
+  const wanted = box.checked;
+
+  box.disabled = true;
+  setRowStatus(row, 'Saving…');
+  try{
+    await postJson({ recordType: 'toggleVenueSignIn', id, name, eventDate: date, enabled: wanted });
+
+    const fresh = await fetchVenuesFresh();
+    const saved = fresh.find(v => (id && v.id === id) || (!v.id && v.name === name && String(v.eventDate).slice(0,10) === date))
+               || fresh.find(v => v.name === name && String(v.eventDate).slice(0,10) === date);
+    if(!saved) throw new Error('Could not find that venue to confirm the change');
+    syncRowsFromSheet(fresh, row);
+
+    if(!!saved.signInEnabled !== wanted){
+      box.checked = !!saved.signInEnabled && !signInExpired(date);
+      setRowStatus(row, "Didn't save — the server didn't apply it. Make sure the latest Apps Script is deployed.", 'err');
+    } else if(wanted && signInExpired(date)){
+      box.checked = false;
+      setRowStatus(row, 'Saved, but this date has passed so it won\u2019t show in Check-In', 'err');
+    } else {
+      setRowStatus(row, 'Saved \u2713', 'ok', 2500);
+    }
+  } catch(err){
+    box.checked = !wanted;
+    setRowStatus(row, "Couldn't save — check your connection and try again", 'err');
+  } finally {
+    box.disabled = false;
+  }
+}
+
+fetchSignInToggleList();
 
 function downloadFlyerPDF(){
   const canvas = document.getElementById('qr').querySelector('canvas');

@@ -170,6 +170,48 @@ function findShowPlanRow(sheet, map, name) {
   return -1;
 }
 
+const AAR_FOLDER_NAME = 'Vortex After Action Reports';
+
+function getOrCreateAarSheet(ss) {
+  const requiredHeaders = ['Id', 'SavedAt', 'EventDate', 'Venue', 'Operator', 'License', 'Incidents', 'FileName', 'FileId'];
+  let sheet = ss.getSheetByName('AfterActionReports');
+  if (!sheet) {
+    sheet = ss.insertSheet('AfterActionReports');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
+function findAarRow(sheet, map, id) {
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][map['Id']]) === String(id)) return i + 1;
+  }
+  return -1;
+}
+
+// Saved privately in the script owner's Drive (no public link) — these reports hold crew licence numbers and addresses.
+function saveAarPdfToDrive(base64, fileName) {
+  const bytes = Utilities.base64Decode(base64);
+  if (!bytes || !bytes.length || bytes.length > 15 * 1024 * 1024) return null;   // safety cap: 15 MB
+  const blob = Utilities.newBlob(bytes, 'application/pdf', fileName);
+  const folders = DriveApp.getFoldersByName(AAR_FOLDER_NAME);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(AAR_FOLDER_NAME);
+  return folder.createFile(blob).getId();
+}
+
+function trashDriveFileQuietly(fileId) {
+  if (!fileId) return;
+  try { DriveApp.getFileById(String(fileId)).setTrashed(true); } catch (err) { /* already gone */ }
+}
+
 function getOrCreateFireworkProductsSheet(ss) {
   const requiredHeaders = ['Name', 'Type', 'Size', 'Manufacturer', 'Effects', 'SKU', 'IsAssortment', 'AssortmentJson'];
   let sheet = ss.getSheetByName('FireworkProducts');
@@ -556,6 +598,63 @@ function doPost(e) {
       try { DriveApp.getFileById(oldId).setTrashed(true); } catch (err) { /* already gone */ }
     }
     return jsonOut({status: 'ok', siteMapUrl: newUrl});
+  }
+
+  if (data.recordType === 'aarReport') {
+    const base64 = String(data.pdfBase64 || '').replace(/^data:application\/pdf[^,]*;base64,/, '');
+    if (!base64) return jsonOut({status: 'error', message: 'Missing the report PDF'});
+    const operator = String(data.operator || '').trim().slice(0, 120);
+    const eventDate = normalizeDateValue(data.eventDate);
+    if (!operator && !eventDate) return jsonOut({status: 'error', message: 'Missing operator name and event date'});
+    let fileName = String(data.fileName || '').replace(/[\\\/:*?"<>|]/g, '').trim().slice(0, 120);
+    if (!fileName) fileName = 'AAR_' + (eventDate || 'report') + '.pdf';
+    if (!/\.pdf$/i.test(fileName)) fileName += '.pdf';
+
+    const sheet = getOrCreateAarSheet(ss);
+    const map = headerMap(sheet);
+    const row = data.id ? findAarRow(sheet, map, data.id) : -1;
+
+    // Save the new file first, so a Drive problem can never damage an existing saved report.
+    const fileId = saveAarPdfToDrive(base64, fileName);
+    if (!fileId) return jsonOut({status: 'error', message: 'Could not save that PDF to Drive'});
+
+    const values = {
+      SavedAt: new Date(),
+      EventDate: eventDate,
+      Venue: String(data.venue || '').trim().slice(0, 200),
+      Operator: operator,
+      License: String(data.license || '').trim().slice(0, 60),
+      Incidents: String(data.incidents || '').trim().slice(0, 200),
+      FileName: fileName,
+      FileId: fileId
+    };
+    let id;
+    if (row > 0) {
+      id = String(data.id);
+      const oldFileId = sheet.getRange(row, map['FileId'] + 1).getValue();
+      Object.keys(values).forEach(k => sheet.getRange(row, map[k] + 1).setValue(values[k]));
+      trashDriveFileQuietly(oldFileId);
+    } else {
+      id = Utilities.getUuid();
+      const newRow = new Array(Object.keys(map).length).fill('');
+      newRow[map['Id']] = id;
+      Object.keys(values).forEach(k => { newRow[map[k]] = values[k]; });
+      sheet.appendRow(newRow);
+    }
+    return jsonOut({status: 'ok', id: id, fileId: fileId, replaced: row > 0});
+  }
+
+  if (data.recordType === 'deleteAarReport') {
+    const sheet = ss.getSheetByName('AfterActionReports');
+    if (sheet && data.id) {
+      const map = headerMap(sheet);
+      const row = findAarRow(sheet, map, data.id);
+      if (row > 0) {
+        trashDriveFileQuietly(sheet.getRange(row, map['FileId'] + 1).getValue());
+        sheet.deleteRow(row);
+      }
+    }
+    return jsonOut({status: 'ok'});
   }
 
   if (data.recordType === 'shellProductsImport') {
@@ -1091,6 +1190,50 @@ function doGet(e) {
     let racksConfig = {};
     try { racksConfig = JSON.parse(getPickListSetting(ss, 'racksConfig') || '{}'); } catch (err) { racksConfig = {}; }
     return jsonOut({racksConfig: racksConfig, lists: lists});
+  }
+
+  if (e.parameter.type === 'aarReports') {
+    // Details only — the PDFs themselves are fetched one at a time, on request.
+    const reports = [];
+    const sheet = ss.getSheetByName('AfterActionReports');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const id = String(r[map['Id']] || '').trim();
+        if (!id) return;
+        const saved = r[map['SavedAt']];
+        reports.push({
+          id: id,
+          savedAt: saved instanceof Date ? saved.toISOString() : String(saved || ''),
+          eventDate: normalizeDateValue(r[map['EventDate']]),
+          venue: String(r[map['Venue']] || ''),
+          operator: String(r[map['Operator']] || ''),
+          license: String(r[map['License']] || ''),
+          incidents: String(r[map['Incidents']] || ''),
+          fileId: String(r[map['FileId']] || '')
+        });
+      });
+    }
+    reports.sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || '') || (b.savedAt || '').localeCompare(a.savedAt || ''));
+    return jsonOut({reports: reports.slice(0, 1000)});
+  }
+
+  if (e.parameter.type === 'aarReportFile') {
+    const sheet = ss.getSheetByName('AfterActionReports');
+    if (!sheet) return jsonOut({dataUrl: '', error: 'No reports saved yet'});
+    const map = headerMap(sheet);
+    const row = findAarRow(sheet, map, e.parameter.id);
+    if (row < 0) return jsonOut({dataUrl: '', error: 'That report was not found'});
+    const fileId = String(sheet.getRange(row, map['FileId'] + 1).getValue() || '');
+    const fileName = String(sheet.getRange(row, map['FileName'] + 1).getValue() || 'report.pdf');
+    try {
+      const file = DriveApp.getFileById(fileId);
+      if (file.isTrashed()) return jsonOut({dataUrl: '', error: 'The saved PDF is in the Drive trash'});
+      const blob = file.getBlob();
+      return jsonOut({dataUrl: 'data:application/pdf;base64,' + Utilities.base64Encode(blob.getBytes()), fileName: fileName});
+    } catch (err) {
+      return jsonOut({dataUrl: '', error: 'Could not read the saved PDF from Drive'});
+    }
   }
 
   if (e.parameter.type === 'shellProducts') {

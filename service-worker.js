@@ -18,6 +18,7 @@ const ASSETS = [
   './manage-inventory.html',
   './manage-fireworks.html',
   './plan-show.html',
+  './aar-reports.html',
   './plan-a-show.html',
   './catalog.html',
   './import-products.html',
