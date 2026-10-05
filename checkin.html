@@ -355,7 +355,10 @@ async function fetchVenueDirectory(){
     if(Array.isArray(sheetVenues)){
       sheetVenues.forEach(v => {
         if(!v.name) return;
-        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = { name: v.name.trim(), eventDate: v.eventDate || '', signInEnabled: !!v.signInEnabled };
+        // Keyed by name+date, not name alone — the same venue can legitimately have
+        // more than one entry (different dates), and each needs its own dropdown row.
+        const key = v.name.trim().toLowerCase() + '|||' + (v.eventDate || '');
+        VENUE_DIRECTORY[key] = { name: v.name.trim(), eventDate: v.eventDate || '', signInEnabled: !!v.signInEnabled };
       });
       populateVenueSelect();
       applyEventFromUrl();

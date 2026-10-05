@@ -51,7 +51,6 @@ updateThemeToggleIcon();
     --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
     --accent1:#d92b2b; --accent2:#ff8c00;
   }
-
   :root[data-theme="light"]{
     --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
     --logo-ring-bg:#fffaf3;
@@ -63,46 +62,24 @@ updateThemeToggleIcon();
     padding:32px 16px 80px;
     min-height:100vh;
   }
-  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
   header{text-align:center;margin-bottom:12px;}
-  .logo-ring{
-    width:92px;height:92px;border-radius:50%;
-    padding:3px;
-    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
-    margin:0 auto 16px;
-    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
-  }
-  .logo-ring-inner{
-    width:100%;height:100%;border-radius:50%;
-    background:var(--logo-ring-bg);
-    display:flex;align-items:center;justify-content:center;
-  }
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
   .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
-  header .kicker{
-    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
-    color:var(--kicker);font-weight:700;margin-bottom:6px;
-  }
-  header h1{
-    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
-    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    line-height:1.15;
-  }
-  .divider{
-    height:3px;width:64px;margin:20px auto 24px;
-    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
-    border-radius:2px;
-    box-shadow:0 0 12px rgba(255,140,0,0.4);
-  }
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
   .section{padding:22px 24px;}
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .full{grid-column:1/-1;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
-  input[type=text]{
+  input[type=text], input[type=date]{
     font-size:14px;padding:9px 11px;border:1px solid var(--line);
     border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
   }
   input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
   button.primary{
@@ -116,49 +93,22 @@ updateThemeToggleIcon();
     font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
   }
   button.secondary:hover{border-color:var(--navy);}
+  button.secondary.danger{color:var(--brick);}
+  button.secondary.danger:hover{border-color:var(--brick);}
   .editor-box{
     background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
     padding:16px;margin-bottom:24px;
   }
   .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
-  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;}
-  #venueSaveStatus{font-size:12.5px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
   .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
-  .search-box{margin-bottom:10px;}
-  #venueListWrap{
-    max-height:400px;overflow-y:auto;border:1px solid var(--line);
-    border-radius:8px;padding:6px 14px;font-size:13px;
-  }
-  .venue-row{
-    display:flex;justify-content:space-between;align-items:center;gap:10px;
-    padding:8px 0;border-bottom:1px solid var(--line);
-  }
-  .venue-row:last-child{border-bottom:none;}
-  .venue-row .venue-name{font-weight:600;}
-  .venue-row .venue-detail{color:var(--ink-soft);font-size:12px;}
-  .venue-row button{
-    background:none;border:1px solid var(--line);color:var(--navy);
-    font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;flex-shrink:0;
-  }
-  .venue-row button:hover{border-color:var(--navy);}
-  @media(max-width:480px){
-    .grid2{grid-template-columns:1fr;}
-  }
-  .back-link{
-    display:block; max-width:640px; margin:16px auto 0; padding:0 16px;
-    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
-  }
+  .search-box{margin-bottom:14px;}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
   .back-link:hover{color:var(--navy);}
-  .loading-pulse{
-    color:var(--ink-soft); margin:4px 0;
-    animation:pulseFade 1.4s ease-in-out infinite;
-  }
-  @keyframes pulseFade{
-    0%,100%{opacity:0.4;} 50%{opacity:1;}
-  }
-  .empty-state{
-    text-align:center; padding:24px 12px; color:var(--ink-soft);
-  }
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
   .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
   .empty-state p{margin:0;font-size:13px;}
   .theme-toggle{
@@ -170,28 +120,37 @@ updateThemeToggleIcon();
     transition:transform 0.15s ease;
   }
   .theme-toggle:hover{transform:scale(1.08);}
-
-  /* Phone layout for the venue list: stack each venue instead of a wide 5-column table */
-  @media (max-width:600px){
-    #venueListWrap{padding:6px 12px;}
-    #venueListWrap table, #venueListWrap tbody{display:block;width:100%;}
-    #venueListWrap thead{display:none;}
-    #venueListWrap tr{display:flex;flex-wrap:wrap;align-items:center;padding:10px 0;}
-    #venueListWrap td{display:block;padding:4px 0 !important;box-sizing:border-box;}
-    #venueListWrap td.v-name{order:1;flex:1 1 0;min-width:0;overflow-wrap:anywhere;}
-    #venueListWrap td.v-action{order:2;flex:0 0 auto;padding-left:10px !important;}
-    #venueListWrap td.v-field{order:3;flex:1 1 100%;}
-    #venueListWrap td.v-field::before{content:attr(data-label);display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:3px;}
-  }
-
-  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media(max-width:480px){ .grid2{grid-template-columns:1fr;} }
   @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
-</style>
 
+  .venue-group{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+  .venue-group-head{background:var(--surface-5);padding:10px 14px;}
+  .venue-group-head .vg-name{font-weight:700;font-size:14px;color:var(--ink);}
+  .venue-group-head .vg-detail{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .venue-date-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 14px;border-top:1px solid var(--line);font-size:13px;
+  }
+  .venue-date-row .vd-date{font-weight:600;color:var(--ink);}
+  .venue-date-row .vd-date.no-date{font-weight:400;color:var(--ink-soft);font-style:italic;}
+  .venue-date-row .vd-date.past{color:var(--ink-soft);font-weight:400;}
+  .venue-date-row .vd-actions{display:flex;gap:6px;flex-shrink:0;}
+  .venue-date-row .vd-actions button{
+    background:none;border:1px solid var(--line);color:var(--navy);
+    font-size:11.5px;padding:5px 9px;border-radius:6px;cursor:pointer;
+  }
+  .venue-date-row .vd-actions button:hover{border-color:var(--navy);}
+  .venue-date-row .vd-actions button.danger{color:var(--brick);}
+  .venue-date-row .vd-actions button.danger:hover{border-color:var(--brick);}
+  .venue-group-foot{padding:8px 14px;border-top:1px solid var(--line);}
+  .venue-group-foot button{
+    background:none;border:none;color:var(--navy);font-size:12px;cursor:pointer;padding:2px 0;
+  }
+  .venue-group-foot button:hover{text-decoration:underline;}
+</style>
 </head>
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
-
 
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 
@@ -203,50 +162,46 @@ updateThemeToggleIcon();
 
 <div class="divider"></div>
 
-<div class="sheet" id="mainContent">
+<div class="sheet">
   <div class="section">
-    <p class="desc">Add a new venue or update an existing one's address or county. Changes save to the shared venue list and show up in the Venue dropdown on the After-Action Report, Check-In, Payroll, and QR code pages right away.</p>
+    <p class="desc">Add a new venue or edit an existing one. The same venue can have more than one date — use "+ Add another date" on an existing venue instead of retyping its address. Changes show up in the venue list on the After-Action Report, Check-In, Payroll, and QR code pages right away.</p>
 
     <div class="editor-box">
-      <p class="label-title">ADD / UPDATE VENUE</p>
+      <p class="label-title" id="formTitle">ADD VENUE</p>
       <div class="grid2" style="margin-bottom:10px;">
         <div class="field full">
           <label for="vEditName">Venue name</label>
-          <input type="text" id="vEditName" list="venueDirectoryList" oninput="prefillVenueEdit(this)">
+          <input type="text" id="vEditName" list="venueDirectoryList" oninput="onNameInput(this.value)" autocomplete="off">
         </div>
-        <div class="field full"><label for="vEditAddress">Address</label><input type="text" id="vEditAddress" onblur="this.value = toTitleCase(this.value)"></div>
-        <div class="field"><label for="vEditCounty">County</label><input type="text" id="vEditCounty"></div>
+        <div class="field full"><label for="vEditAddress">Address</label><input type="text" id="vEditAddress" onblur="this.value = toTitleCase(this.value)" autocomplete="off"></div>
+        <div class="field"><label for="vEditCounty">County</label><input type="text" id="vEditCounty" autocomplete="off"></div>
         <div class="field"><label for="vEditDate">Event date</label><input type="date" id="vEditDate"></div>
       </div>
       <datalist id="venueDirectoryList"></datalist>
       <div class="save-row">
         <button class="primary" type="button" onclick="saveVenue()">Save venue</button>
-        <span id="venueSaveStatus"></span>
+        <button class="secondary" type="button" id="cancelEditBtn" onclick="resetForm()" style="display:none;">Cancel edit</button>
+        <span id="venueSaveStatus" class="hint"></span>
       </div>
     </div>
 
     <p class="list-title">CURRENT VENUES</p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
       <button class="secondary" type="button" onclick="exportVenuesCSV()">Export as CSV</button>
-      <label style="display:inline-flex;align-items:center;padding:8px 14px;border:1px solid var(--line);border-radius:3px;font-size:13px;cursor:pointer;color:var(--navy);background:none;">
+      <label style="display:inline-flex;align-items:center;padding:8px 14px;border:1px solid var(--line);border-radius:6px;font-size:13px;cursor:pointer;color:var(--navy);background:none;">
         Import from CSV
         <input type="file" accept=".csv" style="display:none;" onchange="handleCsvImport(event)">
       </label>
       <button class="secondary" type="button" onclick="findDuplicateVenues()">Find duplicates</button>
     </div>
-    <p id="csvImportStatus" style="font-size:12px;color:var(--ok);margin:0 0 12px;"></p>
+    <p id="csvImportStatus" class="hint"></p>
     <div id="duplicatesWrap" style="margin:0 0 16px;"></div>
 
     <div class="field search-box">
-      <input type="text" id="venueSearch" placeholder="Search by name…" oninput="renderVenueList()">
+      <input type="text" id="venueSearch" placeholder="Search by name, address, or county…" oninput="renderVenueList()">
     </div>
-    <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 8px;">Edit Address or County directly below, then click "Save all changes" to publish everything at once. To rename a venue, use "Rename" to load it into the editor above.</p>
     <div id="venueListWrap">
       <p class="loading-pulse">Loading…</p>
-    </div>
-    <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <button class="primary" type="button" onclick="saveAllVenues()">Save all changes</button>
-      <span id="bulkSaveStatus" style="font-size:12.5px;color:var(--ink-soft);"></span>
     </div>
   </div>
 </div>
@@ -254,99 +209,237 @@ updateThemeToggleIcon();
 <script>
 const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
 
-const BASE_VENUES = [
-  {name:"Real Salt Lake", address:"America First Field, 9256 S State St, Sandy, UT 84070", county:"Salt Lake"},
-  {name:"University of Utah", address:"Rice-Eccles Stadium, 451 1400 E, Salt Lake City, UT 84112", county:"Salt Lake"},
-  {name:"Salt Lake Bees", address:"The Ballpark at America First Square, 11111 South Ballpark Way (5470 W), South Jordan, UT 84009", county:"Salt Lake"},
-  {name:"Trailer Loading", address:"Shop", county:"Salt Lake"},
-  {name:"Shop Time", address:"Shop", county:"Salt Lake"},
-  {name:"Bunker Time", address:"Bunker", county:"Salt Lake"},
-  {name:"Hillcrest High School", address:"7350 S 900 E, Midvale, UT 84047", county:"Salt Lake"},
-  {name:"Jordan High School", address:"95 Beetdigger Blvd., Sandy, UT 84070", county:"Salt Lake"},
-  {name:"Copper Hills High School", address:"5445 Copper Hls Pkwy, West Jordan, UT 84081", county:"Salt Lake"},
-  {name:"Herriman High School", address:"11917 Mustang Trail Way, Herriman, UT 84096", county:"Salt Lake"},
-  {name:"North Ridge High School", address:"2430 N Hill Field Rd, Layton, UT 84041", county:"Salt Lake"},
-  {name:"Bee's - Class \"C\" Show", address:"11111 Ballpark Dr, South Jordan, UT 84009", county:"Salt Lake"},
-  {name:"West Jordan High School", address:"8136 2700 W, West Jordan, UT 84088", county:"Salt Lake"},
-  {name:"American Heritage High School", address:"736 N 1100 E, American Fork, UT 84003", county:"Utah"},
-  {name:"Sleepy Ridge", address:"730 S Sleepy Ridge Dr, Orem, UT 84058", county:"Utah"},
-  {name:"Mountain Ridge High School", address:"14100 Sentinel Ridge Blvd, Herriman, UT 84096", county:"Salt Lake"},
-  {name:"Stansbury High School", address:"5300 N Aberdeen Ln, Stansbury Park, UT 84074", county:"Tooele"},
-  {name:"Bingham High School", address:"2160 South Jordan Pkwy, South Jordan, UT 84095", county:"Salt Lake"},
-  {name:"Bluffdale City", address:"2400 14400 S, Bluffdale, UT 84065", county:"Salt Lake"},
-  {name:"Midvale City", address:"425 6th Ave, Midvale, UT 84047", county:"Salt Lake"},
-  {name:"Utah Valley University", address:"800 W University Pkwy, Orem, UT 84058", county:"Utah"},
-  {name:"Southeast Township Days", address:"930 E Onyx Ln, Sandy, UT 84094", county:"Salt Lake"},
-  {name:"Magna - Day 1", address:"8975 W 2600 S, Magna, UT 84044", county:"Salt Lake"},
-  {name:"Magna - Day 2", address:"8975 W 2600 S, Magna, UT 84044", county:"Salt Lake"},
-  {name:"Murray City", address:"296 E Murray Park Ave, Murray, UT 84107", county:"Salt Lake"},
-  {name:"Ogden Raptors", address:"2330 Lincoln Ave, Ogden, UT 84401", county:"Weber"},
-  {name:"Farr West", address:"2500 W 4000 N St, Farr West, UT 84404", county:"Weber"},
-  {name:"West Point", address:"683 N 3500 W, West Point, UT 84015", county:"Davis"},
-  {name:"Moab - 4th of July", address:"680 S Mill Creek Dr, Moab, UT 84532", county:"Grand"},
-  {name:"Dutch John", address:"1050 S Blvd, Dutch John, UT 84023", county:"Daggett"},
-  {name:"Weber State University", address:"3848 Harrison Blvd, Ogden, UT 84408", county:"Weber"},
-  {name:"Draper City", address:"1020 Pioneer Rd, Draper, UT 84020", county:"Salt Lake"},
-  {name:"Bountiful City", address:"1077 E 1500 S, Bountiful, UT 84010", county:"Davis"},
-  {name:"American Fork City", address:"1000 N 550 E St, American Fork, UT 84003", county:"Utah"},
-  {name:"Lehi City", address:"601 W 3200 N, Lehi, UT 84043", county:"Utah"},
-  {name:"Springville City", address:"1205 E 900 S, Springville, UT 84663", county:"Utah"},
-  {name:"West Valley City (West Fest)", address:"5405 W 3100 S, West Valley City, UT 84120", county:"Salt Lake"},
-  {name:"Clinton City", address:"2000 N 2750 W, Clinton, UT 84015", county:"Davis"},
-  {name:"Thanksgiving Point Waterfall Concert", address:"3003 N Thanksgiving Way, Lehi, UT 84043", county:""},
-  {name:"Dugway City", address:"", county:""},
-  {name:"Taylorsville - Thursday", address:"2775 W 5200 S, West Valley City, UT 84118", county:"Salt Lake"},
-  {name:"Taylorsville - Friday", address:"2775 W 5200 S, West Valley City, UT 84118", county:"Salt Lake"},
-  {name:"Taylorsville - Saturday", address:"2775 W 5200 S, West Valley City, UT 84118", county:"Salt Lake"},
-  {name:"Olympus High School", address:"4055 S 2300 E, Holladay, UT 84124", county:"Salt Lake"},
-  {name:"Moab - Music Festival", address:"58 E 300 S, Moab, UT 84532", county:"Grand"}
-];
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function keyOf(s){ return String(s || '').trim().toLowerCase(); }
+function setStatus(el, msg, kind){
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
+}
+function toTitleCase(str){
+  if(!str) return str;
+  return str.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function formatDateDisplay(dateStr){
+  if(!dateStr) return '';
+  const parts = dateStr.slice(0,10).split('-');
+  if(parts.length !== 3) return dateStr;
+  const d = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+}
 
-const VENUE_DIRECTORY = {};
-BASE_VENUES.forEach(v => VENUE_DIRECTORY[v.name.toLowerCase()] = v);
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error'){
+    throw new Error((data && data.message) || 'Request failed');
+  }
+  return data;
+}
 
-async function fetchVenueDirectory(){
+/* ---------------- State: a flat list of venues, never deduped by name ---------------- */
+let VENUES = [];
+let editingId = null;
+
+async function loadVenues(){
   try{
     const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
     if(!res.ok) throw new Error('Request failed');
-    const sheetVenues = await res.json();
-    if(Array.isArray(sheetVenues)){
-      sheetVenues.forEach(v => {
-        if(!v.name) return;
-        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = {
-          name: v.name.trim(),
-          address: v.address || '',
-          county: v.county || '',
-          eventDate: v.eventDate || ''
-        };
-      });
-    }
+    const data = await res.json();
+    VENUES = (Array.isArray(data) ? data : []).map(v => ({
+      id: v.id || '', name: String(v.name || '').trim(), address: v.address || '',
+      county: v.county || '', eventDate: v.eventDate || '', signInEnabled: !!v.signInEnabled
+    })).filter(v => v.name);
   } catch(err){
-    // Sheet sync failed — still show the built-in venue list below
+    VENUES = [];
   }
-  populateVenueDatalist();
+  buildDatalist();
   renderVenueList();
 }
 
-function populateVenueDatalist(){
-  const dl = document.getElementById('venueDirectoryList');
-  dl.innerHTML = Object.values(VENUE_DIRECTORY).map(v => `<option value="${v.name}">`).join('');
+function buildDatalist(){
+  const names = [...new Set(VENUES.map(v => v.name))].sort((a,b) => a.localeCompare(b));
+  $('venueDirectoryList').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
 }
 
-function prefillVenueEdit(nameInput){
-  if(!nameInput.value.trim()){
-    originalVenueName = null;
-  }
-  const match = VENUE_DIRECTORY[nameInput.value.trim().toLowerCase()];
-  if(match){
-    document.getElementById('vEditAddress').value = match.address || '';
-    document.getElementById('vEditCounty').value = match.county || '';
-    document.getElementById('vEditDate').value = match.eventDate || '';
+/* ---------------- Add / Edit form ---------------- */
+function onNameInput(value){
+  if(editingId) return;   // don't disturb an active edit just because the name field was touched
+  const matches = VENUES.filter(v => keyOf(v.name) === keyOf(value));
+  if(matches.length){
+    $('vEditAddress').value = matches[0].address || '';
+    $('vEditCounty').value = matches[0].county || '';
   }
 }
 
+function resetForm(){
+  editingId = null;
+  $('vEditName').value = '';
+  $('vEditAddress').value = '';
+  $('vEditCounty').value = '';
+  $('vEditDate').value = '';
+  $('formTitle').textContent = 'ADD VENUE';
+  $('cancelEditBtn').style.display = 'none';
+}
+
+function editVenue(id){
+  const v = VENUES.find(x => x.id === id);
+  if(!v) return;
+  editingId = id;
+  $('vEditName').value = v.name;
+  $('vEditAddress').value = v.address || '';
+  $('vEditCounty').value = v.county || '';
+  $('vEditDate').value = v.eventDate || '';
+  $('formTitle').textContent = 'EDITING: ' + v.name + (v.eventDate ? ' — ' + formatDateDisplay(v.eventDate) : '');
+  $('cancelEditBtn').style.display = '';
+  setStatus($('venueSaveStatus'), '');
+  $('vEditName').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function addAnotherDate(name){
+  const match = VENUES.find(v => keyOf(v.name) === keyOf(name));
+  editingId = null;
+  $('vEditName').value = name;
+  $('vEditAddress').value = match ? (match.address || '') : '';
+  $('vEditCounty').value = match ? (match.county || '') : '';
+  $('vEditDate').value = '';
+  $('formTitle').textContent = 'ADD VENUE';
+  $('cancelEditBtn').style.display = 'none';
+  setStatus($('venueSaveStatus'), '');
+  $('vEditDate').scrollIntoView({behavior:'smooth', block:'center'});
+  $('vEditDate').focus();
+}
+
+async function saveVenue(){
+  const statusEl = $('venueSaveStatus');
+  const name = $('vEditName').value.trim();
+  const address = $('vEditAddress').value.trim();
+  const county = $('vEditCounty').value.trim();
+  const eventDate = $('vEditDate').value.trim();
+
+  if(!name){
+    setStatus(statusEl, 'Enter a venue name first.', 'err');
+    return;
+  }
+
+  setStatus(statusEl, 'Saving…');
+  const payload = { recordType: 'venue', name, address, county, eventDate };
+  if(editingId) payload.id = editingId;
+
+  try{
+    const result = await postJson(payload);
+    if(editingId){
+      const v = VENUES.find(x => x.id === editingId);
+      if(v) Object.assign(v, { name, address, county, eventDate });
+    } else {
+      VENUES.push({ id: result.id || '', name, address, county, eventDate, signInEnabled: false });
+    }
+    buildDatalist();
+    renderVenueList();
+    setStatus(statusEl, 'Saved ✓', 'ok');
+    resetForm();
+  } catch(err){
+    setStatus(statusEl, 'Could not save — check your connection and try again.', 'err');
+  }
+}
+
+async function deleteVenue(id){
+  const v = VENUES.find(x => x.id === id);
+  if(!v) return;
+  const label = v.name + (v.eventDate ? ' — ' + formatDateDisplay(v.eventDate) : '');
+  if(!confirm(`Delete "${label}"? This can't be undone.`)) return;
+  try{
+    await postJson({ recordType: 'deleteVenueRow', id });
+    VENUES = VENUES.filter(x => x.id !== id);
+    buildDatalist();
+    renderVenueList();
+    if(editingId === id) resetForm();
+  } catch(err){
+    alert('Could not delete — check your connection and try again.');
+  }
+}
+
+/* ---------------- List: grouped by name, every date shown ---------------- */
+function renderVenueList(){
+  const wrap = $('venueListWrap');
+  const search = keyOf($('venueSearch').value);
+
+  let venues = VENUES;
+  if(search){
+    venues = venues.filter(v => keyOf(v.name).includes(search) || keyOf(v.address).includes(search) || keyOf(v.county).includes(search));
+  }
+  if(!venues.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No venues found. Try a different search, or add one above.</p></div>';
+    return;
+  }
+
+  const groups = {};
+  venues.forEach(v => {
+    const key = keyOf(v.name);
+    (groups[key] = groups[key] || []).push(v);
+  });
+
+  const today = todayStr();
+  const groupList = Object.values(groups).map(rows => {
+    rows.sort((a,b) => {
+      if(a.eventDate && b.eventDate) return a.eventDate.localeCompare(b.eventDate);
+      if(a.eventDate && !b.eventDate) return -1;
+      if(!a.eventDate && b.eventDate) return 1;
+      return 0;
+    });
+    const nextUpcoming = rows.find(r => r.eventDate && r.eventDate >= today);
+    return { rows, sortKey: nextUpcoming ? nextUpcoming.eventDate : null };
+  });
+  groupList.sort((a,b) => {
+    if(a.sortKey && b.sortKey) return a.sortKey.localeCompare(b.sortKey);
+    if(a.sortKey && !b.sortKey) return -1;
+    if(!a.sortKey && b.sortKey) return 1;
+    return a.rows[0].name.localeCompare(b.rows[0].name);
+  });
+
+  wrap.innerHTML = groupList.map(({rows}) => {
+    const first = rows[0];
+    const detailBits = [first.address, first.county].filter(Boolean);
+    return `
+      <div class="venue-group">
+        <div class="venue-group-head">
+          <div class="vg-name">${esc(first.name)}</div>
+          ${detailBits.length ? `<div class="vg-detail">${esc(detailBits.join(' · '))}</div>` : ''}
+        </div>
+        ${rows.map(v => {
+          const isPast = v.eventDate && v.eventDate < today;
+          const dateLabel = v.eventDate ? formatDateDisplay(v.eventDate) : 'No date set';
+          const dateClass = !v.eventDate ? 'no-date' : (isPast ? 'past' : '');
+          return `
+          <div class="venue-date-row">
+            <span class="vd-date ${dateClass}">${esc(dateLabel)}</span>
+            <div class="vd-actions">
+              <button type="button" onclick="editVenue('${v.id}')">Edit</button>
+              <button type="button" class="danger" onclick="deleteVenue('${v.id}')">Delete</button>
+            </div>
+          </div>`;
+        }).join('')}
+        <div class="venue-group-foot">
+          <button type="button" onclick="addAnotherDate('${esc(first.name).replace(/'/g,"\\'")}')">+ Add another date</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ---------------- Find duplicates (genuine accidental dupes: same name AND same date) ---------------- */
 async function findDuplicateVenues(){
-  const wrap = document.getElementById('duplicatesWrap');
+  const wrap = $('duplicatesWrap');
   wrap.innerHTML = '<p class="loading-pulse">Checking for duplicates…</p>';
   try{
     const res = await fetch(`${CHECKIN_API_URL}?type=findDuplicateVenues`);
@@ -359,22 +452,22 @@ async function findDuplicateVenues(){
 }
 
 function renderDuplicateVenues(groups){
-  const wrap = document.getElementById('duplicatesWrap');
+  const wrap = $('duplicatesWrap');
   if(!groups || groups.length === 0){
-    wrap.innerHTML = '<p style="font-size:13px;color:var(--ok);">No duplicates found — every venue name appears only once.</p>';
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--ok);">No duplicates found — every venue+date combination appears only once.</p>';
     return;
   }
-  wrap.innerHTML = `<p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;">${groups.length} DUPLICATE NAME${groups.length > 1 ? 'S' : ''} FOUND</p>` +
+  wrap.innerHTML = `<p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;">${groups.length} DUPLICATE${groups.length > 1 ? 'S' : ''} FOUND (same name, same date)</p>` +
     groups.map((g, gi) => `
       <div style="background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.3);border-radius:10px;padding:14px;margin-bottom:12px;">
-        <p style="font-weight:700;margin:0 0 10px;">${g.rows[0].name}</p>
+        <p style="font-weight:700;margin:0 0 10px;">${esc(g.rows[0].name)}${g.rows[0].eventDate ? ' — ' + esc(formatDateDisplay(g.rows[0].eventDate)) : ''}</p>
         ${g.rows.map((r, ri) => `
           <div style="background:var(--surface-4);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;">
             <div style="color:var(--ink-soft);line-height:1.6;">
-              Address: ${r.address || '—'}<br>
-              County: ${r.county || '—'}
+              Address: ${esc(r.address) || '—'}<br>
+              County: ${esc(r.county) || '—'}
             </div>
-            <button type="button" style="margin-top:8px;" onclick="keepDuplicateVenueRow(${gi}, ${ri})">Keep this one, delete the other${g.rows.length > 2 ? 's' : ''}</button>
+            <button type="button" style="margin-top:8px;background:none;border:1px solid var(--line);color:var(--navy);font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer;" onclick="keepDuplicateVenueRow(${gi}, ${ri})">Keep this one, delete the other${g.rows.length > 2 ? 's' : ''}</button>
           </div>
         `).join('')}
       </div>
@@ -390,101 +483,14 @@ async function keepDuplicateVenueRow(groupIndex, keepIndex){
 
   for(const row of toDelete){
     try{
-      await fetch(CHECKIN_API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({ recordType: 'deleteVenueRow', rowNumber: row.rowNumber })
-      });
+      await postJson({ recordType: 'deleteVenueRow', rowNumber: row.rowNumber });
     } catch(err){}
   }
-  await fetchVenueDirectory();
-  renderVenueList();
-  document.getElementById('duplicatesWrap').innerHTML = `<p style="font-size:13px;color:var(--ok);">Combined — kept one entry for ${keepRow.name}.</p>`;
+  await loadVenues();
+  $('duplicatesWrap').innerHTML = `<p style="font-size:13px;color:var(--ok);">Combined — kept one entry for ${esc(keepRow.name)}.</p>`;
 }
 
-function renderVenueList(){
-  const wrap = document.getElementById('venueListWrap');
-  const search = document.getElementById('venueSearch').value.trim().toLowerCase();
-  let venues = Object.values(VENUE_DIRECTORY).sort((a, b) => {
-    if(a.eventDate && b.eventDate) return a.eventDate.localeCompare(b.eventDate);
-    if(a.eventDate && !b.eventDate) return -1;
-    if(!a.eventDate && b.eventDate) return 1;
-    return a.name.localeCompare(b.name);
-  });
-  if(search){
-    venues = venues.filter(v => v.name.toLowerCase().includes(search));
-  }
-  if(venues.length === 0){
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No venues found. Try a different search, or add one above.</p></div>';
-    return;
-  }
-  wrap.innerHTML = `
-    <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
-      <thead>
-        <tr>
-          <th style="text-align:left;padding:4px 6px 8px;color:var(--ink-soft);font-size:10.5px;">NAME</th>
-          <th style="text-align:left;padding:4px 6px 8px;color:var(--ink-soft);font-size:10.5px;width:100px;">DATE</th>
-          <th style="text-align:left;padding:4px 6px 8px;color:var(--ink-soft);font-size:10.5px;">ADDRESS</th>
-          <th style="text-align:left;padding:4px 6px 8px;color:var(--ink-soft);font-size:10.5px;width:90px;">COUNTY</th>
-          <th style="width:60px;"></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${venues.map(v => {
-          const key = v.name.toLowerCase().replace(/'/g, "\\'");
-          return `
-          <tr style="border-bottom:1px solid var(--line);">
-            <td class="v-name" style="padding:6px;font-weight:600;vertical-align:top;color:var(--ink);">${v.name}</td>
-            <td class="v-field" data-label="Date" style="padding:6px;vertical-align:top;">
-              <input type="date" value="${v.eventDate || ''}"
-                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);"
-                oninput="updateVenueField('${key}','eventDate',this.value)">
-            </td>
-            <td class="v-field" data-label="Address" style="padding:6px;vertical-align:top;">
-              <input type="text" value="${(v.address || '').replace(/"/g,'&quot;')}"
-                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);"
-                oninput="updateVenueField('${key}','address',this.value)">
-            </td>
-            <td class="v-field" data-label="County" style="padding:6px;vertical-align:top;">
-              <input type="text" value="${(v.county || '').replace(/"/g,'&quot;')}"
-                style="width:100%;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);"
-                oninput="updateVenueField('${key}','county',this.value)">
-            </td>
-            <td class="v-action" style="padding:6px;vertical-align:top;">
-              <button type="button" style="background:none;border:1px solid var(--line);color:var(--navy);font-size:11.5px;padding:5px 8px;border-radius:6px;cursor:pointer;" onclick="loadVenueIntoEditor('${key}')">Rename</button>
-            </td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table>
-  `;
-}
-
-function updateVenueField(key, field, value){
-  if(VENUE_DIRECTORY[key]) VENUE_DIRECTORY[key][field] = value;
-}
-
-async function saveAllVenues(){
-  const statusEl = document.getElementById('bulkSaveStatus');
-  const venues = Object.values(VENUE_DIRECTORY).sort((a,b) => a.name.localeCompare(b.name));
-  let count = 0;
-  for(const v of venues){
-    count++;
-    statusEl.textContent = `Saving ${count} of ${venues.length}: ${v.name}…`;
-    try{
-      await fetch(CHECKIN_API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: JSON.stringify({ recordType: 'venue', name: v.name, address: v.address || '', county: v.county || '', eventDate: v.eventDate || '' })
-      });
-    } catch(err){
-      // continue on to the next venue even if one fails
-    }
-    await new Promise(r => setTimeout(r, 150));
-  }
-  statusEl.textContent = `Saved all ${count} venues.`;
-}
-
+/* ---------------- CSV export / import ---------------- */
 function csvEscape(val){
   val = String(val == null ? '' : val);
   if(val.includes(',') || val.includes('"') || val.includes('\n')){
@@ -494,7 +500,7 @@ function csvEscape(val){
 }
 
 function exportVenuesCSV(){
-  const venues = Object.values(VENUE_DIRECTORY).sort((a,b) => a.name.localeCompare(b.name));
+  const venues = [...VENUES].sort((a,b) => a.name.localeCompare(b.name) || (a.eventDate||'').localeCompare(b.eventDate||''));
   const lines = ['Name,Address,County,EventDate'];
   venues.forEach(v => lines.push([csvEscape(v.name), csvEscape(v.address), csvEscape(v.county), csvEscape(v.eventDate)].join(',')));
   const blob = new Blob([lines.join('\n')], {type: 'text/csv'});
@@ -545,14 +551,13 @@ function parseCSV(text){
 
 async function handleCsvImport(event){
   const file = event.target.files[0];
-  const statusEl = document.getElementById('csvImportStatus');
+  const statusEl = $('csvImportStatus');
   if(!file) return;
   try{
     const text = await file.text();
     const rows = parseCSV(text);
     if(rows.length < 2){
-      statusEl.style.color = 'var(--brick)';
-      statusEl.textContent = 'That CSV looks empty — need a header row plus at least one venue.';
+      setStatus(statusEl, 'That CSV looks empty — need a header row plus at least one venue.', 'err');
       return;
     }
     const headers = rows[0].map(h => h.trim().toLowerCase());
@@ -561,11 +566,11 @@ async function handleCsvImport(event){
     const countyIdx = headers.indexOf('county');
     const dateIdx = ['eventdate', 'event date', 'date of event', 'date'].map(h => headers.indexOf(h)).find(i => i > -1) ?? -1;
     if(nameIdx === -1){
-      statusEl.style.color = 'var(--brick)';
-      statusEl.textContent = 'CSV needs a "Name" column header.';
+      setStatus(statusEl, 'CSV needs a "Name" column header.', 'err');
       return;
     }
-    let added = 0, updated = 0;
+    setStatus(statusEl, 'Importing…');
+    let added = 0;
     for(let r = 1; r < rows.length; r++){
       const row = rows[r];
       const name = (row[nameIdx] || '').trim();
@@ -573,86 +578,23 @@ async function handleCsvImport(event){
       const address = addressIdx > -1 ? (row[addressIdx] || '').trim() : '';
       const county = countyIdx > -1 ? (row[countyIdx] || '').trim() : '';
       const eventDate = dateIdx > -1 ? (row[dateIdx] || '').trim() : '';
-      const key = name.toLowerCase();
-      if(VENUE_DIRECTORY[key]) updated++; else added++;
-      VENUE_DIRECTORY[key] = { name, address, county, eventDate };
+      try{
+        const result = await postJson({ recordType: 'venue', name, address, county, eventDate });
+        VENUES.push({ id: result.id || '', name, address, county, eventDate, signInEnabled: false });
+        added++;
+      } catch(err){ /* skip this row, keep going */ }
     }
-    populateVenueDatalist();
+    buildDatalist();
     renderVenueList();
-    statusEl.style.color = 'var(--ok)';
-    statusEl.textContent = `Imported: ${added} new, ${updated} updated. Review below, then click "Save all changes" to publish.`;
+    setStatus(statusEl, `Imported ${added} venue${added===1?'':'s'}. Each CSV row is added as its own entry — use Find Duplicates afterward if you re-imported the same file.`, 'ok');
   } catch(err){
-    statusEl.style.color = 'var(--brick)';
-    statusEl.textContent = 'Could not read that file — make sure it\'s a valid CSV.';
+    setStatus(statusEl, "Could not read that file — make sure it's a valid CSV.", 'err');
   } finally {
     event.target.value = '';
   }
 }
 
-function toTitleCase(str){
-  if(!str) return str;
-  return str.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-}
-
-let originalVenueName = null;
-
-function loadVenueIntoEditor(name){
-  const match = VENUE_DIRECTORY[name.toLowerCase()];
-  if(!match) return;
-  originalVenueName = match.name;
-  document.getElementById('vEditName').value = match.name;
-  document.getElementById('vEditAddress').value = match.address || '';
-  document.getElementById('vEditCounty').value = match.county || '';
-  document.getElementById('vEditDate').value = match.eventDate || '';
-  document.getElementById('vEditName').scrollIntoView({behavior:'smooth', block:'center'});
-}
-
-function saveVenue(){
-  const statusEl = document.getElementById('venueSaveStatus');
-  const name = document.getElementById('vEditName').value.trim();
-  const address = document.getElementById('vEditAddress').value.trim();
-  const county = document.getElementById('vEditCounty').value.trim();
-  const eventDate = document.getElementById('vEditDate').value.trim();
-
-  if(!name){
-    statusEl.textContent = 'Enter a venue name first.';
-    statusEl.style.color = 'var(--brick)';
-    return;
-  }
-
-  statusEl.textContent = 'Saving…';
-  statusEl.style.color = 'var(--ink-soft)';
-
-  const payload = { recordType: 'venue', name, address, county, eventDate };
-  if(originalVenueName){
-    payload.originalName = originalVenueName;
-  }
-
-  fetch(CHECKIN_API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(payload)
-  }).then(() => {
-    if(originalVenueName && originalVenueName.toLowerCase() !== name.toLowerCase()){
-      delete VENUE_DIRECTORY[originalVenueName.toLowerCase()];
-    }
-    VENUE_DIRECTORY[name.toLowerCase()] = { name, address, county, eventDate };
-    populateVenueDatalist();
-    renderVenueList();
-    statusEl.textContent = 'Saved.';
-    statusEl.style.color = 'var(--ok)';
-    originalVenueName = null;
-    document.getElementById('vEditName').value = '';
-    document.getElementById('vEditAddress').value = '';
-    document.getElementById('vEditCounty').value = '';
-    document.getElementById('vEditDate').value = '';
-  }).catch(() => {
-    statusEl.textContent = 'Could not save — check your connection and try again.';
-    statusEl.style.color = 'var(--brick)';
-  });
-}
-
-fetchVenueDirectory();
+loadVenues();
 </script>
 
 <script>

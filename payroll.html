@@ -325,15 +325,22 @@ async function fetchVenueDirectory(){
     if(!res.ok) throw new Error('Request failed');
     const sheetVenues = await res.json();
     if(Array.isArray(sheetVenues)){
+      const fetchedList = [];
       sheetVenues.forEach(v => {
         if(!v.name) return;
-        VENUE_INFO[v.name.trim().toLowerCase()] = {
+        const entry = {
           name: v.name.trim(),
           address: v.address || '',
           county: v.county || '',
           eventDate: v.eventDate || ''
         };
+        // VENUE_INFO stays one entry per name (fine — address doesn't vary by date),
+        // but every fetched row, duplicates included, goes into VENUE_LIST so the
+        // dropdown can show the same venue name on more than one date.
+        VENUE_INFO[v.name.trim().toLowerCase()] = entry;
+        fetchedList.push(entry);
       });
+      VENUE_LIST = fetchedList.concat(ALWAYS_AVAILABLE_NO_DATE.map(key => VENUE_INFO[key]).filter(Boolean));
       populateVenueSelect();
     }
   } catch(err){
@@ -389,7 +396,12 @@ const VENUE_INFO = {
   "moab - music festival": { name: "Moab - Music Festival", address: "58 E 300 S, Moab, UT 84532", county: "Grand" }
 };
 
+// VENUE_INFO stays keyed by plain name — one address/county per venue name, which is
+// correct since the address doesn't change between dates. The dropdown needs every
+// distinct venue+date row though, since the same venue can legitimately appear on more
+// than one date, so it's built from this separate list instead, never deduped by name.
 const ALWAYS_AVAILABLE_NO_DATE = ['shop time', 'trailer loading', 'bunker time'];
+let VENUE_LIST = ALWAYS_AVAILABLE_NO_DATE.map(key => VENUE_INFO[key]).filter(Boolean);
 
 function formatDateForOption(dateStr){
   if(!dateStr) return '';
@@ -410,7 +422,7 @@ function populateVenueSelect(){
   const threeMonthsAgo = new Date(today); threeMonthsAgo.setMonth(today.getMonth() - 3);
   const threeMonthsAhead = new Date(today); threeMonthsAhead.setMonth(today.getMonth() + 3);
 
-  const sorted = Object.values(VENUE_INFO)
+  const sorted = VENUE_LIST
     .filter(v => {
       if(ALWAYS_AVAILABLE_NO_DATE.includes(v.name.trim().toLowerCase())) return true;
       if(!v.eventDate) return false;
@@ -684,6 +696,10 @@ function updateSumDisplay(){
   }
 }
 
+function hasHeadPyroEntered(){
+  return !isHoursMode() && !!document.getElementById('hpName').value.trim();
+}
+
 function collectPeople(){
   return Array.from(document.querySelectorAll('#peopleBody tr')).map(row => ({
     name: row.querySelector('.p-name').value.trim(),
@@ -849,7 +865,7 @@ function buildPayrollFileName(){
 
 function downloadPayrollPDF(){
   const people = collectPeople();
-  if(people.length === 0){
+  if(people.length === 0 && !hasHeadPyroEntered()){
     alert('Add at least one person before exporting.');
     return;
   }
@@ -867,7 +883,7 @@ function csvEscapeField(val){
 
 function downloadPayrollCSV(){
   const people = collectPeople();
-  if(people.length === 0){
+  if(people.length === 0 && !hasHeadPyroEntered()){
     alert('Add at least one person before exporting.');
     return;
   }
@@ -898,7 +914,7 @@ function downloadPayrollCSV(){
 
 async function sharePayrollPDF(toAddress, ccAddress){
   const people = collectPeople();
-  if(people.length === 0){
+  if(people.length === 0 && !hasHeadPyroEntered()){
     alert('Add at least one person before emailing.');
     return;
   }

@@ -76,7 +76,7 @@ function getOrCreateContactsSheet(ss) {
 }
 
 function getOrCreateVenuesSheet(ss) {
-  const requiredHeaders = ['Name', 'Address', 'County', 'EventDate', 'SignInEnabled'];
+  const requiredHeaders = ['Name', 'Address', 'County', 'EventDate', 'SignInEnabled', 'Id'];
   let sheet = ss.getSheetByName('Venues');
   if (!sheet) {
     sheet = ss.insertSheet('Venues');
@@ -467,7 +467,13 @@ function doPost(e) {
 
   if (data.recordType === 'deleteVenueRow') {
     const sheet = ss.getSheetByName('Venues');
-    if (sheet && data.rowNumber) {
+    if (sheet && data.id) {
+      const map = headerMap(sheet);
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][map['Id']]) === String(data.id)) { sheet.deleteRow(i + 1); break; }
+      }
+    } else if (sheet && data.rowNumber) {
       sheet.deleteRow(Number(data.rowNumber));
     }
     CacheService.getScriptCache().remove(VENUES_CACHE_KEY);
@@ -851,22 +857,35 @@ function doPost(e) {
     const sheet = getOrCreateVenuesSheet(ss);
     const map = headerMap(sheet);
     const rows = sheet.getDataRange().getValues();
-    // Same rename-in-place logic as contacts: look up by the original name
-    // when one is provided, so renaming a venue doesn't create a duplicate.
-    const nameLower = String(data.originalName || data.name || '').trim().toLowerCase();
+    // Prefer matching by the row's stable Id (every row has one; older rows get one
+    // lazily backfilled the next time the venues list is read). originalName is kept
+    // as a fallback only so an already-open old page still works mid-transition. A
+    // fresh "add" with neither matches nothing and always creates a new row — even if
+    // the name matches an existing venue, since the same venue can legitimately happen
+    // on more than one date (an annual event, a second show the same year, etc.).
     let rowIndex = -1;
-    for (let i = 1; i < rows.length; i++) {
-      if (String(rows[i][map['Name']]).trim().toLowerCase() === nameLower) {
-        rowIndex = i + 1;
-        break;
+    if (data.id) {
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][map['Id']]) === String(data.id)) { rowIndex = i + 1; break; }
       }
     }
+    if (rowIndex < 0 && data.originalName) {
+      const nameLower = String(data.originalName).trim().toLowerCase();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][map['Name']]).trim().toLowerCase() === nameLower) { rowIndex = i + 1; break; }
+      }
+    }
+
+    const existingSignIn = rowIndex > 0 ? rows[rowIndex - 1][map['SignInEnabled']] : '';
+    const existingId = rowIndex > 0 ? String(rows[rowIndex - 1][map['Id']] || '') : '';
 
     const newRow = [];
     newRow[map['Name']] = data.name;
     newRow[map['Address']] = data.address || '';
     newRow[map['County']] = data.county || '';
     newRow[map['EventDate']] = data.eventDate || '';
+    newRow[map['SignInEnabled']] = existingSignIn || '';
+    newRow[map['Id']] = existingId || Utilities.getUuid();
 
     if (rowIndex > 0) {
       sheet.getRange(rowIndex, 1, 1, newRow.length).setValues([newRow]);
@@ -874,7 +893,7 @@ function doPost(e) {
       sheet.appendRow(newRow);
     }
     CacheService.getScriptCache().remove(VENUES_CACHE_KEY);
-    return ContentService.createTextOutput(JSON.stringify({status: 'ok'}))
+    return ContentService.createTextOutput(JSON.stringify({status: 'ok', id: newRow[map['Id']]}))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -1232,18 +1251,26 @@ function doGet(e) {
       return ContentService.createTextOutput(cachedVenues)
         .setMimeType(ContentService.MimeType.JSON);
     }
-    const sheet = ss.getSheetByName('Venues');
-    if (!sheet) {
-      return ContentService.createTextOutput(JSON.stringify([]))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
+    const sheet = getOrCreateVenuesSheet(ss);
     const values = sheet.getDataRange().getValues();
     const headers = values[0] || [];
     const idx = {};
     headers.forEach((h, i) => { idx[h] = i; });
+    // Lazily backfill an Id for any row that predates this column, so every venue has
+    // a stable identity to edit or delete by, with no manual migration step needed.
+    const idBackfills = [];
+    values.slice(1).forEach((row, i) => {
+      if (row[idx['Name']] && !row[idx['Id']]) {
+        const newId = Utilities.getUuid();
+        row[idx['Id']] = newId;
+        idBackfills.push({ rowNumber: i + 2, id: newId });
+      }
+    });
+    idBackfills.forEach(b => sheet.getRange(b.rowNumber, idx['Id'] + 1).setValue(b.id));
     const results = values.slice(1)
       .filter(row => row[idx['Name']])
       .map(row => ({
+        id: String(row[idx['Id']] || ''),
         name: row[idx['Name']],
         address: row[idx['Address']],
         county: row[idx['County']] || '',
@@ -1272,14 +1299,17 @@ function doGet(e) {
     rows.slice(1).forEach((row, i) => {
       const name = row[map['Name']];
       if (!name) return;
-      const key = String(name).trim().toLowerCase();
+      const eventDate = normalizeDateValue(row[map['EventDate']]);
+      // Keyed by name + date: the same venue legitimately appears more than once with
+      // different dates, so only an exact name+date match is a real accidental duplicate.
+      const key = String(name).trim().toLowerCase() + '|' + eventDate;
       if (!groups[key]) groups[key] = [];
       groups[key].push({
         rowNumber: i + 2,
         name: String(name).trim(),
         address: row[map['Address']] || '',
         county: row[map['County']] || '',
-        eventDate: normalizeDateValue(row[map['EventDate']]),
+        eventDate: eventDate,
         signInEnabled: row[map['SignInEnabled']] === 'Yes'
       });
     });
