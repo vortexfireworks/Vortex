@@ -842,11 +842,24 @@ function doPost(e) {
     const map = headerMap(sheet);
     const rows = sheet.getDataRange().getValues();
     const nameLower = String(data.name || '').trim().toLowerCase();
-    for (let i = 1; i < rows.length; i++) {
-      if (String(rows[i][map['Name']]).trim().toLowerCase() === nameLower) {
-        sheet.getRange(i + 1, map['SignInEnabled'] + 1).setValue(data.enabled ? 'Yes' : 'No');
-        break;
+    const wantDate = String(data.eventDate || '').slice(0, 10);
+    // The same venue can have several dates, so match the exact entry: by its Id first,
+    // then by name + date. Name alone is only used if no date was sent (older pages).
+    let targetRow = -1;
+    if (data.id) {
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][map['Id']]) === String(data.id)) { targetRow = i + 1; break; }
       }
+    }
+    if (targetRow < 0) {
+      for (let i = 1; i < rows.length; i++) {
+        const sameName = String(rows[i][map['Name']]).trim().toLowerCase() === nameLower;
+        const sameDate = !wantDate || normalizeDateValue(rows[i][map['EventDate']]) === wantDate;
+        if (sameName && sameDate) { targetRow = i + 1; break; }
+      }
+    }
+    if (targetRow > 0) {
+      sheet.getRange(targetRow, map['SignInEnabled'] + 1).setValue(data.enabled ? 'Yes' : 'No');
     }
     CacheService.getScriptCache().remove(VENUES_CACHE_KEY);
     return ContentService.createTextOutput(JSON.stringify({status: 'ok'}))

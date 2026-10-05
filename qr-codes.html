@@ -344,7 +344,7 @@ async function fetchSignInToggleList(){
         const eventDay = new Date(v.eventDate.slice(0, 10) + 'T00:00:00');
         const expiresAt = new Date(eventDay); expiresAt.setDate(expiresAt.getDate() + 2);
         const expired = today > expiresAt;
-        return { name: v.name, eventDate: v.eventDate, eventDay, effectiveEnabled: !!v.signInEnabled && !expired, expired };
+        return { id: v.id || '', name: v.name, eventDate: v.eventDate, eventDay, effectiveEnabled: !!v.signInEnabled && !expired, expired };
       })
       .filter(v => v.eventDay >= weekAgo && v.eventDay <= twoMonthsAhead)
       .sort((a, b) => a.eventDay - b.eventDay);
@@ -360,7 +360,7 @@ async function fetchSignInToggleList(){
           ${v.name}
           <span class="date">${formatDateForOption(v.eventDate)}${v.expired ? ' — expired' : ''}</span>
         </div>
-        <input type="checkbox" ${v.effectiveEnabled ? 'checked' : ''} onchange="toggleVenueSignIn('${v.name.replace(/'/g,"\\'")}', this.checked)">
+        <input type="checkbox" ${v.effectiveEnabled ? 'checked' : ''} onchange="toggleVenueSignIn('${v.id}', '${v.name.replace(/'/g,"\\'")}', '${v.eventDate}', this.checked)">
       </div>
     `).join('');
   } catch(err){
@@ -369,11 +369,13 @@ async function fetchSignInToggleList(){
 }
 fetchSignInToggleList();
 
-function toggleVenueSignIn(name, enabled){
+// Sends the venue's id and date along with its name: the same venue can have several
+// dates, so the name alone isn't enough to know which entry's checkbox was ticked.
+function toggleVenueSignIn(id, name, eventDate, enabled){
   fetch(CHECKIN_API_URL, {
     method: 'POST',
     mode: 'no-cors',
-    body: JSON.stringify({ recordType: 'toggleVenueSignIn', name, enabled })
+    body: JSON.stringify({ recordType: 'toggleVenueSignIn', id, name, eventDate, enabled })
   });
 }
 
