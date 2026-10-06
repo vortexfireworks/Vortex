@@ -118,11 +118,13 @@ updateThemeToggleIcon();
   .doc-link .name{font-weight:600;font-size:14px;color:var(--ink);}
   .doc-link .sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
   .doc-link .ext{font-size:13px;color:#ffb98a;font-weight:700;flex-shrink:0;}
-  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;min-width:0;}
+  /* Date inputs and long text have a natural width that pushed the two-column layout past the edge of the card. */
+  input[type=text],input[type=email],input[type=tel],input[type=date],input[type=number],textarea{width:100%;min-width:0;max-width:100%;}
+  .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
   .full{grid-column:1/-1;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
-  input[type=text],input[type=email],input[type=tel],input[type=date],textarea{
+  input[type=text],input[type=email],input[type=tel],input[type=date],input[type=number],textarea{
     font-size:14px;padding:9px 11px;border:1px solid var(--line);
     border-radius:6px;background:var(--surface-6);color:var(--ink);font-family:inherit;
   }
@@ -148,6 +150,34 @@ updateThemeToggleIcon();
   }
   .photo-btn:hover{border-color:#ffb98a;}
   .status{font-size:12px;color:var(--ink-soft);margin-top:10px;}
+  /* The peach used for headings and arrows is nearly invisible on the cream light theme. */
+  :root[data-theme="light"] .section h2, :root[data-theme="light"] .doc-link .ext, :root[data-theme="light"] .doc-link:hover{color:var(--kicker);}
+  :root[data-theme="light"] .doc-link:hover{border-color:var(--kicker);}
+  .progress{height:8px;border-radius:99px;background:var(--surface-5);overflow:hidden;border:1px solid var(--line);}
+  .progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));transition:width .3s ease;}
+  .progress-text{font-size:12px;color:var(--ink-soft);margin:6px 0 16px;}
+  .step{margin-bottom:12px;}
+  .step .doc-link{margin-bottom:6px;}
+  .step.done .doc-link{border-color:rgba(76,175,125,0.55);}
+  .step.done .doc-link .name::after{content:' \2713';color:var(--ok);}
+  .done-toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);font-weight:400;padding:2px 4px;cursor:pointer;}
+  .done-toggle input{width:auto;}
+  .group-title{font-size:11px;color:var(--ink-soft);font-weight:700;letter-spacing:.06em;margin:24px 0 10px;}
+  .group-title.first{margin-top:6px;}
+  .field-err{font-size:11.5px;color:#ff6a5a;margin:0;}
+  input.invalid{border-color:#ff6a5a !important;}
+  .req{color:#ff8c00;}
+  button.link-btn{background:none;border:none;box-shadow:none;padding:0;font:inherit;font-size:12.5px;font-weight:400;color:#ffb98a;text-decoration:underline;cursor:pointer;}
+  :root[data-theme="light"] button.link-btn{color:#c9601f;}
+  button.link-btn:hover{filter:none;opacity:.8;}
+  .sendto{font-size:12px;color:var(--ink-soft);margin:12px 0 0;}
+  .sendto strong{color:var(--ink);font-weight:600;word-break:break-all;}
+  .result{background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.4);border-radius:10px;padding:14px 16px;margin-top:14px;font-size:13px;line-height:1.5;}
+  .result h3{margin:0 0 4px;font-size:14px;color:var(--ink);}
+  .result p{margin:8px 0 0;color:var(--ink);}
+  .draft-note{font-size:12px;color:var(--ink-soft);margin:0 0 4px;}
+  details.trouble{margin-top:12px;}
+  details.trouble summary{font-size:12px;color:var(--ink-soft);cursor:pointer;}
   .note{font-size:11.5px;color:var(--ink-soft);margin-top:12px;line-height:1.5;}
   @media(max-width:480px){
     .grid2{grid-template-columns:1fr;}
@@ -180,80 +210,111 @@ updateThemeToggleIcon();
 
   <div class="divider"></div>
 
-  <div class="section">
-    <h2>Required forms</h2>
-    <p class="desc">Download, fill out, and bring these with you (or return them to Vortex) as part of getting set up.</p>
-    <a class="doc-link" href="https://www.irs.gov/pub/irs-pdf/fw4.pdf" target="_blank" rel="noopener">
-      <div>
-        <div class="name">IRS Form W-4</div>
-        <div class="sub">Employee's Withholding Certificate</div>
-      </div>
-      <span class="ext">↗</span>
-    </a>
-    <a class="doc-link" href="https://www.atf.gov/media/22511/download" target="_blank" rel="noopener">
-      <div>
-        <div class="name">ATF Form</div>
-        <div class="sub">Federal explosives/employee documentation</div>
-      </div>
-      <span class="ext">↗</span>
-    </a>
+  <div class="section" id="stepsSection">
+    <h2>Getting set up</h2>
+    <p class="desc">Three things to finish. Tick each one off as you go &mdash; your checklist is saved on this phone.</p>
+    <div class="progress" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+    <p class="progress-text" id="progressText" aria-live="polite">0 of 3 done</p>
+
+    <div class="step" data-step="w4">
+      <a class="doc-link" href="https://www.irs.gov/pub/irs-pdf/fw4.pdf" target="_blank" rel="noopener">
+        <div>
+          <div class="name">1. IRS Form W-4</div>
+          <div class="sub">Employee's Withholding Certificate &mdash; fill it out, sign it, and return it to Vortex</div>
+        </div>
+        <span class="ext">&#8599;</span>
+      </a>
+      <label class="done-toggle"><input type="checkbox" data-step="w4"> I've filled this out</label>
+    </div>
+
+    <div class="step" data-step="atf">
+      <a class="doc-link" href="https://www.atf.gov/media/22511/download" target="_blank" rel="noopener">
+        <div>
+          <div class="name">2. ATF Form 5400.28</div>
+          <div class="sub">Explosives Employee Possessor Questionnaire &mdash; each person fills out and signs their own copy</div>
+        </div>
+        <span class="ext">&#8599;</span>
+      </a>
+      <label class="done-toggle"><input type="checkbox" data-step="atf"> I've filled this out</label>
+    </div>
+
+    <div class="step" data-step="questionnaire">
+      <a class="doc-link" href="#questionnaire" onclick="jumpToQuestionnaire();return false;">
+        <div>
+          <div class="name">3. Get-to-know-you questionnaire</div>
+          <div class="sub">Fill it out below and email it to Vortex &mdash; this also adds you to the crew directory</div>
+        </div>
+        <span class="ext">&#8595;</span>
+      </a>
+      <label class="done-toggle"><input type="checkbox" data-step="questionnaire"> Done &mdash; I've sent it</label>
+    </div>
   </div>
 
-  <div class="section">
+  <div class="section" id="questionnaire">
     <h2>Get to know you / experience questionnaire</h2>
-    <p class="desc">Tell us a bit about yourself and your background. Fill this out, then email it straight to Vortex or download a copy.</p>
+    <p class="desc">Tell us a bit about yourself and your background. Fields marked <span class="req">*</span> are required. Your answers are saved as you go, so you can close this and come back.</p>
+    <p class="draft-note" id="draftNote" style="display:none;">Picked up your unfinished questionnaire. <button type="button" class="link-btn" onclick="startOver()">Start over</button></p>
 
+    <p class="group-title first">ABOUT YOU</p>
     <div class="grid2">
-      <div class="field"><label for="nhName">Full name</label><input type="text" id="nhName"></div>
+      <div class="field">
+        <label for="nhName">Full name <span class="req">*</span></label>
+        <input type="text" id="nhName" autocomplete="name">
+        <p class="field-err" id="nhNameErr" style="display:none;"></p>
+      </div>
       <div class="field"><label for="nhDate">Date</label><input type="date" id="nhDate"></div>
-      <div class="field"><label for="nhPhone">Phone number</label><input type="tel" id="nhPhone"></div>
-      <div class="field"><label for="nhEmail">Email</label><input type="email" id="nhEmail"></div>
-      <div class="field full"><label for="nhAddress">Address</label><input type="text" id="nhAddress"></div>
+      <div class="field">
+        <label for="nhPhone">Phone number <span class="req">*</span></label>
+        <input type="tel" id="nhPhone" inputmode="tel" autocomplete="tel">
+        <p class="field-err" id="nhPhoneErr" style="display:none;"></p>
+      </div>
+      <div class="field"><label for="nhEmail">Email</label><input type="email" id="nhEmail" inputmode="email" autocomplete="email"></div>
+      <div class="field full"><label for="nhAddress">Address</label><input type="text" id="nhAddress" autocomplete="street-address"></div>
+      <div class="field"><label for="nhAge">Age</label><input type="text" id="nhAge" inputmode="numeric" autocomplete="off"></div>
     </div>
 
-    <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">LICENSES (if you have any)</p>
+    <p class="group-title">LICENSES (if you have any)</p>
     <div class="grid2">
-      <div class="field"><label for="nhDisplayLicense">Display Operator (D)</label><input type="text" id="nhDisplayLicense"></div>
-      <div class="field"><label for="nhSFXLicense">Special Effects Operator (P)</label><input type="text" id="nhSFXLicense"></div>
-      <div class="field"><label for="nhFlameLicense">Flame Effects Operator (F)</label><input type="text" id="nhFlameLicense"></div>
+      <div class="field"><label for="nhDisplayLicense">Display Operator (D)</label><input type="text" id="nhDisplayLicense" autocomplete="off" autocapitalize="characters"></div>
+      <div class="field"><label for="nhSFXLicense">Special Effects Operator (P)</label><input type="text" id="nhSFXLicense" autocomplete="off" autocapitalize="characters"></div>
+      <div class="field"><label for="nhFlameLicense">Flame Effects Operator (F)</label><input type="text" id="nhFlameLicense" autocomplete="off" autocapitalize="characters"></div>
     </div>
 
+    <p class="group-title">PHOTO</p>
     <div class="field full" style="margin-bottom:16px;">
-      <label>Current photo</label>
-      <p style="font-size:11.5px;color:var(--ink-soft);margin:2px 0 8px;">Take a new photo or upload one from your device — this is kept on file with your info.</p>
+      <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 8px;">A clear photo of your face, kept on file with your info. Take one now or upload one.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
         <label class="photo-btn">
           Take photo
-          <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleNhPhotoSelect(event)">
+          <input type="file" accept="image/*" capture="user" style="display:none;" onchange="handleNhPhotoSelect(event)">
         </label>
         <label class="photo-btn">
           Upload photo
           <input type="file" accept="image/*" style="display:none;" onchange="handleNhPhotoSelect(event)">
         </label>
+        <button type="button" class="link-btn" id="nhPhotoRemove" style="display:none;" onclick="removeNhPhoto()">Remove</button>
       </div>
-      <img id="nhPhotoPreview" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:8px;margin-top:12px;border:1px solid var(--line);">
+      <img id="nhPhotoPreview" alt="Your photo" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:8px;margin-top:12px;border:1px solid var(--line);">
+      <p class="field-err" id="nhPhotoErr" style="display:none;margin-top:8px;"></p>
     </div>
 
+    <p class="group-title">YOUR EXPERIENCE</p>
     <div class="field">
       <label for="nhHeard">How did you hear about Vortex?</label>
-      <input type="text" id="nhHeard">
+      <input type="text" id="nhHeard" autocomplete="off">
     </div>
-
     <div class="field">
       <label for="nhExperience">Fireworks / pyrotechnics experience</label>
       <textarea id="nhExperience" placeholder="Years of experience, prior roles, any licenses or certifications you hold"></textarea>
     </div>
-
     <div class="field">
       <label for="nhWorkHistory">Relevant work history</label>
       <textarea id="nhWorkHistory" placeholder="Previous employers or relevant jobs"></textarea>
     </div>
-
     <div class="field">
       <label for="nhAvailability">Availability</label>
       <textarea id="nhAvailability" placeholder="Days/times you're generally available, including evenings, weekends, and holidays"></textarea>
     </div>
-
     <div class="field">
       <label>Comfortable with physically demanding outdoor work (heavy lifting, heat, long hours)?</label>
       <div class="radiorow">
@@ -262,32 +323,175 @@ updateThemeToggleIcon();
       </div>
     </div>
 
+    <p class="group-title">EMERGENCY CONTACT</p>
     <div class="grid2">
-      <div class="field"><label for="nhEmergencyName">Emergency contact name</label><input type="text" id="nhEmergencyName"></div>
-      <div class="field"><label for="nhEmergencyPhone">Emergency contact phone</label><input type="tel" id="nhEmergencyPhone"></div>
+      <div class="field"><label for="nhEmergencyName">Emergency contact name</label><input type="text" id="nhEmergencyName" autocomplete="off"></div>
+      <div class="field"><label for="nhEmergencyPhone">Emergency contact phone</label><input type="tel" id="nhEmergencyPhone" inputmode="tel" autocomplete="off"></div>
     </div>
 
+    <p class="group-title">ANYTHING ELSE</p>
     <div class="field">
       <label for="nhMore">Anything else you'd like us to know?</label>
       <textarea id="nhMore"></textarea>
     </div>
 
     <div class="actions">
-      <button type="button" onclick="emailQuestionnaire()">Email to Vortex (PDF)</button>
+      <button type="button" id="nhEmailBtn" onclick="emailQuestionnaire()">Email to Vortex (PDF)</button>
       <button class="secondary" type="button" onclick="downloadQuestionnairePDF()">Download as PDF</button>
     </div>
-    <p class="status" id="nhStatus"></p>
-    <p class="note">On phones that support it, "Email to Vortex" opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
+    <p class="sendto">Goes to <strong>vortexfireworksartists@gmail.com</strong> &middot; <button type="button" class="link-btn" onclick="copyVortexEmail()">Copy address</button></p>
+    <p class="status" id="nhStatus" aria-live="polite"></p>
+    <div class="result" id="nhResult" style="display:none;" aria-live="polite"></div>
+    <details class="trouble">
+      <summary>Trouble emailing?</summary>
+      <p class="note">On phones that support it, "Email to Vortex" opens your share sheet with the actual PDF ready to attach. The share sheet can't fill in the recipient for you, so double-check the "To:" field once Mail opens &mdash; use "Copy address" above if it helps. On devices that don't support this, it downloads the PDF and opens a plain email instead, and you'll need to attach the PDF yourself.</p>
+    </details>
   </div>
 </div>
 
 <script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const VORTEX_EMAIL = 'vortexfireworksartists@gmail.com';
+
 function val(id){ return document.getElementById(id).value.trim(); }
 function radioVal(name){
   const el = document.querySelector(`input[name="${name}"]:checked`);
   return el ? el.value : '';
 }
+function esc(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function todayStr(){ return new Date().toLocaleDateString('en-CA'); }
 
+/* ---------------- The three-step checklist ---------------- */
+const STEPS_KEY = 'newHireSteps_v1';
+function readSteps(){
+  try{ return JSON.parse(localStorage.getItem(STEPS_KEY) || '{}') || {}; } catch(e){ return {}; }
+}
+function renderSteps(){
+  const saved = readSteps();
+  let done = 0;
+  document.querySelectorAll('.step').forEach(el => {
+    const on = !!saved[el.dataset.step];
+    el.classList.toggle('done', on);
+    el.querySelector('input[type=checkbox]').checked = on;
+    if(on) done++;
+  });
+  document.getElementById('progressBar').style.width = Math.round(done / 3 * 100) + '%';
+  document.getElementById('progressText').textContent = done === 3 ? 'All done \u2014 welcome to the crew!' : `${done} of 3 done`;
+}
+function setStep(key, on){
+  const saved = readSteps();
+  saved[key] = !!on;
+  try{ localStorage.setItem(STEPS_KEY, JSON.stringify(saved)); } catch(e){}
+  renderSteps();
+}
+document.querySelectorAll('.step input[type=checkbox]').forEach(box => {
+  box.addEventListener('change', () => setStep(box.dataset.step, box.checked));
+});
+function jumpToQuestionnaire(){
+  document.getElementById('questionnaire').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ---------------- Draft: the questionnaire saves itself as you type ---------------- */
+const NH_DRAFT_KEY = 'newHireDraft_v1';
+const NH_TEXT_FIELDS = ['nhName','nhPhone','nhEmail','nhAddress','nhAge','nhDisplayLicense','nhSFXLicense','nhFlameLicense','nhHeard','nhExperience','nhWorkHistory','nhAvailability','nhEmergencyName','nhEmergencyPhone','nhMore'];
+let nhPendingPhotoBase64 = null;
+
+function collectDraft(){
+  const d = { fields:{}, physical: radioVal('nhPhysical'), photo: nhPendingPhotoBase64 };
+  NH_TEXT_FIELDS.forEach(id => { d.fields[id] = document.getElementById(id).value; });
+  return d;
+}
+function hasDraftContent(d){
+  return Object.values(d.fields).some(v => v && v.trim()) || !!d.physical || !!d.photo;
+}
+let draftTimer = null;
+let draftSuppressed = false;     // set once the questionnaire has been sent, until the person edits it again
+function scheduleDraftSave(){
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    if(draftSuppressed) return;
+    const d = collectDraft();
+    try{
+      if(hasDraftContent(d)) localStorage.setItem(NH_DRAFT_KEY, JSON.stringify(d));
+      else localStorage.removeItem(NH_DRAFT_KEY);
+    } catch(e){}
+  }, 600);
+}
+function clearDraft(){ try{ localStorage.removeItem(NH_DRAFT_KEY); } catch(e){} }
+
+function showPhoto(dataUrl){
+  const preview = document.getElementById('nhPhotoPreview');
+  preview.src = dataUrl || '';
+  preview.style.display = dataUrl ? 'block' : 'none';
+  document.getElementById('nhPhotoRemove').style.display = dataUrl ? '' : 'none';
+}
+function restoreDraft(){
+  let d;
+  try{ d = JSON.parse(localStorage.getItem(NH_DRAFT_KEY) || 'null'); } catch(e){ d = null; }
+  if(!d || !hasDraftContent(d)) return false;
+  Object.keys(d.fields || {}).forEach(id => { const el = document.getElementById(id); if(el) el.value = d.fields[id]; });
+  if(d.physical){ const r = document.querySelector(`input[name="nhPhysical"][value="${d.physical}"]`); if(r) r.checked = true; }
+  if(d.photo){ nhPendingPhotoBase64 = d.photo; showPhoto(d.photo); }
+  document.getElementById('draftNote').style.display = '';
+  return true;
+}
+function startOver(){
+  clearDraft();
+  NH_TEXT_FIELDS.forEach(id => { document.getElementById(id).value = ''; });
+  document.querySelectorAll('input[name="nhPhysical"]').forEach(r => { r.checked = false; });
+  nhPendingPhotoBase64 = null;
+  showPhoto(null);
+  document.getElementById('nhDate').value = todayStr();
+  document.getElementById('draftNote').style.display = 'none';
+  document.getElementById('nhResult').style.display = 'none';
+  clearErrors();
+}
+// Only edits inside the questionnaire count: ticking a checklist box must not re-save a draft that was already sent.
+function onQuestionnaireEdit(e){
+  if(!e.target.closest || !e.target.closest('#questionnaire')) return;
+  draftSuppressed = false;
+  scheduleDraftSave();
+}
+document.addEventListener('input', onQuestionnaireEdit);
+document.addEventListener('change', onQuestionnaireEdit);
+
+/* ---------------- Required fields ---------------- */
+function showErr(id, msg){
+  const err = document.getElementById(id + 'Err');
+  err.textContent = msg; err.style.display = '';
+  document.getElementById(id).classList.add('invalid');
+}
+function clearErrors(){
+  ['nhName','nhPhone'].forEach(id => {
+    document.getElementById(id + 'Err').style.display = 'none';
+    document.getElementById(id).classList.remove('invalid');
+  });
+}
+['nhName','nhPhone'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+  document.getElementById(id + 'Err').style.display = 'none';
+  document.getElementById(id).classList.remove('invalid');
+}));
+function validateNh(){
+  clearErrors();
+  const digits = val('nhPhone').replace(/\D/g, '');
+  let first = null;
+  if(!val('nhName')){ showErr('nhName', 'Enter your full name.'); first = first || 'nhName'; }
+  if(digits.length < 7){
+    showErr('nhPhone', digits.length ? 'That number looks too short.' : "Enter your phone number \u2014 you'll use it to check in at shows.");
+    first = first || 'nhPhone';
+  }
+  if(first){
+    const el = document.getElementById(first);
+    el.scrollIntoView({ behavior:'smooth', block:'center' });
+    el.focus({ preventScroll:true });
+    return false;
+  }
+  return true;
+}
+
+/* ---------------- PDF ---------------- */
 function buildQuestionnairePDF(){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({unit:'pt', format:'letter'});
@@ -322,6 +526,7 @@ function buildQuestionnairePDF(){
   field('Date', val('nhDate'));
   field('Phone number', val('nhPhone'));
   field('Email', val('nhEmail'));
+  field('Age', val('nhAge'));
   field('Display Operator license (D)', val('nhDisplayLicense'));
   field('Special Effects Operator license (P)', val('nhSFXLicense'));
   field('Flame Effects Operator license (F)', val('nhFlameLicense'));
@@ -338,10 +543,7 @@ function buildQuestionnairePDF(){
   return doc;
 }
 
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
-
-let nhPendingPhotoBase64 = null;
-
+/* ---------------- Photo ---------------- */
 function resizeImageToDataUrl(file, maxSize, quality){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -363,20 +565,48 @@ function resizeImageToDataUrl(file, maxSize, quality){
     reader.readAsDataURL(file);
   });
 }
-
 async function handleNhPhotoSelect(event){
   const file = event.target.files[0];
+  const err = document.getElementById('nhPhotoErr');
+  err.style.display = 'none';
   if(!file) return;
-  const dataUrl = await resizeImageToDataUrl(file, 400, 0.7);
-  nhPendingPhotoBase64 = dataUrl;
-  const preview = document.getElementById('nhPhotoPreview');
-  preview.src = dataUrl;
-  preview.style.display = 'block';
+  try{
+    nhPendingPhotoBase64 = await resizeImageToDataUrl(file, 400, 0.7);
+    showPhoto(nhPendingPhotoBase64);
+    draftSuppressed = false;
+    scheduleDraftSave();
+  } catch(e){
+    err.textContent = "Couldn't read that photo \u2014 try taking it again or choosing a different one.";
+    err.style.display = '';
+  }
+  event.target.value = '';
+}
+function removeNhPhoto(){
+  nhPendingPhotoBase64 = null;
+  showPhoto(null);
+  draftSuppressed = false;
+  scheduleDraftSave();
 }
 
-function syncNewHireToDirectory(){
+/* ---------------- Adding the new hire to the crew directory ----------------
+   Only ever CREATES a record. If the name is already in the directory, nothing is written: this form carries
+   no phone check, so saving over an existing person would wipe their licenses, address, age and emergency
+   contact, and could change the phone number they check in with. */
+let directoryResult = null;
+let syncPromise = null;
+
+async function syncNewHireToDirectory(){
+  if(directoryResult && directoryResult.status === 'added') return directoryResult;
   const name = val('nhName');
-  if(!name) return;
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=names`, { cache:'no-store' });
+    if(!res.ok) throw new Error('names');
+    const names = await res.json();
+    if(!Array.isArray(names)) throw new Error('names');
+    if(names.some(n => String(n).trim().toLowerCase() === name.toLowerCase())) return { status:'exists' };
+  } catch(e){
+    return { status:'unchecked' };          // can't tell whether they're already on file, so don't risk writing
+  }
   const payload = {
     recordType: 'contact',
     name: name,
@@ -386,53 +616,94 @@ function syncNewHireToDirectory(){
     address: val('nhAddress'),
     phone: val('nhPhone'),
     email: val('nhEmail'),
-    age: '',
+    age: val('nhAge'),
     emergencyContact: val('nhEmergencyName'),
     emergencyContactPhone: val('nhEmergencyPhone')
   };
-  if(nhPendingPhotoBase64){
-    payload.photoBase64 = nhPendingPhotoBase64;
+  if(nhPendingPhotoBase64) payload.photoBase64 = nhPendingPhotoBase64;
+  try{
+    const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if(!res.ok || !data || data.status !== 'ok') throw new Error('save');
+    directoryResult = { status:'added', photoError: data.photoError || '' };
+    return directoryResult;
+  } catch(e){
+    return { status:'failed' };
   }
-  fetch(CHECKIN_API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify(payload)
-  }).catch(() => {
-    // if this fails, the questionnaire itself still goes through — this is just a convenience sync
-  });
+}
+function syncOnce(){
+  if(!syncPromise) syncPromise = syncNewHireToDirectory().finally(() => { syncPromise = null; });
+  return syncPromise;
+}
+
+/* ---------------- What the person sees afterwards ---------------- */
+function showResult(title, lead, sync){
+  const lines = [];
+  if(sync.status === 'added'){
+    lines.push("You've been added to the crew directory.");
+    if(sync.photoError) lines.push("Your photo didn't upload \u2014 you can add it later under Update My Info.");
+  } else if(sync.status === 'exists'){
+    lines.push("You're already in the crew directory, so nothing there was changed. To update your details, use Update My Info.");
+  } else {
+    lines.push("We couldn't add you to the crew directory just now (no signal?). Vortex can add you from your questionnaire.");
+  }
+  const box = document.getElementById('nhResult');
+  box.innerHTML = `
+    <h3>${esc(title)}</h3>
+    <p>${esc(lead)}</p>
+    <p>${lines.map(esc).join(' ')}</p>
+    <p><strong>At your first show:</strong> check in with this same name and phone number &mdash; <span style="white-space:nowrap">${esc(val('nhName'))}</span> &middot; <span style="white-space:nowrap">${esc(val('nhPhone'))}</span>.</p>`;
+  box.style.display = '';
+  box.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+function finishSubmit(title, lead, sync){
+  setStep('questionnaire', true);
+  draftSuppressed = true;          // the form stays on screen so they can still download a copy, but it is no longer a draft
+  clearTimeout(draftTimer);
+  clearDraft();
+  document.getElementById('draftNote').style.display = 'none';
+  showResult(title, lead, sync);
+}
+
+function copyVortexEmail(){
+  const statusEl = document.getElementById('nhStatus');
+  const done = ok => { statusEl.textContent = ok ? `Copied ${VORTEX_EMAIL}` : `Send it to ${VORTEX_EMAIL}`; statusEl.style.color = 'var(--ink-soft)'; };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(VORTEX_EMAIL).then(() => done(true)).catch(() => done(false));
+  } else { done(false); }
 }
 
 function downloadQuestionnairePDF(){
-  const name = (val('nhName') || 'new_hire').replace(/\s+/g,'_');
-  const doc = buildQuestionnairePDF();
-  doc.save(`New_Hire_${name}.pdf`);
-  syncNewHireToDirectory();
+  if(!validateNh()) return;
+  const name = val('nhName').replace(/\s+/g,'_');
+  const sync = syncOnce();
+  buildQuestionnairePDF().save(`New_Hire_${name}.pdf`);
+  sync.then(result => finishSubmit('PDF downloaded', `Email the downloaded PDF to ${VORTEX_EMAIL} to finish this step.`, result));
 }
 
 async function emailQuestionnaire(){
   const statusEl = document.getElementById('nhStatus');
+  if(!validateNh()) return;
   const name = val('nhName');
-  if(!name){
-    statusEl.textContent = 'Enter your name first.';
-    statusEl.style.color = '#ff6a5a';
-    return;
-  }
 
-  syncNewHireToDirectory();
+  // Runs alongside the share sheet. It must NOT be awaited before navigator.share(), which needs the tap that started this.
+  const syncing = syncOnce();
 
   const doc = buildQuestionnairePDF();
   const fileName = `New_Hire_${name.replace(/\s+/g,'_')}.pdf`;
   const subject = `New Hire Questionnaire - ${name}`;
-  const recipientLine = 'To: vortexfireworksartists@gmail.com';
+  const recipientLine = `To: ${VORTEX_EMAIL}`;
   const pdfBlob = doc.output('blob');
 
   if(navigator.canShare){
     try{
       const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
       if(navigator.canShare({files: [file]})){
-        statusEl.textContent = `Opening share sheet — remember to address it: ${recipientLine}`;
+        statusEl.textContent = `Opening share sheet \u2014 remember to address it: ${recipientLine}`;
         statusEl.style.color = 'var(--ink-soft)';
         await navigator.share({ files: [file], title: subject, text: `${recipientLine}\n\n${subject}` });
+        statusEl.textContent = '';
+        finishSubmit('Questionnaire shared', 'Make sure you tapped Send in your email app so it reaches Vortex.', await syncing);
         return;
       }
     } catch(err){
@@ -445,10 +716,16 @@ async function emailQuestionnaire(){
 
   statusEl.textContent = '';
   doc.save(fileName);
-  const body = `New hire questionnaire submitted by ${name}.\n\n(PDF copy downloaded separately — please attach it to this email before sending.)`;
-  const mailto = `mailto:vortexfireworksartists@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const body = `New hire questionnaire submitted by ${name}.\n\n(PDF copy downloaded separately \u2014 please attach it to this email before sending.)`;
+  const mailto = `mailto:${VORTEX_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
+  finishSubmit('PDF downloaded', `Attach the downloaded PDF to the email that just opened and send it to ${VORTEX_EMAIL}.`, await syncing);
 }
+
+/* ---------------- Start-up ---------------- */
+document.getElementById('nhDate').value = todayStr();
+renderSteps();
+restoreDraft();
 </script>
 
 <script>
