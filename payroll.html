@@ -164,6 +164,23 @@ updateThemeToggleIcon();
   .totals .mismatch{color:var(--brick); font-weight:600; font-size:12.5px;}
   .totals .match{color:var(--ok); font-weight:600; font-size:12.5px;}
   .status{font-size:11.5px;color:var(--ink-soft);margin-top:8px;}
+  input.invalid, select.invalid{border-color:#ff6a5a !important;}
+  .orphan-msg{font-size:12.5px;color:#ff6a5a;font-weight:600;margin:8px 0 0;line-height:1.4;}
+  .draft-note{font-size:12px;color:var(--ink-soft);margin:0 0 14px;}
+  button.link-btn{background:none;border:none;box-shadow:none;padding:0;font:inherit;font-size:12.5px;font-weight:400;color:#ffb98a;text-decoration:underline;cursor:pointer;}
+  :root[data-theme="light"] button.link-btn, :root[data-theme="light"] .section h2{color:#c9601f;}
+  .review-box{margin:0 24px 6px;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.5;}
+  .review-box.err{background:rgba(255,106,90,0.12);border:1px solid rgba(255,106,90,0.5);}
+  .review-box.warn{background:rgba(255,190,60,0.12);border:1px solid rgba(255,190,60,0.5);}
+  .review-box h3{margin:0 0 6px;font-size:13.5px;color:var(--ink);}
+  .review-box ul{margin:0 0 10px;padding-left:18px;color:var(--ink);}
+  .review-box li{margin:3px 0;}
+  .review-box .btns{display:flex;gap:10px;flex-wrap:wrap;}
+  .send-result{margin:12px 24px 0;background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.4);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.5;}
+  .send-result h3{margin:0 0 4px;font-size:14px;color:var(--ink);}
+  .send-result p{margin:6px 0 0;color:var(--ink);}
+  details.trouble{padding:0 24px 20px;margin-top:12px;}
+  details.trouble summary{font-size:12px;color:var(--ink-soft);cursor:pointer;}
   .actions{padding:22px 24px 26px; display:flex; gap:12px; flex-wrap:wrap;}
   @media(max-width:480px){
     .row2{grid-template-columns:minmax(0,1fr);}
@@ -210,6 +227,7 @@ updateThemeToggleIcon();
 <div class="sheet" id="mainContent">
   <div class="section">
     <h2>Event</h2>
+    <p class="draft-note" id="draftNote" style="display:none;">Picked up your unfinished payroll. <button type="button" class="link-btn" onclick="startOver()">Start over</button></p>
     <div class="row2">
       <div class="field">
         <label for="event">Venue</label>
@@ -249,7 +267,7 @@ updateThemeToggleIcon();
       </tbody>
       <tbody id="peopleBody"></tbody>
     </table>
-    <button class="add-row" type="button" onclick="addPersonRow()">+ Add person</button>
+    <button class="add-row" type="button" onclick="addPersonRowAndFocus()">+ Add person</button>
     <datalist id="operatorDirectoryList"></datalist>
     <datalist id="licensedOperatorDirectoryList"></datalist>
   </div>
@@ -269,16 +287,22 @@ updateThemeToggleIcon();
       <span id="sumDisplay">$0</span>
     </div>
     <p id="matchMsg" class="status"></p>
+    <p id="orphanMsg" class="orphan-msg" style="display:none;" role="alert"></p>
   </div>
 
+  <div class="review-box" id="reviewBox" style="display:none;" role="alert"></div>
   <div class="actions">
     <button class="secondary" type="button" onclick="emailToChuck()">Email to Chuck (cc Vortex)</button>
     <button class="secondary" type="button" onclick="emailToVortex()">Email to Vortex</button>
     <button class="secondary" type="button" onclick="downloadPayrollPDF()">Download as PDF</button>
     <button class="secondary" type="button" onclick="downloadPayrollCSV()">Download as CSV</button>
   </div>
-  <p class="status" id="emailStatus" style="padding:0 24px;"></p>
-  <p style="padding:0 24px 20px;font-size:11.5px;color:var(--ink-soft);">"Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
+  <p class="status" id="emailStatus" style="padding:0 24px;" aria-live="polite"></p>
+  <div class="send-result" id="sendResult" style="display:none;" aria-live="polite"></div>
+  <details class="trouble">
+    <summary>Trouble emailing?</summary>
+    <p style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;">"Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach &mdash; the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
+  </details>
 </div>
 
 <script>
@@ -426,9 +450,28 @@ function formatDateForOption(dateStr){
   return `${Number(m)}/${Number(d)}`;
 }
 
+function venueOptionKey(name, date){
+  return String(name || '').trim().toLowerCase() + '|||' + (date ? String(date).slice(0, 10) : '');
+}
+
+// A venue and date restored from a saved draft, applied as soon as that dated entry exists in the list.
+let pendingVenue = null;
+function applyPendingVenue(){
+  if(!pendingVenue) return;
+  const sel = document.getElementById('event');
+  const opt = Array.from(sel.options).find(o => o.dataset.key === venueOptionKey(pendingVenue.name, pendingVenue.date));
+  if(!opt) return;
+  opt.selected = true;
+  const savedDate = pendingVenue.eventDate;
+  pendingVenue = null;
+  showVenueAddress({ silent:true });
+  if(savedDate) document.getElementById('eventDate').value = savedDate;
+}
+
 function populateVenueSelect(){
   const select = document.getElementById('event');
   const currentValue = select.value;
+  const currentKey = select.selectedOptions[0] ? (select.selectedOptions[0].dataset.key || '') : '';
 
   const today = new Date();
   today.setHours(0,0,0,0);
@@ -452,23 +495,52 @@ function populateVenueSelect(){
   select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
     sorted.map(v => {
       const label = v.eventDate ? `${formatDateForOption(v.eventDate)} — ${v.name}` : v.name;
-      return `<option value="${v.name.replace(/"/g,'&quot;')}">${label.replace(/</g,'&lt;')}</option>`;
+      const date = v.eventDate ? v.eventDate.slice(0, 10) : '';
+      const key = venueOptionKey(v.name, date).replace(/"/g,'&quot;');
+      return `<option value="${v.name.replace(/"/g,'&quot;')}" data-key="${key}" data-date="${date}">${label.replace(/</g,'&lt;')}</option>`;
     }).join('');
   if(currentValue){
-    select.value = currentValue;
+    // keep the same DATED entry selected, not just the first one that shares the name
+    const exact = currentKey && Array.from(select.options).find(o => o.dataset.key === currentKey);
+    if(exact) exact.selected = true; else select.value = currentValue;
   } else {
     select.selectedIndex = 0;
   }
+  applyPendingVenue();
 }
 populateVenueSelect();
 fetchVenueDirectory();
 
-function showVenueAddress(){
-  const venue = document.getElementById('event').value.trim();
+function showVenueAddress(opts){
+  const sel = document.getElementById('event');
+  const venue = sel.value.trim();
   const match = VENUE_INFO[venue.toLowerCase()];
   const addressEl = document.getElementById('venueAddress');
   addressEl.textContent = match ? `${match.address} · ${match.county} County` : '';
+  sel.classList.remove('invalid');
+
+  // The list already shows each show's date, so choosing it sets the date too. (Hours-only jobs have no date: use today.)
+  const dateEl = document.getElementById('eventDate');
+  const optDate = sel.selectedOptions[0] ? (sel.selectedOptions[0].dataset.date || '') : '';
+  if(optDate) dateEl.value = optDate;
+  else if(!dateEl.value && venue) dateEl.value = new Date().toLocaleDateString('en-CA');
+
   updateModeUI();
+  if(!(opts && opts.silent)) maybeAutoLoad();
+}
+
+// "Untouched" = nothing typed by hand. Crew that only came from check-ins can be swapped out if a different show is picked.
+let autoFilledHP = '';
+function isUntouched(){
+  const rows = Array.from(document.querySelectorAll('#peopleBody tr'));
+  const manualRow = rows.some(r => r.querySelector('.p-amount').value.trim() ||
+    (r.querySelector('.p-name').value.trim() && !r.querySelector('.checkin-time').textContent.trim()));
+  const hpName = document.getElementById('hpName').value.trim();
+  const hpTouched = (hpName && hpName !== autoFilledHP) || document.getElementById('hpAmount').value.trim();
+  return !manualRow && !hpTouched && !document.getElementById('totalPayroll').value.trim();
+}
+function maybeAutoLoad(){
+  if(isUntouched()) loadFromCheckins({ auto:true });
 }
 
 function isHoursMode(){
@@ -540,6 +612,13 @@ function addPersonRow(name, address, checkInTime){
     <td data-label=""><button class="rm-row" type="button" onclick="removePersonRow(this.closest('tr'))" aria-label="Remove">&times;</button></td>
   `;
   tbody.appendChild(tr);
+  return tr;
+}
+function addPersonRowAndFocus(){
+  const tr = addPersonRow();
+  const input = tr.querySelector('.p-name');
+  input.scrollIntoView({ behavior:'smooth', block:'center' });
+  input.focus({ preventScroll:true });
 }
 addPersonRow();
 addPersonRow();
@@ -552,6 +631,7 @@ function onNameEdit(nameInput){
     if(!addressField.value.trim()) addressField.value = match.address || '';
   }
   if(document.getElementById('divideEvenly').checked) recalculate();
+  else updateSumDisplay();
 }
 
 function formatCheckInTime(timestamp){
@@ -573,64 +653,104 @@ function formatManualTime(timeStr){
   return `${hours}:${minutes} ${ampm}`;
 }
 
-async function loadFromCheckins(){
+let loadToken = 0;
+async function loadFromCheckins(opts){
+  const auto = !!(opts && opts.auto);
   const statusEl = document.getElementById('loadStatus');
   const eventName = document.getElementById('event').value.trim();
   const eventDateVal = document.getElementById('eventDate').value.trim();
   if(!eventName){
-    statusEl.textContent = 'Select a venue first.';
+    if(!auto) statusEl.textContent = 'Select a venue first.';
     return;
   }
+  const myToken = ++loadToken;
   statusEl.textContent = 'Loading check-ins…';
   try{
-    const res = await fetch(`${CHECKIN_API_URL}?event=${encodeURIComponent(eventName)}`);
+    const res = await fetch(`${CHECKIN_API_URL}?event=${encodeURIComponent(eventName)}`, { cache:'no-store' });
     if(!res.ok) throw new Error('Request failed');
     let checkins = await res.json();
+    if(myToken !== loadToken) return;                 // a newer choice of venue already took over
     if(!Array.isArray(checkins)) checkins = [];
     if(eventDateVal){
       checkins = checkins.filter(p => String(p.eventDate || '').slice(0, 10) === eventDateVal);
     }
+
+    // Picking a different show when nothing has been typed by hand swaps the crew; otherwise everything typed is kept.
+    if(auto && isUntouched()){
+      document.getElementById('peopleBody').innerHTML = '';
+      document.getElementById('hpName').value = '';
+      document.getElementById('hpAddress').value = '';
+      autoFilledHP = '';
+    }
     if(checkins.length === 0){
+      if(document.querySelectorAll('#peopleBody tr').length === 0){ addPersonRow(); addPersonRow(); }
       statusEl.textContent = eventDateVal
         ? 'No check-ins found for this venue on that date.'
         : 'No check-ins found for this venue yet.';
+      recalculate();
       return;
     }
 
-    document.getElementById('peopleBody').innerHTML = '';
-    const seen = new Set();
+    // Keep everything already typed: drop only completely empty rows, then add whoever is not listed yet.
+    document.querySelectorAll('#peopleBody tr').forEach(row => {
+      if(!row.querySelector('.p-name').value.trim() && !row.querySelector('.p-amount').value.trim() && !row.querySelector('.p-address').value.trim()) row.remove();
+    });
+    const listed = new Map();
+    document.querySelectorAll('#peopleBody tr').forEach(row => {
+      const k = row.querySelector('.p-name').value.trim().toLowerCase();
+      if(k) listed.set(k, row);
+    });
+
     const hours = isHoursMode();
+    const hpTyped = document.getElementById('hpName').value.trim().toLowerCase();
     let headPyroPerson = null;
-    if(!hours){
+    if(!hours && !hpTyped){
       const hpCheckin = checkins.find(p => p.isHeadPyro && (p.name || '').trim());
       if(hpCheckin){
-        const hpKey = hpCheckin.name.trim().toLowerCase();
-        const hpDirectoryMatch = CONTACTS_BY_NAME[hpKey];
+        const hpDirectoryMatch = CONTACTS_BY_NAME[hpCheckin.name.trim().toLowerCase()];
         headPyroPerson = {
           name: hpCheckin.name,
           address: hpCheckin.address || (hpDirectoryMatch ? hpDirectoryMatch.address : '') || ''
         };
       }
     }
+    const seen = new Set();
+    let added = 0, alreadyListed = 0;
     checkins.forEach(p => {
       const key = (p.name || '').trim().toLowerCase();
       if(!key || seen.has(key)) return;
-      if(headPyroPerson && key === headPyroPerson.name.trim().toLowerCase()) return;
       seen.add(key);
+      if(headPyroPerson && key === headPyroPerson.name.trim().toLowerCase()) return;
+      if(!hours && hpTyped && key === hpTyped){ alreadyListed++; return; }
       const directoryMatch = CONTACTS_BY_NAME[key];
       const address = p.address || (directoryMatch ? directoryMatch.address : '') || '';
       const checkInTime = p.checkInTime ? formatManualTime(p.checkInTime) : formatCheckInTime(p.timestamp);
+      if(listed.has(key)){
+        const row = listed.get(key);
+        const addrInput = row.querySelector('.p-address');
+        if(!addrInput.value.trim()) addrInput.value = address;
+        const timeEl = row.querySelector('.checkin-time');
+        if(checkInTime && !timeEl.textContent.trim()){ timeEl.textContent = 'Checked in ' + checkInTime; timeEl.style.display = ''; }
+        alreadyListed++;
+        return;
+      }
       addPersonRow(p.name, address, checkInTime);
+      added++;
     });
-    if(headPyroPerson && !isHoursMode()){
+    if(headPyroPerson){
       document.getElementById('hpName').value = headPyroPerson.name;
       document.getElementById('hpAddress').value = headPyroPerson.address;
+      autoFilledHP = headPyroPerson.name;
     }
-    statusEl.textContent = `Loaded ${seen.size} ${seen.size === 1 ? 'person' : 'people'} from check-ins.` +
-      (headPyroPerson && !isHoursMode() ? ` ${headPyroPerson.name} was marked as Head Pyro at check-in and filled in below.` : '');
+    if(document.querySelectorAll('#peopleBody tr').length === 0){ addPersonRow(); addPersonRow(); }
+    statusEl.textContent = (added || !alreadyListed
+        ? `Added ${added} ${added === 1 ? 'person' : 'people'} from check-ins.`
+        : 'Everyone who checked in is already listed.') +
+      (added && alreadyListed ? ` ${alreadyListed} already listed.` : '') +
+      (headPyroPerson ? ` ${headPyroPerson.name} was marked as Head Pyro at check-in and filled in below.` : '');
     recalculate();
   } catch(err){
-    statusEl.textContent = 'Could not load check-ins — check your connection and try again.';
+    if(myToken === loadToken) statusEl.textContent = 'Could not load check-ins — check your connection and try again.';
   }
 }
 
@@ -645,15 +765,19 @@ function recalculate(){
   const rows = Array.from(document.querySelectorAll('#peopleBody tr'));
   const divideEvenly = document.getElementById('divideEvenly').checked;
   const hours = isHoursMode();
-  const hpNameFilled = !hours && document.getElementById('hpName').value.trim();
   const hpAmountInput = document.getElementById('hpAmount');
-  const amountInputs = rows.map(r => r.querySelector('.p-amount'));
-  const allAmountInputs = hpNameFilled ? amountInputs.concat([hpAmountInput]) : amountInputs;
+  const hpNamed = !hours && !!document.getElementById('hpName').value.trim();
+  const namedRows = rows.filter(r => r.querySelector('.p-name').value.trim());
+  const emptyRows = rows.filter(r => !r.querySelector('.p-name').value.trim());
+  // Only people who will really be on the report share the money. An empty row (the page starts with two) must not take a share.
+  const sharers = namedRows.map(r => r.querySelector('.p-amount')).concat(hpNamed ? [hpAmountInput] : []);
 
   if(divideEvenly){
-    allAmountInputs.forEach(inp => inp.readOnly = true);
+    sharers.forEach(inp => inp.readOnly = true);
+    emptyRows.forEach(r => { const inp = r.querySelector('.p-amount'); inp.value = ''; inp.readOnly = true; });
+    if(!hpNamed && !hours){ hpAmountInput.value = ''; hpAmountInput.readOnly = true; }
     const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
-    const n = allAmountInputs.length;
+    const n = sharers.length;
     if(n === 0){
       updateSumDisplay();
       return;
@@ -663,7 +787,7 @@ function recalculate(){
       const totalQuarters = Math.round(total * 4);
       const baseQuarters = Math.floor(totalQuarters / n);
       let remainder = totalQuarters - baseQuarters * n;
-      allAmountInputs.forEach((inp, i) => {
+      sharers.forEach((inp, i) => {
         const quarters = baseQuarters + (i < remainder ? 1 : 0);
         inp.value = (quarters / 4).toFixed(2).replace(/\.?0+$/, '') || '0';
       });
@@ -671,13 +795,13 @@ function recalculate(){
       const totalRounded = Math.round(total);
       const base = Math.floor(totalRounded / n);
       let remainder = totalRounded - base * n;
-      allAmountInputs.forEach((inp, i) => {
+      sharers.forEach((inp, i) => {
         const amount = base + (i < remainder ? 1 : 0);
         inp.value = amount;
       });
     }
   } else {
-    allAmountInputs.forEach(inp => inp.readOnly = false);
+    rows.forEach(r => r.querySelector('.p-amount').readOnly = false);
     hpAmountInput.readOnly = false;
   }
   updateSumDisplay();
@@ -687,10 +811,38 @@ function formatUnit(value, hours){
   return hours ? `${value.toLocaleString(undefined, {maximumFractionDigits: 2})} hrs` : `$${value.toLocaleString()}`;
 }
 
+function num(v){ return parseFloat(v) || 0; }
+
+// The named Head Pyro, or nothing: the HP row is hidden for hours-only jobs, and an HP amount with no name is never sent.
+function headPyroEntry(){
+  if(isHoursMode()) return null;
+  const name = document.getElementById('hpName').value.trim();
+  if(!name) return null;
+  return { name, address: document.getElementById('hpAddress').value.trim(), amount: num(document.getElementById('hpAmount').value) };
+}
+
+// Exactly what the PDF, CSV and email will contain, so the total on screen can never disagree with what is sent.
+function allocationSum(){
+  const hp = headPyroEntry();
+  return collectPeople().reduce((a, p) => a + p.amount, 0) + (hp ? hp.amount : 0);
+}
+
+// Money typed on a row that has no name: it can never be sent.
+function orphanAmounts(){
+  const out = [];
+  document.querySelectorAll('#peopleBody tr').forEach(row => {
+    const amount = num(row.querySelector('.p-amount').value);
+    if(!row.querySelector('.p-name').value.trim() && amount > 0) out.push({ nameInput: row.querySelector('.p-name'), amount });
+  });
+  const hpInput = document.getElementById('hpName');
+  const hpAmount = num(document.getElementById('hpAmount').value);
+  if(!isHoursMode() && !hpInput.value.trim() && hpAmount > 0) out.push({ nameInput: hpInput, amount: hpAmount });
+  return out;
+}
+
 function updateSumDisplay(){
   const hours = isHoursMode();
-  const amounts = Array.from(document.querySelectorAll('.p-amount')).map(i => parseFloat(i.value) || 0);
-  const sum = amounts.reduce((a,b) => a+b, 0);
+  const sum = allocationSum();
   document.getElementById('sumDisplay').textContent = formatUnit(sum, hours);
 
   const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
@@ -706,6 +858,18 @@ function updateSumDisplay(){
   } else {
     matchMsg.textContent = `Does not match total of ${formatUnit(compareTotal, hours)} (off by ${formatUnit(Math.abs(sum - compareTotal), hours)}).`;
     matchMsg.style.color = 'var(--brick)';
+  }
+
+  document.querySelectorAll('#peopleBody .p-name, #hpName').forEach(el => el.classList.remove('invalid'));
+  const orphans = orphanAmounts();
+  orphans.forEach(o => o.nameInput.classList.add('invalid'));
+  const orphanEl = document.getElementById('orphanMsg');
+  if(orphans.length){
+    const lost = orphans.reduce((a, o) => a + o.amount, 0);
+    orphanEl.textContent = `${formatUnit(lost, hours)} is typed on ${orphans.length === 1 ? 'a row' : 'rows'} with no name, so it will NOT be sent. Add a name, or clear the amount.`;
+    orphanEl.style.display = '';
+  } else {
+    orphanEl.style.display = 'none';
   }
 }
 
@@ -750,7 +914,7 @@ function buildPayrollText(){
     lines.push(`  - ${headPyroName} (HP)${headPyroAddress ? ' (' + headPyroAddress + ')' : ''}: ${prefix}${headPyroAmount.toLocaleString()}${unit}`);
   }
   people.forEach(p => lines.push(`  - ${p.name}${p.checkInTime ? ' [checked in ' + p.checkInTime + ']' : ''}${p.address ? ' (' + p.address + ')' : ''}: ${prefix}${p.amount.toLocaleString()}${unit}`));
-  const sum = people.reduce((a,p) => a + p.amount, 0) + (!hours ? headPyroAmount : 0);
+  const sum = allocationSum();
   lines.push('');
   lines.push(`Total ${hours ? 'hours' : 'budget'} allocation: ${prefix}${sum.toLocaleString()}${unit}`);
   return lines.join('\n');
@@ -761,6 +925,7 @@ function buildPayrollPDF(){
   const doc = new jsPDF({unit:'pt', format:'letter'});
   const marginX = 40;
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   let y = 50;
 
   const event = document.getElementById('event').value.trim() || '(not selected)';
@@ -774,7 +939,7 @@ function buildPayrollPDF(){
   const headPyroName = document.getElementById('hpName').value.trim();
   const headPyroAddress = document.getElementById('hpAddress').value.trim();
   const headPyroAmount = parseFloat(document.getElementById('hpAmount').value) || 0;
-  const sum = people.reduce((a,p) => a + p.amount, 0) + (!hours ? headPyroAmount : 0);
+  const sum = allocationSum();
 
   doc.setFont('helvetica','bold');
   doc.setFontSize(15);
@@ -819,14 +984,26 @@ function buildPayrollPDF(){
   doc.setDrawColor(216,210,196);
   doc.line(marginX, y, pageWidth - marginX, y); y += 18;
 
-  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
-  doc.text('NAME', marginX, y);
-  doc.text('ADDRESS', marginX + 160, y);
-  doc.text(hours ? 'HOURS' : 'AMOUNT', pageWidth - marginX - 60, y);
-  y += 14;
-  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(20,26,32);
+  // A long crew continues on a new page (with the column headings repeated) instead of running off the bottom of page one.
+  function drawTableHeader(){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+    doc.text('NAME', marginX, y);
+    doc.text('ADDRESS', marginX + 160, y);
+    doc.text(hours ? 'HOURS' : 'AMOUNT', pageWidth - marginX - 60, y);
+    y += 14;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(20,26,32);
+  }
+  function ensureRoom(needed){
+    if(y + needed > pageHeight - 60){
+      doc.addPage();
+      y = 50;
+      drawTableHeader();
+    }
+  }
+  drawTableHeader();
 
   if(!hours && headPyroName){
+    ensureRoom(28);
     doc.text(`${headPyroName} (HP)`, marginX, y);
     if(headPyroAddress){
       const addrLines = doc.splitTextToSize(headPyroAddress, pageWidth - marginX - 160 - 70);
@@ -837,6 +1014,7 @@ function buildPayrollPDF(){
   }
 
   people.forEach(p => {
+    ensureRoom(30);
     doc.text(p.name, marginX, y);
     if(p.address){
       const addrLines = doc.splitTextToSize(p.address, pageWidth - marginX - 160 - 70);
@@ -854,12 +1032,22 @@ function buildPayrollPDF(){
     }
   });
 
+  ensureRoom(50);
   y += 8;
   doc.setDrawColor(216,210,196);
   doc.line(marginX, y, pageWidth - marginX, y); y += 18;
   doc.setFont('helvetica','bold'); doc.setFontSize(11);
   doc.text(hours ? 'Total hours allocation' : 'Total budget allocation', marginX, y);
   doc.text(`${prefix}${sum.toLocaleString()}${unit}`, pageWidth - marginX - 60, y);
+
+  const pageCount = doc.getNumberOfPages();
+  if(pageCount > 1){
+    for(let i = 1; i <= pageCount; i++){
+      doc.setPage(i);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(120,128,140);
+      doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 28, { align:'center' });
+    }
+  }
 
   return doc;
 }
@@ -876,14 +1064,85 @@ function buildPayrollFileName(){
   return `Payroll_${base}.pdf`.replace(/[\\/:*?"<>|]/g, '');
 }
 
-function downloadPayrollPDF(){
+/* ---------------- Check the report before it goes anywhere ---------------- */
+function escHtml(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function namesList(names){
+  return names.length <= 3 ? names.join(', ').replace(/, ([^,]*)$/, names.length > 1 ? ' and $1' : ', $1')
+                           : names.slice(0, 3).join(', ') + ` and ${names.length - 3} more`;
+}
+
+function reviewPayroll(){
+  const errors = [], warnings = [];
+  const hours = isHoursMode();
+  const venueEl = document.getElementById('event');
+  const dateEl = document.getElementById('eventDate');
+  if(!venueEl.value.trim()) errors.push({ msg:'Choose the venue.', el:venueEl });
+  if(!dateEl.value.trim()) errors.push({ msg:'Set the date of the event.', el:dateEl });
+
+  const hp = headPyroEntry();
   const people = collectPeople();
-  if(people.length === 0 && !hasHeadPyroEntered()){
-    alert('Add at least one person before exporting.');
-    return;
+  if(!hp && people.length === 0) errors.push({ msg:'Add at least one person.', el:null });
+  orphanAmounts().forEach(o => errors.push({ msg:`${formatUnit(o.amount, hours)} is typed on a row with no name. Add the name, or clear the amount.`, el:o.nameInput }));
+
+  const everyone = (hp ? [hp] : []).concat(people);
+  const noAmount = everyone.filter(p => !p.amount).map(p => p.name);
+  if(noAmount.length) warnings.push(`${namesList(noAmount)} ${noAmount.length === 1 ? 'has' : 'have'} no ${hours ? 'hours' : 'amount'} entered.`);
+
+  const totalText = document.getElementById('totalPayroll').value.trim();
+  if(totalText !== ''){
+    const total = parseFloat(totalText) || 0;
+    const compareTotal = hours ? total : Math.round(total);
+    const sum = allocationSum();
+    if(Math.abs(sum - compareTotal) >= 0.01){
+      warnings.push(`The ${hours ? 'hours' : 'amounts'} add up to ${formatUnit(sum, hours)}, but the total entered is ${formatUnit(compareTotal, hours)} (off by ${formatUnit(Math.abs(sum - compareTotal), hours)}).`);
+    }
   }
-  const doc = buildPayrollPDF();
-  doc.save(buildPayrollFileName());
+
+  const seen = {};
+  everyone.forEach(p => { const k = p.name.toLowerCase(); seen[k] = (seen[k] || 0) + 1; });
+  const dupes = Object.keys(seen).filter(k => seen[k] > 1).map(k => everyone.find(p => p.name.toLowerCase() === k).name);
+  if(dupes.length) warnings.push(`${namesList(dupes)} ${dupes.length === 1 ? 'is' : 'are'} listed more than once.`);
+  return { errors, warnings };
+}
+
+let pendingReviewAction = null;
+function hideReview(){
+  const box = document.getElementById('reviewBox');
+  box.style.display = 'none';
+  box.innerHTML = '';
+  pendingReviewAction = null;
+}
+function proceedAnyway(){
+  const action = pendingReviewAction;
+  hideReview();
+  if(action) action();
+}
+// Errors stop the send. Warnings are shown first and the person decides.
+function runWithReview(action){
+  const { errors, warnings } = reviewPayroll();
+  const box = document.getElementById('reviewBox');
+  if(!errors.length && !warnings.length){ hideReview(); action(); return; }
+  const list = items => '<ul>' + items.map(i => `<li>${escHtml(i)}</li>`).join('') + '</ul>';
+  if(errors.length){
+    pendingReviewAction = null;
+    box.className = 'review-box err';
+    box.innerHTML = `<h3>Fix this first</h3>${list(errors.map(e => e.msg))}<div class="btns"><button type="button" class="secondary" onclick="hideReview()">OK</button></div>`;
+    errors.forEach(e => { if(e.el && e.el.tagName !== 'INPUT') e.el.classList.add('invalid'); else if(e.el && e.el.type === 'date') e.el.classList.add('invalid'); });
+  } else {
+    pendingReviewAction = action;
+    box.className = 'review-box warn';
+    box.innerHTML = `<h3>Check these before sending</h3>${list(warnings)}<div class="btns"><button type="button" class="secondary" onclick="hideReview()">Go back and fix</button><button type="button" class="secondary" onclick="proceedAnyway()">Send anyway</button></div>`;
+  }
+  box.style.display = '';
+  box.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+document.getElementById('eventDate').addEventListener('input', e => e.target.classList.remove('invalid'));
+
+/* ---------------- Export and send ---------------- */
+function downloadPayrollPDF(){
+  runWithReview(() => buildPayrollPDF().save(buildPayrollFileName()));
 }
 
 function csvEscapeField(val){
@@ -895,20 +1154,17 @@ function csvEscapeField(val){
 }
 
 function downloadPayrollCSV(){
+  runWithReview(exportPayrollCSV);
+}
+function exportPayrollCSV(){
   const people = collectPeople();
-  if(people.length === 0 && !hasHeadPyroEntered()){
-    alert('Add at least one person before exporting.');
-    return;
-  }
   const hours = isHoursMode();
   const unitLabel = hours ? 'Hours' : 'Amount ($)';
   const lines = [`Name,Address,${unitLabel},Checked In`];
 
-  const hpName = document.getElementById('hpName').value.trim();
-  if(!hours && hpName){
-    const hpAddress = document.getElementById('hpAddress').value.trim();
-    const hpAmount = parseFloat(document.getElementById('hpAmount').value) || 0;
-    lines.push([csvEscapeField(hpName + ' (HP)'), csvEscapeField(hpAddress), csvEscapeField(hpAmount), ''].join(','));
+  const hp = headPyroEntry();
+  if(hp){
+    lines.push([csvEscapeField(hp.name + ' (HP)'), csvEscapeField(hp.address), csvEscapeField(hp.amount), ''].join(','));
   }
   people.forEach(p => {
     lines.push([csvEscapeField(p.name), csvEscapeField(p.address), csvEscapeField(p.amount), csvEscapeField(p.checkInTime || '')].join(','));
@@ -925,13 +1181,27 @@ function downloadPayrollCSV(){
   URL.revokeObjectURL(url);
 }
 
-async function sharePayrollPDF(toAddress, ccAddress){
-  const people = collectPeople();
-  if(people.length === 0 && !hasHeadPyroEntered()){
-    alert('Add at least one person before emailing.');
-    return;
-  }
+function finishPayrollSend(title, lead, toAddress, ccAddress){
+  payrollSubmitted = true;
+  paySuppressed = true;                 // the form stays on screen, but it is no longer an unfinished draft
+  clearTimeout(payDraftTimer);
+  clearPayDraft();
+  document.getElementById('draftNote').style.display = 'none';
+  const hp = headPyroEntry();
+  const count = collectPeople().length + (hp ? 1 : 0);
+  const venue = document.getElementById('event').value.trim();
+  const date = document.getElementById('eventDate').value.trim();
+  const box = document.getElementById('sendResult');
+  box.innerHTML = `
+    <h3>${escHtml(title)}</h3>
+    <p>${escHtml(lead)}</p>
+    <p>${count} ${count === 1 ? 'person' : 'people'} &middot; ${escHtml(formatUnit(allocationSum(), isHoursMode()))} &middot; ${escHtml(venue)}${date ? ' &middot; ' + escHtml(date) : ''}</p>
+    <p>To: ${escHtml(toAddress)}${ccAddress ? ' (cc: ' + escHtml(ccAddress) + ')' : ''}</p>`;
+  box.style.display = '';
+  box.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
 
+async function sharePayrollPDF(toAddress, ccAddress){
   const statusEl = document.getElementById('emailStatus');
   const recipientLine = ccAddress ? `To: ${toAddress} (cc: ${ccAddress})` : `To: ${toAddress}`;
 
@@ -951,14 +1221,22 @@ async function sharePayrollPDF(toAddress, ccAddress){
     try{
       const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
       if(navigator.canShare({files: [file]})){
-        statusEl.textContent = `Opening share sheet — remember to address it: ${recipientLine}`;
-        statusEl.style.color = 'var(--brick)';
+        const opening = `Opening share sheet — remember to address it: ${recipientLine}`;
+        statusEl.textContent = opening;
+        statusEl.style.color = 'var(--ink-soft)';
+        // Best effort: put the address on the clipboard so it can simply be pasted into To:. Not awaited: the share sheet needs this tap.
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(toAddress).then(() => {
+            if(statusEl.textContent === opening) statusEl.textContent = opening + ' (address copied \u2014 just paste it)';
+          }).catch(() => {});
+        }
         await navigator.share({
           files: [file],
           title: subject,
           text: `${recipientLine}\n\n${subject}`
         });
-        payrollSubmitted = true;
+        statusEl.textContent = '';
+        finishPayrollSend('Payroll shared', 'Make sure you tapped Send in your email app so it reaches them.', toAddress, ccAddress);
         return;
       }
     } catch(err){
@@ -977,15 +1255,110 @@ async function sharePayrollPDF(toAddress, ccAddress){
   const ccParam = ccAddress ? `&cc=${encodeURIComponent(ccAddress)}` : '';
   const mailto = `mailto:${encodeURIComponent(toAddress)}?${ccParam ? ccParam.slice(1) + '&' : ''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
-  payrollSubmitted = true;
+  finishPayrollSend('PDF downloaded', 'Attach the downloaded PDF to the email that just opened, then send it.', toAddress, ccAddress);
 }
 
 function emailToChuck(){
-  sharePayrollPDF('chuckj@xmission.com', 'vortexfireworksartists@gmail.com');
+  runWithReview(() => sharePayrollPDF('chuckj@xmission.com', 'vortexfireworksartists@gmail.com'));
 }
 
 function emailToVortex(){
-  sharePayrollPDF('vortexfireworksartists@gmail.com', '');
+  runWithReview(() => sharePayrollPDF('vortexfireworksartists@gmail.com', ''));
+}
+
+/* ---------------- Saves itself as you go ---------------- */
+const PAY_DRAFT_KEY = 'payrollDraft_v1';
+let paySuppressed = false;      // set once sent, until the person edits again
+let payDraftTimer = null;
+
+function collectPayDraft(){
+  const sel = document.getElementById('event');
+  const opt = sel.selectedOptions[0];
+  return {
+    venue: sel.value || '',
+    venueDate: opt ? (opt.dataset.date || '') : '',
+    eventDate: document.getElementById('eventDate').value,
+    total: document.getElementById('totalPayroll').value,
+    divide: document.getElementById('divideEvenly').checked,
+    description: document.getElementById('hoursDescription').value,
+    hp: { name: document.getElementById('hpName').value, address: document.getElementById('hpAddress').value, amount: document.getElementById('hpAmount').value },
+    people: Array.from(document.querySelectorAll('#peopleBody tr')).map(row => ({
+      name: row.querySelector('.p-name').value,
+      address: row.querySelector('.p-address').value,
+      amount: row.querySelector('.p-amount').value,
+      checkInTime: (row.querySelector('.checkin-time').textContent || '').replace('Checked in ', '').trim()
+    }))
+  };
+}
+// Worth restoring only if something was typed by hand. A crew list that simply came from check-ins is one tap to get again.
+function payDraftHasContent(d){
+  return !!(d.total || d.hp.amount || (d.description || '').trim() ||
+    d.people.some(p => p.amount || (p.name.trim() && !p.checkInTime)));
+}
+function clearPayDraft(){ try{ localStorage.removeItem(PAY_DRAFT_KEY); } catch(e){} }
+function schedulePayDraftSave(){
+  clearTimeout(payDraftTimer);
+  payDraftTimer = setTimeout(() => {
+    if(paySuppressed) return;
+    const d = collectPayDraft();
+    try{
+      if(payDraftHasContent(d)) localStorage.setItem(PAY_DRAFT_KEY, JSON.stringify(d));
+      else localStorage.removeItem(PAY_DRAFT_KEY);
+    } catch(e){}
+  }, 600);
+}
+function onPayEdit(e){
+  if(!e.target.closest || !e.target.closest('#mainContent')) return;
+  paySuppressed = false;
+  payrollSubmitted = false;
+  schedulePayDraftSave();
+}
+document.addEventListener('input', onPayEdit);
+document.addEventListener('change', onPayEdit);
+
+function restorePayDraft(){
+  let d;
+  try{ d = JSON.parse(localStorage.getItem(PAY_DRAFT_KEY) || 'null'); } catch(e){ d = null; }
+  if(!d || !payDraftHasContent(d)) return false;
+  document.getElementById('peopleBody').innerHTML = '';
+  (d.people || []).forEach(p => {
+    const tr = addPersonRow(p.name, p.address, p.checkInTime);
+    tr.querySelector('.p-amount').value = p.amount;
+  });
+  if(!document.querySelectorAll('#peopleBody tr').length){ addPersonRow(); addPersonRow(); }
+  document.getElementById('hpName').value = d.hp.name || '';
+  document.getElementById('hpAddress').value = d.hp.address || '';
+  document.getElementById('hpAmount').value = d.hp.amount || '';
+  document.getElementById('totalPayroll').value = d.total || '';
+  document.getElementById('hoursDescription').value = d.description || '';
+  document.getElementById('divideEvenly').checked = !!d.divide;
+  document.getElementById('eventDate').value = d.eventDate || '';
+  pendingVenue = d.venue ? { name: d.venue, date: d.venueDate, eventDate: d.eventDate } : null;
+  applyPendingVenue();          // selects it now if it is already listed, otherwise as soon as the venue list loads
+  updateModeUI();               // also re-applies "divide evenly" and the hours/budget wording
+  document.getElementById('draftNote').style.display = '';
+  return true;
+}
+
+function startOver(){
+  clearPayDraft();
+  clearTimeout(payDraftTimer);
+  document.getElementById('peopleBody').innerHTML = '';
+  addPersonRow();
+  addPersonRow();
+  ['hpName','hpAddress','hpAmount','totalPayroll','hoursDescription','eventDate'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('divideEvenly').checked = false;
+  document.getElementById('event').selectedIndex = 0;
+  pendingVenue = null;
+  autoFilledHP = '';
+  document.getElementById('venueAddress').textContent = '';
+  document.getElementById('loadStatus').textContent = '';
+  document.getElementById('draftNote').style.display = 'none';
+  document.getElementById('sendResult').style.display = 'none';
+  hideReview();
+  payrollSubmitted = false;
+  paySuppressed = false;
+  updateModeUI();
 }
 
 let payrollSubmitted = false;
@@ -1004,6 +1377,7 @@ window.addEventListener('beforeunload', (e) => {
 });
 
 updateModeUI();
+restorePayDraft();
 </script>
 
 
