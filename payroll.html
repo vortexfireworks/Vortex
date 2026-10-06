@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
 <title>Payroll Submit — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
@@ -306,8 +308,9 @@ updateThemeToggleIcon();
 </div>
 
 <script>
-const CONTACTS = [
-];
+// The crew list is NOT written into this page. It comes from the sheet once signed in, and a copy is kept on this phone
+// so autofill still works with no signal.
+const CONTACTS = Directory.cached();
 
 const CONTACTS_BY_NAME = {};
 CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
@@ -320,6 +323,7 @@ async function fetchOperatorDirectory(){
     if(!res.ok) throw new Error('Request failed');
     const sheetContacts = await res.json();
     if(Array.isArray(sheetContacts)){
+      Directory.save(sheetContacts);
       sheetContacts.forEach(c => {
         if(!c.name) return;
         CONTACTS_BY_NAME[c.name.trim().toLowerCase()] = {

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
 <title>Head Pyro Tools — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
@@ -382,7 +383,7 @@ updateThemeToggleIcon();
   </a>
   </div>
 
-  <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>
+  <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com<br><a href="#" onclick="lockThisPhone();return false;" style="color:inherit;opacity:.8;">&#128274; Lock this phone</a></footer>
 </div>
 
 <script>
@@ -394,34 +395,41 @@ if ('serviceWorker' in navigator) {
 </script>
 
 <script>
-const HPTOOLS_PASSWORD_HASH = "3527374c1ff8dad43a5fae9007904cc82041d83a5d9adb69e030a71340f54b2a";
-
-async function sha256Hex(text){
-  const data = new TextEncoder().encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+async function checkPassword(){
+  const input = document.getElementById('lockPassword');
+  const err = document.getElementById('lockError');
+  const btn = document.querySelector('#lockScreen button');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Checking\u2026';
+  const result = await Auth.login('hp', input.value);
+  btn.disabled = false; btn.textContent = 'Unlock';
+  if(result.ok){
+    const next = Auth.nextPage();
+    if(next){ location.replace(next); return; }      // back to the page they were trying to open
+    unlockHpTools();
+  } else {
+    err.textContent = result.message;
+    err.style.display = 'block';
+    input.value = '';
+    input.focus();
+  }
 }
 
 function unlockHpTools(){
   document.getElementById('lockScreen').style.display = 'none';
   document.getElementById('mainContent').style.display = 'block';
-  sessionStorage.setItem('hpToolsUnlocked', '1');
 }
 
-async function checkPassword(){
-  const entered = document.getElementById('lockPassword').value;
-  const hash = await sha256Hex(entered);
-  if(hash === HPTOOLS_PASSWORD_HASH){
-    unlockHpTools();
-  } else {
-    document.getElementById('lockError').style.display = 'block';
-    document.getElementById('lockPassword').value = '';
-    document.getElementById('lockPassword').focus();
-  }
+// Forget the sign-in and the crew list kept on this phone (for a shared phone).
+function lockThisPhone(){
+  Auth.lock();
+  location.replace(location.pathname.split('/').pop());
 }
 
-if(sessionStorage.getItem('hpToolsUnlocked') === '1'){
+if(Auth.has('hp')){
   unlockHpTools();
+} else if(Auth.expiredNotice()){
+  document.querySelector('#lockScreen p').textContent = 'Your sign-in ended. Enter the password to continue.';
 }
 </script>
 </body>

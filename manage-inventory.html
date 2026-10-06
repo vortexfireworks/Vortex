@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
 <title>Manage Inventory — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
@@ -505,7 +507,7 @@ function renderLines(){
     return `
       <div class="item-line" data-id="${l.id}">
         <div class="product-row">
-          <input type="text" class="c-product" list="productDirectoryList" placeholder="Product (optional) — pick one to fill in the rest" value="${esc(l.product || '')}" oninput="onProductInput('${l.id}', this.value)" autocomplete="off">
+          <input type="text" class="c-product" list="productDirectoryList" placeholder="Product (optional) — search your catalog and pick one to fill in the rest" value="${esc(l.product || '')}" oninput="onProductInput('${l.id}', this.value)" autocomplete="off">
         </div>
         <div class="row1">
           <select class="c-type" onchange="setItemAndRerender('${l.id}','type',this.value)">
@@ -702,16 +704,39 @@ async function fetchShows(){
   showsLoaded = true;
 }
 
-let PRODUCTS = {};   // keyed by lowercase name -> { name, type, size, manufacturer, effects, sku }
+// The product list comes from the catalog built under Plan a Firework Show (its shells and cakes).
+// Each entry gets a readable label to search by, e.g.  3" Peony — Black Cat · Red · #BC-1001
+let PRODUCTS = {};   // keyed by lowercase label -> { name (the label), type, size, manufacturer, effects, sku }
 function productKeyOf(name){ return String(name || '').trim().toLowerCase(); }
 
+function shellProductLabel(p){
+  const head = sizeLabel(p.size) + (p.effect ? ' ' + p.effect : '');
+  const tail = [p.manufacturer, p.colors, p.itemNumber ? '#' + p.itemNumber : (p.sku ? 'SKU ' + p.sku : '')].filter(Boolean);
+  return head + (tail.length ? ' \u2014 ' + tail.join(' \u00b7 ') : '');
+}
+function cakeProductLabel(p){
+  const tail = [p.manufacturer, p.shotCount ? p.shotCount + ' shot' : '', p.gram ? p.gram + 'g' : ''].filter(Boolean);
+  return (p.name || 'Cake') + (tail.length ? ' \u2014 ' + tail.join(' \u00b7 ') : '');
+}
+
 async function fetchProducts(){
+  PRODUCTS = {};
   try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=fireworkProducts`);
-    if(!res.ok) throw new Error('Request failed');
-    const json = await res.json();
-    PRODUCTS = {};
-    (json.products || []).forEach(p => { PRODUCTS[productKeyOf(p.name)] = p; });
+    const [shellsRes, cakesRes] = await Promise.all([
+      fetch(`${CHECKIN_API_URL}?type=shellProducts`, { cache:'no-store' }),
+      fetch(`${CHECKIN_API_URL}?type=cakeProducts`, { cache:'no-store' })
+    ]);
+    if(!shellsRes.ok || !cakesRes.ok) throw new Error('Request failed');
+    const shells = (await shellsRes.json()).products || [];
+    const cakes = (await cakesRes.json()).products || [];
+    shells.forEach(p => {
+      const name = shellProductLabel(p);
+      PRODUCTS[productKeyOf(name)] = { name, type:'shell', size: p.size, manufacturer: p.manufacturer || '', effects: [p.effect, p.colors].filter(Boolean).join(' \u2014 '), sku: p.sku || p.itemNumber || '' };
+    });
+    cakes.forEach(p => {
+      const name = cakeProductLabel(p);
+      PRODUCTS[productKeyOf(name)] = { name, type:'cake', size:'', manufacturer: p.manufacturer || '', effects: [p.name, p.effects].filter(Boolean).join(' \u2014 '), sku: '' };
+    });
   } catch(err){
     PRODUCTS = {};
   }

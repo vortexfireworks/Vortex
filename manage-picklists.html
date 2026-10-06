@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
 <title>Manage Pick Lists — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
@@ -386,8 +388,13 @@ async function getJson(url){
   if(!res.ok) throw new Error('Request failed');
   return res.json();
 }
-function postJson(payload){
-  return fetch(CHECKIN_API_URL, { method:'POST', mode:'no-cors', body: JSON.stringify(payload) });
+// Reads the server's reply, so a refused or failed save is reported instead of showing "Saved" (the old no-cors send could not tell).
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status !== 'ok') throw new Error((data && data.message) || 'Request failed');
+  return data;
 }
 
 let SHOWS = [];          // venues that have an event date

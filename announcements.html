@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="auth.js"></script>
 <script>Auth.require('admin');</script>
-<title>Saved After Action Reports — CueSheet</title>
+<title>Announcements — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
 <meta name="theme-color" content="#0a0f1e">
@@ -173,6 +173,27 @@ updateThemeToggleIcon();
   .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
   @media (max-width:420px){ .filters{grid-template-columns:1fr;} }
 
+
+  .ann-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .ann-item.current{border-color:rgba(255,140,0,0.55);background:rgba(255,140,0,0.06);}
+  .ann-meta{font-size:11.5px;color:var(--ink-soft);margin-bottom:5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .ann-text{font-size:13.5px;color:var(--ink);line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+  .ann-actions{margin-top:9px;}
+  .ann-actions button{background:none;border:1px solid var(--line);color:var(--brick);font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;}
+  textarea{width:100%;min-height:90px;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);font-family:inherit;box-sizing:border-box;resize:vertical;}
+  textarea:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .char-count{font-size:11px;color:var(--ink-soft);text-align:right;margin-top:4px;}
+  .status-line{font-size:12.5px;margin-left:4px;}
+  .bk-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .bk-row:last-child{border-bottom:none;}
+  .bk-row .when{font-size:11.5px;color:var(--ink-soft);display:block;margin-top:2px;}
+  .bk-row a{color:var(--navy);font-size:12px;text-decoration:none;flex-shrink:0;}
+  .callout{border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:16px;border:1px solid var(--line);}
+  .callout.ok{background:rgba(76,175,125,0.12);border-color:rgba(76,175,125,0.4);}
+  .callout.warn{background:rgba(255,190,60,0.12);border-color:rgba(255,190,60,0.5);}
+  .callout b{color:var(--ink);}
+  .callout code{background:var(--surface-5);padding:1px 6px;border-radius:4px;font-size:12px;}
+
 </style>
 </head>
 <body>
@@ -183,179 +204,112 @@ updateThemeToggleIcon();
 <header>
   <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
   <p class="kicker">Vortex Productions Inc.</p>
-  <h1>Saved After Action Reports</h1>
+  <h1>Announcements</h1>
 </header>
 
 <div class="divider"></div>
 
 <div class="sheet">
   <div class="section">
-    <p class="desc">Every After-Action Report saved from the report form (with Save to Drive, or automatically when it's emailed), newest event first. Search by operator, venue, date, or license number. The PDFs are kept privately in the Drive folder "Vortex After Action Reports".</p>
+    <p class="desc">The newest announcement shows as a banner at the top of the home screen. Crew can dismiss it, and posting a newer one shows the banner again.</p>
 
-    <div class="filters">
-      <input type="text" id="searchBox" placeholder="Search reports…" oninput="renderReports()" autocomplete="off">
-      <select id="yearSelect" onchange="renderReports()" aria-label="Year"><option value="">All years</option></select>
+    <div class="editor-box">
+      <p class="label-title">NEW ANNOUNCEMENT</p>
+      <textarea id="newAnnouncementText" maxlength="500" placeholder="Type an announcement to post…" oninput="updateCount()"></textarea>
+      <div class="char-count" id="charCount">0 / 500</div>
+      <div class="save-row" style="margin-top:10px;">
+        <button class="primary" type="button" id="postBtn" onclick="postAnnouncement()">Post announcement</button>
+        <span class="status-line" id="postStatus"></span>
+      </div>
     </div>
-    <label class="check-line"><input type="checkbox" id="incidentsOnly" onchange="renderReports()"> Only show reports where something was reported (duds, injuries, fire, or violations)</label>
 
-    <p class="count-line" id="countLine"></p>
-    <div id="reportList"><p class="loading-pulse">Loading…</p></div>
+    <p class="list-title">POSTED ANNOUNCEMENTS</p>
+    <div id="annList"><p class="loading-pulse">Loading…</p></div>
   </div>
 </div>
 
 <script>
 const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
-
 function $(id){ return document.getElementById(id); }
-function esc(s){
-  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-function keyOf(s){ return String(s || '').trim().toLowerCase(); }
-function formatEventDate(d){
-  if(!d) return 'No date';
-  const p = d.slice(0,10).split('-');
-  if(p.length !== 3) return d;
-  return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
-}
-function formatSaved(iso){
-  if(!iso) return '';
-  const d = new Date(iso);
-  if(isNaN(d.getTime())) return '';
-  return 'Saved ' + d.toLocaleDateString(undefined, { month:'short', day:'numeric' }) + ' ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
-}
-
+function esc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function setStatus(el, msg, kind){ el.textContent = msg || ''; el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)'; }
+// Reads the server's reply, so a refused or failed request is reported instead of looking like it worked.
 async function postJson(payload){
   const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
   let data = null;
   try{ data = await res.json(); } catch(e){}
-  if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+  if(!res.ok || !data || data.status !== 'ok') throw new Error((data && data.message) || 'Request failed');
   return data;
 }
-
-let REPORTS = [];
-
-async function loadReports(){
-  const wrap = $('reportList');
-  try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=aarReports`, { cache: 'no-store' });
-    if(!res.ok) throw new Error('Request failed');
-    const data = await res.json();
-    REPORTS = Array.isArray(data.reports) ? data.reports : [];
-  } catch(err){
-    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the saved reports \u2014 check your connection and try again.</p>';
-    $('countLine').textContent = '';
-    return;
-  }
-  const years = [...new Set(REPORTS.map(r => (r.eventDate || '').slice(0,4)).filter(Boolean))].sort().reverse();
-  $('yearSelect').innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
-  renderReports();
+function formatWhen(iso){
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) + ' at ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
 }
 
-function renderReports(){
-  const wrap = $('reportList');
-  const term = keyOf($('searchBox').value);
-  const year = $('yearSelect').value;
-  const incidentsOnly = $('incidentsOnly').checked;
+let ANNOUNCEMENTS = [];
 
-  const shown = REPORTS.filter(r => {
-    if(year && (r.eventDate || '').slice(0,4) !== year) return false;
-    if(incidentsOnly && !r.incidents) return false;
-    if(!term) return true;
-    const hay = [r.operator, r.venue, r.license, r.eventDate, formatEventDate(r.eventDate), r.incidents];
-    return hay.some(v => keyOf(v).includes(term));
-  });
+function updateCount(){ $('charCount').textContent = $('newAnnouncementText').value.length + ' / 500'; }
 
-  $('countLine').textContent = REPORTS.length ? `${shown.length} of ${REPORTS.length} REPORT${REPORTS.length === 1 ? '' : 'S'}` : '';
-
-  if(!REPORTS.length){
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">\ud83d\udcc4</div><p>No reports saved yet. Fill in an After-Action Report and tap Save to Drive, or email it \u2014 a copy is saved automatically.</p></div>';
+async function loadAnnouncements(){
+  const wrap = $('annList');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=announcements`, { cache:'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    const data = await res.json();
+    ANNOUNCEMENTS = Array.isArray(data) ? data : [];
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the announcements \u2014 check your connection and try again.</p>';
     return;
   }
-  if(!shown.length){
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">\ud83d\udd0d</div><p>No reports match. Try a different search.</p></div>';
+  renderAnnouncements();
+}
+
+function renderAnnouncements(){
+  const wrap = $('annList');
+  if(!ANNOUNCEMENTS.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">\ud83d\udce2</div><p>Nothing posted yet.</p></div>';
     return;
   }
-
-  wrap.innerHTML = shown.map(r => `
-    <div class="report-card" data-id="${esc(r.id)}">
-      <div class="report-main">
-        <div class="report-top">
-          <span class="report-date">${esc(formatEventDate(r.eventDate))}</span>
-          <span class="report-saved">${esc(formatSaved(r.savedAt))}</span>
-        </div>
-        <div class="report-venue">${esc(r.venue || '(no venue entered)')}</div>
-        <div class="report-meta">${esc(r.operator || '(no operator)')}${r.license ? ' \u00b7 License ' + esc(r.license) : ''}</div>
-        ${r.incidents ? `<div class="report-flags">Reported: ${esc(r.incidents)}</div>` : ''}
-      </div>
-      <div class="report-note" style="display:none;"></div>
-      <div class="report-actions">
-        <button type="button" data-action="open">Open PDF</button>
-        <button type="button" class="danger" data-action="delete">Delete</button>
-        ${r.fileId ? `<a href="https://drive.google.com/file/d/${encodeURIComponent(r.fileId)}/view" target="_blank" rel="noopener">Open in Drive</a>` : ''}
-      </div>
+  wrap.innerHTML = ANNOUNCEMENTS.map((a, i) => `
+    <div class="ann-item${i === 0 ? ' current' : ''}">
+      <div class="ann-meta"><span>${esc(formatWhen(a.timestamp))}</span>${i === 0 ? '<span style="color:#ff8c00;font-weight:700;">Showing on the home screen</span>' : ''}</div>
+      <div class="ann-text">${esc(a.message)}</div>
+      <div class="ann-actions"><button type="button" data-row="${esc(a.rowNumber)}">Delete</button></div>
     </div>`).join('');
 }
 
-function setCardNote(card, text){
-  const note = card.querySelector('.report-note');
-  note.textContent = text || '';
-  note.style.display = text ? 'block' : 'none';
-}
-
-async function openReport(card, btn){
-  const id = card.dataset.id;
-  const report = REPORTS.find(r => r.id === id);
-  // Open the tab right away, while the tap still counts, then point it at the PDF once it has loaded.
-  const tab = window.open('', '_blank');
-  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Loading\u2026';
-  setCardNote(card, '');
+async function postAnnouncement(){
+  const st = $('postStatus'), btn = $('postBtn');
+  const message = $('newAnnouncementText').value.trim();
+  if(!message){ setStatus(st, 'Type something before posting.', 'err'); return; }
+  btn.disabled = true; setStatus(st, 'Posting\u2026');
   try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=aarReportFile&id=${encodeURIComponent(id)}`, { cache: 'no-store' });
-    const data = await res.json();
-    if(!data.dataUrl) throw new Error(data.error || 'Could not load that report');
-    const bytes = Uint8Array.from(atob(data.dataUrl.split('base64,')[1]), c => c.charCodeAt(0));
-    const url = URL.createObjectURL(new Blob([bytes], { type:'application/pdf' }));
-    if(tab && !tab.closed){
-      tab.location.href = url;
-    } else {
-      const a = document.createElement('a');          // pop-up blocked: download instead
-      a.href = url; a.download = data.fileName || (report && report.fileName) || 'After-Action-Report.pdf';
-      document.body.appendChild(a); a.click(); a.remove();
-    }
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    await postJson({ recordType: 'announcement', message });
+    $('newAnnouncementText').value = ''; updateCount();
+    await loadAnnouncements();
+    setStatus(st, 'Posted \u2713', 'ok');
   } catch(err){
-    if(tab && !tab.closed) tab.close();
-    setCardNote(card, err.message && err.message !== 'Failed to fetch' ? err.message : "Couldn't load that report \u2014 check your connection and try again.");
-  } finally {
-    btn.disabled = false; btn.textContent = label;
-  }
+    setStatus(st, "Couldn't post \u2014 check your connection and try again.", 'err');
+  } finally { btn.disabled = false; }
 }
 
-async function deleteReport(card, btn){
-  const id = card.dataset.id;
-  const r = REPORTS.find(x => x.id === id);
-  const label = r ? `${formatEventDate(r.eventDate)} \u2014 ${r.venue || 'no venue'} (${r.operator || 'no operator'})` : 'this report';
-  if(!confirm(`Delete the saved report for ${label}? The PDF moves to the Drive trash, where it stays recoverable for a while.`)) return;
+$('annList').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-row]');
+  if(!btn) return;
+  if(!confirm('Delete this announcement?')) return;
   btn.disabled = true;
   try{
-    await postJson({ recordType:'deleteAarReport', id });
-    REPORTS = REPORTS.filter(x => x.id !== id);
-    renderReports();
+    await postJson({ recordType: 'deleteAnnouncementRow', rowNumber: Number(btn.dataset.row) });
+    await loadAnnouncements();
+    setStatus($('postStatus'), 'Deleted.', 'ok');
   } catch(err){
     btn.disabled = false;
-    setCardNote(card, "Couldn't delete \u2014 check your connection and try again.");
+    setStatus($('postStatus'), "Couldn't delete \u2014 check your connection and try again.", 'err');
   }
-}
-
-$('reportList').addEventListener('click', e => {
-  const btn = e.target.closest('button[data-action]');
-  if(!btn) return;
-  const card = btn.closest('.report-card');
-  if(btn.dataset.action === 'open') openReport(card, btn);
-  if(btn.dataset.action === 'delete') deleteReport(card, btn);
 });
 
-loadReports();
+loadAnnouncements();
 </script>
 
 <script>

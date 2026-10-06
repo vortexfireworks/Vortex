@@ -174,37 +174,6 @@
     color:#8a8478; font-size:18px; line-height:1; cursor:pointer; padding:4px;
   }
   .announcement-bubble .close-btn:hover{color:#1c1a17;}
-
-  .admin-lock{
-    max-width:420px; margin:20px auto 0; text-align:center;
-  }
-  .admin-lock summary{
-    cursor:pointer; font-size:11px; color:var(--footer-link); list-style:none; user-select:none;
-  }
-  .admin-lock summary::-webkit-details-marker{display:none;}
-  .admin-lock summary:hover{color:var(--ink-soft);}
-  .admin-panel{
-    margin-top:10px; background:var(--card-bg); border:1px solid var(--card-border);
-    border-radius:10px; padding:16px; text-align:left;
-  }
-  .admin-panel input[type=password], .admin-panel textarea{
-    width:100%; font-size:13px; padding:9px 11px; border:1px solid var(--surface-border);
-    border-radius:6px; background:var(--surface); color:var(--ink); font-family:inherit;
-    box-sizing:border-box;
-  }
-  .admin-panel textarea{resize:vertical;min-height:60px;}
-  .admin-panel button{
-    margin-top:8px; background:linear-gradient(135deg,#d92b2b,#ff8c00); color:#fdf6f2;
-    border:none; font-size:12.5px; font-weight:700; padding:9px 16px; border-radius:6px; cursor:pointer;
-  }
-  .admin-panel .existing-item{
-    display:flex; justify-content:space-between; align-items:flex-start; gap:8px;
-    padding:8px 0; border-top:1px solid var(--card-border); font-size:12px; color:var(--ink-soft);
-  }
-  .admin-panel .existing-item button{
-    margin:0; background:none; border:1px solid rgba(255,106,90,0.4); color:#ff6a5a;
-    font-size:11px; font-weight:400; padding:3px 8px;
-  }
   .theme-toggle{
     position:absolute; top:12px; right:12px; z-index:5;
     width:36px;height:36px;border-radius:50%;
@@ -435,26 +404,10 @@
     💡 Submit a feature request
   </a>
 
-  <details class="admin-lock" id="adminLock">
-    <summary>🔒 Admin: Announcements</summary>
-    <div class="admin-panel" id="adminLoginPanel">
-      <input type="password" id="adminPassword" placeholder="Password" autocomplete="off">
-      <button type="button" onclick="checkAdminPassword()">Unlock</button>
-      <p id="adminLoginError" style="display:none;color:#ff6a5a;font-size:11.5px;margin-top:8px;">Incorrect password.</p>
-    </div>
-    <div class="admin-panel" id="adminEditPanel" style="display:none;">
-      <label style="font-size:11.5px;color:#a3a9bf;display:block;margin-bottom:6px;">New announcement</label>
-      <textarea id="newAnnouncementText" placeholder="Type an announcement to post…"></textarea>
-      <button type="button" onclick="postAnnouncement()">Post announcement</button>
-      <p id="postStatus" style="font-size:11.5px;margin-top:8px;"></p>
-      <div id="existingAnnouncementsList" style="margin-top:14px;"></div>
-    </div>
-  </details>
 </div>
 
 <script>
 const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
-const ADMIN_PASSWORD_HASH = "cf7c3f3c216f72e7b13203c30ff418dfff1206d08139fe52411603eeda3aedb2";
 let ANNOUNCEMENTS = [];
 
 function toggleTheme(){
@@ -475,19 +428,12 @@ function updateThemeToggleIcon(){
 }
 updateThemeToggleIcon();
 
-async function sha256Hex(text){
-  const data = new TextEncoder().encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
 async function loadAnnouncements(){
   try{
     const res = await fetch(`${CHECKIN_API_URL}?type=announcements`);
     if(!res.ok) return;
     ANNOUNCEMENTS = await res.json();
     showLatestAnnouncement();
-    renderExistingAnnouncements();
   } catch(err){
     // fail silently — announcements are a nice-to-have, not core functionality
   }
@@ -507,67 +453,6 @@ function dismissAnnouncement(){
   const bubble = document.getElementById('announcementBubble');
   localStorage.setItem('dismissedAnnouncementTimestamp', bubble.dataset.timestamp || '');
   bubble.style.display = 'none';
-}
-
-async function checkAdminPassword(){
-  const entered = document.getElementById('adminPassword').value;
-  const hash = await sha256Hex(entered);
-  if(hash === ADMIN_PASSWORD_HASH){
-    document.getElementById('adminLoginPanel').style.display = 'none';
-    document.getElementById('adminEditPanel').style.display = 'block';
-  } else {
-    document.getElementById('adminLoginError').style.display = 'block';
-    document.getElementById('adminPassword').value = '';
-  }
-}
-
-function postAnnouncement(){
-  const textEl = document.getElementById('newAnnouncementText');
-  const message = textEl.value.trim();
-  const statusEl = document.getElementById('postStatus');
-  if(!message){
-    statusEl.textContent = 'Type something before posting.';
-    statusEl.style.color = '#ff6a5a';
-    return;
-  }
-  statusEl.textContent = 'Posting…';
-  statusEl.style.color = '#a3a9bf';
-  fetch(CHECKIN_API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify({ recordType: 'announcement', message })
-  }).then(async () => {
-    textEl.value = '';
-    statusEl.textContent = 'Posted.';
-    statusEl.style.color = '#4caf7d';
-    await loadAnnouncements();
-  }).catch(() => {
-    statusEl.textContent = 'Could not post — check your connection and try again.';
-    statusEl.style.color = '#ff6a5a';
-  });
-}
-
-function renderExistingAnnouncements(){
-  const wrap = document.getElementById('existingAnnouncementsList');
-  if(!ANNOUNCEMENTS || ANNOUNCEMENTS.length === 0){
-    wrap.innerHTML = '<p style="font-size:11.5px;color:#6b7290;">No announcements posted yet.</p>';
-    return;
-  }
-  wrap.innerHTML = ANNOUNCEMENTS.map(a => `
-    <div class="existing-item">
-      <span>${a.message.replace(/</g,'&lt;')}</span>
-      <button type="button" onclick="deleteAnnouncement(${a.rowNumber})">Delete</button>
-    </div>
-  `).join('');
-}
-
-function deleteAnnouncement(rowNumber){
-  if(!confirm('Delete this announcement?')) return;
-  fetch(CHECKIN_API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify({ recordType: 'deleteAnnouncementRow', rowNumber })
-  }).then(() => loadAnnouncements());
 }
 
 loadAnnouncements();

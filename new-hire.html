@@ -609,6 +609,7 @@ async function syncNewHireToDirectory(){
   }
   const payload = {
     recordType: 'contact',
+    createOnly: true,      // the server adds a new person but never touches someone already on file
     name: name,
     displayLicense: val('nhDisplayLicense'),
     specialEffectsLicense: val('nhSFXLicense'),

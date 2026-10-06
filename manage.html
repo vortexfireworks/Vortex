@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
 <title>Manage/Edit — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
@@ -210,7 +211,7 @@ updateThemeToggleIcon();
     </div>
     <div>
       <h2>Manage Venues</h2>
-      <p>Add a new venue or update an existing one's address or county — changes show up in the Venue dropdown everywhere.</p>
+      <p>Add venues and their dates, edit or delete them, or add another date for a venue you already have — changes show up in the venue lists everywhere.</p>
     </div>
   </a>
 
@@ -302,38 +303,73 @@ updateThemeToggleIcon();
     </div>
   </a>
 
-  <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>
+  <a class="card c1" href="announcements.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 10v4h3l7 4V6L7 10H4z" stroke-width="1.5"/>
+        <path d="M17 9.5a4 4 0 010 5" stroke-width="1.5"/>
+        <path d="M19.5 7a7.5 7.5 0 010 10" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Announcements</h2>
+      <p>Post a message that shows as a banner on the home screen, and remove old ones.</p>
+    </div>
+  </a>
+
+  <a class="card c2" href="backups.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+        <ellipse cx="12" cy="6.5" rx="7" ry="2.8" stroke-width="1.5"/>
+        <path d="M5 6.5v11c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-11" stroke-width="1.5"/>
+        <path d="M5 12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Backups</h2>
+      <p>Keep dated copies of the whole spreadsheet in Drive, see when the last one ran, or take one now.</p>
+    </div>
+  </a>
+
+  <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com<br><a href="#" onclick="lockThisPhone();return false;" style="color:inherit;opacity:.8;">&#128274; Lock this phone</a></footer>
 </div>
 
 <script>
-const MANAGE_PASSWORD_HASH = "cf7c3f3c216f72e7b13203c30ff418dfff1206d08139fe52411603eeda3aedb2";
-
-async function sha256Hex(text){
-  const data = new TextEncoder().encode(text);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2,'0')).join('');
+async function checkPassword(){
+  const input = document.getElementById('lockPassword');
+  const err = document.getElementById('lockError');
+  const btn = document.querySelector('#lockScreen button');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Checking\u2026';
+  const result = await Auth.login('admin', input.value);
+  btn.disabled = false; btn.textContent = 'Unlock';
+  if(result.ok){
+    const next = Auth.nextPage();
+    if(next){ location.replace(next); return; }      // back to the page they were trying to open
+    unlockManage();
+  } else {
+    err.textContent = result.message;
+    err.style.display = 'block';
+    input.value = '';
+    input.focus();
+  }
 }
 
 function unlockManage(){
   document.getElementById('lockScreen').style.display = 'none';
   document.getElementById('mainContent').style.display = 'block';
-  sessionStorage.setItem('manageUnlocked', '1');
 }
 
-async function checkPassword(){
-  const entered = document.getElementById('lockPassword').value;
-  const hash = await sha256Hex(entered);
-  if(hash === MANAGE_PASSWORD_HASH){
-    unlockManage();
-  } else {
-    document.getElementById('lockError').style.display = 'block';
-    document.getElementById('lockPassword').value = '';
-    document.getElementById('lockPassword').focus();
-  }
+// Forget the sign-in and the crew list kept on this phone (for a shared phone).
+function lockThisPhone(){
+  Auth.lock();
+  location.replace(location.pathname.split('/').pop());
 }
 
-if(sessionStorage.getItem('manageUnlocked') === '1'){
+if(Auth.has('admin')){
   unlockManage();
+} else if(Auth.expiredNotice()){
+  document.querySelector('#lockScreen p').textContent = 'Your sign-in ended. Enter the password to continue.';
 }
 </script>
 </body>

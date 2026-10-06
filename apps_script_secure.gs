@@ -396,9 +396,209 @@ function savePhotoToDrive(dataUrl, name) {
   return 'https://lh3.googleusercontent.com/d/' + file.getId() + '=s400';
 }
 
+/* ===================== ACCESS CONTROL =====================
+   Three levels of access:
+     public - Check-In, New Hire and Update My Info. These only ever get what they need.
+     hp     - Head Pyro Tools: the crew directory, pick lists, Payroll, the After-Action Report, Enable Sign-In.
+     admin  - Manage/Edit: everything that edits or deletes, plus the saved reports and backups.
+   A page logs in once (recordType 'login') and gets a signed token that expires. Every request that is not
+   public must carry a valid token of at least the level it needs. Passwords live in Script Properties,
+   never in a page. The first time this runs it starts with the same two passwords the pages used before,
+   so nobody is locked out; change them afterwards with setAdminPasswordNow() and setHpPasswordNow(). */
+const TOKEN_LIFETIME_SECONDS = 24 * 60 * 60;
+const LOGIN_FAIL_KEY = 'loginFailures_v1';
+const MAX_LOGIN_FAILS = 10;
+const LOGIN_LOCKOUT_SECONDS = 600;
+const ORIGINAL_HP_HASH = '3527374c1ff8dad43a5fae9007904cc82041d83a5d9adb69e030a71340f54b2a';
+const ORIGINAL_ADMIN_HASH = 'cf7c3f3c216f72e7b13203c30ff418dfff1206d08139fe52411603eeda3aedb2';
+
+// What each read needs. Anything not listed here (including the check-in list) needs the Head Pyro level.
+const GET_LEVELS = {
+  names: 'public', verifyPerson: 'public', venues: 'public', announcements: 'public',
+  contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp',
+  findDuplicateContacts: 'admin', findDuplicateVenues: 'admin',
+  shellProducts: 'admin', cakeProducts: 'admin', showPlans: 'admin', fireworkProducts: 'admin',
+  inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin'
+};
+// What each write needs. Anything not listed here needs the Manage/Edit level.
+// (A check-in has no recordType and is public; 'contact' decides for itself below.)
+const POST_LEVELS = {
+  aarReport: 'hp', toggleVenueSignIn: 'hp',
+  payroll: 'admin', deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
+  announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
+  shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
+  showPlan: 'admin', deleteShowPlan: 'admin', fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
+  inventoryContainer: 'admin', deleteInventoryContainer: 'admin', inventoryTransfer: 'admin',
+  deleteAarReport: 'admin', backupNow: 'admin'
+};
+
+function bytesToHex(bytes) {
+  return bytes.map(b => ((b < 0 ? b + 256 : b)).toString(16).padStart(2, '0')).join('');
+}
+function sha256Hex(text) {
+  return bytesToHex(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(text), Utilities.Charset.UTF_8));
+}
+function safeEqual(a, b) {
+  a = String(a); b = String(b);
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+function getSecurityProps() {
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('TOKEN_SECRET')) props.setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid());
+  if (!props.getProperty('HP_PASSWORD_HASH')) props.setProperty('HP_PASSWORD_HASH', ORIGINAL_HP_HASH);
+  if (!props.getProperty('ADMIN_PASSWORD_HASH')) props.setProperty('ADMIN_PASSWORD_HASH', ORIGINAL_ADMIN_HASH);
+  return props;
+}
+// A stored password is either an original plain SHA-256 hash, or "salt$hash" for passwords set with the functions below.
+function passwordMatches(stored, candidate) {
+  if (!stored) return false;
+  stored = String(stored);
+  const at = stored.indexOf('$');
+  if (at > -1) return safeEqual(sha256Hex(stored.slice(0, at) + candidate), stored.slice(at + 1));
+  return safeEqual(sha256Hex(candidate), stored);
+}
+function saltedHash(password) {
+  const salt = Utilities.getUuid();
+  return salt + '$' + sha256Hex(salt + password);
+}
+function signPayload(payload) {
+  const secret = getSecurityProps().getProperty('TOKEN_SECRET');
+  return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(payload, secret)).replace(/=+$/, '');
+}
+function makeToken(tier) {
+  const expires = Math.floor(new Date().getTime() / 1000) + TOKEN_LIFETIME_SECONDS;
+  const payload = tier + '.' + expires;
+  return payload + '.' + signPayload(payload);
+}
+function tierFromToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const tier = parts[0];
+  const expires = Number(parts[1]);
+  if (tier !== 'hp' && tier !== 'admin') return null;
+  if (!expires || expires < Math.floor(new Date().getTime() / 1000)) return null;
+  return safeEqual(signPayload(tier + '.' + parts[1]), parts[2]) ? tier : null;
+}
+function tierRank(tier) {
+  return tier === 'admin' ? 2 : (tier === 'hp' ? 1 : 0);
+}
+function authError(needed) {
+  return jsonOut({
+    status: 'error', code: 'auth', needs: needed,
+    message: needed === 'admin' ? 'Enter the Manage/Edit password to continue.' : 'Enter the Head Pyro Tools password to continue.'
+  });
+}
+function authorize(token, needed) {
+  if (needed === 'public') return null;
+  return tierRank(tierFromToken(token)) >= tierRank(needed) ? null : authError(needed);
+}
+function handleLogin(data) {
+  const cache = CacheService.getScriptCache();
+  const failures = Number(cache.get(LOGIN_FAIL_KEY) || 0);
+  if (failures >= MAX_LOGIN_FAILS) {
+    return jsonOut({status: 'error', code: 'locked', message: 'Too many wrong passwords. Wait a few minutes and try again.'});
+  }
+  const tier = data.tier === 'admin' ? 'admin' : 'hp';
+  const stored = getSecurityProps().getProperty(tier === 'admin' ? 'ADMIN_PASSWORD_HASH' : 'HP_PASSWORD_HASH');
+  if (passwordMatches(stored, String(data.password || ''))) {
+    cache.remove(LOGIN_FAIL_KEY);
+    return jsonOut({status: 'ok', token: makeToken(tier), tier: tier, expiresIn: TOKEN_LIFETIME_SECONDS});
+  }
+  cache.put(LOGIN_FAIL_KEY, String(failures + 1), LOGIN_LOCKOUT_SECONDS);
+  return jsonOut({status: 'error', code: 'badpassword', message: 'That password is not right.'});
+}
+
+/* ---- Run these from the Apps Script editor (not from a page) ---- */
+function setPasswordFor(tier, newPassword) {
+  newPassword = String(newPassword || '');
+  if (newPassword.length < 8) throw new Error('Use at least 8 characters for the new password.');
+  getSecurityProps().setProperty(tier === 'admin' ? 'ADMIN_PASSWORD_HASH' : 'HP_PASSWORD_HASH', saltedHash(newPassword));
+  signOutEveryone();   // anyone logged in with the old password has to sign in again
+}
+function setAdminPasswordNow() {
+  const NEW_PASSWORD = '';   // type the new Manage/Edit password between the quotes, run this once, then delete it from here and save
+  setPasswordFor('admin', NEW_PASSWORD);
+  console.log('Manage/Edit password changed. Now delete the password from this function and save.');
+}
+function setHpPasswordNow() {
+  const NEW_PASSWORD = '';   // type the new Head Pyro Tools password between the quotes, run this once, then delete it from here and save
+  setPasswordFor('hp', NEW_PASSWORD);
+  console.log('Head Pyro Tools password changed. Now delete the password from this function and save.');
+}
+function signOutEveryone() {
+  PropertiesService.getScriptProperties().setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid());
+}
+function securityStatus() {
+  const props = getSecurityProps();
+  const describe = key => (String(props.getProperty(key)).indexOf('$') > -1) ? 'changed (good)' : 'STILL THE ORIGINAL — change it';
+  console.log('Manage/Edit password: ' + describe('ADMIN_PASSWORD_HASH'));
+  console.log('Head Pyro Tools password: ' + describe('HP_PASSWORD_HASH'));
+}
+
+/* ===================== BACKUPS =====================
+   A dated copy of this whole spreadsheet goes into a Drive folder, and only the newest few are kept.
+   Run installWeeklyBackup() once from the editor to make it automatic; the Backups page can also take one on demand. */
+const BACKUP_FOLDER_NAME = 'Vortex Data Backups';
+const BACKUPS_TO_KEEP = 12;
+
+function getBackupFolder() {
+  const folders = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
+  return folders.hasNext() ? folders.next() : DriveApp.createFolder(BACKUP_FOLDER_NAME);
+}
+function backupSpreadsheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const folder = getBackupFolder();
+  const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
+  const copy = DriveApp.getFileById(ss.getId()).makeCopy('Vortex Data Backup ' + stamp, folder);
+  const files = [];
+  const iter = folder.getFiles();
+  while (iter.hasNext()) files.push(iter.next());
+  files.sort((a, b) => b.getDateCreated().getTime() - a.getDateCreated().getTime());
+  files.slice(BACKUPS_TO_KEEP).forEach(f => f.setTrashed(true));
+  return { id: copy.getId(), name: copy.getName() };
+}
+function listBackups() {
+  const folders = DriveApp.getFoldersByName(BACKUP_FOLDER_NAME);
+  if (!folders.hasNext()) return [];
+  const out = [];
+  const iter = folders.next().getFiles();
+  while (iter.hasNext()) {
+    const f = iter.next();
+    if (f.isTrashed()) continue;
+    out.push({ id: f.getId(), name: f.getName(), createdAt: f.getDateCreated().toISOString(), url: 'https://drive.google.com/open?id=' + f.getId() });
+  }
+  out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return out;
+}
+function weeklyBackupIsOn() {
+  try {
+    return ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'backupSpreadsheet');
+  } catch (err) {
+    return null;   // not authorised to look: the Backups page then says it cannot tell
+  }
+}
+function installWeeklyBackup() {
+  removeWeeklyBackup();
+  ScriptApp.newTrigger('backupSpreadsheet').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(3).create();
+  console.log('Weekly backup is on: every Sunday around 3 AM. The newest ' + BACKUPS_TO_KEEP + ' are kept in the Drive folder "' + BACKUP_FOLDER_NAME + '".');
+}
+function removeWeeklyBackup() {
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === 'backupSpreadsheet') ScriptApp.deleteTrigger(t); });
+}
+
 function doPost(e) {
   const data = JSON.parse(e.postData.contents);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  if (data.recordType === 'login') return handleLogin(data);
+  if (data.recordType && data.recordType !== 'contact') {
+    const denied = authorize(data.token, POST_LEVELS[data.recordType] || 'admin');
+    if (denied) return denied;
+  }
 
   if (data.recordType === 'payroll') {
     let sheet = ss.getSheetByName('Payroll');
@@ -415,6 +615,10 @@ function doPost(e) {
   }
 
   if (data.recordType === 'contact') {
+    // Three ways in: the manager (token), a person updating their own record (name + phone must match what is on file),
+    // or a brand-new person (createOnly: it can add a record but never touch an existing one).
+    const isAdmin = tierRank(tierFromToken(data.token)) >= 2;
+    if (!isAdmin && !data.verifyPhone && !data.createOnly) return authError('admin');
     if (data.verifyPhone) {
       const merged = getMergedContacts(ss);
       const nameKeyCheck = String(data.name || '').trim().toLowerCase();
@@ -433,7 +637,8 @@ function doPost(e) {
     // If this save came with an originalName (the person was renamed), look up
     // the row by the OLD name so we rename it in place instead of creating a
     // duplicate row under the new name.
-    const nameLower = String(data.originalName || data.name || '').trim().toLowerCase();
+    const createOnlyRequest = !!data.createOnly && !isAdmin && !data.verifyPhone;
+    const nameLower = String((createOnlyRequest ? data.name : (data.originalName || data.name)) || '').trim().toLowerCase();
     let rowIndex = -1;
     for (let i = 1; i < rows.length; i++) {
       if (String(rows[i][map['Name']]).trim().toLowerCase() === nameLower) {
@@ -441,6 +646,7 @@ function doPost(e) {
         break;
       }
     }
+    if (createOnlyRequest && rowIndex > 0) return jsonOut({status: 'ok', existing: true});   // already on file: change nothing
 
     let photoUrl = rowIndex > 0 ? rows[rowIndex - 1][map['PhotoURL']] : '';
     let photoError = '';
@@ -655,6 +861,11 @@ function doPost(e) {
       }
     }
     return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'backupNow') {
+    const made = backupSpreadsheet();
+    return jsonOut({status: 'ok', name: made.name});
   }
 
   if (data.recordType === 'shellProductsImport') {
@@ -1009,6 +1220,10 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // Only a real check-in (which has no recordType) reaches here. Anything else is a request this script does not know,
+  // and must not be quietly written into the check-in sheet.
+  if (data.recordType) return jsonOut({status: 'error', message: 'Unknown request'});
+
   const sheet = ss.getSheetByName('Sheet1');
   sheet.appendRow([new Date(), data.event, data.eventDate, data.name, data.license, data.address, data.age, data.phone || '', data.checkInTime || '', data.isHeadPyro ? 'Yes' : '']);
   return ContentService.createTextOutput(JSON.stringify({status: 'ok'}))
@@ -1024,6 +1239,9 @@ function normalizeDateValue(value) {
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const requestType = (e.parameter && e.parameter.type) || '';
+  const denied = authorize(e.parameter && e.parameter.token, GET_LEVELS[requestType] || 'hp');
+  if (denied) return denied;
 
   if (e.parameter.type === 'names') {
     const merged = getMergedContacts(ss);
@@ -1234,6 +1452,10 @@ function doGet(e) {
     } catch (err) {
       return jsonOut({dataUrl: '', error: 'Could not read the saved PDF from Drive'});
     }
+  }
+
+  if (e.parameter.type === 'backups') {
+    return jsonOut({backups: listBackups(), weeklyOn: weeklyBackupIsOn(), keep: BACKUPS_TO_KEEP});
   }
 
   if (e.parameter.type === 'shellProducts') {
