@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enable Sign-In — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --surface-6:rgba(10,14,26,0.6); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --kicker:#ffb98a; --logo-ring-bg:#0d1220;
+    --accent1:#d92b2b; --accent2:#ff8c00; --accent3:#ffd23f; --accent4:#2f7ec9; --accent5:#123a63;
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --line:rgba(255,255,255,0.1);
+    --card:rgba(22,28,48,0.75);
+  }
+
+  :root[data-theme="light"]{
+    --surface-6:rgba(255,255,255,0.7); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
+    --kicker:#c9601f; --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    padding:32px 16px;
+  }
+  .card{
+    max-width:420px; width:100%;
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:28px 24px; text-align:center;
+    backdrop-filter:blur(6px);
+  }
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  p.sub{color:var(--ink-soft);font-size:13px;margin:0 0 20px;line-height:1.5;}
+  .loading-pulse{animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .signin-toggle-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 0; border-bottom:1px solid var(--line);
+  }
+  .signin-toggle-row:last-child{border-bottom:none;}
+  .signin-toggle-row .info{font-size:13px;color:var(--ink);}
+  .signin-toggle-row .info .date{font-size:11.5px;color:var(--ink-soft);display:block;margin-top:2px;}
+  .signin-toggle-row input[type=checkbox]{width:20px;height:20px;flex-shrink:0;cursor:pointer;}
+  .signin-toggle-row input[type=checkbox]:disabled{cursor:wait;opacity:0.5;}
+  .signin-toggle-row .controls{display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .signin-toggle-row .signin-status{font-size:11.5px;color:var(--ink-soft);text-align:right;max-width:150px;line-height:1.3;}
+  .signin-toggle-row .signin-status.ok{color:#4caf7d;}
+  .signin-toggle-row .signin-status.err{color:#ff6a5a;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;text-align:left;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=date],select{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-6);color:var(--ink);width:100%;
+  }
+  input:focus,select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
+  button{
+    color:#fdf6f2; border:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    font-size:13.5px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button:hover{filter:brightness(1.1);}
+  button.secondary{background:none;border:1px solid var(--line);color:var(--ink);box-shadow:none;}
+  button.secondary:hover{border-color:#ffb98a;filter:none;}
+  .back-link{
+    display:block; max-width:400px; margin:0 auto 12px; padding:0 4px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:#ffb98a;}
+  @media print{
+    body{background:#fff;}
+    .card{border:none;}
+    button, .field, .back-link{display:none;}
+  }
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<div style="max-width:420px;width:100%;">
+<a class="back-link" href="hp-tools.html">&larr; Back to Head Pyro Tools</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Enable Sign-In</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="card">
+  <p class="sub" style="margin:0 0 14px;">
+    Check a venue to make it available on Check-In. It turns off automatically 2 days after the event date &mdash;
+    Shop Time, Trailer Loading, and Bunker Time are always available and don't need to be enabled.
+    Changes save automatically when you check or uncheck a box, and each row confirms it saved.
+  </p>
+  <div id="signInToggleList">
+    <p class="loading-pulse" style="font-size:13px;color:var(--ink-soft);">Loading venues&hellip;</p>
+  </div>
+</div>
+
+<p class="sub" style="text-align:center;margin:16px 0 0;">Once a show is enabled, <a href="qr-codes.html" style="color:#ffb98a;">print its Check-In QR Code</a> to post at the venue.</p>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = dateStr.slice(0, 10);
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
+  return `${Number(m)}/${Number(d)}`;
+}
+
+function esc(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+  return data;
+}
+
+async function fetchVenuesFresh(){
+  const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
+  if(!res.ok) throw new Error('Request failed');
+  const venues = await res.json();
+  return Array.isArray(venues) ? venues : [];
+}
+
+// Two days after the event the sign-in closes by itself, whatever the checkbox says.
+function signInExpired(eventDate){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const expiresAt = new Date(String(eventDate).slice(0, 10) + 'T00:00:00');
+  expiresAt.setDate(expiresAt.getDate() + 2);
+  return today > expiresAt;
+}
+
+async function fetchSignInToggleList(){
+  const wrap = document.getElementById('signInToggleList');
+  try{
+    const venues = await fetchVenuesFresh();
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const weekAgo = new Date(today); weekAgo.setDate(today.getDate() - 7);
+    const twoMonthsAhead = new Date(today); twoMonthsAhead.setMonth(today.getMonth() + 2);
+
+    const dated = venues
+      .filter(v => v.name && v.eventDate)
+      .map(v => {
+        const eventDay = new Date(v.eventDate.slice(0, 10) + 'T00:00:00');
+        const expired = signInExpired(v.eventDate);
+        return { id: v.id || '', name: v.name, eventDate: v.eventDate, eventDay, effectiveEnabled: !!v.signInEnabled && !expired, expired };
+      })
+      .filter(v => v.eventDay >= weekAgo && v.eventDay <= twoMonthsAhead)
+      .sort((a, b) => a.eventDay - b.eventDay || a.name.localeCompare(b.name));
+
+    if(dated.length === 0){
+      wrap.innerHTML = '<p style="font-size:13px;color:var(--ink-soft);">No venues with a date set in the next couple months. Add a date in Manage Venues first.</p>';
+      return;
+    }
+
+    // Every row carries its own id and date, so two dates of the same venue are always told apart.
+    wrap.innerHTML = dated.map(v => `
+      <div class="signin-toggle-row" data-id="${esc(v.id)}" data-name="${esc(v.name)}" data-date="${esc(v.eventDate.slice(0,10))}">
+        <div class="info">
+          ${esc(v.name)}
+          <span class="date">${esc(formatDateForOption(v.eventDate))}${v.expired ? ' — expired' : ''}</span>
+        </div>
+        <div class="controls">
+          <span class="signin-status" aria-live="polite"></span>
+          <input type="checkbox" ${v.effectiveEnabled ? 'checked' : ''} aria-label="Enable sign-in for ${esc(v.name)} on ${esc(formatDateForOption(v.eventDate))}">
+        </div>
+      </div>
+    `).join('');
+
+    wrap.querySelectorAll('.signin-toggle-row input[type=checkbox]').forEach(box => {
+      box.addEventListener('change', () => saveSignInToggle(box));
+    });
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:#ff6a5a;">Could not load venues — check your connection and try again.</p>';
+  }
+}
+
+function setRowStatus(row, text, kind, clearAfterMs){
+  const el = row.querySelector('.signin-status');
+  el.textContent = text || '';
+  el.className = 'signin-status' + (kind ? ' ' + kind : '');
+  clearTimeout(row._statusTimer);
+  if(clearAfterMs) row._statusTimer = setTimeout(() => { el.textContent = ''; el.className = 'signin-status'; }, clearAfterMs);
+}
+
+// After a save, make every row match what the sheet actually says right now, so a change that landed
+// on the wrong row (or that someone else just made) is visible instead of hidden.
+function syncRowsFromSheet(fresh, exceptRow){
+  document.querySelectorAll('.signin-toggle-row').forEach(row => {
+    if(row === exceptRow) return;
+    const { id, name, date } = row.dataset;
+    const rec = fresh.find(v => (id && v.id === id) || (!v.id && v.name === name && String(v.eventDate).slice(0,10) === date))
+             || fresh.find(v => v.name === name && String(v.eventDate).slice(0,10) === date);
+    if(!rec) return;
+    const shouldBeChecked = !!rec.signInEnabled && !signInExpired(date);
+    const box = row.querySelector('input[type=checkbox]');
+    if(!box.disabled && box.checked !== shouldBeChecked){
+      box.checked = shouldBeChecked;
+      setRowStatus(row, 'Updated to match the sheet', 'err', 6000);
+    }
+  });
+}
+
+// Saves as soon as a box is ticked or unticked, then re-reads the sheet and checks that THIS row (this
+// venue on this date) really changed. If it did not, the box goes back and the row says so.
+async function saveSignInToggle(box){
+  const row = box.closest('.signin-toggle-row');
+  const { id, name, date } = row.dataset;
+  const wanted = box.checked;
+
+  box.disabled = true;
+  setRowStatus(row, 'Saving…');
+  try{
+    await postJson({ recordType: 'toggleVenueSignIn', id, name, eventDate: date, enabled: wanted });
+
+    const fresh = await fetchVenuesFresh();
+    const saved = fresh.find(v => (id && v.id === id) || (!v.id && v.name === name && String(v.eventDate).slice(0,10) === date))
+               || fresh.find(v => v.name === name && String(v.eventDate).slice(0,10) === date);
+    if(!saved) throw new Error('Could not find that venue to confirm the change');
+    syncRowsFromSheet(fresh, row);
+
+    if(!!saved.signInEnabled !== wanted){
+      box.checked = !!saved.signInEnabled && !signInExpired(date);
+      setRowStatus(row, "Didn't save — the server didn't apply it. Make sure the latest Apps Script is deployed.", 'err');
+    } else if(wanted && signInExpired(date)){
+      box.checked = false;
+      setRowStatus(row, 'Saved, but this date has passed so it won\u2019t show in Check-In', 'err');
+    } else {
+      setRowStatus(row, 'Saved \u2713', 'ok', 2500);
+    }
+  } catch(err){
+    box.checked = !wanted;
+    setRowStatus(row, "Couldn't save — check your connection and try again", 'err');
+  } finally {
+    box.disabled = false;
+  }
+}
+
+fetchSignInToggleList();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
