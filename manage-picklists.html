@@ -398,7 +398,8 @@ async function postJson(payload){
 }
 
 let SHOWS = [];          // venues that have an event date
-let LISTS = {};          // saved pick lists, keyed by lower-case show name
+let LISTS = {};          // saved pick lists, keyed by venue id (falls back to lower-case
+                         // show name for a pick list saved before venue ids existed)
 let RACKS_CONFIG = {};   // the saved rack settings: { capacity: {...}, shellsPerBox: {...} }
 let currentShow = null;
 let shellLines = [], setupLines = [], cakes = '', finale = '', quint = '', special = '';
@@ -410,8 +411,19 @@ let pendingMap = null;   // a resized image waiting to be uploaded
 async function loadLists(){
   const res = await getJson(`${CHECKIN_API_URL}?type=pickLists`);
   LISTS = {};
-  (res.lists || []).forEach(l => { LISTS[keyOf(l.name)] = l; });
+  (res.lists || []).forEach(l => { LISTS[l.id || keyOf(l.name)] = l; });
   RACKS_CONFIG = PickList.normalizeRacksConfig(res.racksConfig);
+}
+
+// A venue name alone isn't a reliable key — the same venue can host more than one
+// show on different dates (see venues.html), and in the past that forced renaming
+// venues like "X - Day 1" / "X - Day 2" just to keep pick lists from colliding. Every
+// venue entry already has a stable id (venues.html uses it for edit/delete), so pick
+// lists are matched by that id; the name-based key only catches a list saved before
+// this existed and not yet resaved.
+function listFor(show){
+  if(!show) return null;
+  return LISTS[show.id] || LISTS[keyOf(show.name)] || null;
 }
 
 async function init(){
@@ -419,7 +431,7 @@ async function init(){
     const [venues] = await Promise.all([ getJson(`${CHECKIN_API_URL}?type=venues`), loadLists() ]);
     SHOWS = (Array.isArray(venues) ? venues : [])
       .filter(v => v.name && v.eventDate)
-      .map(v => ({ name: v.name, eventDate: String(v.eventDate).slice(0, 10) }));
+      .map(v => ({ id: v.id, name: v.name, eventDate: String(v.eventDate).slice(0, 10) }));
     renderRackSettings();
     buildShowOptions('');
     updateRacksPreview();
@@ -429,28 +441,28 @@ async function init(){
   }
 }
 
-function buildShowOptions(selectedName){
+function buildShowOptions(selectedId){
   const sel = $('showSelect');
   const cutoff = new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate() - 14);
   const shows = SHOWS
     .filter(s => new Date(s.eventDate + 'T00:00:00') >= cutoff)
     .sort((a, b) => a.eventDate.localeCompare(b.eventDate) || a.name.localeCompare(b.name));
   sel.innerHTML = '<option value="">' + (shows.length ? 'Select a show…' : 'No upcoming shows with a date') + '</option>' +
-    shows.map(s => `<option value="${esc(s.name)}">${esc(PickList.formatDateShort(s.eventDate))} — ${esc(s.name)}${LISTS[keyOf(s.name)] ? ' ✓' : ''}</option>`).join('');
-  sel.value = selectedName || '';
+    shows.map(s => `<option value="${esc(s.id)}">${esc(PickList.formatDateShort(s.eventDate))} — ${esc(s.name)}${listFor(s) ? ' ✓' : ''}</option>`).join('');
+  sel.value = selectedId || '';
 }
 
 function onShowChange(){
   const sel = $('showSelect');
   if(dirty && !confirm('You have unsaved changes for this show. Switch anyway and lose them?')){
-    sel.value = currentShow ? currentShow.name : '';
+    sel.value = currentShow ? currentShow.id : '';
     return;
   }
   pendingMap = null;
   $('mapFile').value = '';
   setStatus($('saveStatus'), '');
   setStatus($('mapStatus'), '');
-  currentShow = sel.value ? (SHOWS.find(s => s.name === sel.value) || null) : null;
+  currentShow = sel.value ? (SHOWS.find(s => s.id === sel.value) || null) : null;
   loadShowIntoForm();
 }
 
@@ -480,7 +492,7 @@ function applyDataToForm(d, keepIds){
 function loadShowIntoForm(){
   dirty = false;
   if(currentShow){
-    const L = LISTS[keyOf(currentShow.name)];
+    const L = listFor(currentShow);
     applyDataToForm(PickList.normalizeData(L && L.data), true);
   }
   $('editorArea').style.display = currentShow ? 'block' : 'none';
@@ -488,36 +500,38 @@ function loadShowIntoForm(){
   if(currentShow){
     renderLines();
     buildCopyFromOptions();
-    const L = LISTS[keyOf(currentShow.name)];
+    const L = listFor(currentShow);
     showMap(L && L.siteMapUrl ? L.siteMapUrl : '');
   }
 }
 
 function buildCopyFromOptions(){
   const sel = $('copyFromSelect');
-  const names = Object.keys(LISTS)
-    .map(k => LISTS[k].name)
-    .filter(n => keyOf(n) !== keyOf(currentShow.name))
-    .sort((a, b) => a.localeCompare(b));
+  const curKey = currentShow.id || keyOf(currentShow.name);
+  const entries = Object.keys(LISTS)
+    .map(k => ({ key: k, list: LISTS[k] }))
+    .filter(e => e.key !== curKey)
+    .sort((a, b) => (a.list.eventDate || '').localeCompare(b.list.eventDate || '') || a.list.name.localeCompare(b.list.name));
   sel.innerHTML = '<option value="">Choose a show to copy from…</option>' +
-    names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    entries.map(e => `<option value="${esc(e.key)}">${e.list.eventDate ? esc(PickList.formatDateShort(e.list.eventDate)) + ' — ' : ''}${esc(e.list.name)}</option>`).join('');
 }
 
 function copyFromShow(){
-  const sourceName = $('copyFromSelect').value;
+  const sourceKey = $('copyFromSelect').value;
   const st = $('copyStatus');
-  if(!sourceName){ setStatus(st, 'Choose a show to copy from first.', 'err'); return; }
-  const hasExistingData = LISTS[keyOf(currentShow.name)] || shellLines.some(l => l.size || String(l.qty).trim()) ||
+  if(!sourceKey){ setStatus(st, 'Choose a show to copy from first.', 'err'); return; }
+  const source = LISTS[sourceKey];
+  if(!source){ setStatus(st, 'Could not find that show.', 'err'); return; }
+  const hasExistingData = listFor(currentShow) || shellLines.some(l => l.size || String(l.qty).trim()) ||
     setupLines.some(l => l.title.trim()) || cakes || finale || quint || special ||
     Object.values(permanentQty).some(v => String(v).trim());
-  if(hasExistingData && !confirm(`Copy "${sourceName}" into "${currentShow.name}"? This will replace the shells, cakes, finale/quint/special, permanent items, and setup items currently entered for this show. The site map won't be touched.`)){
+  if(hasExistingData && !confirm(`Copy "${source.name}" into "${currentShow.name}"? This will replace the shells, cakes, finale/quint/special, permanent items, and setup items currently entered for this show. The site map won't be touched.`)){
     return;
   }
-  const source = LISTS[keyOf(sourceName)];
-  applyDataToForm(PickList.normalizeData(source && source.data), false);
+  applyDataToForm(PickList.normalizeData(source.data), false);
   touch();
   renderLines();
-  setStatus(st, `Copied from ${sourceName} — review below, then Save pick list.`, 'ok');
+  setStatus(st, `Copied from ${source.name} — review below, then Save pick list.`, 'ok');
 }
 
 function renderLines(){
@@ -691,9 +705,9 @@ async function savePickList(){
   }
   setStatus(st, 'Saving…');
   try{
-    await postJson({ recordType: 'pickList', name: currentShow.name, eventDate: currentShow.eventDate, data: data });
-    const key = keyOf(currentShow.name), prev = LISTS[key];
-    LISTS[key] = { name: currentShow.name, eventDate: currentShow.eventDate, siteMapUrl: prev ? prev.siteMapUrl : '', data: data };
+    await postJson({ recordType: 'pickList', id: currentShow.id, name: currentShow.name, eventDate: currentShow.eventDate, data: data });
+    const key = currentShow.id || keyOf(currentShow.name), prev = listFor(currentShow);
+    LISTS[key] = { id: currentShow.id, name: currentShow.name, eventDate: currentShow.eventDate, siteMapUrl: prev ? prev.siteMapUrl : '', data: data };
     // show the cleaned-up version (empty lines dropped) and refresh the ✓ marks
     const d = PickList.normalizeData(data);
     shellLines = d.shells.map(s => ({ id: s.id, size: s.size, qty: String(s.qty), unit: s.unit }));
@@ -710,7 +724,7 @@ async function savePickList(){
     if(!shellLines.length) shellLines.push(blankShell());
     if(!setupLines.length) setupLines.push(blankSetup());
     renderLines();
-    buildShowOptions(currentShow.name);
+    buildShowOptions(currentShow.id);
     dirty = false;
     setStatus(st, 'Saved ✓', 'ok');
     loadLists().catch(() => {});
@@ -745,7 +759,7 @@ function resizeImageToDataUrl(file, maxSize, quality){
 }
 
 function currentMapUrl(){
-  const L = currentShow && LISTS[keyOf(currentShow.name)];
+  const L = currentShow && listFor(currentShow);
   return L && L.siteMapUrl ? L.siteMapUrl : '';
 }
 
@@ -778,13 +792,13 @@ async function uploadMap(){
   btn.disabled = true;
   setStatus(st, 'Uploading…');
   try{
-    await postJson({ recordType: 'pickListSiteMap', name: currentShow.name, imageBase64: uploaded });
+    await postJson({ recordType: 'pickListSiteMap', id: currentShow.id, name: currentShow.name, imageBase64: uploaded });
     await loadLists();
     if(currentMapUrl()){
       pendingMap = null;
       $('mapFile').value = '';
       showMap(uploaded);
-      buildShowOptions(currentShow.name);
+      buildShowOptions(currentShow.id);
       setStatus(st, 'Site map uploaded ✓', 'ok');
     } else {
       btn.disabled = false;
@@ -802,7 +816,7 @@ async function removeMap(){
   const st = $('mapStatus');
   setStatus(st, 'Removing…');
   try{
-    await postJson({ recordType: 'pickListSiteMap', name: currentShow.name, remove: true });
+    await postJson({ recordType: 'pickListSiteMap', id: currentShow.id, name: currentShow.name, remove: true });
     await loadLists();
     pendingMap = null;
     $('mapFile').value = '';

@@ -294,7 +294,11 @@ function describeInventoryItem(item) {
 }
 
 function getOrCreatePickListsSheet(ss) {
-  const requiredHeaders = ['Name', 'EventDate', 'SiteMapUrl', 'SiteMapFileId', 'DataJson', 'UpdatedAt'];
+  // VenueId ties a pick list to one specific Venues row (one specific show), so two
+  // different events that happen to share a venue name never collide or overwrite
+  // each other. Name is kept alongside it for display and as a fallback match for
+  // pick lists saved before this column existed.
+  const requiredHeaders = ['VenueId', 'Name', 'EventDate', 'SiteMapUrl', 'SiteMapFileId', 'DataJson', 'UpdatedAt'];
   let sheet = ss.getSheetByName('PickLists');
   if (!sheet) {
     sheet = ss.insertSheet('PickLists');
@@ -345,10 +349,22 @@ function setPickListSetting(ss, key, value) {
   cell.setValue(value);
 }
 
-function findPickListRow(sheet, map, name) {
+// Matches by the venue's Id first — the real identity of a specific show — so two
+// different shows that share a venue name never collide. Falls back to matching by
+// name alone only for rows saved before VenueId existed (or if no id was sent).
+function findPickListRow(sheet, map, name, id) {
   const rows = sheet.getDataRange().getValues();
+  const wantId = String(id || '').trim();
+  if (wantId && map['VenueId'] !== undefined) {
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][map['VenueId']] || '').trim() === wantId) return i + 1;
+    }
+  }
   const key = String(name || '').trim().toLowerCase();
+  if (!key) return -1;
   for (let i = 1; i < rows.length; i++) {
+    const rowHasId = wantId && map['VenueId'] !== undefined && String(rows[i][map['VenueId']] || '').trim();
+    if (rowHasId) continue; // already has its own id — a name match here would be a different show
     if (String(rows[i][map['Name']]).trim().toLowerCase() === key) return i + 1;
   }
   return -1;
@@ -750,19 +766,25 @@ function doPost(e) {
   if (data.recordType === 'pickList') {
     const name = String(data.name || '').trim();
     if (!name) return jsonOut({status: 'error', message: 'Missing show name'});
+    const venueId = String(data.id || '').trim();
     const dataJson = JSON.stringify(data.data && typeof data.data === 'object' ? data.data : {});
     if (dataJson.length > 45000) return jsonOut({status: 'error', message: 'Pick list is too large'});
     const sheet = getOrCreatePickListsSheet(ss);
     const map = headerMap(sheet);
-    const row = findPickListRow(sheet, map, name);
+    const row = findPickListRow(sheet, map, name, venueId);
     const eventDate = normalizeDateValue(data.eventDate);
     if (row > 0) {
       // Only touch the fields this save owns, so an uploaded site map is never lost.
+      if (venueId && map['VenueId'] !== undefined && !String(sheet.getRange(row, map['VenueId'] + 1).getValue() || '').trim()) {
+        sheet.getRange(row, map['VenueId'] + 1).setValue(venueId); // backfill a legacy row the first time it's resaved
+      }
+      sheet.getRange(row, map['Name'] + 1).setValue(name);
       sheet.getRange(row, map['EventDate'] + 1).setValue(eventDate);
       sheet.getRange(row, map['DataJson'] + 1).setValue(dataJson);
       sheet.getRange(row, map['UpdatedAt'] + 1).setValue(new Date());
     } else {
-      const newRow = ['', '', '', '', '', ''];
+      const newRow = new Array(sheet.getLastColumn()).fill('');
+      if (map['VenueId'] !== undefined) newRow[map['VenueId']] = venueId;
       newRow[map['Name']] = name;
       newRow[map['EventDate']] = eventDate;
       newRow[map['SiteMapUrl']] = '';
@@ -777,11 +799,13 @@ function doPost(e) {
   if (data.recordType === 'pickListSiteMap') {
     const name = String(data.name || '').trim();
     if (!name) return jsonOut({status: 'error', message: 'Missing show name'});
+    const venueId = String(data.id || '').trim();
     const sheet = getOrCreatePickListsSheet(ss);
     const map = headerMap(sheet);
-    let row = findPickListRow(sheet, map, name);
+    let row = findPickListRow(sheet, map, name, venueId);
     if (row < 0) {
-      const newRow = ['', '', '', '', '', ''];
+      const newRow = new Array(sheet.getLastColumn()).fill('');
+      if (map['VenueId'] !== undefined) newRow[map['VenueId']] = venueId;
       newRow[map['Name']] = name;
       newRow[map['DataJson']] = '{}';
       newRow[map['UpdatedAt']] = new Date();
@@ -1377,13 +1401,20 @@ function doGet(e) {
 
   if (e.parameter.type === 'pickLists') {
     // Show dates come live from the Venues sheet, so changing a venue's date never leaves a pick list behind.
-    const venueDates = {};
+    // Matched by the venue's Id first (the real identity of a specific show); name is only
+    // a fallback for pick lists saved before VenueId existed, and is ambiguous whenever two
+    // shows share a venue name.
+    const venueDatesById = {};
+    const venueDatesByName = {};
     const vSheet = ss.getSheetByName('Venues');
     if (vSheet && vSheet.getLastRow() > 1) {
       const vm = headerMap(vSheet);
       vSheet.getDataRange().getValues().slice(1).forEach(r => {
+        const id = String(r[vm['Id']] || '').trim();
         const n = String(r[vm['Name']] || '').trim().toLowerCase();
-        if (n) venueDates[n] = normalizeDateValue(r[vm['EventDate']]);
+        const d = normalizeDateValue(r[vm['EventDate']]);
+        if (id) venueDatesById[id] = d;
+        if (n) venueDatesByName[n] = d;
       });
     }
     const lists = [];
@@ -1393,12 +1424,15 @@ function doGet(e) {
       sheet.getDataRange().getValues().slice(1).forEach(r => {
         const name = String(r[map['Name']] || '').trim();
         if (!name) return;
+        const venueId = map['VenueId'] !== undefined ? String(r[map['VenueId']] || '').trim() : '';
         let parsed = {};
         try { parsed = JSON.parse(r[map['DataJson']] || '{}'); } catch (err) { parsed = {}; }
         const updated = r[map['UpdatedAt']];
+        const liveDate = venueId ? venueDatesById[venueId] : venueDatesByName[name.toLowerCase()];
         lists.push({
+          id: venueId,
           name: name,
-          eventDate: venueDates[name.toLowerCase()] || normalizeDateValue(r[map['EventDate']]),
+          eventDate: liveDate || normalizeDateValue(r[map['EventDate']]),
           siteMapUrl: String(r[map['SiteMapUrl']] || ''),
           data: parsed,
           updatedAt: updated instanceof Date ? updated.toISOString() : String(updated || '')
@@ -1601,7 +1635,7 @@ function doGet(e) {
     const sheet = ss.getSheetByName('PickLists');
     if (!sheet) return jsonOut({dataUrl: ''});
     const map = headerMap(sheet);
-    const row = findPickListRow(sheet, map, e.parameter.name);
+    const row = findPickListRow(sheet, map, e.parameter.name, e.parameter.id);
     if (row < 0) return jsonOut({dataUrl: ''});
     const fileId = String(sheet.getRange(row, map['SiteMapFileId'] + 1).getValue() || '');
     if (!fileId) return jsonOut({dataUrl: ''});

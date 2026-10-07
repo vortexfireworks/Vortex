@@ -305,8 +305,12 @@ async function init(){
     if(!res.ok) throw new Error('Request failed');
     const j = await res.json();
     RACKS_CONFIG = PickList.normalizeRacksConfig(j.racksConfig);
+    // A venue name alone isn't unique — the same venue can host more than one show on
+    // different dates — so each entry is matched by its venue id, with the lower-case
+    // name as a fallback only for a pick list saved before ids existed.
     LISTS = (j.lists || []).map(l => ({
-      name: l.name, eventDate: l.eventDate ? String(l.eventDate).slice(0, 10) : '',
+      id: l.id || '', key: l.id || keyOf(l.name), name: l.name,
+      eventDate: l.eventDate ? String(l.eventDate).slice(0, 10) : '',
       siteMapUrl: l.siteMapUrl || '', data: l.data || {}
     }));
     buildOptions();
@@ -323,16 +327,16 @@ function buildOptions(){
     .sort((a, b) => (a.eventDate || '9999').localeCompare(b.eventDate || '9999') || a.name.localeCompare(b.name));
   const sel = $('showSelect');
   sel.innerHTML = '<option value="">' + (shows.length ? 'Select a show…' : 'No pick lists yet') + '</option>' +
-    shows.map(l => `<option value="${esc(l.name)}">${l.eventDate ? esc(PickList.formatDateShort(l.eventDate)) + ' — ' : ''}${esc(l.name)}</option>`).join('');
+    shows.map(l => `<option value="${esc(l.key)}">${l.eventDate ? esc(PickList.formatDateShort(l.eventDate)) + ' — ' : ''}${esc(l.name)}</option>`).join('');
   if(!shows.length) $('noShowMsg').textContent = "No pick lists have been built yet. They are created under Manage/Edit \u2192 Manage Pick Lists.";
 }
 
 function onShowChange(){
-  const name = $('showSelect').value;
-  current = name ? (LISTS.find(l => l.name === name) || null) : null;
+  const key = $('showSelect').value;
+  current = key ? (LISTS.find(l => l.key === key) || null) : null;
   setStatus('');
   render();
-  if(current && current.siteMapUrl) getMapDataUrl(current.name);   // start fetching it for the PDF now
+  if(current && current.siteMapUrl) getMapDataUrl(current);   // start fetching it for the PDF now
 }
 
 /* ---------- what's on the list ---------- */
@@ -367,11 +371,11 @@ function buildSections(){
 }
 
 function loadChecks(){
-  try{ return JSON.parse(localStorage.getItem(CHECK_PREFIX + keyOf(current.name)) || '{}') || {}; }
+  try{ return JSON.parse(localStorage.getItem(CHECK_PREFIX + current.key) || '{}') || {}; }
   catch(e){ return {}; }
 }
 function saveChecks(obj){
-  try{ localStorage.setItem(CHECK_PREFIX + keyOf(current.name), JSON.stringify(obj)); } catch(e){}
+  try{ localStorage.setItem(CHECK_PREFIX + current.key, JSON.stringify(obj)); } catch(e){}
 }
 
 function render(){
@@ -433,11 +437,11 @@ function clearChecks(){
 }
 
 /* ---------- PDF + email ---------- */
-async function getMapDataUrl(name){
-  const k = keyOf(name);
+async function getMapDataUrl(show){
+  const k = show.key;
   if(mapCache[k] !== undefined) return mapCache[k];
   try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=pickListSiteMapData&name=${encodeURIComponent(name)}`);
+    const res = await fetch(`${CHECKIN_API_URL}?type=pickListSiteMapData&name=${encodeURIComponent(show.name)}&id=${encodeURIComponent(show.id || '')}`);
     const j = await res.json();
     mapCache[k] = (j && j.dataUrl) ? j.dataUrl : '';
     return mapCache[k];
@@ -469,7 +473,7 @@ async function buildPDF(){
   let mapSkipped = false;
   let mapDataUrl = '', mapSize = null;
   if(current.siteMapUrl){
-    mapDataUrl = await getMapDataUrl(current.name);
+    mapDataUrl = await getMapDataUrl(current);
     mapSize = mapDataUrl ? await loadImageSize(mapDataUrl) : null;
     if(!mapSize) mapSkipped = true;
   }
