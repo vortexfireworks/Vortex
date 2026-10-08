@@ -462,6 +462,50 @@ function resolveUrl(url, base) {
   }
 }
 
+const PRODUCT_PICTURES_FOLDER_NAME = 'VortexProductPictures';
+
+function getOrCreateProductPicturesFolder() {
+  const folders = DriveApp.getFoldersByName(PRODUCT_PICTURES_FOLDER_NAME);
+  return folders.hasNext() ? folders.next() : DriveApp.createFolder(PRODUCT_PICTURES_FOLDER_NAME);
+}
+
+// Downloads the actual image bytes (not just the URL) and saves them into the
+// VortexProductPictures Drive folder, so the picture keeps working even if the
+// supplier later changes or removes it from their page.
+function saveProductImageToDrive(imageUrl, productName) {
+  try {
+    const res = UrlFetchApp.fetch(imageUrl, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
+    });
+    if (res.getResponseCode() >= 400) return '';
+    const blob = res.getBlob();
+    if (!blob || blob.getBytes().length > 10 * 1024 * 1024) return '';   // safety cap: 10 MB
+    const contentType = blob.getContentType() || '';
+    let ext = 'jpg';
+    if (/png/i.test(contentType)) ext = 'png';
+    else if (/webp/i.test(contentType)) ext = 'webp';
+    else if (/gif/i.test(contentType)) ext = 'gif';
+    const safeName = String(productName || 'product').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 60) + '_' + new Date().getTime() + '.' + ext;
+    blob.setName(safeName);
+    const folder = getOrCreateProductPicturesFolder();
+    const file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return 'https://lh3.googleusercontent.com/d/' + file.getId() + '=s1600';
+  } catch (err) {
+    return '';
+  }
+}
+
+// Finds the picture on a product's supplier page, then downloads and saves a real
+// copy of it into Drive (rather than just linking to the supplier's own URL).
+function fetchAndSaveProductImage(pageUrl, productName) {
+  const imageUrl = fetchPageImage(pageUrl);
+  if (!imageUrl) return '';
+  return saveProductImageToDrive(imageUrl, productName);
+}
+
 function getOrCreatePhotoFolder() {
   const folderName = 'Vortex Operator Photos';
   const folders = DriveApp.getFoldersByName(folderName);
@@ -1100,7 +1144,8 @@ function doPostInner(e) {
       const cached = String(values[i][map['ImageUrl']] || '');
       if (!url || cached) continue;
       if (Date.now() - startedAt > timeBudgetMs) { remaining++; continue; }
-      const found = fetchPageImage(url);
+      const name = String(values[i][map['Name']] || '');
+      const found = fetchAndSaveProductImage(url, name);
       sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue(found || 'NONE');
       processed++;
     }
@@ -1764,7 +1809,8 @@ function doGetInner(e) {
         sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue('NONE');
         return jsonOut({imageUrl: '', error: 'This product has no supplier link saved'});
       }
-      const found = fetchPageImage(pageUrl);
+      const productName = String(rows[i][map['Name']] || '');
+      const found = fetchAndSaveProductImage(pageUrl, productName);
       sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue(found || 'NONE');
       return jsonOut({imageUrl: found || '', error: found ? '' : 'No picture found on that page'});
     }
