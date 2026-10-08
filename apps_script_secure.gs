@@ -452,10 +452,39 @@ function extractYoutubeIdFromHtml(html) {
   }
   return '';
 }
+// shop.76fireworks.com is a JS-rendered React app — its product pages ship as an
+// almost-empty HTML shell with no og:image/twitter:image tags and no <img>/YouTube
+// markup at all, so the normal HTML scrape below always comes back empty for it.
+// Its product pages do carry the item's slug in the URL (/product/<slug>), and that
+// slug is exactly the id its own internal JSON API expects, so we call that API
+// directly instead of scraping rendered-by-JS markup we can never see.
+function fetch76FireworksMedia(pageUrl) {
+  const m = String(pageUrl).match(/^https?:\/\/shop\.76fireworks\.com\/product\/([^/?#]+)/i);
+  if (!m) return null;
+  const slug = m[1];
+  const apiUrl = 'https://shop.76fireworks.com/spirit-api/public/api/products/get-by-url/'
+    + encodeURIComponent(slug) + '?project_id=12';
+  try {
+    const res = UrlFetchApp.fetch(apiUrl, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)', 'Accept': 'application/json' }
+    });
+    if (res.getResponseCode() >= 400) return { imageUrl: '', videoId: '' };
+    const data = JSON.parse(res.getContentText());
+    const imageUrl = (data.images && data.images[0] && data.images[0].image_url) || '';
+    const videoEmbed = (data.videos && data.videos[0] && data.videos[0].products_video) || '';
+    return { imageUrl: imageUrl, videoId: videoEmbed ? extractYoutubeIdFromHtml(videoEmbed) : '' };
+  } catch (err) {
+    return { imageUrl: '', videoId: '' };
+  }
+}
 // Fetches a product's supplier page once and pulls out both its main picture and any
 // YouTube video linked or embedded on it, so a page is only ever downloaded a single
 // time no matter how many kinds of media we're looking for on it.
 function fetchProductMedia(pageUrl) {
+  const viaApi = fetch76FireworksMedia(pageUrl);
+  if (viaApi) return viaApi;
   let html;
   try {
     const res = UrlFetchApp.fetch(pageUrl, {
