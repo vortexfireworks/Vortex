@@ -660,7 +660,7 @@ const ORIGINAL_ADMIN_HASH = 'cf7c3f3c216f72e7b13203c30ff418dfff1206d08139fe52411
 const GET_LEVELS = {
   names: 'public', verifyPerson: 'public', venues: 'public', announcements: 'public',
   contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
-  findDuplicateContacts: 'admin', findDuplicateVenues: 'admin',
+  findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin'
 };
@@ -672,7 +672,7 @@ const POST_LEVELS = {
   payroll: 'admin', deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
-  productsImport: 'admin', deleteProduct: 'admin',
+  product: 'admin', productsImport: 'admin', deleteProduct: 'admin',
   fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
   inventoryContainer: 'admin', deleteInventoryContainer: 'admin', inventoryTransfer: 'admin',
   deleteAarReport: 'admin', backupNow: 'admin'
@@ -1196,6 +1196,51 @@ function doPostInner(e) {
       }
     }
     return jsonOut({status: 'ok'});
+  }
+
+  // Manual add/edit for a single catalog item (Manage Catalog's "Add / Edit" form) —
+  // mirrors the venue save pattern: match by the row's stable Id when editing,
+  // otherwise always append a new row, so two different items that happen to share a
+  // name are never silently merged into one.
+  if (data.recordType === 'product') {
+    const name = String(data.name || '').trim();
+    if (!name) return jsonOut({status: 'error', message: 'Product name is required'});
+    const sheet = getOrCreateProductsSheet(ss);
+    const map = headerMap(sheet);
+    const rows = sheet.getDataRange().getValues();
+    let rowIndex = -1;
+    if (data.id) {
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][map['Id']]) === String(data.id)) { rowIndex = i + 1; break; }
+      }
+    }
+    const existingId = rowIndex > 0 ? String(rows[rowIndex - 1][map['Id']] || '') : '';
+    const existingImage = rowIndex > 0 ? String(rows[rowIndex - 1][map['ImageUrl']] || '') : '';
+    const existingVideo = rowIndex > 0 ? String(rows[rowIndex - 1][map['VideoId']] || '') : '';
+    const existingUrl = rowIndex > 0 ? String(rows[rowIndex - 1][map['Url']] || '') : '';
+    const newUrl = String(data.url || '');
+    const urlChanged = newUrl !== existingUrl;
+
+    const newRow = [];
+    newRow[map['Id']] = existingId || Utilities.getUuid();
+    newRow[map['Class']] = String(data.class || '');
+    newRow[map['Category']] = String(data.category || '');
+    newRow[map['Name']] = name;
+    newRow[map['Brand']] = String(data.brand || '');
+    newRow[map['Price']] = String(data.price || '');
+    newRow[map['Description']] = String(data.description || '');
+    newRow[map['Url']] = newUrl;
+    // A changed (or newly-added) link needs a fresh picture/video lookup; an unchanged
+    // one keeps whatever was already cached so editing other fields doesn't re-fetch it.
+    newRow[map['ImageUrl']] = urlChanged ? '' : existingImage;
+    newRow[map['VideoId']] = urlChanged ? '' : existingVideo;
+
+    if (rowIndex > 0) {
+      sheet.getRange(rowIndex, 1, 1, newRow.length).setValues([newRow]);
+    } else {
+      sheet.appendRow(newRow);
+    }
+    return jsonOut({status: 'ok', id: newRow[map['Id']]});
   }
 
   // The general vendor-catalog import used by Import Product Lists — one CSV, any
@@ -1942,6 +1987,46 @@ function doGetInner(e) {
       });
     }
     return jsonOut({imageUrl: '', error: 'Product not found'});
+  }
+
+  if (e.parameter.type === 'findDuplicateProducts') {
+    const sheet = ss.getSheetByName('Products');
+    if (!sheet) {
+      return ContentService.createTextOutput(JSON.stringify([]))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    const map = headerMap(sheet);
+    const rows = sheet.getDataRange().getValues();
+    const groups = {};
+    rows.slice(1).forEach(row => {
+      const name = row[map['Name']];
+      const id = String(row[map['Id']] || '').trim();
+      if (!name || !id) return;
+      // Keyed by name + brand + category: the same-named item from a different brand, or
+      // deliberately filed under a different category, isn't an accidental duplicate —
+      // only re-importing (or re-entering) the same item is.
+      const key = String(name).trim().toLowerCase() + '|' +
+        String(row[map['Brand']] || '').trim().toLowerCase() + '|' +
+        String(row[map['Category']] || '').trim().toLowerCase();
+      if (!groups[key]) groups[key] = [];
+      groups[key].push({
+        id: id,
+        class: String(row[map['Class']] || ''),
+        category: String(row[map['Category']] || ''),
+        name: String(name).trim(),
+        brand: String(row[map['Brand']] || ''),
+        price: String(row[map['Price']] || ''),
+        description: String(row[map['Description']] || ''),
+        url: String(row[map['Url']] || ''),
+        imageUrl: String(row[map['ImageUrl']] || ''),
+        videoId: String(row[map['VideoId']] || '')
+      });
+    });
+    const duplicates = Object.values(groups)
+      .filter(g => g.length > 1)
+      .map(g => ({ items: g }));
+    return ContentService.createTextOutput(JSON.stringify(duplicates))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   if (e.parameter.type === 'showPlans') {
