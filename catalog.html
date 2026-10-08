@@ -138,11 +138,16 @@ updateThemeToggleIcon();
     <div class="editor-box" style="margin-bottom:0;">
       <p class="label-title">CATALOG</p>
       <div class="field" style="margin-bottom:12px;">
-        <input type="text" id="catalogSearch" placeholder="Search manufacturer, effect, colors, item #, SKU, name…" oninput="renderCatalog()">
+        <input type="text" id="catalogSearch" placeholder="Search name, brand, category, description…" oninput="renderCatalog()">
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label for="categorySelect">Category</label>
+        <select id="categorySelect" onchange="renderCatalog()"><option value="">All categories</option></select>
       </div>
       <div class="tabs">
-        <button type="button" id="tabShells" class="active" onclick="setCatalogTab('shells')">Shells</button>
-        <button type="button" id="tabCakes" onclick="setCatalogTab('cakes')">Cakes</button>
+        <button type="button" id="tabAll" class="active" onclick="setClassTab('')">All</button>
+        <button type="button" id="tabDisplay" onclick="setClassTab('1.3')">1.3G Display</button>
+        <button type="button" id="tabConsumer" onclick="setClassTab('1.4')">1.4G Consumer</button>
       </div>
       <div id="catalogList"><p class="hint" style="margin:0;">Loading…</p></div>
       <p class="hint" id="addStatus"></p>
@@ -164,8 +169,28 @@ function setStatus(el, msg, kind){
   el.textContent = msg || '';
   el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
 }
-const SIZE_LABELS = {'2.5':'2-1/2"','3':'3"','4':'4"','5':'5"','6':'6"','8':'8"'};
-function sizeLabel(v){ return SIZE_LABELS[String(v)] || String(v || ''); }
+function classLabel(c){
+  c = String(c || '').trim();
+  if(c === '1.3') return '1.3G';
+  if(c === '1.4') return '1.4G';
+  return c;
+}
+function formatPrice(v){
+  const n = Number(v);
+  return isFinite(n) && v !== '' ? '$' + n.toFixed(2) : '';
+}
+// Categories sort in this order when they appear, then anything else falls in alphabetically after.
+const CATEGORY_ORDER = [
+  'Cakes', '500 Gram Cakes', '200 Gram Cakes', 'Compound Cakes', 'Shell Cakes',
+  'Shells', 'Shells 2.5in', 'Shells 3in', 'Shells 4in', 'Shells 5in', 'Shells 6in', 'Shells 8in', 'Shells 10-16in',
+  'Shell Assortment', 'Finale Chains', 'Time Chains', 'Comets', 'Mines', 'Comets/Mines',
+  'Fountains', 'Flames', 'Salutes', 'Slices', 'Smoke', 'Close Prox FX', 'Drone Pyro',
+  'Lance/Sticky Match', 'Regulated E-Match & Black Powder'
+];
+function categorySortIndex(c){
+  const i = CATEGORY_ORDER.indexOf(c);
+  return i === -1 ? CATEGORY_ORDER.length : i;
+}
 
 async function postJson(payload){
   const res = await fetch(CHECKIN_API_URL, {
@@ -220,29 +245,36 @@ function updateActivePlanHint(){
 }
 
 /* ---------------- Catalog: load, search, render ---------------- */
-let SHELL_PRODUCTS = [];
-let CAKE_PRODUCTS = [];
-let catalogTab = 'shells';
+let PRODUCTS = [];
+let classFilter = '';
 
 async function loadCatalog(){
   try{
-    const [sRes, cRes] = await Promise.all([
-      fetch(`${CHECKIN_API_URL}?type=shellProducts`, { cache: 'no-store' }),
-      fetch(`${CHECKIN_API_URL}?type=cakeProducts`, { cache: 'no-store' })
-    ]);
-    const sJson = await sRes.json(), cJson = await cRes.json();
-    SHELL_PRODUCTS = sJson.products || [];
-    CAKE_PRODUCTS = cJson.products || [];
+    const res = await fetch(`${CHECKIN_API_URL}?type=products`, { cache: 'no-store' });
+    const json = await res.json();
+    PRODUCTS = json.products || [];
   } catch(err){
-    SHELL_PRODUCTS = []; CAKE_PRODUCTS = [];
+    PRODUCTS = [];
   }
+  buildCategoryOptions();
   renderCatalog();
 }
 
-function setCatalogTab(tab){
-  catalogTab = tab;
-  $('tabShells').classList.toggle('active', tab === 'shells');
-  $('tabCakes').classList.toggle('active', tab === 'cakes');
+function buildCategoryOptions(){
+  const sel = $('categorySelect');
+  const current = sel.value;
+  const categories = Array.from(new Set(PRODUCTS.map(p => p.category).filter(Boolean)))
+    .sort((a, b) => categorySortIndex(a) - categorySortIndex(b) || a.localeCompare(b));
+  sel.innerHTML = '<option value="">All categories</option>' +
+    categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(current && categories.includes(current)) sel.value = current;
+}
+
+function setClassTab(cls){
+  classFilter = cls;
+  $('tabAll').classList.toggle('active', cls === '');
+  $('tabDisplay').classList.toggle('active', cls === '1.3');
+  $('tabConsumer').classList.toggle('active', cls === '1.4');
   renderCatalog();
 }
 
@@ -250,68 +282,48 @@ function matchesSearch(hay, term){ return hay.some(v => keyOf(v).includes(term))
 
 function renderCatalog(){
   const term = keyOf($('catalogSearch').value);
+  const category = $('categorySelect').value;
   const wrap = $('catalogList');
   const addDisabled = activePlanName ? '' : 'disabled title="Choose an active plan above first"';
 
-  if(catalogTab === 'shells'){
-    let items = SHELL_PRODUCTS;
-    if(term) items = items.filter(p => matchesSearch([p.manufacturer, p.colors, p.effect, p.itemNumber, p.sku, sizeLabel(p.size), p.assortmentNumber], term));
-    if(!items.length){ wrap.innerHTML = '<p class="cat-empty">No shells match yet. Import a CSV, or adjust your search.</p>'; return; }
+  let items = PRODUCTS;
+  if(classFilter) items = items.filter(p => keyOf(p.class) === classFilter);
+  if(category) items = items.filter(p => p.category === category);
+  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.description], term));
 
-    const groups = {}; const solo = [];
-    items.forEach(p => {
-      if(p.isAssortment && p.assortmentNumber){
-        const gKey = keyOf(p.manufacturer) + '|' + keyOf(p.size) + '|' + keyOf(p.assortmentNumber);
-        (groups[gKey] = groups[gKey] || []).push(p);
-      } else solo.push(p);
-    });
+  if(!items.length){ wrap.innerHTML = '<p class="cat-empty">Nothing matches yet. Import a CSV, or adjust your search and filters.</p>'; return; }
 
-    let html = '';
-    Object.values(groups).forEach(group => {
-      const first = group[0];
-      html += `<div class="cat-group">
-        <div class="cat-group-head"><span>📦 Assortment #${esc(first.assortmentNumber)} — ${esc(first.manufacturer)} ${esc(sizeLabel(first.size))}</span><span>${group.length} colors</span></div>
-        ${group.map(p => shellRowHtml(p, addDisabled)).join('')}
-      </div>`;
-    });
-    if(solo.length) html += solo.map(p => shellRowHtml(p, addDisabled)).join('');
-    wrap.innerHTML = html;
-  } else {
-    let items = CAKE_PRODUCTS;
-    if(term) items = items.filter(p => matchesSearch([p.manufacturer, p.name, p.effects, p.colors], term));
-    if(!items.length){ wrap.innerHTML = '<p class="cat-empty">No cakes match yet. Import a CSV, or adjust your search.</p>'; return; }
-    wrap.innerHTML = items.map(p => cakeRowHtml(p, addDisabled)).join('');
+  if(category){
+    wrap.innerHTML = items
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(p => productRowHtml(p, addDisabled)).join('');
+    return;
   }
+
+  // No single category chosen: group the results under a heading per category so a long,
+  // mixed-supplier catalog still reads as something browsable rather than one flat wall.
+  const groups = {};
+  items.forEach(p => { (groups[p.category || '(Uncategorized)'] = groups[p.category || '(Uncategorized)'] || []).push(p); });
+  const catNames = Object.keys(groups).sort((a, b) => categorySortIndex(a) - categorySortIndex(b) || a.localeCompare(b));
+  wrap.innerHTML = catNames.map(cat => `
+    <div class="cat-group">
+      <div class="cat-group-head"><span>${esc(cat)}</span><span>${groups[cat].length}</span></div>
+      ${groups[cat].sort((a, b) => a.name.localeCompare(b.name)).map(p => productRowHtml(p, addDisabled)).join('')}
+    </div>`).join('');
 }
 
-function shellRowHtml(p, addDisabled){
+function productRowHtml(p, addDisabled){
   const bits = [];
-  if(p.manufacturer) bits.push(esc(p.manufacturer));
-  if(p.colors) bits.push(esc(p.colors));
-  if(p.itemNumber) bits.push('Item# ' + esc(p.itemNumber));
-  if(p.sku) bits.push('SKU ' + esc(p.sku));
+  if(p.brand) bits.push(esc(p.brand));
+  if(p.class) bits.push(esc(classLabel(p.class)));
+  if(formatPrice(p.price)) bits.push(formatPrice(p.price));
   return `
     <div class="cat-row">
       <div class="cr-main">
-        <div class="cr-title">${esc(sizeLabel(p.size))}${p.effect ? ' — ' + esc(p.effect) : ''}</div>
+        <div class="cr-title">${esc(p.name || '(unnamed product)')}</div>
         ${bits.length ? `<div class="cr-sub">${bits.join(' · ')}</div>` : ''}
       </div>
-      <button type="button" class="secondary" onclick="addShellToPlan('${p.id}')" ${addDisabled}>+ Add</button>
-    </div>`;
-}
-function cakeRowHtml(p, addDisabled){
-  const bits = [];
-  if(p.manufacturer) bits.push(esc(p.manufacturer));
-  if(p.shotCount) bits.push(p.shotCount + ' shot' + (Number(p.shotCount)===1?'':'s'));
-  if(p.gram) bits.push(esc(p.gram) + 'g');
-  if(p.colors) bits.push(esc(p.colors));
-  return `
-    <div class="cat-row">
-      <div class="cr-main">
-        <div class="cr-title">${esc(p.name || '(unnamed cake)')}</div>
-        ${bits.length ? `<div class="cr-sub">${bits.join(' · ')}${p.effects ? ' — ' + esc(p.effects) : ''}</div>` : (p.effects ? `<div class="cr-sub">${esc(p.effects)}</div>` : '')}
-      </div>
-      <button type="button" class="secondary" onclick="addCakeToPlan('${p.id}')" ${addDisabled}>+ Add</button>
+      <button type="button" class="secondary" onclick="addProductToPlan('${p.id}')" ${addDisabled}>+ Add</button>
     </div>`;
 }
 
@@ -323,30 +335,19 @@ async function fetchPlanFresh(name){
   return match ? { name: match.name, items: match.items || [] } : { name, items: [] };
 }
 
-async function addShellToPlan(productId){
+async function addProductToPlan(productId){
   if(!activePlanName) return;
-  const p = SHELL_PRODUCTS.find(x => x.id === productId); if(!p) return;
+  const p = PRODUCTS.find(x => x.id === productId); if(!p) return;
   const st = $('addStatus');
   setStatus(st, 'Adding…');
   try{
     const plan = await fetchPlanFresh(activePlanName);
-    plan.items.push({ id: newId(), refType: 'shell', qty: 1, size: p.size, manufacturer: p.manufacturer, colors: p.colors, effect: p.effect, itemNumber: p.itemNumber, sku: p.sku });
+    plan.items.push({
+      id: newId(), refType: 'product', qty: 1, productId: p.id,
+      class: p.class, category: p.category, name: p.name, brand: p.brand, price: p.price
+    });
     await postJson({ recordType: 'showPlan', name: plan.name, originalName: plan.name, items: plan.items });
-    setStatus(st, `Added ${sizeLabel(p.size)}${p.effect ? ' — ' + p.effect : ''} to "${activePlanName}" ✓`, 'ok');
-  } catch(err){
-    setStatus(st, 'Could not add — check your connection and try again.', 'err');
-  }
-}
-async function addCakeToPlan(productId){
-  if(!activePlanName) return;
-  const p = CAKE_PRODUCTS.find(x => x.id === productId); if(!p) return;
-  const st = $('addStatus');
-  setStatus(st, 'Adding…');
-  try{
-    const plan = await fetchPlanFresh(activePlanName);
-    plan.items.push({ id: newId(), refType: 'cake', qty: 1, manufacturer: p.manufacturer, name: p.name, shotCount: p.shotCount, gram: p.gram, effects: p.effects, colors: p.colors });
-    await postJson({ recordType: 'showPlan', name: plan.name, originalName: plan.name, items: plan.items });
-    setStatus(st, `Added ${p.name || 'cake'} to "${activePlanName}" ✓`, 'ok');
+    setStatus(st, `Added ${p.name || 'product'} to "${activePlanName}" ✓`, 'ok');
   } catch(err){
     setStatus(st, 'Could not add — check your connection and try again.', 'err');
   }

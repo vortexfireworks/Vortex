@@ -104,31 +104,21 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
-    <p class="desc">Import your full shell and cake catalog from a CSV. Imported items show up in the Catalog page right away, ready to search and add to a show plan.</p>
-
-    <div class="editor-box">
-      <p class="label-title">SHELLS</p>
-      <div class="field" style="margin-bottom:0;">
-        <label for="shellCsvFile">Shells CSV</label>
-        <input type="file" id="shellCsvFile" accept=".csv,text/csv" onchange="handleShellCsv(event)">
-        <p class="hint">Columns: Shell Size, Manufacturer, Assortment (yes/no), Assortment Number, Colors, Effect, Item Number, SKU</p>
-        <p class="hint"><a href="#" onclick="downloadTemplate('shells');return false;" style="color:var(--navy);">⬇ Download shells template</a></p>
-      </div>
-      <p class="hint" id="shellImportStatus"></p>
-    </div>
+    <p class="desc">Import your full product catalog from a CSV — any mix of categories (Cakes, Shells, Fountains, Comets, Finale Chains, and so on), straight from a supplier's price list export. Imported items show up in the Catalog page right away, grouped by category and ready to search or add to a show plan.</p>
 
     <div class="editor-box" style="margin-bottom:0;">
-      <p class="label-title">CAKES</p>
+      <p class="label-title">PRODUCTS</p>
       <div class="field" style="margin-bottom:0;">
-        <label for="cakeCsvFile">Cakes CSV</label>
-        <input type="file" id="cakeCsvFile" accept=".csv,text/csv" onchange="handleCakeCsv(event)">
-        <p class="hint">Columns: Manufacturer, Name, Shot Count, Gram, Effects, Colors</p>
-        <p class="hint"><a href="#" onclick="downloadTemplate('cakes');return false;" style="color:var(--navy);">⬇ Download cakes template</a></p>
+        <label for="productsCsvFile">Products CSV</label>
+        <input type="file" id="productsCsvFile" accept=".csv,text/csv" onchange="handleProductsCsv(event)">
+        <p class="hint">Columns: Class, Category, Product Name, Brand, Price, Description, Product URL</p>
+        <p class="hint">Class is the firework classification (1.3 for display/professional, 1.4 for consumer). Category can be anything your supplier uses — "Cakes", "Shells 3in", "500 Gram Cakes", "Fountains", "Comets", "Finale Chains", etc. — the Catalog page groups and filters by whatever shows up here.</p>
+        <p class="hint"><a href="#" onclick="downloadTemplate();return false;" style="color:var(--navy);">⬇ Download template</a></p>
       </div>
-      <p class="hint" id="cakeImportStatus"></p>
+      <p class="hint" id="productsImportStatus"></p>
     </div>
 
-    <p class="hint" style="margin-top:-14px;">Importing adds rows as new catalog entries — importing the same file twice will create duplicates, so remove a row in the Catalog page if you need to undo one.</p>
+    <p class="hint" style="margin-top:14px;">Importing adds rows as new catalog entries — importing the same file twice will create duplicates, so remove a row in the Catalog page if you need to undo one.</p>
   </div>
 </div>
 
@@ -169,18 +159,12 @@ function downloadCsv(filename, rows){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-function downloadTemplate(kind){
-  if(kind === 'shells'){
-    downloadCsv('shells-template.csv', [
-      ['Shell Size', 'Manufacturer', 'Assortment (yes/no)', 'Assortment Number', 'Colors', 'Effect', 'Item Number', 'SKU'],
-      ['3', 'Black Cat', 'Yes', 'A-247', 'Red', 'Peony', 'BC-1001', 'BC-3-RED']
-    ]);
-  } else {
-    downloadCsv('cakes-template.csv', [
-      ['Manufacturer', 'Name', 'Shot Count', 'Gram', 'Effects', 'Colors'],
-      ['Alpha', 'Crossette Mega', '25', '15', 'Crossette finale', 'Red/Gold']
-    ]);
-  }
+function downloadTemplate(){
+  downloadCsv('products-template.csv', [
+    ['Class', 'Category', 'Product Name', 'Brand', 'Price', 'Description', 'Product URL'],
+    ['1.3', 'Cakes', 'Cake - 100 Shot Red Peony to Blue Strobe', 'Dancing 1.3G Fireworks', '117.25', 'This is a 100 Shot 1.3g Cake.', 'https://example.com/product'],
+    ['1.4', 'Fountains', 'Gold Fountain', 'Brand Name', '12.50', 'A short description.', '']
+  ]);
 }
 
 /* ---------------- CSV parsing (handles quoted fields with embedded commas) ---------------- */
@@ -236,80 +220,45 @@ function rowsToObjects(rows, idx){
   }).filter(obj => Object.values(obj).some(v => v !== ''));
 }
 
-const SHELL_ALIASES = {
-  size: ['shellsize','size'],
-  manufacturer: ['manufacturer'],
-  isAssortment: ['assortment','isassortment','assortmentyesno'],
-  assortmentNumber: ['assortmentnumber','assortmentno','assortment#'],
-  colors: ['colors','color'],
-  effect: ['effect','effects'],
-  itemNumber: ['itemnumber','itemno','item#'],
-  sku: ['sku']
-};
-const CAKE_ALIASES = {
-  manufacturer: ['manufacturer'],
-  name: ['name'],
-  shotCount: ['shotcount','shots','shotct'],
-  gram: ['gram','grams','gramweight'],
-  effects: ['effects','effect'],
-  colors: ['colors','color']
+const PRODUCT_ALIASES = {
+  productClass: ['class'],
+  category: ['category'],
+  name: ['productname','name'],
+  brand: ['brand','manufacturer'],
+  price: ['price'],
+  description: ['description','desc'],
+  url: ['producturl','url','link']
 };
 
-function normalizeSizeValue(v){
-  const s = String(v || '').trim().replace(/["”]/g, '').replace(/\s+/g, '');
-  if(/^2[-.]?1\/2$/.test(s) || s === '2.5') return '2.5';
-  if(['3','4','5','6','8'].includes(s)) return s;
-  return s;
+function normalizePrice(v){
+  const n = Number(String(v || '').replace(/[^0-9.\-]/g, ''));
+  return isFinite(n) ? String(n) : '';
 }
 
-async function handleShellCsv(event){
+async function handleProductsCsv(event){
   const file = event.target.files[0];
-  const st = $('shellImportStatus');
+  const st = $('productsImportStatus');
   if(!file) return;
   setStatus(st, 'Reading file…');
   try{
     const text = await file.text();
     const rows = parseCSV(text);
     if(rows.length < 2){ setStatus(st, 'That file has no data rows.', 'err'); return; }
-    const idx = buildHeaderIndex(rows[0], SHELL_ALIASES);
-    if(idx.size === -1 && idx.manufacturer === -1){ setStatus(st, 'Could not find expected columns — check the header row.', 'err'); return; }
+    const idx = buildHeaderIndex(rows[0], PRODUCT_ALIASES);
+    if(idx.name === -1 && idx.category === -1){ setStatus(st, 'Could not find expected columns — check the header row.', 'err'); return; }
     const objs = rowsToObjects(rows, idx).map(o => ({
-      size: normalizeSizeValue(o.size),
-      manufacturer: o.manufacturer,
-      isAssortment: /^y(es)?$/i.test(o.isAssortment),
-      assortmentNumber: o.assortmentNumber,
-      colors: o.colors,
-      effect: o.effect,
-      itemNumber: o.itemNumber,
-      sku: o.sku
-    }));
+      class: o.productClass,
+      category: o.category,
+      name: o.name,
+      brand: o.brand,
+      price: normalizePrice(o.price),
+      description: o.description,
+      url: o.url
+    })).filter(o => o.name || o.category);
     if(!objs.length){ setStatus(st, 'No usable rows found in that file.', 'err'); return; }
     setStatus(st, `Importing ${objs.length} rows…`);
-    await postJson({ recordType: 'shellProductsImport', rows: objs });
-    setStatus(st, `Imported ${objs.length} shells ✓`, 'ok');
-  } catch(err){
-    setStatus(st, 'Could not import — check your connection and the file, then try again.', 'err');
-  } finally {
-    event.target.value = '';
-  }
-}
-
-async function handleCakeCsv(event){
-  const file = event.target.files[0];
-  const st = $('cakeImportStatus');
-  if(!file) return;
-  setStatus(st, 'Reading file…');
-  try{
-    const text = await file.text();
-    const rows = parseCSV(text);
-    if(rows.length < 2){ setStatus(st, 'That file has no data rows.', 'err'); return; }
-    const idx = buildHeaderIndex(rows[0], CAKE_ALIASES);
-    if(idx.manufacturer === -1 && idx.name === -1){ setStatus(st, 'Could not find expected columns — check the header row.', 'err'); return; }
-    const objs = rowsToObjects(rows, idx);
-    if(!objs.length){ setStatus(st, 'No usable rows found in that file.', 'err'); return; }
-    setStatus(st, `Importing ${objs.length} rows…`);
-    await postJson({ recordType: 'cakeProductsImport', rows: objs });
-    setStatus(st, `Imported ${objs.length} cakes ✓`, 'ok');
+    await postJson({ recordType: 'productsImport', rows: objs });
+    setStatus(st, `Imported ${objs.length} products ✓`, 'ok');
   } catch(err){
     setStatus(st, 'Could not import — check your connection and the file, then try again.', 'err');
   } finally {

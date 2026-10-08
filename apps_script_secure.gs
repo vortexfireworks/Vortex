@@ -144,6 +144,27 @@ function getOrCreateCakeProductsSheet(ss) {
   return sheet;
 }
 
+// The general vendor-style product catalog (replaces the old shell-only / cake-only
+// import for Plan a Show + Catalog): one row per catalog item, however the vendor
+// categorizes it (Cakes, Shells 3in, Fountains, Comets, Finale Chains, ...), with
+// price and a description carried straight through from the price list.
+function getOrCreateProductsSheet(ss) {
+  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Price', 'Description', 'Url'];
+  let sheet = ss.getSheetByName('Products');
+  if (!sheet) {
+    sheet = ss.insertSheet('Products');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
 function getOrCreateShowPlansSheet(ss) {
   const requiredHeaders = ['Name', 'ItemsJson', 'UpdatedAt'];
   let sheet = ss.getSheetByName('ShowPlans');
@@ -433,7 +454,7 @@ const GET_LEVELS = {
   names: 'public', verifyPerson: 'public', venues: 'public', announcements: 'public',
   contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin',
-  shellProducts: 'admin', cakeProducts: 'admin', showPlans: 'admin', fireworkProducts: 'admin',
+  shellProducts: 'admin', cakeProducts: 'admin', products: 'admin', showPlans: 'admin', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
@@ -443,6 +464,7 @@ const POST_LEVELS = {
   payroll: 'admin', deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
+  productsImport: 'admin', deleteProduct: 'admin',
   showPlan: 'admin', deleteShowPlan: 'admin', fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
   inventoryContainer: 'admin', deleteInventoryContainer: 'admin', inventoryTransfer: 'admin',
   deleteAarReport: 'admin', backupNow: 'admin'
@@ -950,6 +972,43 @@ function doPost(e) {
 
   if (data.recordType === 'deleteCakeProduct') {
     const sheet = ss.getSheetByName('CakeProducts');
+    if (sheet) {
+      const map = headerMap(sheet);
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][map['Id']]) === String(data.id)) { sheet.deleteRow(i + 1); break; }
+      }
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  // The general vendor-catalog import used by Import Product Lists — one CSV, any
+  // mix of categories (Cakes, Shells 3in, Fountains, Comets, ...), straight from a
+  // supplier's price list export.
+  if (data.recordType === 'productsImport') {
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    if (!rows.length) return jsonOut({status: 'error', message: 'No rows to import'});
+    if (rows.length > 5000) return jsonOut({status: 'error', message: 'That CSV has too many rows to import at once (max 5000)'});
+    const sheet = getOrCreateProductsSheet(ss);
+    const map = headerMap(sheet);
+    const bulk = rows.map(r => {
+      const row = new Array(Object.keys(map).length).fill('');
+      row[map['Id']] = Utilities.getUuid();
+      row[map['Class']] = String(r.class || '');
+      row[map['Category']] = String(r.category || '');
+      row[map['Name']] = String(r.name || '');
+      row[map['Brand']] = String(r.brand || '');
+      row[map['Price']] = String(r.price || '');
+      row[map['Description']] = String(r.description || '');
+      row[map['Url']] = String(r.url || '');
+      return row;
+    });
+    sheet.getRange(sheet.getLastRow() + 1, 1, bulk.length, bulk[0].length).setValues(bulk);
+    return jsonOut({status: 'ok', imported: bulk.length});
+  }
+
+  if (data.recordType === 'deleteProduct') {
+    const sheet = ss.getSheetByName('Products');
     if (sheet) {
       const map = headerMap(sheet);
       const rows = sheet.getDataRange().getValues();
@@ -1558,6 +1617,29 @@ function doGet(e) {
           gram: String(r[map['Gram']] || ''),
           effects: String(r[map['Effects']] || ''),
           colors: String(r[map['Colors']] || '')
+        });
+      });
+    }
+    return jsonOut({products: products});
+  }
+
+  if (e.parameter.type === 'products') {
+    const products = [];
+    const sheet = ss.getSheetByName('Products');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const id = String(r[map['Id']] || '').trim();
+        if (!id) return;
+        products.push({
+          id: id,
+          class: String(r[map['Class']] || ''),
+          category: String(r[map['Category']] || ''),
+          name: String(r[map['Name']] || ''),
+          brand: String(r[map['Brand']] || ''),
+          price: String(r[map['Price']] || ''),
+          description: String(r[map['Description']] || ''),
+          url: String(r[map['Url']] || '')
         });
       });
     }

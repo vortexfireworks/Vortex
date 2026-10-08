@@ -138,6 +138,7 @@ updateThemeToggleIcon();
       <div class="editor-box">
         <p class="label-title">ITEMS</p>
         <div id="planItems"><p class="hint" style="margin:0;">Nothing added yet — add items from the Catalog page.</p></div>
+        <p class="hint" id="planTotal" style="font-weight:700;color:var(--ink);"></p>
         <p class="hint" id="planStatus"></p>
       </div>
 
@@ -170,8 +171,20 @@ function setStatus(el, msg, kind){
   el.textContent = msg || '';
   el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
 }
+// Legacy items (added before the catalog switched to Class/Category/Brand/Price) still
+// use refType 'shell' / 'cake' with their own size system — kept so old saved plans keep rendering.
 const SIZE_LABELS = {'2.5':'2-1/2"','3':'3"','4':'4"','5':'5"','6':'6"','8':'8"'};
 function sizeLabel(v){ return SIZE_LABELS[String(v)] || String(v || ''); }
+function classLabel(c){
+  c = String(c || '').trim();
+  if(c === '1.3') return '1.3G';
+  if(c === '1.4') return '1.4G';
+  return c;
+}
+function formatPrice(v){
+  const n = Number(v);
+  return isFinite(n) && v !== '' && v != null ? '$' + n.toFixed(2) : '';
+}
 
 async function postJson(payload){
   const res = await fetch(CHECKIN_API_URL, {
@@ -273,10 +286,23 @@ function openPlan(name){
 }
 function renderPlanItems(){
   const wrap = $('planItems');
-  if(!planItems.length){ wrap.innerHTML = '<p class="hint" style="margin:0;">Nothing added yet — add items from the Catalog page.</p>'; return; }
+  if(!planItems.length){
+    wrap.innerHTML = '<p class="hint" style="margin:0;">Nothing added yet — add items from the Catalog page.</p>';
+    $('planTotal').textContent = '';
+    return;
+  }
   wrap.innerHTML = planItems.map(it => {
-    let title, sub;
-    if(it.refType === 'cake'){
+    let title, sub, lineTotal = '';
+    if(it.refType === 'product'){
+      title = it.name || '(unnamed product)';
+      const bits = [it.brand, classLabel(it.class), it.category].filter(Boolean);
+      sub = bits.join(' · ');
+      if(formatPrice(it.price)){
+        const qty = Number(it.qty) || 0;
+        sub += (sub ? ' · ' : '') + formatPrice(it.price) + ' each';
+        lineTotal = formatPrice(Number(it.price) * qty);
+      }
+    } else if(it.refType === 'cake'){
       title = it.name || '(unnamed cake)';
       const bits = [it.manufacturer, it.shotCount ? it.shotCount + ' shots' : '', it.gram ? it.gram + 'g' : '', it.colors].filter(Boolean);
       sub = bits.join(' · ') + (it.effects ? ' — ' + it.effects : '');
@@ -292,13 +318,26 @@ function renderPlanItems(){
           ${sub ? `<div class="pr-sub">${esc(sub)}</div>` : ''}
         </div>
         <input type="number" min="0" step="1" inputmode="numeric" value="${esc(it.qty)}" oninput="setPlanItemQty('${it.id}',this.value)">
+        ${it.refType === 'product' && formatPrice(it.price) ? `<span class="pr-sub" data-line-total style="flex:0 0 auto;min-width:56px;text-align:right;">${esc(lineTotal)}</span>` : ''}
         <button type="button" class="pr-remove" onclick="removePlanItem('${it.id}')">✕</button>
       </div>`;
   }).join('');
+  updatePlanTotal();
+}
+function updatePlanTotal(){
+  const total = planItems.reduce((sum, it) => {
+    const price = Number(it.price);
+    const qty = Number(it.qty);
+    return isFinite(price) && it.price !== '' && isFinite(qty) ? sum + price * qty : sum;
+  }, 0);
+  $('planTotal').textContent = total > 0 ? `Total: ${formatPrice(total)}` : '';
 }
 function setPlanItemQty(id, value){
   const it = planItems.find(x => x.id === id); if(!it) return;
   it.qty = value;
+  const row = document.querySelector(`.plan-row[data-id="${id}"] .pr-sub[data-line-total]`);
+  if(row && formatPrice(it.price)) row.textContent = formatPrice(Number(it.price) * (Number(it.qty) || 0));
+  updatePlanTotal();
   setStatus($('planStatus'), 'Saving…');
   clearTimeout(qtySaveTimer);
   qtySaveTimer = setTimeout(savePlanNow, 600);
