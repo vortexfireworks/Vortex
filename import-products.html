@@ -82,6 +82,34 @@ updateThemeToggleIcon();
   .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
   .status-ok{color:var(--ok);}
   .status-err{color:var(--brick);}
+  .success-card{
+    display:none;margin-top:14px;padding:16px;border-radius:10px;
+    background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.4);
+  }
+  .success-card .sc-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .success-card .sc-check{
+    flex:0 0 auto;width:28px;height:28px;border-radius:50%;
+    background:var(--ok);color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:15px;box-shadow:0 0 12px rgba(76,175,125,0.4);
+  }
+  .success-card .sc-title{font-size:14px;font-weight:700;color:var(--ink);}
+  .success-card .sc-sub{font-size:12px;color:var(--ink-soft);margin-top:1px;}
+  .success-card .sc-cats{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;}
+  .success-card .sc-cat-pill{
+    font-size:11.5px;background:var(--surface-5);border:1px solid var(--line);
+    border-radius:20px;padding:4px 10px;color:var(--ink);
+  }
+  .success-card .sc-cat-pill b{color:var(--kicker);font-weight:700;}
+  .success-card .sc-actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .success-card a.sc-link{
+    font-size:12.5px;font-weight:700;color:#fdf6f2;text-decoration:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    padding:8px 14px;border-radius:7px;
+  }
+  .success-card button.sc-dismiss{
+    font-size:12.5px;background:none;border:1px solid var(--line);color:var(--ink-soft);
+    padding:8px 14px;border-radius:7px;cursor:pointer;
+  }
   .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
   .back-link:hover{color:var(--navy);}
   .theme-toggle{position:fixed; top:14px; right:14px; z-index:50;width:36px;height:36px;border-radius:50%;background:var(--card); border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:16px; cursor:pointer;transition:transform 0.15s ease;}
@@ -116,6 +144,21 @@ updateThemeToggleIcon();
         <p class="hint"><a href="#" onclick="downloadTemplate();return false;" style="color:var(--navy);">⬇ Download template</a></p>
       </div>
       <p class="hint" id="productsImportStatus"></p>
+
+      <div class="success-card" id="importSuccess">
+        <div class="sc-head">
+          <div class="sc-check">&#10003;</div>
+          <div>
+            <div class="sc-title" id="scTitle"></div>
+            <div class="sc-sub" id="scSub"></div>
+          </div>
+        </div>
+        <div class="sc-cats" id="scCats"></div>
+        <div class="sc-actions">
+          <a class="sc-link" href="catalog.html">View in Catalog &rarr;</a>
+          <button type="button" class="sc-dismiss" onclick="dismissSuccess()">Dismiss</button>
+        </div>
+      </div>
     </div>
 
     <p class="hint" style="margin-top:14px;">Importing adds rows as new catalog entries — importing the same file twice will create duplicates, so remove a row in the Catalog page if you need to undo one.</p>
@@ -235,10 +278,29 @@ function normalizePrice(v){
   return isFinite(n) ? String(n) : '';
 }
 
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function dismissSuccess(){ $('importSuccess').style.display = 'none'; }
+
+function showSuccess(fileName, objs){
+  dismissSuccess();  // reset in case a previous import's card is still showing
+  const counts = {};
+  objs.forEach(o => { const c = o.category || '(Uncategorized)'; counts[c] = (counts[c] || 0) + 1; });
+  const cats = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+
+  $('scTitle').textContent = `Imported ${objs.length} product${objs.length === 1 ? '' : 's'}`;
+  $('scSub').textContent = `From ${fileName} — ${cats.length} categor${cats.length === 1 ? 'y' : 'ies'}`;
+  $('scCats').innerHTML = cats.map(c => `<span class="sc-cat-pill">${esc(c)} <b>${counts[c]}</b></span>`).join('');
+  $('importSuccess').style.display = 'block';
+  $('importSuccess').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
 async function handleProductsCsv(event){
   const file = event.target.files[0];
   const st = $('productsImportStatus');
   if(!file) return;
+  dismissSuccess();
   setStatus(st, 'Reading file…');
   try{
     const text = await file.text();
@@ -258,7 +320,8 @@ async function handleProductsCsv(event){
     if(!objs.length){ setStatus(st, 'No usable rows found in that file.', 'err'); return; }
     setStatus(st, `Importing ${objs.length} rows…`);
     await postJson({ recordType: 'productsImport', rows: objs });
-    setStatus(st, `Imported ${objs.length} products ✓`, 'ok');
+    setStatus(st, '');
+    showSuccess(file.name, objs);
   } catch(err){
     setStatus(st, 'Could not import — check your connection and the file, then try again.', 'err');
   } finally {
