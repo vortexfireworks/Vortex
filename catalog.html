@@ -103,8 +103,14 @@ updateThemeToggleIcon();
   .cat-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line);font-size:13px;cursor:pointer;}
   .cat-row:hover{background:var(--surface-4);}
   .cat-row:first-of-type{border-top:none;}
-  .cat-row .cr-thumb{flex:0 0 auto;width:40px;height:40px;border-radius:7px;overflow:hidden;background:var(--surface-4);}
+  .cat-row .cr-thumb{flex:0 0 auto;width:40px;height:40px;border-radius:7px;overflow:hidden;background:var(--surface-4);position:relative;}
   .cat-row .cr-thumb img{width:100%;height:100%;object-fit:cover;}
+  .cat-row .cr-thumb-video{display:flex;align-items:center;justify-content:center;}
+  .cat-row .cr-video-badge{
+    position:absolute;right:2px;bottom:2px;width:16px;height:16px;border-radius:50%;
+    background:rgba(0,0,0,0.65);color:#fff;font-size:8px;line-height:16px;text-align:center;
+  }
+  .cat-row .cr-thumb-video .cr-video-badge{position:static;width:20px;height:20px;font-size:10px;line-height:20px;}
   .cat-row .cr-main{flex:1 1 auto;min-width:0;}
   .cat-row .cr-title{font-weight:700;color:var(--ink);}
   .cat-row .cr-sub{color:var(--ink-soft);font-size:11.5px;margin-top:2px;}
@@ -132,6 +138,7 @@ updateThemeToggleIcon();
     border-radius:14px 14px 0 0;
   }
   .modal-image-wrap img{width:100%;height:100%;object-fit:contain;}
+  .modal-image-wrap iframe{width:100%;height:100%;border:0;}
   .modal-image-wrap .mi-placeholder{font-size:12px;color:var(--ink-soft);text-align:center;padding:0 24px;}
   .modal-body{padding:20px 22px 22px;}
   .modal-body h3{margin:0 0 6px;font-size:17px;color:var(--ink);line-height:1.3;}
@@ -374,8 +381,11 @@ function productRowHtml(p, addDisabled){
   if(p.brand) bits.push(esc(p.brand));
   if(p.class) bits.push(esc(classLabel(p.class)));
   if(formatPrice(p.price)) bits.push(formatPrice(p.price));
+  const hasVideo = p.videoId && p.videoId !== 'NONE';
+  const videoBadge = hasVideo ? '<span class="cr-video-badge" title="Video available">&#9658;</span>' : '';
   const thumb = (p.imageUrl && p.imageUrl !== 'NONE')
-    ? `<div class="cr-thumb"><img src="${esc(p.imageUrl)}" alt="" loading="lazy" onerror="this.closest('.cr-thumb').style.display='none'"></div>` : '';
+    ? `<div class="cr-thumb"><img src="${esc(p.imageUrl)}" alt="" loading="lazy" onerror="this.closest('.cr-thumb').style.display='none'">${videoBadge}</div>`
+    : (hasVideo ? `<div class="cr-thumb cr-thumb-video">${videoBadge}</div>` : '');
   return `
     <div class="cat-row" onclick="openItemModal('${p.id}')">
       ${thumb}
@@ -416,28 +426,40 @@ function closeItemModal(){
 
 function renderModalImage(p){
   const wrap = $('miImageWrap');
-  if(p.imageUrl && p.imageUrl !== 'NONE'){
-    wrap.innerHTML = `<img src="${esc(p.imageUrl)}" alt="${esc(p.name || '')}" onerror="this.closest('.modal-image-wrap').innerHTML='<p class=&quot;mi-placeholder&quot;>No photo available.</p>'">`;
+  const hasVideo = p.videoId && p.videoId !== 'NONE';
+  const hasImage = p.imageUrl && p.imageUrl !== 'NONE';
+  // Both fields get looked up together (one visit to the supplier page covers both), so
+  // either being unset (never checked yet) means neither has been looked up.
+  const needsLookup = p.url && (!p.imageUrl || !p.videoId);
+
+  if(needsLookup){
+    wrap.innerHTML = '<p class="mi-placeholder">Looking for a photo or video on the supplier page&hellip;</p>';
+    fetch(`${CHECKIN_API_URL}?type=productImage&id=${encodeURIComponent(p.id)}`, { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        // cache on the in-memory product so reopening is instant
+        p.imageUrl = data.imageUrl || 'NONE';
+        p.videoId = data.videoId || 'NONE';
+        if(currentModalId === p.id) renderModalImage(p);
+      })
+      .catch(() => {
+        if(currentModalId === p.id) wrap.innerHTML = '<p class="mi-placeholder">Could not check for a photo or video — check your connection and try again.</p>';
+      });
     return;
   }
-  if(p.imageUrl === 'NONE'){
-    wrap.innerHTML = '<p class="mi-placeholder">No photo found on the supplier page.</p>';
+  if(hasVideo){
+    wrap.innerHTML = `<iframe src="https://www.youtube.com/embed/${esc(p.videoId)}" title="${esc(p.name || 'Product video')}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen onerror="this.closest('.modal-image-wrap').innerHTML='<p class=&quot;mi-placeholder&quot;>Video unavailable.</p>'"></iframe>`;
+    return;
+  }
+  if(hasImage){
+    wrap.innerHTML = `<img src="${esc(p.imageUrl)}" alt="${esc(p.name || '')}" onerror="this.closest('.modal-image-wrap').innerHTML='<p class=&quot;mi-placeholder&quot;>No photo available.</p>'">`;
     return;
   }
   if(!p.url){
     wrap.innerHTML = '<p class="mi-placeholder">No supplier link saved for this item.</p>';
     return;
   }
-  wrap.innerHTML = '<p class="mi-placeholder">Looking for a photo on the supplier page&hellip;</p>';
-  fetch(`${CHECKIN_API_URL}?type=productImage&id=${encodeURIComponent(p.id)}`, { cache: 'no-store' })
-    .then(res => res.json())
-    .then(data => {
-      p.imageUrl = data.imageUrl || 'NONE';   // cache on the in-memory product so reopening is instant
-      if(currentModalId === p.id) renderModalImage(p);
-    })
-    .catch(() => {
-      if(currentModalId === p.id) wrap.innerHTML = '<p class="mi-placeholder">Could not check for a photo — check your connection and try again.</p>';
-    });
+  wrap.innerHTML = '<p class="mi-placeholder">No photo or video found on the supplier page.</p>';
 }
 
 /* ---------------- Add to plan: always fetch the latest saved state first, then save immediately ---------------- */

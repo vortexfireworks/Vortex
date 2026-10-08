@@ -149,7 +149,7 @@ function getOrCreateCakeProductsSheet(ss) {
 // categorizes it (Cakes, Shells 3in, Fountains, Comets, Finale Chains, ...), with
 // price and a description carried straight through from the price list.
 function getOrCreateProductsSheet(ss) {
-  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Price', 'Description', 'Url', 'ImageUrl'];
+  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Price', 'Description', 'Url', 'ImageUrl', 'VideoId'];
   let sheet = ss.getSheetByName('Products');
   if (!sheet) {
     sheet = ss.insertSheet('Products');
@@ -413,22 +413,10 @@ function headerMap(sheet) {
   return map;
 }
 
-// Fetches a product's supplier page and pulls out its main picture — tries the
-// standard social-preview meta tags first (what a page author intends as "the" image
-// for the product), then falls back to the first plausible-looking <img> on the page.
-function fetchPageImage(pageUrl) {
-  let html;
-  try {
-    const res = UrlFetchApp.fetch(pageUrl, {
-      muteHttpExceptions: true,
-      followRedirects: true,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
-    });
-    if (res.getResponseCode() >= 400) return '';
-    html = res.getContentText();
-  } catch (err) {
-    return '';
-  }
+// Pulls a product's main picture out of its supplier page's HTML — tries the standard
+// social-preview meta tags first (what a page author intends as "the" image for the
+// product), then falls back to the first plausible-looking <img> on the page.
+function extractImageFromHtml(html, pageUrl) {
   const metaPatterns = [
     /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i,
     /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']/i,
@@ -449,6 +437,38 @@ function fetchPageImage(pageUrl) {
     }
   }
   return '';
+}
+// Pulls the first YouTube video id referenced anywhere on the page — a plain link, an
+// embedded player's iframe src, or a bare watch/share URL in the markup.
+function extractYoutubeIdFromHtml(html) {
+  const patterns = [
+    /youtube(?:-nocookie)?\.com\/embed\/([A-Za-z0-9_-]{6,15})/i,
+    /youtube\.com\/watch\?[^"'\s]*v=([A-Za-z0-9_-]{6,15})/i,
+    /youtu\.be\/([A-Za-z0-9_-]{6,15})/i
+  ];
+  for (const pattern of patterns) {
+    const m = html.match(pattern);
+    if (m && m[1]) return m[1];
+  }
+  return '';
+}
+// Fetches a product's supplier page once and pulls out both its main picture and any
+// YouTube video linked or embedded on it, so a page is only ever downloaded a single
+// time no matter how many kinds of media we're looking for on it.
+function fetchProductMedia(pageUrl) {
+  let html;
+  try {
+    const res = UrlFetchApp.fetch(pageUrl, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
+    });
+    if (res.getResponseCode() >= 400) return { imageUrl: '', videoId: '' };
+    html = res.getContentText();
+  } catch (err) {
+    return { imageUrl: '', videoId: '' };
+  }
+  return { imageUrl: extractImageFromHtml(html, pageUrl), videoId: extractYoutubeIdFromHtml(html) };
 }
 function resolveUrl(url, base) {
   if (/^https?:\/\//i.test(url)) return url;
@@ -498,12 +518,13 @@ function saveProductImageToDrive(imageUrl, productName) {
   }
 }
 
-// Finds the picture on a product's supplier page, then downloads and saves a real
-// copy of it into Drive (rather than just linking to the supplier's own URL).
-function fetchAndSaveProductImage(pageUrl, productName) {
-  const imageUrl = fetchPageImage(pageUrl);
-  if (!imageUrl) return '';
-  return saveProductImageToDrive(imageUrl, productName);
+// Finds the picture and any YouTube video on a product's supplier page (one fetch of
+// the page covers both), then downloads and saves a real copy of the picture into
+// Drive rather than just linking to the supplier's own URL.
+function fetchAndSaveProductMedia(pageUrl, productName) {
+  const media = fetchProductMedia(pageUrl);
+  const imageUrl = media.imageUrl ? saveProductImageToDrive(media.imageUrl, productName) : '';
+  return { imageUrl: imageUrl, videoId: media.videoId || '' };
 }
 
 function getOrCreatePhotoFolder() {
@@ -1141,12 +1162,14 @@ function doPostInner(e) {
     let remaining = 0;
     for (let i = 1; i < values.length; i++) {
       const url = String(values[i][map['Url']] || '');
-      const cached = String(values[i][map['ImageUrl']] || '');
-      if (!url || cached) continue;
+      const cachedImage = String(values[i][map['ImageUrl']] || '');
+      const cachedVideo = String(values[i][map['VideoId']] || '');
+      if (!url || (cachedImage && cachedVideo)) continue;
       if (Date.now() - startedAt > timeBudgetMs) { remaining++; continue; }
       const name = String(values[i][map['Name']] || '');
-      const found = fetchAndSaveProductImage(url, name);
-      sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue(found || 'NONE');
+      const found = fetchAndSaveProductMedia(url, name);
+      sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue(found.imageUrl || 'NONE');
+      sheet.getRange(i + 1, map['VideoId'] + 1).setValue(found.videoId || 'NONE');
       processed++;
     }
     return jsonOut({status: 'ok', processed: processed, remaining: remaining, done: remaining === 0});
@@ -1781,38 +1804,48 @@ function doGetInner(e) {
           price: String(r[map['Price']] || ''),
           description: String(r[map['Description']] || ''),
           url: String(r[map['Url']] || ''),
-          imageUrl: String(r[map['ImageUrl']] || '')
+          imageUrl: String(r[map['ImageUrl']] || ''),
+          videoId: String(r[map['VideoId']] || '')
         });
       });
     }
     return jsonOut({products: products});
   }
 
-  // Looks up (and caches, in the ImageUrl column) the picture on a product's supplier page,
-  // for the Catalog's item detail view. A plain client-side fetch of another site's page
-  // almost never has CORS allowed, so this has to happen here, server-side, once per product —
-  // after that, the Products GET above just returns the cached URL for free.
+  // Looks up (and caches, in the ImageUrl/VideoId columns) the picture and any YouTube
+  // video on a product's supplier page, for the Catalog's item detail view. A plain
+  // client-side fetch of another site's page almost never has CORS allowed, so this has
+  // to happen here, server-side, once per product — after that, the Products GET above
+  // just returns the cached values for free.
   if (e.parameter.type === 'productImage') {
     const id = String(e.parameter.id || '').trim();
-    if (!id) return jsonOut({imageUrl: '', error: 'Missing product id'});
+    if (!id) return jsonOut({imageUrl: '', videoId: '', error: 'Missing product id'});
     const sheetExists = !!ss.getSheetByName('Products');
-    if (!sheetExists) return jsonOut({imageUrl: '', error: 'No products yet'});
-    const sheet = getOrCreateProductsSheet(ss);   // backfills the ImageUrl column on an older sheet
+    if (!sheetExists) return jsonOut({imageUrl: '', videoId: '', error: 'No products yet'});
+    const sheet = getOrCreateProductsSheet(ss);   // backfills the ImageUrl/VideoId columns on an older sheet
     const map = headerMap(sheet);
     const rows = sheet.getDataRange().getValues();
     for (let i = 1; i < rows.length; i++) {
       if (String(rows[i][map['Id']]) !== id) continue;
-      const cached = String(rows[i][map['ImageUrl']] || '');
-      if (cached) return jsonOut({imageUrl: cached === 'NONE' ? '' : cached});
+      const cachedImage = String(rows[i][map['ImageUrl']] || '');
+      const cachedVideo = String(rows[i][map['VideoId']] || '');
+      if (cachedImage && cachedVideo) {
+        return jsonOut({imageUrl: cachedImage === 'NONE' ? '' : cachedImage, videoId: cachedVideo === 'NONE' ? '' : cachedVideo});
+      }
       const pageUrl = String(rows[i][map['Url']] || '');
       if (!pageUrl) {
         sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue('NONE');
-        return jsonOut({imageUrl: '', error: 'This product has no supplier link saved'});
+        sheet.getRange(i + 1, map['VideoId'] + 1).setValue('NONE');
+        return jsonOut({imageUrl: '', videoId: '', error: 'This product has no supplier link saved'});
       }
       const productName = String(rows[i][map['Name']] || '');
-      const found = fetchAndSaveProductImage(pageUrl, productName);
-      sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue(found || 'NONE');
-      return jsonOut({imageUrl: found || '', error: found ? '' : 'No picture found on that page'});
+      const found = fetchAndSaveProductMedia(pageUrl, productName);
+      sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue(found.imageUrl || 'NONE');
+      sheet.getRange(i + 1, map['VideoId'] + 1).setValue(found.videoId || 'NONE');
+      return jsonOut({
+        imageUrl: found.imageUrl || '', videoId: found.videoId || '',
+        error: (found.imageUrl || found.videoId) ? '' : 'No picture or video found on that page'
+      });
     }
     return jsonOut({imageUrl: '', error: 'Product not found'});
   }
