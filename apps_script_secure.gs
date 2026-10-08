@@ -678,6 +678,14 @@ function removeWeeklyBackup() {
 }
 
 function doPost(e) {
+  try {
+    return doPostInner(e);
+  } catch (err) {
+    return jsonOut({status: 'error', message: 'Server error: ' + (err && err.message ? err.message : err)});
+  }
+}
+
+function doPostInner(e) {
   const data = JSON.parse(e.postData.contents);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -1423,6 +1431,14 @@ function normalizeDateValue(value) {
 }
 
 function doGet(e) {
+  try {
+    return doGetInner(e);
+  } catch (err) {
+    return jsonOut({status: 'error', message: 'Server error: ' + (err && err.message ? err.message : err)});
+  }
+}
+
+function doGetInner(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const requestType = (e.parameter && e.parameter.type) || '';
   const denied = authorize(e.parameter && e.parameter.token, GET_LEVELS[requestType] || 'hp');

@@ -496,7 +496,7 @@ async function backfillImages(){
     }
     await loadCatalog();   // pick up the newly-cached photos
   } catch(err){
-    st.textContent = 'Could not check for photos — check your connection and try again.';
+    st.textContent = 'Could not check for photos — ' + ((err && err.message) || 'check your connection and try again.');
   } finally {
     btn.disabled = false;
   }
