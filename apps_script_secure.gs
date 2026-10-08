@@ -1085,8 +1085,12 @@ function doPostInner(e) {
   if (data.recordType === 'productsImageBackfill') {
     const startedAt = Date.now();
     const timeBudgetMs = 4.5 * 60 * 1000;
-    const sheet = ss.getSheetByName('Products');
-    if (!sheet) return jsonOut({status: 'ok', processed: 0, remaining: 0, done: true});
+    const sheetExists = !!ss.getSheetByName('Products');
+    if (!sheetExists) return jsonOut({status: 'ok', processed: 0, remaining: 0, done: true});
+    // getOrCreateProductsSheet (not getSheetByName) so a Products sheet created by an
+    // older version of this script — before the ImageUrl column existed — gets that
+    // column backfilled now, instead of computing an invalid (missing) column number.
+    const sheet = getOrCreateProductsSheet(ss);
     const map = headerMap(sheet);
     const values = sheet.getDataRange().getValues();
     let processed = 0;
@@ -1746,8 +1750,9 @@ function doGetInner(e) {
   if (e.parameter.type === 'productImage') {
     const id = String(e.parameter.id || '').trim();
     if (!id) return jsonOut({imageUrl: '', error: 'Missing product id'});
-    const sheet = ss.getSheetByName('Products');
-    if (!sheet) return jsonOut({imageUrl: '', error: 'No products yet'});
+    const sheetExists = !!ss.getSheetByName('Products');
+    if (!sheetExists) return jsonOut({imageUrl: '', error: 'No products yet'});
+    const sheet = getOrCreateProductsSheet(ss);   // backfills the ImageUrl column on an older sheet
     const map = headerMap(sheet);
     const rows = sheet.getDataRange().getValues();
     for (let i = 1; i < rows.length; i++) {
