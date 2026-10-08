@@ -569,6 +569,28 @@ function debugFetchOneProduct() {
   }
 }
 
+// TEMPORARY ONE-OFF — run this manually from the Apps Script editor (select it in the
+// function dropdown, click Run) exactly once. Every product's ImageUrl/VideoId got
+// stuck at 'NONE' while UrlFetchApp was missing permission, so the normal backfill
+// would just skip all 943 rows as "already checked." This clears those two columns
+// back to blank so the next "Download photos for every item" click actually re-fetches
+// every page now that permission is granted. Safe to run more than once; it only ever
+// clears cells that currently say 'NONE'.
+function resetStuckProductMedia() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = getOrCreateProductsSheet(ss);
+  const map = headerMap(sheet);
+  const values = sheet.getDataRange().getValues();
+  let cleared = 0;
+  for (let i = 1; i < values.length; i++) {
+    const img = String(values[i][map['ImageUrl']] || '');
+    const vid = String(values[i][map['VideoId']] || '');
+    if (img === 'NONE') { sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue(''); cleared++; }
+    if (vid === 'NONE') { sheet.getRange(i + 1, map['VideoId'] + 1).setValue(''); }
+  }
+  Logger.log('Cleared ' + cleared + ' row(s) marked NONE. Now click "Download photos for every item" in the Catalog page.');
+}
+
 function getOrCreatePhotoFolder() {
   const folderName = 'Vortex Operator Photos';
   const folders = DriveApp.getFoldersByName(folderName);
