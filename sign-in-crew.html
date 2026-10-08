@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
+<title>Sign In Crew — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --surface-6:rgba(10,14,26,0.6); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d; --err:#ff6a5a;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --surface-6:rgba(255,255,255,0.7); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:560px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text],input[type=tel],input[type=date],input[type=time],select{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; box-sizing:border-box;
+  }
+  input:focus,select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input[readonly]{background:rgba(255,255,255,0.04);color:var(--ink-soft);}
+  button.primary{
+    width:100%; color:#fdf6f2; border:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 18px rgba(255,140,0,0.3);
+  }
+  button.primary:disabled{opacity:.6;cursor:default;box-shadow:none;}
+  button.primary:hover:not(:disabled){filter:brightness(1.1);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  .link-btn{color:#ffb98a;text-decoration:underline;background:none;border:none;padding:0;font:inherit;font-size:12.5px;cursor:pointer;}
+  :root[data-theme="light"] .link-btn{color:#c9601f;}
+  .found-card{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.4);border-radius:10px;padding:11px 14px;margin:0 0 14px;font-size:13px;color:var(--ink);}
+  .found-card .vc-text{flex:1 1 200px;line-height:1.4;}
+  .notfound-note{font-size:12px;color:var(--ink-soft);margin:0 0 14px;line-height:1.5;}
+  .when-line{font-size:12.5px;color:var(--ink-soft);margin:0 0 14px;}
+  .when-line strong{color:var(--ink);font-weight:600;}
+  .msg{font-size:13px;margin-top:14px;text-align:center;}
+  .msg.ok{color:var(--ok);}
+  .msg.err{color:var(--err);}
+  .field-err{font-size:11.5px;color:var(--err);margin:4px 0 0;}
+  input.invalid{border-color:var(--err) !important;}
+  .back-link{
+    display:block; max-width:560px; margin:16px auto 0; padding:0 16px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  .roster{margin-top:4px;}
+  .roster-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .roster-row:last-child{border-bottom:none;}
+  .roster-row .r-name{font-weight:600;color:var(--ink);}
+  .roster-row .r-meta{color:var(--ink-soft);font-size:11.5px;white-space:nowrap;}
+  .pl-h{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:24px 0 8px;}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="hp-tools.html">&larr; Back to Head Pyro Tools</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Sign In Crew</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">As a Head Pyro, you can sign other crew members in to an event yourself — for someone who doesn't have their phone handy, or who's new on site. Every sign-in made here is recorded as done by a Head Pyro.</p>
+
+    <div class="field">
+      <label for="eventName">Event / venue</label>
+      <select id="eventName" onchange="onVenueChange()"><option value="" disabled selected>Select a venue…</option></select>
+    </div>
+
+    <div class="field">
+      <label for="personName">Crew member's name</label>
+      <input type="text" id="personName" list="contactsList" oninput="onNameInput()" onblur="this.value = toTitleCase(this.value)" autocomplete="off">
+      <datalist id="contactsList"></datalist>
+    </div>
+
+    <div class="found-card" id="foundCard" style="display:none;">
+      <span class="vc-text">&#10003; Found on file &mdash; license, address and age filled in below.</span>
+      <button type="button" class="link-btn" id="toggleDetailsBtn" onclick="toggleDetails()">Review or edit</button>
+    </div>
+    <p class="notfound-note" id="notFoundNote" style="display:none;">No matching contact on file for that exact name — fill in what you know below.</p>
+
+    <div id="detailsBlock">
+      <div class="field">
+        <label for="personDisplayLicense">Display Operator (D)</label>
+        <input type="text" id="personDisplayLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+        <p class="field-err" id="personDisplayLicenseErr" style="display:none;"></p>
+      </div>
+      <div class="field">
+        <label for="personSFXLicense">Special Effects Operator (P)</label>
+        <input type="text" id="personSFXLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+        <p class="field-err" id="personSFXLicenseErr" style="display:none;"></p>
+      </div>
+      <div class="field">
+        <label for="personFlameLicense">Flame Effects Operator (F)</label>
+        <input type="text" id="personFlameLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+        <p class="field-err" id="personFlameLicenseErr" style="display:none;"></p>
+      </div>
+      <div class="field">
+        <label for="personPhone">Phone number</label>
+        <input type="tel" id="personPhone" inputmode="tel" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="personAddress">Address</label>
+        <input type="text" id="personAddress" onblur="this.value = toTitleCase(this.value)">
+      </div>
+      <div class="field">
+        <label for="personAge">Age</label>
+        <input type="text" id="personAge">
+      </div>
+    </div>
+
+    <p class="when-line">Signing in <strong id="whenText">now</strong> &middot; <button type="button" class="link-btn" onclick="toggleWhenEditor()">Change</button></p>
+    <div id="whenEditor" style="display:none;">
+      <div class="field">
+        <label for="eventDate">Date</label>
+        <input type="date" id="eventDate">
+      </div>
+      <div class="field">
+        <label for="checkInTime">Time</label>
+        <input type="time" id="checkInTime">
+      </div>
+    </div>
+
+    <div class="field" style="flex-direction:row;align-items:center;gap:8px;">
+      <input type="checkbox" id="isHeadPyro" style="width:auto;" disabled>
+      <label for="isHeadPyro" id="isHeadPyroLabel" style="font-weight:400;color:var(--ink-soft);">Head Pyro for this event (no license on file)</label>
+    </div>
+
+    <button class="primary" id="submitBtn" onclick="signIn()">Sign in</button>
+    <p class="msg" id="msg"></p>
+
+    <p class="pl-h" id="rosterHeading" style="display:none;">Already signed in</p>
+    <div class="roster" id="rosterList"></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const $ = (id) => document.getElementById(id);
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function toTitleCase(str){
+  if(!str) return str;
+  return str.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/* ---------- venues ---------- */
+let VENUES = [];     // { id, name, eventDate }
+
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = String(dateStr).slice(0, 10);
+  const parts = datePart.split('-');
+  if(parts.length !== 3 || isNaN(Number(parts[1])) || isNaN(Number(parts[2]))) return dateStr;
+  return `${Number(parts[1])}/${Number(parts[2])}`;
+}
+
+const ALWAYS_AVAILABLE_NO_DATE = ['shop time', 'trailer loading', 'bunker time'];
+
+async function loadVenues(){
+  const select = $('eventName');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetVenues = await res.json();
+    const cutoff = new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate() - 2);
+    VENUES = (Array.isArray(sheetVenues) ? sheetVenues : [])
+      .filter(v => v.name)
+      .filter(v => {
+        if(ALWAYS_AVAILABLE_NO_DATE.includes(String(v.name).trim().toLowerCase())) return true;
+        if(!v.eventDate) return false;
+        return new Date(v.eventDate.slice(0, 10) + 'T00:00:00') >= cutoff;
+      })
+      .sort((a, b) => (a.eventDate || '9999').localeCompare(b.eventDate || '9999') || a.name.localeCompare(b.name));
+    select.innerHTML = '<option value="" disabled selected>Select a venue…</option>' +
+      VENUES.map(v => {
+        const label = v.eventDate ? `${formatDateForOption(v.eventDate)} — ${v.name}` : v.name;
+        return `<option value="${esc(v.id)}">${esc(label)}</option>`;
+      }).join('');
+  } catch(err){
+    select.innerHTML = '<option value="">Could not load venues</option>';
+  }
+}
+function currentVenue(){
+  return VENUES.find(v => v.id === $('eventName').value) || null;
+}
+function onVenueChange(){
+  loadRoster();
+}
+
+/* ---------- name list + contact lookup ---------- */
+async function fetchNameList(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=names`);
+    if(!res.ok) throw new Error('Request failed');
+    const names = await res.json();
+    if(Array.isArray(names)){
+      $('contactsList').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+    }
+  } catch(err){ /* manual entry still works */ }
+}
+
+let detailsOpen = false;
+let lookupTimer = null;
+let lookupToken = 0;
+
+function clearLookedUpFields(){
+  $('personDisplayLicense').value = '';
+  $('personSFXLicense').value = '';
+  $('personFlameLicense').value = '';
+  $('personAddress').value = '';
+  $('personAge').value = '';
+  $('personPhone').value = '';
+}
+
+function renderLookupUI(state){
+  $('foundCard').style.display = state === 'found' ? 'flex' : 'none';
+  $('notFoundNote').style.display = state === 'notfound' ? 'block' : 'none';
+  const hide = state === 'found' && !detailsOpen;
+  $('detailsBlock').style.display = hide ? 'none' : '';
+  $('toggleDetailsBtn').textContent = detailsOpen ? 'Hide details' : 'Review or edit';
+}
+function toggleDetails(){ detailsOpen = !detailsOpen; renderLookupUI('found'); }
+
+function onNameInput(){
+  clearTimeout(lookupTimer);
+  renderLookupUI('idle');
+  detailsOpen = false;
+  const name = $('personName').value.trim();
+  if(!name){ clearLookedUpFields(); setHeadPyroLock(false, 'no license on file'); return; }
+  lookupTimer = setTimeout(lookupContact, 350);
+}
+
+async function lookupContact(){
+  const name = $('personName').value.trim();
+  if(!name) return;
+  const myToken = ++lookupToken;
+  try{
+    const url = `${CHECKIN_API_URL}?type=hpContactLookup&name=${encodeURIComponent(name)}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('Request failed');
+    const data = await res.json();
+    if(myToken !== lookupToken) return;        // a newer keystroke already superseded this lookup
+    if(data && data.found){
+      $('personDisplayLicense').value = data.displayLicense || '';
+      $('personSFXLicense').value = data.specialEffectsLicense || '';
+      $('personFlameLicense').value = data.flameLicense || '';
+      $('personAddress').value = data.address || '';
+      $('personAge').value = data.age || '';
+      $('personPhone').value = data.phone || '';
+      const hasLicense = !!(data.displayLicense || data.specialEffectsLicense || data.flameLicense);
+      setHeadPyroLock(hasLicense, hasLicense ? '' : 'no license on file');
+      detailsOpen = false;
+      renderLookupUI('found');
+    } else {
+      clearLookedUpFields();
+      setHeadPyroLock(false, 'no license on file');
+      detailsOpen = true;    // nothing found — show the blank fields right away so they can be filled in
+      renderLookupUI('notfound');
+    }
+  } catch(err){
+    if(myToken === lookupToken) renderLookupUI('idle');
+  }
+}
+
+function setHeadPyroLock(enabled, message){
+  const checkbox = $('isHeadPyro');
+  const label = $('isHeadPyroLabel');
+  checkbox.disabled = !enabled;
+  if(!enabled) checkbox.checked = false;
+  label.style.color = enabled ? 'var(--ink)' : 'var(--ink-soft)';
+  label.textContent = enabled ? 'Head Pyro for this event' : `Head Pyro for this event (${message})`;
+}
+
+/* ---------- when (date/time) ---------- */
+let whenTouched = false;
+function updateWhenText(){
+  let text = 'now';
+  if(whenTouched){
+    const d = $('eventDate').value, t = $('checkInTime').value;
+    const dt = d && t ? new Date(d + 'T' + t) : null;
+    if(dt && !isNaN(dt.getTime())){
+      const time = dt.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+      text = (d === new Date().toLocaleDateString('en-CA') ? 'today' : dt.toLocaleDateString([], { month:'short', day:'numeric' })) + ' at ' + time;
+    }
+  }
+  $('whenText').textContent = text;
+}
+function toggleWhenEditor(){
+  const ed = $('whenEditor');
+  ed.style.display = ed.style.display === 'none' ? '' : 'none';
+}
+function refreshMoment(){
+  if(whenTouched) return;
+  const now = new Date();
+  $('eventDate').value = now.toLocaleDateString('en-CA');
+  $('checkInTime').value = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+}
+['eventDate','checkInTime'].forEach(id => {
+  $(id).addEventListener('input', () => { whenTouched = true; updateWhenText(); });
+});
+refreshMoment();
+
+/* ---------- the "Russ Check" — same license format rule as checkin.html ---------- */
+const LICENSE_FORMAT = /^FE\d+$/i;
+function validateLicenseField(input){
+  const errEl = $(input.id + 'Err');
+  const value = input.value.trim();
+  if(!value){
+    input.classList.remove('invalid'); errEl.style.display = 'none'; return true;
+  }
+  if(LICENSE_FORMAT.test(value)){
+    input.classList.remove('invalid'); errEl.style.display = 'none'; return true;
+  }
+  input.classList.add('invalid');
+  errEl.textContent = 'Doesn\'t pass the Russ Check parameters — license numbers start with "FE" followed by numbers (example: FE123456).';
+  errEl.style.display = 'block';
+  return false;
+}
+function allLicenseFieldsValid(){
+  let allValid = true;
+  ['personDisplayLicense', 'personSFXLicense', 'personFlameLicense'].forEach(id => {
+    if(!validateLicenseField($(id))) allValid = false;
+  });
+  return allValid;
+}
+
+/* ---------- roster for the selected show ---------- */
+async function loadRoster(){
+  const venue = currentVenue();
+  const wrap = $('rosterList');
+  if(!venue){ wrap.innerHTML = ''; $('rosterHeading').style.display = 'none'; return; }
+  wrap.innerHTML = '<p class="hint" style="color:var(--ink-soft);font-size:12.5px;">Loading…</p>';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?event=${encodeURIComponent(venue.name)}`, { cache:'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    let rows = await res.json();
+    if(!Array.isArray(rows)) rows = [];
+    if(venue.eventDate) rows = rows.filter(r => String(r.eventDate || '').slice(0, 10) === venue.eventDate.slice(0, 10));
+    rows.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    $('rosterHeading').style.display = rows.length ? 'block' : 'none';
+    wrap.innerHTML = rows.length ? rows.map(r => `
+      <div class="roster-row">
+        <span class="r-name">${esc(r.name)}${r.isHeadPyro ? ' — HP' : ''}</span>
+        <span class="r-meta">${r.signedInByHp ? 'Signed in by HP' : 'Self check-in'}</span>
+      </div>`).join('') : '<p class="hint" style="color:var(--ink-soft);font-size:12.5px;">No one has signed in yet.</p>';
+  } catch(err){
+    wrap.innerHTML = '<p class="hint" style="color:var(--ink-soft);font-size:12.5px;">Could not load the roster — check your connection.</p>';
+  }
+}
+
+/* ---------- submit ---------- */
+function signIn(){
+  const venue = currentVenue();
+  const name = $('personName').value.trim();
+  const msg = $('msg');
+
+  if(!venue || !name){
+    msg.textContent = 'Select the event and enter the crew member\'s name before signing in.';
+    msg.className = 'msg err';
+    return;
+  }
+  if(!allLicenseFieldsValid()){
+    detailsOpen = true;
+    renderLookupUI($('foundCard').style.display === 'flex' ? 'found' : 'notfound');
+    msg.textContent = 'One or more license numbers don\'t pass the Russ Check parameters — please fix the format before signing in.';
+    msg.className = 'msg err';
+    return;
+  }
+
+  const btn = $('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  refreshMoment();
+
+  const displayLicense = $('personDisplayLicense').value.trim();
+  const sfxLicense = $('personSFXLicense').value.trim();
+  const flameLicense = $('personFlameLicense').value.trim();
+  const licenseParts = [];
+  if(displayLicense) licenseParts.push('D: ' + displayLicense);
+  if(sfxLicense) licenseParts.push('P: ' + sfxLicense);
+  if(flameLicense) licenseParts.push('F: ' + flameLicense);
+
+  const payload = {
+    recordType: 'hpCheckIn',
+    event: venue.name,
+    eventDate: $('eventDate').value,
+    checkInTime: $('checkInTime').value,
+    name: name,
+    license: licenseParts.join(' · '),
+    phone: $('personPhone').value.trim(),
+    address: $('personAddress').value.trim(),
+    age: $('personAge').value.trim(),
+    isHeadPyro: $('isHeadPyro').checked
+  };
+
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  }).then(async (res) => {
+    let ok = true, message = '';
+    try{ const j = await res.json(); ok = j.status === 'ok'; message = j.message || ''; } catch(e){}
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+    if(ok){
+      msg.textContent = `${name} is signed in to ${venue.name}.`;
+      msg.className = 'msg ok';
+      $('personName').value = '';
+      clearLookedUpFields();
+      detailsOpen = false;
+      renderLookupUI('idle');
+      setHeadPyroLock(false, 'no license on file');
+      ['personDisplayLicense','personSFXLicense','personFlameLicense'].forEach(id => {
+        $(id).classList.remove('invalid');
+        $(id + 'Err').style.display = 'none';
+      });
+      loadRoster();
+      $('personName').focus();
+    } else {
+      msg.textContent = message || 'Something went wrong — please try again.';
+      msg.className = 'msg err';
+    }
+  }).catch(() => {
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+    msg.textContent = 'Could not reach the server — check your connection and try again.';
+    msg.className = 'msg err';
+  });
+}
+
+loadVenues().then(loadRoster);
+fetchNameList();
+updateWhenText();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

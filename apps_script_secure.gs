@@ -431,7 +431,7 @@ const ORIGINAL_ADMIN_HASH = 'cf7c3f3c216f72e7b13203c30ff418dfff1206d08139fe52411
 // What each read needs. Anything not listed here (including the check-in list) needs the Head Pyro level.
 const GET_LEVELS = {
   names: 'public', verifyPerson: 'public', venues: 'public', announcements: 'public',
-  contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp',
+  contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', showPlans: 'admin', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin'
@@ -439,7 +439,7 @@ const GET_LEVELS = {
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
-  aarReport: 'hp', toggleVenueSignIn: 'hp',
+  aarReport: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   payroll: 'admin', deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
@@ -1244,14 +1244,40 @@ function doPost(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // A Head Pyro signing someone else in manually (hp-tools → Sign In Crew), as opposed to
+  // a person checking themselves in on checkin.html. Written to the same sheet and read by
+  // the same roster everywhere else reads it, but flagged in its own column so it's always
+  // possible to tell the two apart later.
+  if (data.recordType === 'hpCheckIn') {
+    const name = String(data.name || '').trim();
+    const eventName = String(data.event || '').trim();
+    if (!name) return jsonOut({status: 'error', message: 'Missing name'});
+    if (!eventName) return jsonOut({status: 'error', message: 'Missing event'});
+    const sheet = ensureCheckInSheet(ss);
+    const row = [new Date(), eventName, data.eventDate || '', name, data.license || '', data.address || '', data.age || '', data.phone || '', data.checkInTime || '', data.isHeadPyro ? 'Yes' : '', 'Yes'];
+    sheet.appendRow(row);
+    return jsonOut({status: 'ok'});
+  }
+
   // Only a real check-in (which has no recordType) reaches here. Anything else is a request this script does not know,
   // and must not be quietly written into the check-in sheet.
   if (data.recordType) return jsonOut({status: 'error', message: 'Unknown request'});
 
-  const sheet = ss.getSheetByName('Sheet1');
-  sheet.appendRow([new Date(), data.event, data.eventDate, data.name, data.license, data.address, data.age, data.phone || '', data.checkInTime || '', data.isHeadPyro ? 'Yes' : '']);
+  const sheet = ensureCheckInSheet(ss);
+  sheet.appendRow([new Date(), data.event, data.eventDate, data.name, data.license, data.address, data.age, data.phone || '', data.checkInTime || '', data.isHeadPyro ? 'Yes' : '', '']);
   return ContentService.createTextOutput(JSON.stringify({status: 'ok'}))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Sheet1 predates the header-backfill pattern used elsewhere in this file and is written to
+// by fixed column position, not by name — this only adds the 11th column's label the first
+// time it's needed, so a plain check-in that never sets it still lines up under a real header.
+function ensureCheckInSheet(ss) {
+  const sheet = ss.getSheetByName('Sheet1');
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  if (!headers[10]) sheet.getRange(1, 11).setValue('SignedInByHP');
+  return sheet;
 }
 
 function normalizeDateValue(value) {
@@ -1647,6 +1673,22 @@ function doGet(e) {
     }
   }
 
+  // One person's full contact record, looked up by name, for Sign In Crew. Kept separate from
+  // pyroDirectory (which lists everyone but deliberately leaves out address/age/license-by-type)
+  // so that a bulk fetch never hands out every crew member's home address at once — this only
+  // ever returns one person's record, and only once a Head Pyro has actually picked that name.
+  if (e.parameter.type === 'hpContactLookup') {
+    const merged = getMergedContacts(ss);
+    const nameKey = String(e.parameter.name || '').trim().toLowerCase();
+    const match = merged[nameKey];
+    if (!match) return jsonOut({found: false});
+    return jsonOut({
+      found: true, name: match.name,
+      displayLicense: match.displayLicense || '', specialEffectsLicense: match.specialEffectsLicense || '', flameLicense: match.flameLicense || '',
+      address: match.address || '', age: match.age || '', phone: match.phone || ''
+    });
+  }
+
   if (e.parameter.type === 'pyroDirectory') {
     const merged = getMergedContacts(ss);
     const results = Object.values(merged)
@@ -1738,7 +1780,8 @@ function doGet(e) {
   const results = rows.slice(1)
     .map(row => ({
       timestamp: row[0], event: row[1], eventDate: normalizeDateValue(row[2]), name: row[3],
-      license: row[4], address: row[5], age: row[6], phone: row[7] || '', checkInTime: row[8] || '', isHeadPyro: row[9] === 'Yes'
+      license: row[4], address: row[5], age: row[6], phone: row[7] || '', checkInTime: row[8] || '', isHeadPyro: row[9] === 'Yes',
+      signedInByHp: row[10] === 'Yes'
     }))
     .filter(r => !eventFilter || String(r.event).toLowerCase() === eventFilter.toLowerCase());
   return ContentService.createTextOutput(JSON.stringify(results))
