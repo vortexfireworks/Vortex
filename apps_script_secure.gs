@@ -568,18 +568,19 @@ const GET_LEVELS = {
   names: 'public', verifyPerson: 'public', venues: 'public', announcements: 'public',
   contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin',
-  shellProducts: 'admin', cakeProducts: 'admin', products: 'admin', productImage: 'admin', showPlans: 'admin', fireworkProducts: 'admin',
+  shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
   aarReport: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
+  productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp',
   payroll: 'admin', deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
-  productsImport: 'admin', deleteProduct: 'admin', productsImageBackfill: 'admin',
-  showPlan: 'admin', deleteShowPlan: 'admin', fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
+  productsImport: 'admin', deleteProduct: 'admin',
+  fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
   inventoryContainer: 'admin', deleteInventoryContainer: 'admin', inventoryTransfer: 'admin',
   deleteAarReport: 'admin', backupNow: 'admin'
 };
