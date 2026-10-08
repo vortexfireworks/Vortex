@@ -513,7 +513,7 @@ const POST_LEVELS = {
   payroll: 'admin', deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
-  productsImport: 'admin', deleteProduct: 'admin',
+  productsImport: 'admin', deleteProduct: 'admin', productsImageBackfill: 'admin',
   showPlan: 'admin', deleteShowPlan: 'admin', fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
   inventoryContainer: 'admin', deleteInventoryContainer: 'admin', inventoryTransfer: 'admin',
   deleteAarReport: 'admin', backupNow: 'admin'
@@ -1066,6 +1066,33 @@ function doPost(e) {
       }
     }
     return jsonOut({status: 'ok'});
+  }
+
+  // Pre-fetches the supplier picture for every product that has a link and hasn't been
+  // checked yet, instead of waiting for someone to open each one in the Catalog. A web
+  // request here is capped at 6 minutes, and a few hundred supplier pages won't fit in
+  // that, so this does as many as it can and reports back how many are left — the page
+  // calling it keeps calling this in a loop (each call resuming where the last left off,
+  // since every fetch is written to the sheet immediately) until none remain.
+  if (data.recordType === 'productsImageBackfill') {
+    const startedAt = Date.now();
+    const timeBudgetMs = 4.5 * 60 * 1000;
+    const sheet = ss.getSheetByName('Products');
+    if (!sheet) return jsonOut({status: 'ok', processed: 0, remaining: 0, done: true});
+    const map = headerMap(sheet);
+    const values = sheet.getDataRange().getValues();
+    let processed = 0;
+    let remaining = 0;
+    for (let i = 1; i < values.length; i++) {
+      const url = String(values[i][map['Url']] || '');
+      const cached = String(values[i][map['ImageUrl']] || '');
+      if (!url || cached) continue;
+      if (Date.now() - startedAt > timeBudgetMs) { remaining++; continue; }
+      const found = fetchPageImage(url);
+      sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue(found || 'NONE');
+      processed++;
+    }
+    return jsonOut({status: 'ok', processed: processed, remaining: remaining, done: remaining === 0});
   }
 
   if (data.recordType === 'showPlan') {
