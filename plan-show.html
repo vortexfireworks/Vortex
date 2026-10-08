@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="auth.js"></script>
-<script>Auth.require('admin');</script>
+<script>Auth.require('hp');</script>
 <title>Plan a Firework Show — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
@@ -99,7 +99,7 @@ updateThemeToggleIcon();
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
 
-<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+<a class="back-link" href="hp-tools.html">&larr; Back to Head Pyro Tools</a>
 
 <div class="wrap">
   <header>
@@ -134,20 +134,6 @@ updateThemeToggleIcon();
     <div>
       <h2>Catalog</h2>
       <p>Search every product you've imported — by name, brand, category, or description — and add items straight to your active plan.</p>
-    </div>
-  </a>
-
-  <a class="card c3" href="import-products.html">
-    <div class="icon-circle">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
-        <path d="M12 4v11" stroke-width="1.6"/>
-        <path d="M8 11l4 4 4-4" stroke-width="1.6"/>
-        <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke-width="1.6"/>
-      </svg>
-    </div>
-    <div>
-      <h2>Import Product Lists</h2>
-      <p>Bring in your full product catalog from a CSV — any mix of categories — with a downloadable template.</p>
     </div>
   </a>
 
