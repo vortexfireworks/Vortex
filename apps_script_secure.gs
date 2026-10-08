@@ -527,6 +527,48 @@ function fetchAndSaveProductMedia(pageUrl, productName) {
   return { imageUrl: imageUrl, videoId: media.videoId || '' };
 }
 
+// TEMPORARY DIAGNOSTIC — run this manually from the Apps Script editor (select it in the
+// function dropdown next to Run, click Run, then View > Logs) to see exactly why every
+// product is coming back with no image or video: what HTTP status the supplier page
+// returned, how much HTML came back, and whether either pattern matched it.
+function debugFetchOneProduct() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = getOrCreateProductsSheet(ss);
+  const map = headerMap(sheet);
+  const values = sheet.getDataRange().getValues();
+  let row = null;
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][map['Url']] || '')) { row = values[i]; break; }
+  }
+  if (!row) { Logger.log('No product with a Url was found at all.'); return; }
+  const pageUrl = String(row[map['Url']] || '');
+  const name = String(row[map['Name']] || '');
+  Logger.log('Product: ' + name);
+  Logger.log('Url: ' + pageUrl);
+  try {
+    const res = UrlFetchApp.fetch(pageUrl, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
+    });
+    const code = res.getResponseCode();
+    Logger.log('HTTP status: ' + code);
+    if (code >= 400) { Logger.log('Stopped here — the page itself returned an error/blocked status.'); return; }
+    const html = res.getContentText();
+    Logger.log('HTML length: ' + html.length);
+    Logger.log('First 300 chars: ' + html.slice(0, 300));
+    const img = extractImageFromHtml(html, pageUrl);
+    const vid = extractYoutubeIdFromHtml(html);
+    Logger.log('Image match: ' + (img || '(none)'));
+    Logger.log('YouTube match: ' + (vid || '(none)'));
+    Logger.log('Has og:image tag anywhere: ' + /property=["\']og:image/i.test(html));
+    Logger.log('Has <img tag anywhere: ' + /<img\b/i.test(html));
+    Logger.log('Has youtube.com/youtu.be anywhere: ' + /youtube\.com|youtu\.be/i.test(html));
+  } catch (err) {
+    Logger.log('Fetch threw an error: ' + (err && err.message ? err.message : err));
+  }
+}
+
 function getOrCreatePhotoFolder() {
   const folderName = 'Vortex Operator Photos';
   const folders = DriveApp.getFoldersByName(folderName);
