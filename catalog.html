@@ -100,13 +100,48 @@ updateThemeToggleIcon();
 
   .cat-group{border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden;}
   .cat-group-head{background:var(--surface-5);padding:8px 12px;font-size:11.5px;font-weight:700;color:var(--kicker);display:flex;justify-content:space-between;gap:8px;}
-  .cat-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line);font-size:13px;}
+  .cat-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line);font-size:13px;cursor:pointer;}
+  .cat-row:hover{background:var(--surface-4);}
   .cat-row:first-of-type{border-top:none;}
   .cat-row .cr-main{flex:1 1 auto;min-width:0;}
   .cat-row .cr-title{font-weight:700;color:var(--ink);}
   .cat-row .cr-sub{color:var(--ink-soft);font-size:11.5px;margin-top:2px;}
   .cat-row button{flex:0 0 auto;font-size:12px;padding:6px 10px;}
   .cat-empty{font-size:12.5px;color:var(--ink-soft);padding:10px 0;}
+
+  /* ---- Item detail modal ---- */
+  .modal-backdrop{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .modal-box{
+    max-width:460px;width:100%;max-height:88vh;overflow-y:auto;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    backdrop-filter:blur(6px);position:relative;
+  }
+  .modal-close{
+    position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;
+    background:var(--surface-5);border:1px solid var(--line);color:var(--ink);
+    font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;
+  }
+  .modal-image-wrap{
+    width:100%;aspect-ratio:4/3;background:var(--surface-4);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    border-radius:14px 14px 0 0;
+  }
+  .modal-image-wrap img{width:100%;height:100%;object-fit:contain;}
+  .modal-image-wrap .mi-placeholder{font-size:12px;color:var(--ink-soft);text-align:center;padding:0 24px;}
+  .modal-body{padding:20px 22px 22px;}
+  .modal-body h3{margin:0 0 6px;font-size:17px;color:var(--ink);line-height:1.3;}
+  .modal-body .md-meta{font-size:12.5px;color:var(--ink-soft);margin:0 0 14px;}
+  .modal-body .md-meta b{color:var(--kicker);font-weight:700;}
+  .modal-body .md-desc{font-size:13px;color:var(--ink);line-height:1.55;margin:0 0 16px;}
+  .modal-body .md-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .modal-body a.md-link{
+    font-size:12.5px;font-weight:700;color:var(--navy);text-decoration:none;
+    border:1px solid var(--line);padding:8px 14px;border-radius:7px;
+  }
+  .modal-body a.md-link:hover{border-color:var(--navy);}
 </style>
 </head>
 <body>
@@ -151,6 +186,22 @@ updateThemeToggleIcon();
       </div>
       <div id="catalogList"><p class="hint" style="margin:0;">Loading…</p></div>
       <p class="hint" id="addStatus"></p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="itemModal" onclick="if(event.target===this) closeItemModal();">
+  <div class="modal-box">
+    <button type="button" class="modal-close" onclick="closeItemModal()" aria-label="Close">&#10005;</button>
+    <div class="modal-image-wrap" id="miImageWrap"></div>
+    <div class="modal-body">
+      <h3 id="miTitle"></h3>
+      <p class="md-meta" id="miMeta"></p>
+      <p class="md-desc" id="miDesc"></p>
+      <div class="md-actions">
+        <a class="md-link" id="miLink" href="#" target="_blank" rel="noopener" style="display:none;">View on supplier site &#8599;</a>
+        <button type="button" class="secondary" id="miAddBtn" onclick="addProductToPlan(currentModalId)">+ Add to plan</button>
+      </div>
     </div>
   </div>
 </div>
@@ -318,13 +369,66 @@ function productRowHtml(p, addDisabled){
   if(p.class) bits.push(esc(classLabel(p.class)));
   if(formatPrice(p.price)) bits.push(formatPrice(p.price));
   return `
-    <div class="cat-row">
+    <div class="cat-row" onclick="openItemModal('${p.id}')">
       <div class="cr-main">
         <div class="cr-title">${esc(p.name || '(unnamed product)')}</div>
         ${bits.length ? `<div class="cr-sub">${bits.join(' · ')}</div>` : ''}
       </div>
-      <button type="button" class="secondary" onclick="addProductToPlan('${p.id}')" ${addDisabled}>+ Add</button>
+      <button type="button" class="secondary" onclick="event.stopPropagation();addProductToPlan('${p.id}')" ${addDisabled}>+ Add</button>
     </div>`;
+}
+
+/* ---------------- Item detail modal, with a lazily-fetched-and-cached supplier picture ---------------- */
+let currentModalId = null;
+
+function openItemModal(productId){
+  const p = PRODUCTS.find(x => x.id === productId); if(!p) return;
+  currentModalId = productId;
+
+  $('miTitle').textContent = p.name || '(unnamed product)';
+  const metaBits = [p.brand, classLabel(p.class), p.category, formatPrice(p.price)].filter(Boolean);
+  $('miMeta').innerHTML = metaBits.map(esc).join(' &middot; ');
+  $('miDesc').textContent = p.description || '';
+  $('miDesc').style.display = p.description ? '' : 'none';
+
+  const linkEl = $('miLink');
+  if(p.url){ linkEl.href = p.url; linkEl.style.display = ''; } else { linkEl.style.display = 'none'; }
+
+  $('miAddBtn').disabled = !activePlanName;
+  $('miAddBtn').title = activePlanName ? '' : 'Choose an active plan above first';
+
+  renderModalImage(p);
+  $('itemModal').style.display = 'flex';
+}
+function closeItemModal(){
+  $('itemModal').style.display = 'none';
+  currentModalId = null;
+}
+
+function renderModalImage(p){
+  const wrap = $('miImageWrap');
+  if(p.imageUrl && p.imageUrl !== 'NONE'){
+    wrap.innerHTML = `<img src="${esc(p.imageUrl)}" alt="${esc(p.name || '')}" onerror="this.closest('.modal-image-wrap').innerHTML='<p class=&quot;mi-placeholder&quot;>No photo available.</p>'">`;
+    return;
+  }
+  if(p.imageUrl === 'NONE'){
+    wrap.innerHTML = '<p class="mi-placeholder">No photo found on the supplier page.</p>';
+    return;
+  }
+  if(!p.url){
+    wrap.innerHTML = '<p class="mi-placeholder">No supplier link saved for this item.</p>';
+    return;
+  }
+  wrap.innerHTML = '<p class="mi-placeholder">Looking for a photo on the supplier page&hellip;</p>';
+  fetch(`${CHECKIN_API_URL}?type=productImage&id=${encodeURIComponent(p.id)}`, { cache: 'no-store' })
+    .then(res => res.json())
+    .then(data => {
+      p.imageUrl = data.imageUrl || 'NONE';   // cache on the in-memory product so reopening is instant
+      if(currentModalId === p.id) renderModalImage(p);
+    })
+    .catch(() => {
+      if(currentModalId === p.id) wrap.innerHTML = '<p class="mi-placeholder">Could not check for a photo — check your connection and try again.</p>';
+    });
 }
 
 /* ---------------- Add to plan: always fetch the latest saved state first, then save immediately ---------------- */
@@ -336,10 +440,14 @@ async function fetchPlanFresh(name){
 }
 
 async function addProductToPlan(productId){
-  if(!activePlanName) return;
+  if(!activePlanName || !productId) return;
   const p = PRODUCTS.find(x => x.id === productId); if(!p) return;
   const st = $('addStatus');
+  const modalOpen = currentModalId === productId;
+  const addBtn = modalOpen ? $('miAddBtn') : null;
+  const addBtnOriginalText = addBtn ? addBtn.textContent : '';
   setStatus(st, 'Adding…');
+  if(addBtn){ addBtn.disabled = true; addBtn.textContent = 'Adding…'; }
   try{
     const plan = await fetchPlanFresh(activePlanName);
     plan.items.push({
@@ -348,8 +456,10 @@ async function addProductToPlan(productId){
     });
     await postJson({ recordType: 'showPlan', name: plan.name, originalName: plan.name, items: plan.items });
     setStatus(st, `Added ${p.name || 'product'} to "${activePlanName}" ✓`, 'ok');
+    if(addBtn){ addBtn.textContent = 'Added ✓'; setTimeout(() => { addBtn.disabled = !activePlanName; addBtn.textContent = addBtnOriginalText; }, 1400); }
   } catch(err){
     setStatus(st, 'Could not add — check your connection and try again.', 'err');
+    if(addBtn){ addBtn.disabled = false; addBtn.textContent = addBtnOriginalText; }
   }
 }
 

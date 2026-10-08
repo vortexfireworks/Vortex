@@ -149,7 +149,7 @@ function getOrCreateCakeProductsSheet(ss) {
 // categorizes it (Cakes, Shells 3in, Fountains, Comets, Finale Chains, ...), with
 // price and a description carried straight through from the price list.
 function getOrCreateProductsSheet(ss) {
-  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Price', 'Description', 'Url'];
+  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Price', 'Description', 'Url', 'ImageUrl'];
   let sheet = ss.getSheetByName('Products');
   if (!sheet) {
     sheet = ss.insertSheet('Products');
@@ -413,6 +413,55 @@ function headerMap(sheet) {
   return map;
 }
 
+// Fetches a product's supplier page and pulls out its main picture — tries the
+// standard social-preview meta tags first (what a page author intends as "the" image
+// for the product), then falls back to the first plausible-looking <img> on the page.
+function fetchPageImage(pageUrl) {
+  let html;
+  try {
+    const res = UrlFetchApp.fetch(pageUrl, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
+    });
+    if (res.getResponseCode() >= 400) return '';
+    html = res.getContentText();
+  } catch (err) {
+    return '';
+  }
+  const metaPatterns = [
+    /<meta[^>]+property=["']og:image(?::secure_url)?["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image(?::secure_url)?["']/i,
+    /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i
+  ];
+  for (const pattern of metaPatterns) {
+    const m = html.match(pattern);
+    if (m && m[1]) return resolveUrl(m[1], pageUrl);
+  }
+  // No social-preview tag — fall back to the first product-looking <img> (skip tiny
+  // icons/logos by requiring it to come from an uploads/media-style path).
+  const imgMatches = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
+  for (const tag of imgMatches) {
+    const m = tag.match(/src=["']([^"']+)["']/i);
+    if (m && m[1] && /uploads|products|media|cdn/i.test(m[1]) && !/logo|icon|sprite/i.test(m[1])) {
+      return resolveUrl(m[1], pageUrl);
+    }
+  }
+  return '';
+}
+function resolveUrl(url, base) {
+  if (/^https?:\/\//i.test(url)) return url;
+  try {
+    const b = base.match(/^(https?:\/\/[^\/]+)/i);
+    if (url.indexOf('//') === 0) return 'https:' + url;
+    if (url.indexOf('/') === 0 && b) return b[1] + url;
+    return url;
+  } catch (err) {
+    return url;
+  }
+}
+
 function getOrCreatePhotoFolder() {
   const folderName = 'Vortex Operator Photos';
   const folders = DriveApp.getFoldersByName(folderName);
@@ -454,7 +503,7 @@ const GET_LEVELS = {
   names: 'public', verifyPerson: 'public', venues: 'public', announcements: 'public',
   contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin',
-  shellProducts: 'admin', cakeProducts: 'admin', products: 'admin', showPlans: 'admin', fireworkProducts: 'admin',
+  shellProducts: 'admin', cakeProducts: 'admin', products: 'admin', productImage: 'admin', showPlans: 'admin', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
@@ -1639,11 +1688,39 @@ function doGet(e) {
           brand: String(r[map['Brand']] || ''),
           price: String(r[map['Price']] || ''),
           description: String(r[map['Description']] || ''),
-          url: String(r[map['Url']] || '')
+          url: String(r[map['Url']] || ''),
+          imageUrl: String(r[map['ImageUrl']] || '')
         });
       });
     }
     return jsonOut({products: products});
+  }
+
+  // Looks up (and caches, in the ImageUrl column) the picture on a product's supplier page,
+  // for the Catalog's item detail view. A plain client-side fetch of another site's page
+  // almost never has CORS allowed, so this has to happen here, server-side, once per product —
+  // after that, the Products GET above just returns the cached URL for free.
+  if (e.parameter.type === 'productImage') {
+    const id = String(e.parameter.id || '').trim();
+    if (!id) return jsonOut({imageUrl: '', error: 'Missing product id'});
+    const sheet = ss.getSheetByName('Products');
+    if (!sheet) return jsonOut({imageUrl: '', error: 'No products yet'});
+    const map = headerMap(sheet);
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][map['Id']]) !== id) continue;
+      const cached = String(rows[i][map['ImageUrl']] || '');
+      if (cached) return jsonOut({imageUrl: cached === 'NONE' ? '' : cached});
+      const pageUrl = String(rows[i][map['Url']] || '');
+      if (!pageUrl) {
+        sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue('NONE');
+        return jsonOut({imageUrl: '', error: 'This product has no supplier link saved'});
+      }
+      const found = fetchPageImage(pageUrl);
+      sheet.getRange(i + 1, map['ImageUrl'] + 1).setValue(found || 'NONE');
+      return jsonOut({imageUrl: found || '', error: found ? '' : 'No picture found on that page'});
+    }
+    return jsonOut({imageUrl: '', error: 'Product not found'});
   }
 
   if (e.parameter.type === 'showPlans') {
