@@ -292,6 +292,14 @@ function formatPrice(v){
   const n = Number(v);
   return isFinite(n) && v !== '' ? '$' + n.toFixed(2) : '';
 }
+// Most saved videos are a plain YouTube id, but some supplier sites only embed a
+// Wistia player — those are saved prefixed as "wistia:<id>" so the right embed URL
+// can be built for whichever kind this product has.
+function videoEmbedUrl(videoId){
+  const v = String(videoId || '');
+  if(v.indexOf('wistia:') === 0) return `https://fast.wistia.net/embed/iframe/${encodeURIComponent(v.slice(7))}`;
+  return `https://www.youtube.com/embed/${encodeURIComponent(v)}`;
+}
 // Categories sort in this order when they appear, then anything else falls in alphabetically after.
 const CATEGORY_ORDER = [
   'Cakes', '500 Gram Cakes', '200 Gram Cakes', 'Compound Cakes', 'Shell Cakes',
@@ -584,7 +592,7 @@ function renderModalImage(p){
     const photoThumb = hasImage
       ? `<div class="mi-photo-thumb"><img src="${esc(p.imageUrl)}" alt="${esc(p.name || '')}" onerror="this.closest('.mi-photo-thumb').remove()"></div>`
       : '';
-    wrap.innerHTML = `<iframe src="https://www.youtube.com/embed/${esc(p.videoId)}" title="${esc(p.name || 'Product video')}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen onerror="this.closest('.modal-image-wrap').innerHTML='<p class=&quot;mi-placeholder&quot;>Video unavailable.</p>'"></iframe>${photoThumb}`;
+    wrap.innerHTML = `<iframe src="${esc(videoEmbedUrl(p.videoId))}" title="${esc(p.name || 'Product video')}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen onerror="this.closest('.modal-image-wrap').innerHTML='<p class=&quot;mi-placeholder&quot;>Video unavailable.</p>'"></iframe>${photoThumb}`;
     return;
   }
   if(hasImage){

@@ -464,6 +464,21 @@ function extractYoutubeIdFromHtml(html) {
   }
   return '';
 }
+// Pulls a Wistia video id out of the page — an embedded iframe src, or the
+// wistia_embed/wistia_async_<id> div class some sites use instead. Wistia ids are
+// returned prefixed ("wistia:<id>") so the catalog page's video player can tell them
+// apart from a plain YouTube id and build the right embed URL for each.
+function extractWistiaIdFromHtml(html) {
+  const patterns = [
+    /fast\.wistia\.(?:net|com)\/embed\/(?:iframe|medias)\/([A-Za-z0-9]{8,12})/i,
+    /wistia_async_([A-Za-z0-9]{8,12})/i
+  ];
+  for (const pattern of patterns) {
+    const m = html.match(pattern);
+    if (m && m[1]) return 'wistia:' + m[1];
+  }
+  return '';
+}
 // shop.76fireworks.com is a JS-rendered React app — its product pages ship as an
 // almost-empty HTML shell with no og:image/twitter:image tags and no <img>/YouTube
 // markup at all, so the normal HTML scrape below always comes back empty for it.
@@ -540,7 +555,8 @@ function fetchProductMedia(pageUrl) {
   } catch (err) {
     return { imageUrl: '', videoId: '' };
   }
-  return { imageUrl: extractImageFromHtml(html, pageUrl), videoId: extractYoutubeIdFromHtml(html) };
+  const videoId = extractYoutubeIdFromHtml(html) || extractWistiaIdFromHtml(html);
+  return { imageUrl: extractImageFromHtml(html, pageUrl), videoId: videoId };
 }
 function resolveUrl(url, base) {
   if (/^https?:\/\//i.test(url)) return url;
