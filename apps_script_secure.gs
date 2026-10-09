@@ -1287,9 +1287,22 @@ function doPostInner(e) {
     if (rows.length > 5000) return jsonOut({status: 'error', message: 'That CSV has too many rows to import at once (max 5000)'});
     const sheet = getOrCreateProductsSheet(ss);
     const map = headerMap(sheet);
-    const bulk = rows.map(r => {
+    // A row whose Id column matches an existing product updates that row in place
+    // instead of appending a duplicate — this is what makes "export the catalog, edit
+    // it, re-import the same file" work as a round trip rather than piling up copies.
+    const existingRows = sheet.getDataRange().getValues();
+    const idRowNumber = {};
+    for (let i = 1; i < existingRows.length; i++) {
+      const id = String(existingRows[i][map['Id']] || '').trim();
+      if (id) idRowNumber[id] = i + 1;
+    }
+    const newRows = [];
+    let created = 0, updated = 0;
+    rows.forEach(r => {
+      const id = String(r.id || '').trim();
+      const matchedRow = id && idRowNumber[id] ? idRowNumber[id] : -1;
       const row = new Array(Object.keys(map).length).fill('');
-      row[map['Id']] = Utilities.getUuid();
+      row[map['Id']] = matchedRow > 0 ? id : Utilities.getUuid();
       row[map['Class']] = String(r.class || '');
       row[map['Category']] = String(r.category || '');
       row[map['Name']] = String(r.name || '');
@@ -1301,10 +1314,24 @@ function doPostInner(e) {
       row[map['Price']] = String(r.price || '');
       row[map['Description']] = String(r.description || '');
       row[map['Url']] = String(r.url || '');
-      return row;
+      if (matchedRow > 0) {
+        // Keep the cached photo/video unless the supplier link itself changed —
+        // same rule the single-item editor uses.
+        const existingUrl = String(existingRows[matchedRow - 1][map['Url']] || '');
+        const urlChanged = row[map['Url']] !== existingUrl;
+        row[map['ImageUrl']] = urlChanged ? '' : String(existingRows[matchedRow - 1][map['ImageUrl']] || '');
+        row[map['VideoId']] = urlChanged ? '' : String(existingRows[matchedRow - 1][map['VideoId']] || '');
+        sheet.getRange(matchedRow, 1, 1, row.length).setValues([row]);
+        updated++;
+      } else {
+        newRows.push(row);
+        created++;
+      }
     });
-    sheet.getRange(sheet.getLastRow() + 1, 1, bulk.length, bulk[0].length).setValues(bulk);
-    return jsonOut({status: 'ok', imported: bulk.length});
+    if (newRows.length) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
+    }
+    return jsonOut({status: 'ok', imported: created, updated: updated});
   }
 
   if (data.recordType === 'deleteProduct') {

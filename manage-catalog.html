@@ -243,10 +243,11 @@ updateThemeToggleIcon();
         Import from CSV
         <input type="file" id="productsCsvFile" accept=".csv,text/csv" style="display:none;" onchange="handleProductsCsv(event)">
       </label>
-      <button class="secondary" type="button" onclick="downloadTemplate()">⬇ Download template</button>
+      <button class="secondary" type="button" onclick="exportProductsCsv()">⬇ Export catalog to CSV</button>
+      <button class="secondary" type="button" onclick="downloadTemplate()">⬇ Download blank template</button>
       <button class="secondary" type="button" onclick="findDuplicateProducts()">Find duplicates</button>
     </div>
-    <p class="hint">CSV columns: Class, Category, Product Name, Brand, Color, Effect, Duration, Price, Description, Product URL (Color, Effect, and Duration are optional — rows without them still import fine). You can also add a "Kurtis Approved" column with Yes/No to mark items in bulk. Importing always adds new rows — re-importing the same file will create duplicates, so use Find Duplicates afterward if that happens.</p>
+    <p class="hint">CSV columns: Id, Class, Category, Product Name, Brand, Color, Effect, Duration, Price, Description, Product URL, Kurtis Approved (every column but Product Name and Category is optional). "Export catalog to CSV" downloads everything currently in the catalog — edit it and re-import the same file to update those rows in place (matched by the Id column) instead of creating duplicates. Rows with no Id, or an Id that isn't found, are added as new products.</p>
     <p id="csvImportStatus" class="hint"></p>
     <div id="duplicatesWrap" style="margin:10px 0 16px;"></div>
 
@@ -613,12 +614,20 @@ function downloadCsv(filename, rows){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+const PRODUCT_CSV_HEADER = ['Id', 'Class', 'Category', 'Product Name', 'Brand', 'Color', 'Effect', 'Duration', 'Price', 'Description', 'Product URL', 'Kurtis Approved'];
+function productToCsvRow(p){
+  return [p.id || '', p.class || '', p.category || '', p.name || '', p.brand || '', p.color || '', p.effect || '', p.duration || '', p.price || '', p.description || '', p.url || '', p.kurtisApproved ? 'Yes' : ''];
+}
 function downloadTemplate(){
   downloadCsv('products-template.csv', [
-    ['Class', 'Category', 'Product Name', 'Brand', 'Color', 'Effect', 'Duration', 'Price', 'Description', 'Product URL'],
-    ['1.3', 'Cakes', 'Cake - 100 Shot Red Peony to Blue Strobe', 'Dancing 1.3G Fireworks', 'Red/Blue', 'Peony', '45 seconds', '117.25', 'This is a 100 Shot 1.3g Cake.', 'https://example.com/product'],
-    ['1.4', 'Fountains', 'Gold Fountain', 'Brand Name', 'Gold', 'Crackle', '30 seconds', '12.50', 'A short description.', '']
+    PRODUCT_CSV_HEADER,
+    ['', '1.3', 'Cakes', 'Cake - 100 Shot Red Peony to Blue Strobe', 'Dancing 1.3G Fireworks', 'Red/Blue', 'Peony', '45 seconds', '117.25', 'This is a 100 Shot 1.3g Cake.', 'https://example.com/product', ''],
+    ['', '1.4', 'Fountains', 'Gold Fountain', 'Brand Name', 'Gold', 'Crackle', '30 seconds', '12.50', 'A short description.', '', '']
   ]);
+}
+function exportProductsCsv(){
+  if(!PRODUCTS.length){ setStatus($('csvImportStatus'), 'Nothing to export yet — the catalog is empty.', 'err'); return; }
+  downloadCsv('products-export.csv', [PRODUCT_CSV_HEADER, ...PRODUCTS.map(productToCsvRow)]);
 }
 
 function parseCSV(text){
@@ -673,6 +682,7 @@ function rowsToObjects(rows, idx){
   }).filter(obj => Object.values(obj).some(v => v !== ''));
 }
 const PRODUCT_ALIASES = {
+  id: ['id'],
   productClass: ['class'],
   category: ['category'],
   name: ['productname','name'],
@@ -699,6 +709,7 @@ async function handleProductsCsv(event){
     const idx = buildHeaderIndex(rows[0], PRODUCT_ALIASES);
     if(idx.name === -1 && idx.category === -1){ setStatus(st, 'Could not find expected columns — check the header row.', 'err'); return; }
     const objs = rowsToObjects(rows, idx).map(o => ({
+      id: o.id,
       class: o.productClass,
       category: o.category,
       name: o.name,
@@ -713,8 +724,13 @@ async function handleProductsCsv(event){
     })).filter(o => o.name || o.category);
     if(!objs.length){ setStatus(st, 'No usable rows found in that file.', 'err'); return; }
     setStatus(st, `Importing ${objs.length} rows…`);
-    await postJson({ recordType: 'productsImport', rows: objs });
-    setStatus(st, `Imported ${objs.length} product${objs.length === 1 ? '' : 's'} from ${file.name} ✓`, 'ok');
+    const result = await postJson({ recordType: 'productsImport', rows: objs });
+    const created = result.imported || 0;
+    const updated = result.updated || 0;
+    const summary = updated
+      ? `Imported ${created} new and updated ${updated} existing product${(created + updated) === 1 ? '' : 's'} from ${file.name} ✓`
+      : `Imported ${created} product${created === 1 ? '' : 's'} from ${file.name} ✓`;
+    setStatus(st, summary, 'ok');
     await loadProducts();
   } catch(err){
     setStatus(st, 'Could not import — check your connection and the file, then try again.', 'err');
