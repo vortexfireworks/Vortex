@@ -5,11 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="auth.js"></script>
 <script>Auth.require('hp');</script>
-<title>Plan a Show — CueSheet</title>
+<title>Show Plans — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
 <meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <script>
 function toggleTheme(){
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -76,12 +77,13 @@ updateThemeToggleIcon();
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
-  input[type=text], input[type=number], select{
+  input[type=text], input[type=number], select, textarea{
     font-size:14px; padding:9px 11px; border:1px solid var(--line);
     border-radius:6px; background:var(--surface-55); color:var(--ink);
     width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
   }
-  input:focus, select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  textarea{resize:vertical;line-height:1.5;}
+  input:focus, select:focus, textarea:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
   button.secondary{background:none; border:1px solid var(--line); color:var(--navy);font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;}
   button.secondary:hover{border-color:var(--navy);}
   .editor-box{background:var(--surface-4);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:24px;}
@@ -111,7 +113,7 @@ updateThemeToggleIcon();
 <header>
   <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
   <p class="kicker">Vortex Productions Inc.</p>
-  <h1>Plan a Show</h1>
+  <h1>Show Plans</h1>
 </header>
 
 <div class="divider"></div>
@@ -142,9 +144,16 @@ updateThemeToggleIcon();
         <p class="hint" id="planStatus"></p>
       </div>
 
+      <div class="editor-box">
+        <p class="label-title">NOTES</p>
+        <p class="hint" style="margin:0 0 10px;">Fill this in by hand — crew notes, site details, special instructions. It's saved with the plan and printed on the PDF.</p>
+        <textarea id="planNotes" rows="4" placeholder="e.g. Setup 2pm, load-in at the north gate, fire from the gravel pad…" oninput="onNotesInput()"></textarea>
+      </div>
+
       <div class="save-row" style="flex-wrap:wrap;">
         <button type="button" class="secondary" onclick="renamePlan()">Rename plan</button>
         <button type="button" class="secondary" onclick="deletePlan()">Delete plan</button>
+        <button type="button" class="secondary" onclick="exportPlanPdf()">Export to PDF</button>
         <span id="actionStatus" class="hint"></span>
       </div>
     </div>
@@ -210,7 +219,9 @@ let PLANS = {};
 let currentPlanName = null;
 let originalPlanName = null;
 let planItems = [];
+let planNotes = '';
 let qtySaveTimer = null;
+let notesSaveTimer = null;
 
 async function loadPlans(keepSelected){
   try{
@@ -244,7 +255,7 @@ function onPlanSelectChange(){
   }
   $('newPlanField').style.display = 'none';
   if(!val){
-    currentPlanName = null; originalPlanName = null; planItems = [];
+    currentPlanName = null; originalPlanName = null; planItems = []; planNotes = '';
     setActivePlan(null);
     $('planArea').style.display = 'none';
     $('noPlanMsg').style.display = '';
@@ -276,8 +287,10 @@ function openPlan(name){
   currentPlanName = name;
   originalPlanName = name;
   setActivePlan(name);
-  const p = PLANS[keyOf(name)] || { name, items: [] };
+  const p = PLANS[keyOf(name)] || { name, items: [], notes: '' };
   planItems = (p.items || []).map(it => Object.assign({}, it, { id: it.id || newId() }));
+  planNotes = p.notes || '';
+  $('planNotes').value = planNotes;
   $('planArea').style.display = '';
   $('noPlanMsg').style.display = 'none';
   setStatus($('planStatus'), '');
@@ -342,6 +355,12 @@ function setPlanItemQty(id, value){
   clearTimeout(qtySaveTimer);
   qtySaveTimer = setTimeout(savePlanNow, 600);
 }
+function onNotesInput(){
+  planNotes = $('planNotes').value;
+  setStatus($('planStatus'), 'Saving…');
+  clearTimeout(notesSaveTimer);
+  notesSaveTimer = setTimeout(savePlanNow, 600);
+}
 function removePlanItem(id){
   planItems = planItems.filter(x => x.id !== id);
   renderPlanItems();
@@ -354,8 +373,8 @@ async function savePlanNow(){
   const st = $('planStatus');
   const items = planItems.map(it => Object.assign({}, it, { qty: toQty(it.qty) || 0 }));
   try{
-    await postJson({ recordType: 'showPlan', name: currentPlanName, originalName: originalPlanName, items });
-    PLANS[keyOf(currentPlanName)] = { name: currentPlanName, items, updatedAt: new Date().toISOString() };
+    await postJson({ recordType: 'showPlan', name: currentPlanName, originalName: originalPlanName, items, notes: planNotes });
+    PLANS[keyOf(currentPlanName)] = { name: currentPlanName, items, notes: planNotes, updatedAt: new Date().toISOString() };
     setStatus(st, 'Saved ✓', 'ok');
   } catch(err){
     setStatus(st, 'Could not save — check your connection. Your change is still on screen; it will try again if you edit something else.', 'err');
@@ -371,9 +390,9 @@ async function renamePlan(){
   setStatus($('actionStatus'), 'Renaming…');
   try{
     const items = planItems.map(it => Object.assign({}, it, { qty: toQty(it.qty) || 0 }));
-    await postJson({ recordType: 'showPlan', name, originalName: originalPlanName, items });
+    await postJson({ recordType: 'showPlan', name, originalName: originalPlanName, items, notes: planNotes });
     delete PLANS[keyOf(currentPlanName)];
-    PLANS[keyOf(name)] = { name, items, updatedAt: new Date().toISOString() };
+    PLANS[keyOf(name)] = { name, items, notes: planNotes, updatedAt: new Date().toISOString() };
     currentPlanName = name; originalPlanName = name;
     setActivePlan(name);
     buildPlanOptions(name);
@@ -389,7 +408,7 @@ async function deletePlan(){
   try{
     await postJson({ recordType: 'deleteShowPlan', name: currentPlanName });
     delete PLANS[keyOf(currentPlanName)];
-    currentPlanName = null; originalPlanName = null; planItems = [];
+    currentPlanName = null; originalPlanName = null; planItems = []; planNotes = '';
     setActivePlan(null);
     buildPlanOptions('');
     $('planSelect').value = '';
@@ -398,6 +417,149 @@ async function deletePlan(){
   } catch(err){
     setStatus($('actionStatus'), 'Could not delete — check your connection and try again.', 'err');
   }
+}
+
+function planItemPdfLine(it){
+  if(it.refType === 'product'){
+    const bits = [it.brand, classLabel(it.class), it.category].filter(Boolean);
+    return { title: it.name || '(unnamed product)', sub: bits.join(' · '), qty: Number(it.qty) || 0, price: it.price };
+  }
+  if(it.refType === 'cake'){
+    const bits = [it.manufacturer, it.shotCount ? it.shotCount + ' shots' : '', it.gram ? it.gram + 'g' : '', it.colors, it.effects].filter(Boolean);
+    return { title: it.name || '(unnamed cake)', sub: bits.join(' · '), qty: Number(it.qty) || 0, price: it.price };
+  }
+  const bits = [it.manufacturer, it.colors, it.effect, it.itemNumber ? 'Item# ' + it.itemNumber : '', it.sku ? 'SKU ' + it.sku : ''].filter(Boolean);
+  return { title: sizeLabel(it.size), sub: bits.join(' · '), qty: Number(it.qty) || 0, price: it.price };
+}
+
+function exportPlanPdf(){
+  if(!currentPlanName) return;
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('The PDF library did not load — check your connection and try again.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 48;
+  let y = 56;
+
+  // Vortex Productions Inc. header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('Vortex Productions Inc.', marginX, y);
+  y += 20;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(110);
+  doc.text('vortexfireworksartists@gmail.com', marginX, y);
+  doc.setTextColor(0);
+  y += 22;
+  doc.setDrawColor(200);
+  doc.line(marginX, y, pageWidth - marginX, y);
+  y += 26;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text(`Show Plan: ${currentPlanName}`, marginX, y);
+  y += 16;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(110);
+  doc.text(`Printed ${new Date().toLocaleString()}`, marginX, y);
+  doc.setTextColor(0);
+  y += 26;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11.5);
+  doc.text('ITEMS', marginX, y);
+  y += 14;
+  doc.setDrawColor(220);
+  doc.line(marginX, y, pageWidth - marginX, y);
+  y += 16;
+
+  const ensureRoom = (needed) => {
+    if(y + needed > doc.internal.pageSize.getHeight() - 56){
+      doc.addPage();
+      y = 56;
+    }
+  };
+
+  doc.setFont('helvetica', 'normal');
+  if(!planItems.length){
+    doc.setFontSize(10.5);
+    doc.setTextColor(110);
+    doc.text('Nothing added yet.', marginX, y);
+    doc.setTextColor(0);
+    y += 18;
+  } else {
+    let total = 0;
+    planItems.forEach(it => {
+      const line = planItemPdfLine(it);
+      ensureRoom(34);
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      const qtyLabel = `${line.qty} ×  `;
+      doc.text(qtyLabel + line.title, marginX, y);
+      let lineTotalText = '';
+      if(formatPrice(line.price)){
+        const lt = Number(line.price) * line.qty;
+        total += lt;
+        lineTotalText = formatPrice(lt);
+        doc.text(lineTotalText, pageWidth - marginX, y, { align: 'right' });
+      }
+      y += 13;
+      if(line.sub){
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(110);
+        doc.text(line.sub, marginX + 14, y);
+        doc.setTextColor(0);
+        y += 13;
+      }
+      y += 7;
+    });
+    if(total > 0){
+      ensureRoom(26);
+      doc.setDrawColor(220);
+      doc.line(marginX, y, pageWidth - marginX, y);
+      y += 16;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11.5);
+      doc.text('Total', marginX, y);
+      doc.text(formatPrice(total), pageWidth - marginX, y, { align: 'right' });
+      y += 20;
+    }
+  }
+
+  // Manual notes section — hand-filled, printed as-is.
+  ensureRoom(40);
+  y += 10;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11.5);
+  doc.text('NOTES', marginX, y);
+  y += 14;
+  doc.setDrawColor(220);
+  doc.line(marginX, y, pageWidth - marginX, y);
+  y += 16;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10.5);
+  const notesText = (planNotes || '').trim();
+  if(notesText){
+    const wrapped = doc.splitTextToSize(notesText, pageWidth - marginX * 2);
+    wrapped.forEach(line => {
+      ensureRoom(16);
+      doc.text(line, marginX, y);
+      y += 15;
+    });
+  } else {
+    doc.setTextColor(150);
+    doc.text('(none)', marginX, y);
+    doc.setTextColor(0);
+  }
+
+  const safeName = currentPlanName.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') || 'show-plan';
+  doc.save(`${safeName}.pdf`);
 }
 
 (async function init(){

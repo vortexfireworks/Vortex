@@ -166,7 +166,7 @@ function getOrCreateProductsSheet(ss) {
 }
 
 function getOrCreateShowPlansSheet(ss) {
-  const requiredHeaders = ['Name', 'ItemsJson', 'UpdatedAt'];
+  const requiredHeaders = ['Name', 'ItemsJson', 'Notes', 'UpdatedAt'];
   let sheet = ss.getSheetByName('ShowPlans');
   if (!sheet) {
     sheet = ss.insertSheet('ShowPlans');
@@ -1327,17 +1327,22 @@ function doPostInner(e) {
     if (!name) return jsonOut({status: 'error', message: 'Missing plan name'});
     const itemsJson = JSON.stringify(Array.isArray(data.items) ? data.items : []);
     if (itemsJson.length > 200000) return jsonOut({status: 'error', message: 'That plan is too large to save at once'});
+    const notes = String(data.notes || '');
     const sheet = getOrCreateShowPlansSheet(ss);
     const map = headerMap(sheet);
     const row = findShowPlanRow(sheet, map, data.originalName || name);
     if (row > 0) {
       sheet.getRange(row, map['Name'] + 1).setValue(name);
       sheet.getRange(row, map['ItemsJson'] + 1).setValue(itemsJson);
+      // Notes is only sent when the caller is actually editing it (the plan-a-show page
+      // sends it on every save); guard anyway so an older/partial payload can't wipe it.
+      if (data.notes !== undefined) sheet.getRange(row, map['Notes'] + 1).setValue(notes);
       sheet.getRange(row, map['UpdatedAt'] + 1).setValue(new Date());
     } else {
-      const newRow = ['', '', ''];
+      const newRow = ['', '', '', ''];
       newRow[map['Name']] = name;
       newRow[map['ItemsJson']] = itemsJson;
+      newRow[map['Notes']] = notes;
       newRow[map['UpdatedAt']] = new Date();
       sheet.appendRow(newRow);
     }
@@ -2059,6 +2064,7 @@ function doGetInner(e) {
         plans.push({
           name: name,
           items: items,
+          notes: String(r[map['Notes']] || ''),
           updatedAt: updated instanceof Date ? updated.toISOString() : String(updated || '')
         });
       });
