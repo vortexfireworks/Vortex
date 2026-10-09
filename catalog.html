@@ -188,6 +188,21 @@ updateThemeToggleIcon();
         <label for="categorySelect">Category</label>
         <select id="categorySelect" onchange="renderCatalog()"><option value="">All categories</option></select>
       </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label for="colorSelect">Color</label>
+        <select id="colorSelect" onchange="renderCatalog()"><option value="">All colors</option></select>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label for="sortSelect">Sort by</label>
+        <select id="sortSelect" onchange="renderCatalog()">
+          <option value="name-asc">Name (A–Z)</option>
+          <option value="name-desc">Name (Z–A)</option>
+          <option value="brand-asc">Manufacturer (A–Z)</option>
+          <option value="color-asc">Color (A–Z)</option>
+          <option value="price-asc">Price (Low to High)</option>
+          <option value="price-desc">Price (High to Low)</option>
+        </select>
+      </div>
       <div class="tabs">
         <button type="button" id="tabAll" class="active" onclick="setClassTab('')">All</button>
         <button type="button" id="tabDisplay" onclick="setClassTab('1.3')">1.3G Display</button>
@@ -332,6 +347,43 @@ function buildCategoryOptions(){
   sel.innerHTML = '<option value="">All categories</option>' +
     categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   if(current && categories.includes(current)) sel.value = current;
+
+  const colorSel = $('colorSelect');
+  const currentColor = colorSel.value;
+  const colors = Array.from(new Set(PRODUCTS.map(p => p.color).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  colorSel.innerHTML = '<option value="">All colors</option>' +
+    colors.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(currentColor && colors.includes(currentColor)) colorSel.value = currentColor;
+}
+
+// Blank values always sort to the end, whichever direction and field is chosen, so
+// un-filled items don't scatter to the top of a price or color sort.
+function productComparator(sortBy){
+  const priceOf = p => { const n = Number(p.price); return isFinite(n) ? n : null; };
+  return (a, b) => {
+    switch(sortBy){
+      case 'name-desc': return b.name.localeCompare(a.name);
+      case 'brand-asc': {
+        const ab = !!a.brand, bb = !!b.brand;
+        if(ab !== bb) return ab ? -1 : 1;
+        return keyOf(a.brand).localeCompare(keyOf(b.brand)) || a.name.localeCompare(b.name);
+      }
+      case 'color-asc': {
+        const ac = !!a.color, bc = !!b.color;
+        if(ac !== bc) return ac ? -1 : 1;
+        return keyOf(a.color).localeCompare(keyOf(b.color)) || a.name.localeCompare(b.name);
+      }
+      case 'price-asc': case 'price-desc': {
+        const ap = priceOf(a), bp = priceOf(b);
+        if(ap === null || bp === null){
+          if(ap === null && bp === null) return a.name.localeCompare(b.name);
+          return ap === null ? 1 : -1;
+        }
+        return sortBy === 'price-asc' ? (ap - bp || a.name.localeCompare(b.name)) : (bp - ap || a.name.localeCompare(b.name));
+      }
+      case 'name-asc': default: return a.name.localeCompare(b.name);
+    }
+  };
 }
 
 function setClassTab(cls){
@@ -347,19 +399,22 @@ function matchesSearch(hay, term){ return hay.some(v => keyOf(v).includes(term))
 function renderCatalog(){
   const term = keyOf($('catalogSearch').value);
   const category = $('categorySelect').value;
+  const color = $('colorSelect').value;
+  const sortBy = $('sortSelect').value;
   const wrap = $('catalogList');
   const addDisabled = activePlanName ? '' : 'disabled title="Choose an active plan above first"';
 
   let items = PRODUCTS;
   if(classFilter) items = items.filter(p => keyOf(p.class) === classFilter);
   if(category) items = items.filter(p => p.category === category);
-  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.description], term));
+  if(color) items = items.filter(p => p.color === color);
+  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.description], term));
 
   if(!items.length){ wrap.innerHTML = '<p class="cat-empty">Nothing matches yet. Import a CSV, or adjust your search and filters.</p>'; return; }
 
   if(category){
     wrap.innerHTML = items
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort(productComparator(sortBy))
       .map(p => productRowHtml(p, addDisabled)).join('');
     return;
   }
@@ -372,13 +427,14 @@ function renderCatalog(){
   wrap.innerHTML = catNames.map(cat => `
     <div class="cat-group">
       <div class="cat-group-head"><span>${esc(cat)}</span><span>${groups[cat].length}</span></div>
-      ${groups[cat].sort((a, b) => a.name.localeCompare(b.name)).map(p => productRowHtml(p, addDisabled)).join('')}
+      ${groups[cat].sort(productComparator(sortBy)).map(p => productRowHtml(p, addDisabled)).join('')}
     </div>`).join('');
 }
 
 function productRowHtml(p, addDisabled){
   const bits = [];
   if(p.brand) bits.push(esc(p.brand));
+  if(p.color) bits.push(esc(p.color));
   if(p.class) bits.push(esc(classLabel(p.class)));
   if(formatPrice(p.price)) bits.push(formatPrice(p.price));
   const hasVideo = p.videoId && p.videoId !== 'NONE';
@@ -405,7 +461,7 @@ function openItemModal(productId){
   currentModalId = productId;
 
   $('miTitle').textContent = p.name || '(unnamed product)';
-  const metaBits = [p.brand, classLabel(p.class), p.category, formatPrice(p.price)].filter(Boolean);
+  const metaBits = [p.brand, p.color, classLabel(p.class), p.category, formatPrice(p.price)].filter(Boolean);
   $('miMeta').innerHTML = metaBits.map(esc).join(' &middot; ');
   $('miDesc').textContent = p.description || '';
   $('miDesc').style.display = p.description ? '' : 'none';
@@ -487,7 +543,7 @@ async function addProductToPlan(productId){
     const plan = await fetchPlanFresh(activePlanName);
     plan.items.push({
       id: newId(), refType: 'product', qty: 1, productId: p.id,
-      class: p.class, category: p.category, name: p.name, brand: p.brand, price: p.price
+      class: p.class, category: p.category, name: p.name, brand: p.brand, color: p.color, price: p.price
     });
     await postJson({ recordType: 'showPlan', name: plan.name, originalName: plan.name, items: plan.items });
     setStatus(st, `Added ${p.name || 'product'} to "${activePlanName}" ✓`, 'ok');

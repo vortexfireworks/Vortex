@@ -149,7 +149,7 @@ function getOrCreateCakeProductsSheet(ss) {
 // categorizes it (Cakes, Shells 3in, Fountains, Comets, Finale Chains, ...), with
 // price and a description carried straight through from the price list.
 function getOrCreateProductsSheet(ss) {
-  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Price', 'Description', 'Url', 'ImageUrl', 'VideoId'];
+  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Color', 'Price', 'Description', 'Url', 'ImageUrl', 'VideoId'];
   let sheet = ss.getSheetByName('Products');
   if (!sheet) {
     sheet = ss.insertSheet('Products');
@@ -1227,6 +1227,7 @@ function doPostInner(e) {
     newRow[map['Category']] = String(data.category || '');
     newRow[map['Name']] = name;
     newRow[map['Brand']] = String(data.brand || '');
+    newRow[map['Color']] = String(data.color || '');
     newRow[map['Price']] = String(data.price || '');
     newRow[map['Description']] = String(data.description || '');
     newRow[map['Url']] = newUrl;
@@ -1259,6 +1260,7 @@ function doPostInner(e) {
       row[map['Category']] = String(r.category || '');
       row[map['Name']] = String(r.name || '');
       row[map['Brand']] = String(r.brand || '');
+      row[map['Color']] = String(r.color || '');
       row[map['Price']] = String(r.price || '');
       row[map['Description']] = String(r.description || '');
       row[map['Url']] = String(r.url || '');
@@ -1940,6 +1942,7 @@ function doGetInner(e) {
           category: String(r[map['Category']] || ''),
           name: String(r[map['Name']] || ''),
           brand: String(r[map['Brand']] || ''),
+          color: String(r[map['Color']] || ''),
           price: String(r[map['Price']] || ''),
           description: String(r[map['Description']] || ''),
           url: String(r[map['Url']] || ''),
@@ -2015,6 +2018,7 @@ function doGetInner(e) {
         category: String(row[map['Category']] || ''),
         name: String(name).trim(),
         brand: String(row[map['Brand']] || ''),
+        color: String(row[map['Color']] || ''),
         price: String(row[map['Price']] || ''),
         description: String(row[map['Description']] || ''),
         url: String(row[map['Url']] || ''),
