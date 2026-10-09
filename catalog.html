@@ -201,12 +201,17 @@ updateThemeToggleIcon();
         <select id="colorSelect" onchange="renderCatalog()"><option value="">All colors</option></select>
       </div>
       <div class="field" style="margin-bottom:12px;">
+        <label for="effectSelect">Effect</label>
+        <select id="effectSelect" onchange="renderCatalog()"><option value="">All effects</option></select>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
         <label for="sortSelect">Sort by</label>
         <select id="sortSelect" onchange="renderCatalog()">
           <option value="name-asc">Name (A–Z)</option>
           <option value="name-desc">Name (Z–A)</option>
           <option value="brand-asc">Manufacturer (A–Z)</option>
           <option value="color-asc">Color (A–Z)</option>
+          <option value="effect-asc">Effect (A–Z)</option>
           <option value="price-asc">Price (Low to High)</option>
           <option value="price-desc">Price (High to Low)</option>
         </select>
@@ -366,6 +371,13 @@ function buildCategoryOptions(){
   colorSel.innerHTML = '<option value="">All colors</option>' +
     colors.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
   if(currentColor && colors.includes(currentColor)) colorSel.value = currentColor;
+
+  const effectSel = $('effectSelect');
+  const currentEffect = effectSel.value;
+  const effects = Array.from(new Set(PRODUCTS.map(p => p.effect).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  effectSel.innerHTML = '<option value="">All effects</option>' +
+    effects.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(currentEffect && effects.includes(currentEffect)) effectSel.value = currentEffect;
 }
 
 // Blank values always sort to the end, whichever direction and field is chosen, so
@@ -384,6 +396,11 @@ function productComparator(sortBy){
         const ac = !!a.color, bc = !!b.color;
         if(ac !== bc) return ac ? -1 : 1;
         return keyOf(a.color).localeCompare(keyOf(b.color)) || a.name.localeCompare(b.name);
+      }
+      case 'effect-asc': {
+        const ae = !!a.effect, be = !!b.effect;
+        if(ae !== be) return ae ? -1 : 1;
+        return keyOf(a.effect).localeCompare(keyOf(b.effect)) || a.name.localeCompare(b.name);
       }
       case 'price-asc': case 'price-desc': {
         const ap = priceOf(a), bp = priceOf(b);
@@ -412,6 +429,7 @@ function renderCatalog(){
   const term = keyOf($('catalogSearch').value);
   const category = $('categorySelect').value;
   const color = $('colorSelect').value;
+  const effect = $('effectSelect').value;
   const sortBy = $('sortSelect').value;
   const wrap = $('catalogList');
   const addDisabled = activePlanName ? '' : 'disabled title="Choose an active plan above first"';
@@ -420,7 +438,8 @@ function renderCatalog(){
   if(classFilter) items = items.filter(p => keyOf(p.class) === classFilter);
   if(category) items = items.filter(p => p.category === category);
   if(color) items = items.filter(p => p.color === color);
-  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.description], term));
+  if(effect) items = items.filter(p => p.effect === effect);
+  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.effect, p.description], term));
 
   if(!items.length){ wrap.innerHTML = '<p class="cat-empty">Nothing matches yet. Import a CSV, or adjust your search and filters.</p>'; return; }
 
@@ -447,6 +466,7 @@ function productRowHtml(p, addDisabled){
   const bits = [];
   if(p.brand) bits.push(esc(p.brand));
   if(p.color) bits.push(esc(p.color));
+  if(p.effect) bits.push(esc(p.effect));
   if(p.class) bits.push(esc(classLabel(p.class)));
   if(formatPrice(p.price)) bits.push(formatPrice(p.price));
   const hasVideo = p.videoId && p.videoId !== 'NONE';
@@ -474,7 +494,7 @@ function openItemModal(productId){
 
   $('miTitle').textContent = p.name || '(unnamed product)';
   $('miApproved').style.display = p.kurtisApproved ? 'flex' : 'none';
-  const metaBits = [p.brand, p.color, classLabel(p.class), p.category, formatPrice(p.price)].filter(Boolean);
+  const metaBits = [p.brand, p.color, p.effect, classLabel(p.class), p.category, formatPrice(p.price)].filter(Boolean);
   $('miMeta').innerHTML = metaBits.map(esc).join(' &middot; ');
   $('miDesc').textContent = p.description || '';
   $('miDesc').style.display = p.description ? '' : 'none';

@@ -203,6 +203,10 @@ updateThemeToggleIcon();
           <input type="text" id="pEditColor" list="colorDirectoryList" placeholder="Red, Green/Blue, Multi…" autocomplete="off">
         </div>
         <div class="field">
+          <label for="pEditEffect">Effect</label>
+          <input type="text" id="pEditEffect" list="effectDirectoryList" placeholder="Comet, Crackle, Strobe, Glitter…" autocomplete="off">
+        </div>
+        <div class="field">
           <label for="pEditPrice">Price</label>
           <input type="text" id="pEditPrice" inputmode="decimal" placeholder="12.50" autocomplete="off">
         </div>
@@ -221,6 +225,7 @@ updateThemeToggleIcon();
       </div>
       <datalist id="categoryDirectoryList"></datalist>
       <datalist id="colorDirectoryList"></datalist>
+      <datalist id="effectDirectoryList"></datalist>
       <div class="save-row">
         <button class="primary" type="button" onclick="saveProduct()">Save product</button>
         <button class="secondary" type="button" id="cancelEditBtn" onclick="resetForm()" style="display:none;">Cancel edit</button>
@@ -237,14 +242,14 @@ updateThemeToggleIcon();
       <button class="secondary" type="button" onclick="downloadTemplate()">⬇ Download template</button>
       <button class="secondary" type="button" onclick="findDuplicateProducts()">Find duplicates</button>
     </div>
-    <p class="hint">CSV columns: Class, Category, Product Name, Brand, Color, Price, Description, Product URL (Color is optional — rows without it still import fine). You can also add a "Kurtis Approved" column with Yes/No to mark items in bulk. Importing always adds new rows — re-importing the same file will create duplicates, so use Find Duplicates afterward if that happens.</p>
+    <p class="hint">CSV columns: Class, Category, Product Name, Brand, Color, Effect, Price, Description, Product URL (Color and Effect are optional — rows without them still import fine). You can also add a "Kurtis Approved" column with Yes/No to mark items in bulk. Importing always adds new rows — re-importing the same file will create duplicates, so use Find Duplicates afterward if that happens.</p>
     <p id="csvImportStatus" class="hint"></p>
     <div id="duplicatesWrap" style="margin:10px 0 16px;"></div>
 
     <p class="list-title">CURRENT PRODUCTS</p>
     <div class="grid2" style="margin-bottom:14px;">
       <div class="field full search-box" style="margin-bottom:0;">
-        <input type="text" id="productSearch" placeholder="Search name, brand, category, description…" oninput="renderProductList()">
+        <input type="text" id="productSearch" placeholder="Search name, brand, category, effect, description…" oninput="renderProductList()">
       </div>
       <div class="field" style="margin-bottom:0;">
         <select id="categoryFilter" onchange="renderProductList()"><option value="">All categories</option></select>
@@ -256,6 +261,7 @@ updateThemeToggleIcon();
           <option value="name-desc">Name (Z–A)</option>
           <option value="brand-asc">Manufacturer (A–Z)</option>
           <option value="color-asc">Color (A–Z)</option>
+          <option value="effect-asc">Effect (A–Z)</option>
           <option value="price-asc">Price (Low to High)</option>
           <option value="price-desc">Price (High to Low)</option>
         </select>
@@ -310,6 +316,11 @@ function productComparator(sortBy){
         if(ac !== bc) return ac ? -1 : 1;
         return keyOf(a.color).localeCompare(keyOf(b.color)) || a.name.localeCompare(b.name);
       }
+      case 'effect-asc': {
+        const ae = !!a.effect, be = !!b.effect;
+        if(ae !== be) return ae ? -1 : 1;
+        return keyOf(a.effect).localeCompare(keyOf(b.effect)) || a.name.localeCompare(b.name);
+      }
       case 'price-asc': case 'price-desc': {
         const ap = priceOf(a), bp = priceOf(b);
         if(ap === null || bp === null){
@@ -348,7 +359,7 @@ async function loadProducts(){
     const json = await res.json();
     PRODUCTS = (json.products || []).map(p => ({
       id: p.id || '', class: p.class || '', category: p.category || '', name: String(p.name || '').trim(),
-      brand: p.brand || '', color: p.color || '', price: p.price || '', description: p.description || '', url: p.url || '',
+      brand: p.brand || '', color: p.color || '', effect: p.effect || '', price: p.price || '', description: p.description || '', url: p.url || '',
       kurtisApproved: !!p.kurtisApproved
     }));
   } catch(err){
@@ -368,6 +379,9 @@ function buildCategoryOptions(){
 
   const colors = [...new Set(PRODUCTS.map(p => p.color).filter(Boolean))].sort((a,b) => a.localeCompare(b));
   $('colorDirectoryList').innerHTML = colors.map(c => `<option value="${esc(c)}">`).join('');
+
+  const effects = [...new Set(PRODUCTS.map(p => p.effect).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  $('effectDirectoryList').innerHTML = effects.map(c => `<option value="${esc(c)}">`).join('');
 }
 
 /* ---------------- Add / Edit form ---------------- */
@@ -378,6 +392,7 @@ function resetForm(){
   $('pEditName').value = '';
   $('pEditBrand').value = '';
   $('pEditColor').value = '';
+  $('pEditEffect').value = '';
   $('pEditPrice').value = '';
   $('pEditUrl').value = '';
   $('pEditDesc').value = '';
@@ -395,6 +410,7 @@ function editProduct(id){
   $('pEditName').value = p.name || '';
   $('pEditBrand').value = p.brand || '';
   $('pEditColor').value = p.color || '';
+  $('pEditEffect').value = p.effect || '';
   $('pEditPrice').value = p.price || '';
   $('pEditUrl').value = p.url || '';
   $('pEditDesc').value = p.description || '';
@@ -414,6 +430,7 @@ async function saveProduct(){
     name: $('pEditName').value.trim(),
     brand: $('pEditBrand').value.trim(),
     color: $('pEditColor').value.trim(),
+    effect: $('pEditEffect').value.trim(),
     price: normalizePrice($('pEditPrice').value),
     description: $('pEditDesc').value.trim(),
     url: $('pEditUrl').value.trim(),
@@ -468,7 +485,7 @@ function renderProductList(){
 
   let items = PRODUCTS;
   if(category) items = items.filter(p => p.category === category);
-  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.description], term));
+  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.effect, p.description], term));
 
   if(!items.length){
     wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No products found. Try a different search, or add one above.</p></div>';
@@ -484,7 +501,7 @@ function renderProductList(){
     <div class="cat-group">
       <div class="cat-group-head"><span>${esc(cat)}</span><span>${groups[cat].length}</span></div>
       ${groups[cat].sort(productComparator(sortBy)).map(p => {
-        const bits = [p.brand, p.color, classLabel(p.class), formatPrice(p.price)].filter(Boolean);
+        const bits = [p.brand, p.color, p.effect, classLabel(p.class), formatPrice(p.price)].filter(Boolean);
         return `
         <div class="prod-row">
           <div class="pr-main">
@@ -529,6 +546,7 @@ function renderDuplicateProducts(groups){
             <div style="color:var(--ink-soft);line-height:1.6;">
               Category: ${esc(it.category) || '—'}<br>
               Color: ${esc(it.color) || '—'}<br>
+              Effect: ${esc(it.effect) || '—'}<br>
               Price: ${esc(formatPrice(it.price)) || '—'}<br>
               ${it.url ? `URL: ${esc(it.url)}` : ''}
             </div>
@@ -569,9 +587,9 @@ function downloadCsv(filename, rows){
 }
 function downloadTemplate(){
   downloadCsv('products-template.csv', [
-    ['Class', 'Category', 'Product Name', 'Brand', 'Color', 'Price', 'Description', 'Product URL'],
-    ['1.3', 'Cakes', 'Cake - 100 Shot Red Peony to Blue Strobe', 'Dancing 1.3G Fireworks', 'Red/Blue', '117.25', 'This is a 100 Shot 1.3g Cake.', 'https://example.com/product'],
-    ['1.4', 'Fountains', 'Gold Fountain', 'Brand Name', 'Gold', '12.50', 'A short description.', '']
+    ['Class', 'Category', 'Product Name', 'Brand', 'Color', 'Effect', 'Price', 'Description', 'Product URL'],
+    ['1.3', 'Cakes', 'Cake - 100 Shot Red Peony to Blue Strobe', 'Dancing 1.3G Fireworks', 'Red/Blue', 'Peony', '117.25', 'This is a 100 Shot 1.3g Cake.', 'https://example.com/product'],
+    ['1.4', 'Fountains', 'Gold Fountain', 'Brand Name', 'Gold', 'Crackle', '12.50', 'A short description.', '']
   ]);
 }
 
@@ -632,6 +650,7 @@ const PRODUCT_ALIASES = {
   name: ['productname','name'],
   brand: ['brand','manufacturer'],
   color: ['color','colour'],
+  effect: ['effect'],
   price: ['price'],
   description: ['description','desc'],
   url: ['producturl','url','link'],
@@ -656,6 +675,7 @@ async function handleProductsCsv(event){
       name: o.name,
       brand: o.brand,
       color: o.color,
+      effect: o.effect,
       price: normalizePrice(o.price),
       description: o.description,
       url: o.url,
