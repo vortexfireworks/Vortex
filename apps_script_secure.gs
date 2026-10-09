@@ -427,16 +427,28 @@ function extractImageFromHtml(html, pageUrl) {
     const m = html.match(pattern);
     if (m && m[1]) return resolveUrl(m[1], pageUrl);
   }
-  // No social-preview tag — fall back to the first product-looking <img> (skip tiny
-  // icons/logos by requiring it to come from an uploads/media-style path).
-  const imgMatches = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/gi) || [];
-  for (const tag of imgMatches) {
-    const m = tag.match(/src=["']([^"']+)["']/i);
-    if (m && m[1] && /uploads|products|media|cdn/i.test(m[1]) && !/logo|icon|sprite/i.test(m[1])) {
-      return resolveUrl(m[1], pageUrl);
+  // No social-preview tag — fall back to a plausible-looking <img> (skip tiny
+  // icons/logos by requiring it to come from an uploads/media-style path). Some sites
+  // (e.g. worldclassfireworks.com) put an unrelated banner/ad image earlier in the page
+  // than the actual product photo, so picking the very first match grabs the wrong
+  // picture — instead, among the candidates, prefer whichever sits closest to the
+  // page's <h1> (the product title), which is reliably right next to the real photo.
+  const imgTagPattern = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  const candidates = [];
+  let tagMatch;
+  while ((tagMatch = imgTagPattern.exec(html)) !== null) {
+    const src = tagMatch[1];
+    if (src && /uploads|products|media|cdn/i.test(src) && !/logo|icon|sprite/i.test(src)) {
+      candidates.push({ src: src, index: tagMatch.index });
     }
   }
-  return '';
+  if (!candidates.length) return '';
+  const h1Match = /<h1[^>]*>/i.exec(html);
+  if (h1Match) {
+    const h1Index = h1Match.index;
+    candidates.sort((a, b) => Math.abs(a.index - h1Index) - Math.abs(b.index - h1Index));
+  }
+  return resolveUrl(candidates[0].src, pageUrl);
 }
 // Pulls the first YouTube video id referenced anywhere on the page — a plain link, an
 // embedded player's iframe src, or a bare watch/share URL in the markup.
