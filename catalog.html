@@ -121,6 +121,11 @@ updateThemeToggleIcon();
   }
   .cat-row button{flex:0 0 auto;font-size:12px;padding:6px 10px;}
   .cat-empty{font-size:12.5px;color:var(--ink-soft);padding:10px 0;}
+  .cr-addwrap{flex:0 0 auto;display:flex;align-items:center;gap:6px;}
+  .cr-qty{width:40px;flex:0 0 auto;font-size:12px;padding:6px 4px;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);color:var(--ink);}
+  .cr-qty::-webkit-outer-spin-button,.cr-qty::-webkit-inner-spin-button{opacity:1;}
+  .md-actions .mi-qtywrap{display:flex;align-items:center;gap:6px;}
+  .md-actions .mi-qty{width:52px;font-size:13px;padding:7px 6px;text-align:center;border:1px solid var(--line);border-radius:7px;background:var(--surface-2);color:var(--ink);}
 
   /* ---- Item detail modal ---- */
   .modal-backdrop{
@@ -254,7 +259,10 @@ updateThemeToggleIcon();
       <p class="md-desc" id="miDesc"></p>
       <div class="md-actions">
         <a class="md-link" id="miLink" href="#" target="_blank" rel="noopener" style="display:none;">View on supplier site &#8599;</a>
-        <button type="button" class="secondary" id="miAddBtn" onclick="addProductToPlan(currentModalId)">+ Add to plan</button>
+        <div class="mi-qtywrap">
+          <input type="number" class="mi-qty" id="miQty" min="1" step="1" value="1" inputmode="numeric" aria-label="Quantity">
+          <button type="button" class="secondary" id="miAddBtn" onclick="addProductToPlan(currentModalId, Number($('miQty').value)||1)">+ Add to plan</button>
+        </div>
       </div>
     </div>
   </div>
@@ -507,7 +515,10 @@ function productRowHtml(p, addDisabled){
         <div class="cr-title">${esc(p.name || '(unnamed product)')}${p.kurtisApproved ? ' <span class="ka-badge" title="Kurtis Approved">&#10003;</span>' : ''}</div>
         ${bits.length ? `<div class="cr-sub">${bits.join(' · ')}</div>` : ''}
       </div>
-      <button type="button" class="secondary" onclick="event.stopPropagation();addProductToPlan('${p.id}')" ${addDisabled}>+ Add</button>
+      <div class="cr-addwrap" onclick="event.stopPropagation()">
+        <input type="number" class="cr-qty" id="qty-${esc(p.id)}" min="1" step="1" value="1" inputmode="numeric" aria-label="Quantity">
+        <button type="button" class="secondary" onclick="addProductToPlan('${p.id}', Number($('qty-${esc(p.id)}').value)||1)" ${addDisabled}>+ Add</button>
+      </div>
     </div>`;
 }
 
@@ -528,6 +539,7 @@ function openItemModal(productId){
   const linkEl = $('miLink');
   if(p.url){ linkEl.href = p.url; linkEl.style.display = ''; } else { linkEl.style.display = 'none'; }
 
+  $('miQty').value = 1;
   $('miAddBtn').disabled = !activePlanName;
   $('miAddBtn').title = activePlanName ? '' : 'Choose an active plan above first';
 
@@ -594,23 +606,34 @@ async function fetchPlanFresh(name){
   return match ? { name: match.name, items: match.items || [] } : { name, items: [] };
 }
 
-async function addProductToPlan(productId){
+async function addProductToPlan(productId, qty){
   if(!activePlanName || !productId) return;
   const p = PRODUCTS.find(x => x.id === productId); if(!p) return;
+  qty = Math.max(1, Math.round(Number(qty)) || 1);
   const st = $('addStatus');
   const modalOpen = currentModalId === productId;
   const addBtn = modalOpen ? $('miAddBtn') : null;
+  const rowQtyInput = $(`qty-${productId}`);
   const addBtnOriginalText = addBtn ? addBtn.textContent : '';
   setStatus(st, 'Adding…');
   if(addBtn){ addBtn.disabled = true; addBtn.textContent = 'Adding…'; }
   try{
     const plan = await fetchPlanFresh(activePlanName);
-    plan.items.push({
-      id: newId(), refType: 'product', qty: 1, productId: p.id,
-      class: p.class, category: p.category, name: p.name, brand: p.brand, color: p.color, price: p.price
-    });
+    // If this product is already a line in the plan, add to its quantity (like a
+    // shopping cart) instead of creating a second, duplicate line for the same item.
+    const existing = plan.items.find(it => it.refType === 'product' && it.productId === p.id);
+    if(existing){
+      existing.qty = (Number(existing.qty) || 0) + qty;
+    } else {
+      plan.items.push({
+        id: newId(), refType: 'product', qty, productId: p.id,
+        class: p.class, category: p.category, name: p.name, brand: p.brand, color: p.color, price: p.price
+      });
+    }
     await postJson({ recordType: 'showPlan', name: plan.name, originalName: plan.name, items: plan.items });
-    setStatus(st, `Added ${p.name || 'product'} to "${activePlanName}" ✓`, 'ok');
+    setStatus(st, `Added ${qty > 1 ? qty + ' × ' : ''}${p.name || 'product'} to "${activePlanName}" ✓`, 'ok');
+    if(rowQtyInput) rowQtyInput.value = 1;
+    if(modalOpen) $('miQty').value = 1;
     if(addBtn){ addBtn.textContent = 'Added ✓'; setTimeout(() => { addBtn.disabled = !activePlanName; addBtn.textContent = addBtnOriginalText; }, 1400); }
   } catch(err){
     setStatus(st, 'Could not add — check your connection and try again.', 'err');
