@@ -135,6 +135,11 @@ updateThemeToggleIcon();
   .prod-row .pr-main{flex:1 1 auto;min-width:0;}
   .prod-row .pr-title{font-weight:700;color:var(--ink);}
   .prod-row .pr-sub{color:var(--ink-soft);font-size:11.5px;margin-top:2px;}
+  .ka-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:16px;height:16px;border-radius:50%;background:var(--ok);color:#fff;
+    font-size:10px;vertical-align:middle;margin-left:2px;
+  }
   .prod-row .pr-actions{display:flex;gap:6px;flex-shrink:0;}
   .prod-row .pr-actions button{
     background:none;border:1px solid var(--line);color:var(--navy);
@@ -209,6 +214,10 @@ updateThemeToggleIcon();
           <label for="pEditDesc">Description</label>
           <textarea id="pEditDesc"></textarea>
         </div>
+        <div class="field full" style="flex-direction:row;align-items:center;gap:8px;">
+          <input type="checkbox" id="pEditApproved" style="width:auto;flex:0 0 auto;margin:0;">
+          <label for="pEditApproved" style="margin:0;">Kurtis Approved</label>
+        </div>
       </div>
       <datalist id="categoryDirectoryList"></datalist>
       <datalist id="colorDirectoryList"></datalist>
@@ -228,7 +237,7 @@ updateThemeToggleIcon();
       <button class="secondary" type="button" onclick="downloadTemplate()">⬇ Download template</button>
       <button class="secondary" type="button" onclick="findDuplicateProducts()">Find duplicates</button>
     </div>
-    <p class="hint">CSV columns: Class, Category, Product Name, Brand, Color, Price, Description, Product URL (Color is optional — rows without it still import fine). Importing always adds new rows — re-importing the same file will create duplicates, so use Find Duplicates afterward if that happens.</p>
+    <p class="hint">CSV columns: Class, Category, Product Name, Brand, Color, Price, Description, Product URL (Color is optional — rows without it still import fine). You can also add a "Kurtis Approved" column with Yes/No to mark items in bulk. Importing always adds new rows — re-importing the same file will create duplicates, so use Find Duplicates afterward if that happens.</p>
     <p id="csvImportStatus" class="hint"></p>
     <div id="duplicatesWrap" style="margin:10px 0 16px;"></div>
 
@@ -339,7 +348,8 @@ async function loadProducts(){
     const json = await res.json();
     PRODUCTS = (json.products || []).map(p => ({
       id: p.id || '', class: p.class || '', category: p.category || '', name: String(p.name || '').trim(),
-      brand: p.brand || '', color: p.color || '', price: p.price || '', description: p.description || '', url: p.url || ''
+      brand: p.brand || '', color: p.color || '', price: p.price || '', description: p.description || '', url: p.url || '',
+      kurtisApproved: !!p.kurtisApproved
     }));
   } catch(err){
     PRODUCTS = [];
@@ -371,6 +381,7 @@ function resetForm(){
   $('pEditPrice').value = '';
   $('pEditUrl').value = '';
   $('pEditDesc').value = '';
+  $('pEditApproved').checked = false;
   $('formTitle').textContent = 'ADD PRODUCT';
   $('cancelEditBtn').style.display = 'none';
 }
@@ -387,6 +398,7 @@ function editProduct(id){
   $('pEditPrice').value = p.price || '';
   $('pEditUrl').value = p.url || '';
   $('pEditDesc').value = p.description || '';
+  $('pEditApproved').checked = !!p.kurtisApproved;
   $('formTitle').textContent = 'EDITING: ' + (p.name || '(unnamed product)');
   $('cancelEditBtn').style.display = '';
   setStatus($('productSaveStatus'), '');
@@ -404,7 +416,8 @@ async function saveProduct(){
     color: $('pEditColor').value.trim(),
     price: normalizePrice($('pEditPrice').value),
     description: $('pEditDesc').value.trim(),
-    url: $('pEditUrl').value.trim()
+    url: $('pEditUrl').value.trim(),
+    kurtisApproved: $('pEditApproved').checked
   };
   if(!payload.name){
     setStatus(statusEl, 'Enter a product name first.', 'err');
@@ -475,7 +488,7 @@ function renderProductList(){
         return `
         <div class="prod-row">
           <div class="pr-main">
-            <div class="pr-title">${esc(p.name || '(unnamed product)')}</div>
+            <div class="pr-title">${esc(p.name || '(unnamed product)')}${p.kurtisApproved ? ' <span class="ka-badge" title="Kurtis Approved">&#10003;</span>' : ''}</div>
             ${bits.length ? `<div class="pr-sub">${esc(bits.join(' · '))}</div>` : ''}
           </div>
           <div class="pr-actions">
@@ -621,8 +634,10 @@ const PRODUCT_ALIASES = {
   color: ['color','colour'],
   price: ['price'],
   description: ['description','desc'],
-  url: ['producturl','url','link']
+  url: ['producturl','url','link'],
+  kurtisApproved: ['kurtisapproved','approved']
 };
+function truthyCell(v){ return /^(yes|y|true|1)$/i.test(String(v || '').trim()); }
 
 async function handleProductsCsv(event){
   const file = event.target.files[0];
@@ -643,7 +658,8 @@ async function handleProductsCsv(event){
       color: o.color,
       price: normalizePrice(o.price),
       description: o.description,
-      url: o.url
+      url: o.url,
+      kurtisApproved: truthyCell(o.kurtisApproved)
     })).filter(o => o.name || o.category);
     if(!objs.length){ setStatus(st, 'No usable rows found in that file.', 'err'); return; }
     setStatus(st, `Importing ${objs.length} rows…`);

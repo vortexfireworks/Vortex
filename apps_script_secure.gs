@@ -149,7 +149,7 @@ function getOrCreateCakeProductsSheet(ss) {
 // categorizes it (Cakes, Shells 3in, Fountains, Comets, Finale Chains, ...), with
 // price and a description carried straight through from the price list.
 function getOrCreateProductsSheet(ss) {
-  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Color', 'Price', 'Description', 'Url', 'ImageUrl', 'VideoId'];
+  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Color', 'Price', 'Description', 'Url', 'ImageUrl', 'VideoId', 'KurtisApproved'];
   let sheet = ss.getSheetByName('Products');
   if (!sheet) {
     sheet = ss.insertSheet('Products');
@@ -1228,6 +1228,7 @@ function doPostInner(e) {
     newRow[map['Name']] = name;
     newRow[map['Brand']] = String(data.brand || '');
     newRow[map['Color']] = String(data.color || '');
+    newRow[map['KurtisApproved']] = data.kurtisApproved ? 'Yes' : '';
     newRow[map['Price']] = String(data.price || '');
     newRow[map['Description']] = String(data.description || '');
     newRow[map['Url']] = newUrl;
@@ -1261,6 +1262,7 @@ function doPostInner(e) {
       row[map['Name']] = String(r.name || '');
       row[map['Brand']] = String(r.brand || '');
       row[map['Color']] = String(r.color || '');
+      row[map['KurtisApproved']] = r.kurtisApproved ? 'Yes' : '';
       row[map['Price']] = String(r.price || '');
       row[map['Description']] = String(r.description || '');
       row[map['Url']] = String(r.url || '');
@@ -1947,7 +1949,8 @@ function doGetInner(e) {
           description: String(r[map['Description']] || ''),
           url: String(r[map['Url']] || ''),
           imageUrl: String(r[map['ImageUrl']] || ''),
-          videoId: String(r[map['VideoId']] || '')
+          videoId: String(r[map['VideoId']] || ''),
+          kurtisApproved: String(r[map['KurtisApproved']] || '') === 'Yes'
         });
       });
     }
@@ -2023,7 +2026,8 @@ function doGetInner(e) {
         description: String(row[map['Description']] || ''),
         url: String(row[map['Url']] || ''),
         imageUrl: String(row[map['ImageUrl']] || ''),
-        videoId: String(row[map['VideoId']] || '')
+        videoId: String(row[map['VideoId']] || ''),
+        kurtisApproved: String(row[map['KurtisApproved']] || '') === 'Yes'
       });
     });
     const duplicates = Object.values(groups)
