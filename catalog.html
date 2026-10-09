@@ -421,6 +421,10 @@ function openItemModal(productId){
 }
 function closeItemModal(){
   $('itemModal').style.display = 'none';
+  // Closing just hides the modal — it doesn't remove the YouTube <iframe> from the
+  // page, so a playing video keeps playing (and keeps making sound) in the background
+  // unless we clear it out here.
+  $('miImageWrap').innerHTML = '';
   currentModalId = null;
 }
 
