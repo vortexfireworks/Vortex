@@ -479,12 +479,43 @@ function fetch76FireworksMedia(pageUrl) {
     return { imageUrl: '', videoId: '' };
   }
 }
+// brotherspyrotechnics.com serves its product photo through a generic image API
+// (/api/Resource/GetImage?fileId=NNNN) with no og:image/twitter:image meta tag and no
+// "uploads/products/media/cdn" wording in the URL for extractImageFromHtml's normal
+// fallback to recognize, so it always came back empty for this site. The same URL
+// pattern is also used for small flag icons (which carry &width=/&height= resize
+// params) and for "related products" thumbnails further down the page, so we match
+// only the plain (no resize params) occurrences and take the first one — the main
+// product photo is the first such image on the page, above the related-products rail.
+function fetchBrothersPyroMedia(pageUrl) {
+  if (!/^https?:\/\/(?:www\.)?brotherspyrotechnics\.com\//i.test(String(pageUrl))) return null;
+  let html;
+  try {
+    const res = UrlFetchApp.fetch(pageUrl, {
+      muteHttpExceptions: true,
+      followRedirects: true,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
+    });
+    if (res.getResponseCode() >= 400) return { imageUrl: '', videoId: '' };
+    html = res.getContentText();
+  } catch (err) {
+    return { imageUrl: '', videoId: '' };
+  }
+  const matches = html.match(/\/api\/Resource\/GetImage\?fileId=\d+[^"'\s)]*/gi) || [];
+  let imageUrl = '';
+  for (const url of matches) {
+    if (!/width=|height=/i.test(url)) { imageUrl = resolveUrl(url, pageUrl); break; }
+  }
+  return { imageUrl: imageUrl, videoId: extractYoutubeIdFromHtml(html) };
+}
 // Fetches a product's supplier page once and pulls out both its main picture and any
 // YouTube video linked or embedded on it, so a page is only ever downloaded a single
 // time no matter how many kinds of media we're looking for on it.
 function fetchProductMedia(pageUrl) {
   const viaApi = fetch76FireworksMedia(pageUrl);
   if (viaApi) return viaApi;
+  const viaBrothersPyro = fetchBrothersPyroMedia(pageUrl);
+  if (viaBrothersPyro) return viaBrothersPyro;
   let html;
   try {
     const res = UrlFetchApp.fetch(pageUrl, {
