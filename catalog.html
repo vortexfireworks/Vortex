@@ -212,6 +212,8 @@ updateThemeToggleIcon();
           <option value="brand-asc">Manufacturer (A–Z)</option>
           <option value="color-asc">Color (A–Z)</option>
           <option value="effect-asc">Effect (A–Z)</option>
+          <option value="duration-asc">Duration (Shortest to Longest)</option>
+          <option value="duration-desc">Duration (Longest to Shortest)</option>
           <option value="price-asc">Price (Low to High)</option>
           <option value="price-desc">Price (High to Low)</option>
         </select>
@@ -384,6 +386,14 @@ function buildCategoryOptions(){
 // un-filled items don't scatter to the top of a price or color sort.
 function productComparator(sortBy){
   const priceOf = p => { const n = Number(p.price); return isFinite(n) ? n : null; };
+  const durationOf = p => {
+    const s = String(p.duration || '').trim();
+    if(!s) return null;
+    const mmss = s.match(/^(\d+):(\d{1,2})$/);
+    if(mmss) return Number(mmss[1]) * 60 + Number(mmss[2]);
+    const n = Number(s.replace(/[^0-9.]/g, ''));
+    return isFinite(n) && /\d/.test(s) ? n : null;
+  };
   return (a, b) => {
     switch(sortBy){
       case 'name-desc': return b.name.localeCompare(a.name);
@@ -409,6 +419,14 @@ function productComparator(sortBy){
           return ap === null ? 1 : -1;
         }
         return sortBy === 'price-asc' ? (ap - bp || a.name.localeCompare(b.name)) : (bp - ap || a.name.localeCompare(b.name));
+      }
+      case 'duration-asc': case 'duration-desc': {
+        const ad = durationOf(a), bd = durationOf(b);
+        if(ad === null || bd === null){
+          if(ad === null && bd === null) return a.name.localeCompare(b.name);
+          return ad === null ? 1 : -1;
+        }
+        return sortBy === 'duration-asc' ? (ad - bd || a.name.localeCompare(b.name)) : (bd - ad || a.name.localeCompare(b.name));
       }
       case 'name-asc': default: return a.name.localeCompare(b.name);
     }
@@ -439,7 +457,7 @@ function renderCatalog(){
   if(category) items = items.filter(p => p.category === category);
   if(color) items = items.filter(p => p.color === color);
   if(effect) items = items.filter(p => p.effect === effect);
-  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.effect, p.description], term));
+  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.effect, p.duration, p.description], term));
 
   if(!items.length){ wrap.innerHTML = '<p class="cat-empty">Nothing matches yet. Import a CSV, or adjust your search and filters.</p>'; return; }
 
@@ -467,6 +485,7 @@ function productRowHtml(p, addDisabled){
   if(p.brand) bits.push(esc(p.brand));
   if(p.color) bits.push(esc(p.color));
   if(p.effect) bits.push(esc(p.effect));
+  if(p.duration) bits.push(esc(p.duration));
   if(p.class) bits.push(esc(classLabel(p.class)));
   if(formatPrice(p.price)) bits.push(formatPrice(p.price));
   const hasVideo = p.videoId && p.videoId !== 'NONE';
@@ -494,7 +513,7 @@ function openItemModal(productId){
 
   $('miTitle').textContent = p.name || '(unnamed product)';
   $('miApproved').style.display = p.kurtisApproved ? 'flex' : 'none';
-  const metaBits = [p.brand, p.color, p.effect, classLabel(p.class), p.category, formatPrice(p.price)].filter(Boolean);
+  const metaBits = [p.brand, p.color, p.effect, p.duration, classLabel(p.class), p.category, formatPrice(p.price)].filter(Boolean);
   $('miMeta').innerHTML = metaBits.map(esc).join(' &middot; ');
   $('miDesc').textContent = p.description || '';
   $('miDesc').style.display = p.description ? '' : 'none';

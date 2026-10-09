@@ -207,6 +207,10 @@ updateThemeToggleIcon();
           <input type="text" id="pEditEffect" list="effectDirectoryList" placeholder="Comet, Crackle, Strobe, Glitter…" autocomplete="off">
         </div>
         <div class="field">
+          <label for="pEditDuration">Duration</label>
+          <input type="text" id="pEditDuration" placeholder="45 seconds, 1:30…" autocomplete="off">
+        </div>
+        <div class="field">
           <label for="pEditPrice">Price</label>
           <input type="text" id="pEditPrice" inputmode="decimal" placeholder="12.50" autocomplete="off">
         </div>
@@ -242,7 +246,7 @@ updateThemeToggleIcon();
       <button class="secondary" type="button" onclick="downloadTemplate()">⬇ Download template</button>
       <button class="secondary" type="button" onclick="findDuplicateProducts()">Find duplicates</button>
     </div>
-    <p class="hint">CSV columns: Class, Category, Product Name, Brand, Color, Effect, Price, Description, Product URL (Color and Effect are optional — rows without them still import fine). You can also add a "Kurtis Approved" column with Yes/No to mark items in bulk. Importing always adds new rows — re-importing the same file will create duplicates, so use Find Duplicates afterward if that happens.</p>
+    <p class="hint">CSV columns: Class, Category, Product Name, Brand, Color, Effect, Duration, Price, Description, Product URL (Color, Effect, and Duration are optional — rows without them still import fine). You can also add a "Kurtis Approved" column with Yes/No to mark items in bulk. Importing always adds new rows — re-importing the same file will create duplicates, so use Find Duplicates afterward if that happens.</p>
     <p id="csvImportStatus" class="hint"></p>
     <div id="duplicatesWrap" style="margin:10px 0 16px;"></div>
 
@@ -262,6 +266,8 @@ updateThemeToggleIcon();
           <option value="brand-asc">Manufacturer (A–Z)</option>
           <option value="color-asc">Color (A–Z)</option>
           <option value="effect-asc">Effect (A–Z)</option>
+          <option value="duration-asc">Duration (Shortest to Longest)</option>
+          <option value="duration-desc">Duration (Longest to Shortest)</option>
           <option value="price-asc">Price (Low to High)</option>
           <option value="price-desc">Price (High to Low)</option>
         </select>
@@ -299,6 +305,16 @@ function normalizePrice(v){
   const n = Number(String(v || '').replace(/[^0-9.\-]/g, ''));
   return isFinite(n) ? String(n) : '';
 }
+// Reads a Duration field as seconds, whether it was typed "45", "45 seconds", or "1:30"
+// (mm:ss) — returns null when nothing numeric can be found, so it sorts to the end.
+function durationSeconds(v){
+  const s = String(v || '').trim();
+  if(!s) return null;
+  const mmss = s.match(/^(\d+):(\d{1,2})$/);
+  if(mmss) return Number(mmss[1]) * 60 + Number(mmss[2]);
+  const n = Number(s.replace(/[^0-9.]/g, ''));
+  return isFinite(n) && /\d/.test(s) ? n : null;
+}
 // Blank values always sort to the end, whichever direction and field is chosen, so
 // un-filled items don't scatter to the top of a price or color sort.
 function productComparator(sortBy){
@@ -328,6 +344,14 @@ function productComparator(sortBy){
           return ap === null ? 1 : -1;
         }
         return sortBy === 'price-asc' ? (ap - bp || a.name.localeCompare(b.name)) : (bp - ap || a.name.localeCompare(b.name));
+      }
+      case 'duration-asc': case 'duration-desc': {
+        const ad = durationSeconds(a.duration), bd = durationSeconds(b.duration);
+        if(ad === null || bd === null){
+          if(ad === null && bd === null) return a.name.localeCompare(b.name);
+          return ad === null ? 1 : -1;
+        }
+        return sortBy === 'duration-asc' ? (ad - bd || a.name.localeCompare(b.name)) : (bd - ad || a.name.localeCompare(b.name));
       }
       case 'name-asc': default: return a.name.localeCompare(b.name);
     }
@@ -359,7 +383,7 @@ async function loadProducts(){
     const json = await res.json();
     PRODUCTS = (json.products || []).map(p => ({
       id: p.id || '', class: p.class || '', category: p.category || '', name: String(p.name || '').trim(),
-      brand: p.brand || '', color: p.color || '', effect: p.effect || '', price: p.price || '', description: p.description || '', url: p.url || '',
+      brand: p.brand || '', color: p.color || '', effect: p.effect || '', duration: p.duration || '', price: p.price || '', description: p.description || '', url: p.url || '',
       kurtisApproved: !!p.kurtisApproved
     }));
   } catch(err){
@@ -393,6 +417,7 @@ function resetForm(){
   $('pEditBrand').value = '';
   $('pEditColor').value = '';
   $('pEditEffect').value = '';
+  $('pEditDuration').value = '';
   $('pEditPrice').value = '';
   $('pEditUrl').value = '';
   $('pEditDesc').value = '';
@@ -411,6 +436,7 @@ function editProduct(id){
   $('pEditBrand').value = p.brand || '';
   $('pEditColor').value = p.color || '';
   $('pEditEffect').value = p.effect || '';
+  $('pEditDuration').value = p.duration || '';
   $('pEditPrice').value = p.price || '';
   $('pEditUrl').value = p.url || '';
   $('pEditDesc').value = p.description || '';
@@ -431,6 +457,7 @@ async function saveProduct(){
     brand: $('pEditBrand').value.trim(),
     color: $('pEditColor').value.trim(),
     effect: $('pEditEffect').value.trim(),
+    duration: $('pEditDuration').value.trim(),
     price: normalizePrice($('pEditPrice').value),
     description: $('pEditDesc').value.trim(),
     url: $('pEditUrl').value.trim(),
@@ -485,7 +512,7 @@ function renderProductList(){
 
   let items = PRODUCTS;
   if(category) items = items.filter(p => p.category === category);
-  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.effect, p.description], term));
+  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.effect, p.duration, p.description], term));
 
   if(!items.length){
     wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No products found. Try a different search, or add one above.</p></div>';
@@ -501,7 +528,7 @@ function renderProductList(){
     <div class="cat-group">
       <div class="cat-group-head"><span>${esc(cat)}</span><span>${groups[cat].length}</span></div>
       ${groups[cat].sort(productComparator(sortBy)).map(p => {
-        const bits = [p.brand, p.color, p.effect, classLabel(p.class), formatPrice(p.price)].filter(Boolean);
+        const bits = [p.brand, p.color, p.effect, p.duration, classLabel(p.class), formatPrice(p.price)].filter(Boolean);
         return `
         <div class="prod-row">
           <div class="pr-main">
@@ -547,6 +574,7 @@ function renderDuplicateProducts(groups){
               Category: ${esc(it.category) || '—'}<br>
               Color: ${esc(it.color) || '—'}<br>
               Effect: ${esc(it.effect) || '—'}<br>
+              Duration: ${esc(it.duration) || '—'}<br>
               Price: ${esc(formatPrice(it.price)) || '—'}<br>
               ${it.url ? `URL: ${esc(it.url)}` : ''}
             </div>
@@ -587,9 +615,9 @@ function downloadCsv(filename, rows){
 }
 function downloadTemplate(){
   downloadCsv('products-template.csv', [
-    ['Class', 'Category', 'Product Name', 'Brand', 'Color', 'Effect', 'Price', 'Description', 'Product URL'],
-    ['1.3', 'Cakes', 'Cake - 100 Shot Red Peony to Blue Strobe', 'Dancing 1.3G Fireworks', 'Red/Blue', 'Peony', '117.25', 'This is a 100 Shot 1.3g Cake.', 'https://example.com/product'],
-    ['1.4', 'Fountains', 'Gold Fountain', 'Brand Name', 'Gold', 'Crackle', '12.50', 'A short description.', '']
+    ['Class', 'Category', 'Product Name', 'Brand', 'Color', 'Effect', 'Duration', 'Price', 'Description', 'Product URL'],
+    ['1.3', 'Cakes', 'Cake - 100 Shot Red Peony to Blue Strobe', 'Dancing 1.3G Fireworks', 'Red/Blue', 'Peony', '45 seconds', '117.25', 'This is a 100 Shot 1.3g Cake.', 'https://example.com/product'],
+    ['1.4', 'Fountains', 'Gold Fountain', 'Brand Name', 'Gold', 'Crackle', '30 seconds', '12.50', 'A short description.', '']
   ]);
 }
 
@@ -651,6 +679,7 @@ const PRODUCT_ALIASES = {
   brand: ['brand','manufacturer'],
   color: ['color','colour'],
   effect: ['effect'],
+  duration: ['duration'],
   price: ['price'],
   description: ['description','desc'],
   url: ['producturl','url','link'],
@@ -676,6 +705,7 @@ async function handleProductsCsv(event){
       brand: o.brand,
       color: o.color,
       effect: o.effect,
+      duration: o.duration,
       price: normalizePrice(o.price),
       description: o.description,
       url: o.url,

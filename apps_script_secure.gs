@@ -149,7 +149,7 @@ function getOrCreateCakeProductsSheet(ss) {
 // categorizes it (Cakes, Shells 3in, Fountains, Comets, Finale Chains, ...), with
 // price and a description carried straight through from the price list.
 function getOrCreateProductsSheet(ss) {
-  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Color', 'Effect', 'Price', 'Description', 'Url', 'ImageUrl', 'VideoId', 'KurtisApproved'];
+  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Color', 'Effect', 'Duration', 'Price', 'Description', 'Url', 'ImageUrl', 'VideoId', 'KurtisApproved'];
   let sheet = ss.getSheetByName('Products');
   if (!sheet) {
     sheet = ss.insertSheet('Products');
@@ -1229,6 +1229,7 @@ function doPostInner(e) {
     newRow[map['Brand']] = String(data.brand || '');
     newRow[map['Color']] = String(data.color || '');
     newRow[map['Effect']] = String(data.effect || '');
+    newRow[map['Duration']] = String(data.duration || '');
     newRow[map['KurtisApproved']] = data.kurtisApproved ? 'Yes' : '';
     newRow[map['Price']] = String(data.price || '');
     newRow[map['Description']] = String(data.description || '');
@@ -1264,6 +1265,7 @@ function doPostInner(e) {
       row[map['Brand']] = String(r.brand || '');
       row[map['Color']] = String(r.color || '');
       row[map['Effect']] = String(r.effect || '');
+      row[map['Duration']] = String(r.duration || '');
       row[map['KurtisApproved']] = r.kurtisApproved ? 'Yes' : '';
       row[map['Price']] = String(r.price || '');
       row[map['Description']] = String(r.description || '');
@@ -1948,6 +1950,7 @@ function doGetInner(e) {
           brand: String(r[map['Brand']] || ''),
           color: String(r[map['Color']] || ''),
           effect: String(r[map['Effect']] || ''),
+          duration: String(r[map['Duration']] || ''),
           price: String(r[map['Price']] || ''),
           description: String(r[map['Description']] || ''),
           url: String(r[map['Url']] || ''),
@@ -2026,6 +2029,7 @@ function doGetInner(e) {
         brand: String(row[map['Brand']] || ''),
         color: String(row[map['Color']] || ''),
         effect: String(row[map['Effect']] || ''),
+        duration: String(row[map['Duration']] || ''),
         price: String(row[map['Price']] || ''),
         description: String(row[map['Description']] || ''),
         url: String(row[map['Url']] || ''),
