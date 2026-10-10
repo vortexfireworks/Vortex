@@ -488,7 +488,7 @@ updateThemeToggleIcon();
   "Email to state fire marshal" addresses a message to fireworks@utah.gov (CC: Chuck &amp; Vortex). On phones that support it, this opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script>
 // The crew list is NOT written into this page. It comes from the sheet once signed in, and a copy is kept on this phone
 // so autofill still works with no signal.
@@ -929,130 +929,147 @@ function autofillEventAddress(eventInput){
   }
 }
 
-function buildReportPDF(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({unit:'pt', format:'letter'});
-  const marginX = 40;
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const contentWidth = pageWidth - marginX*2;
-  const lineHeight = 14;
-  let y = 50;
+// Fills the real Office of the State Fire Marshal PDF (aar-template.pdf) with this
+// page's fields, instead of drawing a from-scratch recreation of it. The template's
+// own field names (pulled from its AcroForm) are matched exactly below.
+let AAR_TEMPLATE_BYTES = null;
+async function loadAarTemplateBytes(){
+  if(AAR_TEMPLATE_BYTES) return AAR_TEMPLATE_BYTES;
+  const res = await fetch('aar-template.pdf', { cache: 'force-cache' });
+  if(!res.ok) throw new Error('Could not load the report template');
+  AAR_TEMPLATE_BYTES = await res.arrayBuffer();
+  return AAR_TEMPLATE_BYTES;
+}
+function formatDateUS(isoDate){
+  const m = String(isoDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[2]}/${m[3]}/${m[1]}` : (isoDate || '');
+}
+function dataUrlToBytes(dataUrl){
+  const base64 = dataUrl.slice(dataUrl.indexOf('base64,') + 7);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
 
-  function ensureSpace(extra){
-    if(y + extra > pageHeight - 50){
-      doc.addPage();
-      y = 50;
-    }
-  }
-  function heading(text){
-    ensureSpace(24);
-    doc.setFont('helvetica','bold');
-    doc.setFontSize(11);
-    doc.setTextColor(140,59,46);
-    doc.text(text, marginX, y);
-    y += 8;
-    doc.setDrawColor(216,210,196);
-    doc.line(marginX, y, pageWidth-marginX, y);
-    y += 14;
-    doc.setTextColor(20,26,32);
-  }
-  function field(label, value){
-    ensureSpace(lineHeight*2);
-    doc.setFont('helvetica','bold');
-    doc.setFontSize(8.5);
-    doc.setTextColor(91,100,112);
-    doc.text(label.toUpperCase(), marginX, y);
-    y += 12;
-    doc.setFont('helvetica','normal');
-    doc.setFontSize(10.5);
-    doc.setTextColor(20,26,32);
-    const lines = doc.splitTextToSize(value || '-', contentWidth);
-    doc.text(lines, marginX, y);
-    y += lines.length*lineHeight + 6;
-  }
+async function buildReportPdfBytes(){
+  const { PDFDocument, StandardFonts } = PDFLib;
+  const templateBytes = await loadAarTemplateBytes();
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  const form = pdfDoc.getForm();
 
-  doc.setFont('helvetica','bold');
-  doc.setFontSize(14);
-  doc.text('Office of the State Fire Marshal', marginX, y); y += 18;
-  doc.setFontSize(11.5);
-  const titleLines = doc.splitTextToSize('Display/Special Effects/Flame Effects Operator \u2014 After-Action Report', contentWidth);
-  doc.text(titleLines, marginX, y); y += titleLines.length*14 + 4;
-  doc.setFont('helvetica','normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(91,100,112);
-  doc.text('Required under Rules Pursuant to the Utah Fireworks Act R-710.2.7.19', marginX, y); y += 20;
-  doc.setTextColor(20,26,32);
+  const setText = (name, value) => {
+    try{ form.getTextField(name).setText(value || ''); } catch(e){}
+  };
+  const setCheck = (name, checked) => {
+    try{ const box = form.getCheckBox(name); checked ? box.check() : box.uncheck(); } catch(e){}
+  };
+  const setYesNo = (radioName, yesBox, noBox) => {
+    const v = radioVal(radioName);
+    setCheck(yesBox, v === 'Yes');
+    setCheck(noBox, v === 'No');
+  };
 
-  heading('Operator & event');
-  field('Name of operator or artisan', val('opName'));
-  field('Date of event or show', val('eventDate'));
-  field('Name of company', val('company'));
-  field('License number', val('license'));
-  field('Address/location of event or show', val('address'));
-  field('Venue', val('event'));
-  field('County', val('venue'));
-  field('Permit department', val('dept'));
-  field('AHJ name & title', val('ahj'));
-  field('Permit number', val('permitNum'));
-  field('Display type', checkboxVals('dtype') || '(not selected)');
+  setText('Name of Operator', val('opName'));
+  setText('Date of Event or Show', formatDateUS(val('eventDate')));
+  setText('Name of Company', val('company'));
+  setText('License Number', val('license'));
+  setText('Address andor Location of Event or Show', val('address'));
+  setText('Venue or County', [val('event'), val('venue')].filter(Boolean).join(' \u2014 '));
+  setText('Permit Number', val('permitNum'));
+  setText('Authority Having Jurisdiction AHJ Name and Title', val('ahj'));
+  setText('Department', val('dept'));
 
-  heading('Assisting personnel');
-  const rows = [];
+  const dtypes = checkboxVals('dtype');
+  setCheck('Check Box15', dtypes.includes('NFPA 1123 Outdoor Display Operator'));
+  setCheck('Check Box16', dtypes.includes('NFPA 1126 Special Effects/Proximal Audience'));
+  setCheck('Check Box17', dtypes.includes('NFPA 160 Flame Effects'));
+
+  setYesNo('siteSafe', 'Check Box18', 'Check Box19');
+  setYesNo('q_duds', 'Check Box1', 'Check Box2');
+  setYesNo('q_injury', 'Check Box3', 'Check Box4');
+  setYesNo('q_fire', 'Check Box5', 'Check Box6');
+  setYesNo('q_viol', 'Check Box7', 'Check Box8');
+
+  setText('Explain EventMitigation Please use reverse side for further explanationAny duds or defective shells', val('expl_duds'));
+  setText('Explain EventMitigation Please use reverse side for further explanationAny injuries If yes list NameAddressAge', val('expl_injury'));
+  setText('Explain EventMitigation Please use reverse side for further explanationAny fire caused by fireworks', val('expl_fire'));
+  setText('Explain EventMitigation Please use reverse side for further explanationAny violations or irregularties', val('expl_viol'));
+  setText('Number and size of shells used or number and types of special effects used', val('shells'));
+  setText('Date14_es_:signer:date', formatDateUS(val('sigDate')));
+
+  // The template's page-1 personnel table only has three distinct rows (NameRow1-3,
+  // etc.) \u2014 anything past that is drawn directly onto page 2's "Additional Assistants"
+  // table instead, because every one of that table's visual rows actually shares the
+  // SAME underlying field (a quirk of how the template itself was built), so setting
+  // it through the form API would print the same single value on every row.
+  const personnelRows = [];
   document.querySelectorAll('#personnelBody tr').forEach(row=>{
     const name = row.querySelector('.p-name').value.trim();
-    const lic = row.querySelector('.p-license').value.trim();
-    const addr = row.querySelector('.p-address').value.trim();
+    const license = row.querySelector('.p-license').value.trim();
+    const address = row.querySelector('.p-address').value.trim();
     const age = row.querySelector('.p-age').value.trim();
-    if(name || lic || addr || age) rows.push({name, lic, addr, age});
+    if(name || license || address || age) personnelRows.push({name, license, address, age});
   });
-  if(rows.length === 0){
-    ensureSpace(lineHeight);
-    doc.setFont('helvetica','normal'); doc.setFontSize(10);
-    doc.text('(none listed)', marginX, y); y += lineHeight + 4;
-  } else {
-    rows.forEach(r=>{
-      ensureSpace(lineHeight*2);
-      doc.setFont('helvetica','bold'); doc.setFontSize(10);
-      doc.text(r.name || '(no name)', marginX, y); y += 12;
-      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(91,100,112);
-      doc.text(`License: ${r.lic || '-'}     Age: ${r.age || '-'}`, marginX, y); y += 11;
-      const addrLines = doc.splitTextToSize(r.addr || '-', contentWidth);
-      doc.setTextColor(20,26,32);
-      doc.text(addrLines, marginX, y); y += addrLines.length*11 + 8;
+  [0,1,2].forEach(i => {
+    const p = personnelRows[i] || {name:'',license:'',address:'',age:''};
+    const n = i+1;
+    setText(`NameRow${n}`, p.name);
+    setText(`License NumberRow${n}`, p.license);
+    setText(`AddressCityStateZipRow${n}`, p.address);
+    setText(`AgeRow${n}`, p.age);
+  });
+
+  form.updateFieldAppearances();
+
+  const overflow = personnelRows.slice(3);
+  if(overflow.length){
+    const page2 = pdfDoc.getPages()[1];
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    // Bottom-left y of each of page 2's 12 "Additional Assistants" rows, top to bottom.
+    const rowYs = [600.0, 575.7, 552.5, 528.0, 504.8, 480.8, 456.6, 432.7, 408.9, 384.4, 360.4, 336.8];
+    overflow.slice(0, rowYs.length).forEach((p, i) => {
+      const y = rowYs[i] + 6;
+      page2.drawText((p.name || '').slice(0, 24), { x: 55, y, size: 9, font });
+      page2.drawText((p.license || '').slice(0, 14), { x: 180, y, size: 9, font });
+      page2.drawText((p.address || '').slice(0, 56), { x: 246, y, size: 9, font });
+      page2.drawText((p.age || '').slice(0, 6), { x: 524, y, size: 9, font });
     });
   }
 
-  heading('Site safety');
-  field('Flammable materials cleared, vented, stabilized, shut off and secured', radioVal('siteSafe') || '(not answered)');
-
-  heading('Incident summary');
-  field('Duds or defective shells', `${radioVal('q_duds') || '(not answered)'} \u2014 ${val('expl_duds') || '-'}`);
-  field('Injuries', `${radioVal('q_injury') || '(not answered)'} \u2014 ${val('expl_injury') || '-'}`);
-  field('Fire caused by fireworks', `${radioVal('q_fire') || '(not answered)'} \u2014 ${val('expl_fire') || '-'}`);
-  field('Violations or irregularities', `${radioVal('q_viol') || '(not answered)'} \u2014 ${val('expl_viol') || '-'}`);
-  field('Shells/effects used', val('shells'));
-
-  heading('Certification');
-  field('Printed name of operator', val('sigName'));
-  field('Date signed', val('sigDate'));
-
-  ensureSpace(90);
-  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(91,100,112);
-  doc.text('SIGNATURE', marginX, y); y += 10;
+  // The template's "signature" field is a plain text box, not an image field, so the
+  // actual drawn or uploaded signature is placed over it as an image instead.
   if(sigHasContent){
-    const imgData = sigCanvas.toDataURL('image/png');
-    doc.addImage(imgData, 'PNG', marginX, y, 200, 43);
-    y += 55;
-  } else {
-    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(20,26,32);
-    doc.text('(not signed yet)', marginX, y); y += 16;
+    const page1 = pdfDoc.getPages()[0];
+    const sigImage = await pdfDoc.embedPng(dataUrlToBytes(sigCanvas.toDataURL('image/png')));
+    const boxX = 160.4, boxY = 52.7, boxW = 421.6 - 160.4, boxH = 74.7 - 52.7;
+    const scale = Math.min(boxW / sigImage.width, boxH / sigImage.height, 1);
+    const w = sigImage.width * scale, h = sigImage.height * scale;
+    page1.drawImage(sigImage, { x: boxX + (boxW - w) / 2, y: boxY + (boxH - h) / 2, width: w, height: h });
   }
 
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(91,100,112);
-  doc.text('Office of the State Fire Marshal  \u00b7  410 W. 9800 South, Suite 372, Sandy, UT 84070  \u00b7  801-256-2390  \u00b7  fireworks@utah.gov', marginX, pageHeight - 30);
+  return await pdfDoc.save();
+}
 
-  return doc;
+function downloadBytes(bytes, filename){
+  const blob = new Blob([bytes], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function bytesToBase64(bytes){
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      resolve(dataUrl.slice(dataUrl.indexOf('base64,') + 7));
+    };
+    reader.onerror = () => reject(new Error('Could not read the generated PDF'));
+    reader.readAsDataURL(blob);
+  });
 }
 
 function buildAarFileName(){
@@ -1067,10 +1084,15 @@ function buildAarFileName(){
   return `AAR_${base}.pdf`.replace(/[\\/:*?"<>|]/g, '');
 }
 
-function exportPDF(){
+async function exportPDF(){
   if(!validate()) return;
-  const doc = buildReportPDF();
-  doc.save(buildAarFileName());
+  try{
+    const bytes = await buildReportPdfBytes();
+    downloadBytes(bytes, buildAarFileName());
+  } catch(err){
+    document.getElementById('errMsg').textContent = 'Could not build the PDF — check your connection and try again.';
+    document.getElementById('errMsg').style.display = 'block';
+  }
 }
 
 function buildReportText(){
@@ -1281,9 +1303,8 @@ function setDriveStatus(msg, kind){
   el.style.color = kind === 'ok' ? '#4caf7d' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft, #a3a9bf)';
 }
 
-async function postReportToDrive(doc){
-  const dataUrl = doc.output('datauristring');
-  const pdfBase64 = dataUrl.slice(dataUrl.indexOf('base64,') + 7);
+async function postReportToDrive(bytes){
+  const pdfBase64 = await bytesToBase64(bytes);
   const res = await fetch(CHECKIN_API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1301,8 +1322,8 @@ async function postReportToDrive(doc){
 }
 
 // Only one save at a time, so pressing the button while an email-triggered save is running can't create a duplicate.
-function saveToDriveOnce(doc){
-  if(!driveSaving) driveSaving = postReportToDrive(doc).finally(() => { driveSaving = null; });
+function saveToDriveOnce(bytes){
+  if(!driveSaving) driveSaving = postReportToDrive(bytes).finally(() => { driveSaving = null; });
   return driveSaving;
 }
 
@@ -1313,7 +1334,8 @@ async function saveReportToDrive(){
   btn.disabled = true;
   setDriveStatus('Saving to Drive…');
   try{
-    await saveToDriveOnce(buildReportPDF());
+    const bytes = await buildReportPdfBytes();
+    await saveToDriveOnce(bytes);
     setDriveStatus(hadCopy ? 'Updated the copy saved in Drive \u2713' : 'Saved to Drive \u2713 \u2014 find it again under Manage/Edit \u2192 Saved After Action Reports', 'ok');
   } catch(err){
     setDriveStatus("Couldn't save to Drive \u2014 check your connection and try again. Your report is still here.", 'err');
@@ -1323,11 +1345,11 @@ async function saveReportToDrive(){
 }
 
 // Runs alongside the email/share step and never blocks or breaks it.
-async function autoSaveOnSend(doc){
+async function autoSaveOnSend(bytes){
   const hadCopy = !!savedAarId;
   setDriveStatus('Saving a copy to Drive…');
   try{
-    await saveToDriveOnce(doc);
+    await saveToDriveOnce(bytes);
     setDriveStatus(hadCopy ? 'Updated the copy saved in Drive \u2713' : 'Saved to Drive \u2713', 'ok');
   } catch(err){
     setDriveStatus("Couldn't save a copy to Drive (no signal?). Sending isn't affected \u2014 tap Save to Drive to try again.", 'err');
@@ -1343,9 +1365,15 @@ async function sendReport(){
   const recipientLine = 'To: fireworks@utah.gov (cc: chuckj@xmission.com, vortexfireworksartists@gmail.com)';
   const statusEl = document.getElementById('emailStatus');
 
-  const doc = buildReportPDF();
-  const pdfBlob = doc.output('blob');
-  const driveCopy = autoSaveOnSend(doc);   // not awaited here: the share sheet needs the tap that started this
+  let bytes;
+  try{
+    bytes = await buildReportPdfBytes();
+  } catch(err){
+    statusEl.textContent = 'Could not build the PDF — check your connection and try again.';
+    return;
+  }
+  const pdfBlob = new Blob([bytes], { type: 'application/pdf' });
+  const driveCopy = autoSaveOnSend(bytes);   // not awaited here: the share sheet needs the tap that started this
 
   // Try the device's native share sheet first — this can attach the real PDF
   // to Mail (or any app) on supported browsers, unlike a mailto: link.
@@ -1377,7 +1405,7 @@ async function sendReport(){
 
   statusEl.textContent = '';
   // Fallback: download the PDF and open a plain-text email addressed and ready to go
-  doc.save(fileName);
+  downloadBytes(bytes, fileName);
   const body = buildReportText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
   const mailto = `mailto:fireworks@utah.gov?cc=chuckj@xmission.com,vortexfireworksartists@gmail.com&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
