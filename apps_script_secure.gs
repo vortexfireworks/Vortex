@@ -1725,8 +1725,21 @@ function doPostInner(e) {
 // Sheet1 predates the header-backfill pattern used elsewhere in this file and is written to
 // by fixed column position, not by name — this only adds the 11th column's label the first
 // time it's needed, so a plain check-in that never sets it still lines up under a real header.
+//
+// getSheetByName('Sheet1') returns null if that tab was ever renamed (Google Sheets
+// lets you rename "Sheet1" like any other tab), which used to crash both check-in
+// paths with "Cannot read properties of null". findCheckInSheet() falls back to the
+// spreadsheet's first tab — the check-in log is always created first — instead of
+// assuming the literal name "Sheet1" still applies, and only creates a brand new
+// sheet if the spreadsheet has none at all.
+function findCheckInSheet(ss) {
+  let sheet = ss.getSheetByName('Sheet1');
+  if (sheet) return sheet;
+  const sheets = ss.getSheets();
+  return sheets.length ? sheets[0] : ss.insertSheet('Sheet1');
+}
 function ensureCheckInSheet(ss) {
-  const sheet = ss.getSheetByName('Sheet1');
+  const sheet = findCheckInSheet(ss);
   const lastCol = Math.max(sheet.getLastColumn(), 1);
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   if (!headers[10]) sheet.getRange(1, 11).setValue('SignedInByHP');
@@ -2347,7 +2360,7 @@ function doGetInner(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  const sheet = ss.getSheetByName('Sheet1');
+  const sheet = findCheckInSheet(ss);
   const rows = sheet.getDataRange().getValues();
   const eventFilter = e.parameter.event;
   const results = rows.slice(1)
