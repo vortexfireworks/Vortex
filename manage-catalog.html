@@ -561,13 +561,18 @@ async function findDuplicateProducts(){
 
 function renderDuplicateProducts(groups){
   const wrap = $('duplicatesWrap');
+  window._duplicateProductGroups = groups || [];
   if(!groups || groups.length === 0){
     wrap.innerHTML = '<p style="font-size:13px;color:var(--ok);">No duplicates found — every name+brand+category combination appears only once.</p>';
     return;
   }
-  wrap.innerHTML = `<p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;">${groups.length} DUPLICATE${groups.length > 1 ? 'S' : ''} FOUND (same name, brand &amp; category)</p>` +
-    groups.map((g, gi) => `
-      <div class="dup-group">
+  wrap.innerHTML = `<p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;" id="dupCountLabel">${groups.length} DUPLICATE${groups.length > 1 ? 'S' : ''} FOUND (same name, brand &amp; category)</p>` +
+    `<div id="dupGroupsList">${groups.map((g, gi) => renderDupGroupHtml(g, gi)).join('')}</div>`;
+}
+
+function renderDupGroupHtml(g, gi){
+  return `
+      <div class="dup-group" id="dupGroup-${gi}">
         <p style="font-weight:700;margin:0 0 10px;">${esc(g.items[0].name)}${g.items[0].brand ? ' — ' + esc(g.items[0].brand) : ''}</p>
         ${g.items.map((it, ii) => `
           <div class="dup-item">
@@ -579,25 +584,66 @@ function renderDuplicateProducts(groups){
               Price: ${esc(formatPrice(it.price)) || '—'}<br>
               ${it.url ? `URL: ${esc(it.url)}` : ''}
             </div>
-            <button type="button" style="margin-top:8px;background:none;border:1px solid var(--line);color:var(--navy);font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer;" onclick="keepDuplicateProductRow(${gi}, ${ii})">Keep this one, delete the other${g.items.length > 2 ? 's' : ''}</button>
+            <div id="dupAction-${gi}-${ii}">
+              <button type="button" style="margin-top:8px;background:none;border:1px solid var(--line);color:var(--navy);font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer;" onclick="confirmKeepDuplicateProductRow(${gi}, ${ii})">Keep this one, delete the other${g.items.length > 2 ? 's' : ''}</button>
+            </div>
           </div>
         `).join('')}
-      </div>
-    `).join('');
-  window._duplicateProductGroups = groups;
+        <p id="dupGroupStatus-${gi}" style="font-size:12px;margin:6px 0 0;"></p>
+      </div>`;
+}
+
+function confirmKeepDuplicateProductRow(groupIndex, keepIndex){
+  const group = window._duplicateProductGroups[groupIndex];
+  if(!group) return;
+  const toDeleteCount = group.items.length - 1;
+  // Collapse every row's action area in this group into a single inline confirm bar.
+  group.items.forEach((it, ii) => {
+    const actionEl = document.getElementById(`dupAction-${groupIndex}-${ii}`);
+    if(actionEl) actionEl.innerHTML = ii === keepIndex
+      ? '<span style="font-size:12px;color:var(--ink-soft);">Keeping this one…</span>'
+      : '<span style="font-size:12px;color:var(--brick);">Will be deleted</span>';
+  });
+  const statusEl = document.getElementById(`dupGroupStatus-${groupIndex}`);
+  if(statusEl){
+    statusEl.innerHTML = `Delete the other ${toDeleteCount} entr${toDeleteCount === 1 ? 'y' : 'ies'}? This can't be undone. ` +
+      `<button type="button" style="margin-left:6px;background:var(--brick);color:#fff;border:none;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;" onclick="keepDuplicateProductRow(${groupIndex}, ${keepIndex})">Yes, delete</button> ` +
+      `<button type="button" style="margin-left:4px;background:none;border:1px solid var(--line);color:var(--navy);font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;" onclick="renderDupGroupInPlace(${groupIndex})">Cancel</button>`;
+  }
+}
+
+function renderDupGroupInPlace(groupIndex){
+  const group = window._duplicateProductGroups[groupIndex];
+  const el = document.getElementById(`dupGroup-${groupIndex}`);
+  if(!el || !group) return;
+  el.outerHTML = renderDupGroupHtml(group, groupIndex);
 }
 
 async function keepDuplicateProductRow(groupIndex, keepIndex){
   const group = window._duplicateProductGroups[groupIndex];
+  if(!group) return;
   const keepItem = group.items[keepIndex];
   const toDelete = group.items.filter((it, i) => i !== keepIndex);
-  if(!confirm(`Keep this entry for ${keepItem.name} and delete the other ${toDelete.length}? This can't be undone.`)) return;
+  const statusEl = document.getElementById(`dupGroupStatus-${groupIndex}`);
+  if(statusEl) statusEl.innerHTML = '<span class="loading-pulse">Deleting…</span>';
 
   for(const item of toDelete){
     try{ await postJson({ recordType: 'deleteProduct', id: item.id }); } catch(err){}
   }
-  await loadProducts();
-  $('duplicatesWrap').innerHTML = `<p style="font-size:13px;color:var(--ok);">Combined — kept one entry for ${esc(keepItem.name)}.</p>`;
+  loadProducts(); // refresh the catalog list in the background; doesn't touch the duplicates panel
+
+  // Mark this group resolved WITHOUT re-indexing the array — every other group's DOM element
+  // still references its original index in its onclick handlers, so the array positions must stay put.
+  window._duplicateProductGroups[groupIndex] = null;
+  const remainingCount = window._duplicateProductGroups.filter(Boolean).length;
+  const countEl = document.getElementById('dupCountLabel');
+  const groupEl = document.getElementById(`dupGroup-${groupIndex}`);
+  if(groupEl) groupEl.remove();
+  if(remainingCount === 0){
+    $('duplicatesWrap').innerHTML = '<p style="font-size:13px;color:var(--ok);">All duplicates resolved — kept one entry for ' + esc(keepItem.name) + ', nothing left to review.</p>';
+  } else if(countEl){
+    countEl.textContent = `${remainingCount} DUPLICATE${remainingCount > 1 ? 'S' : ''} FOUND (same name, brand & category)`;
+  }
 }
 
 /* ---------------- CSV template + import (bulk, via productsImport) ---------------- */
