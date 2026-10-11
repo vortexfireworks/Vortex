@@ -300,10 +300,11 @@ updateThemeToggleIcon();
     <button class="secondary" type="button" onclick="downloadPayrollCSV()">Download as CSV</button>
   </div>
   <p class="status" id="emailStatus" style="padding:0 24px;" aria-live="polite"></p>
+  <p class="status" id="driveStatus" style="padding:0 24px;" aria-live="polite"></p>
   <div class="send-result" id="sendResult" style="display:none;" aria-live="polite"></div>
   <details class="trouble">
     <summary>Trouble emailing?</summary>
-    <p style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;">"Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach &mdash; the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;">"Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach &mdash; the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself. Either way, a copy of the PDF is also saved to the Vortex Payroll Reports folder in Drive.</p>
   </details>
 </div>
 
@@ -1205,9 +1206,47 @@ function finishPayrollSend(title, lead, toAddress, ccAddress){
   box.scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
+function blobToBase64(blob){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').slice(String(reader.result || '').indexOf('base64,') + 7));
+    reader.onerror = () => reject(reader.error || new Error('Could not read the PDF'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function setDriveStatus(msg, kind){
+  const el = document.getElementById('driveStatus');
+  if(!el) return;
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? '#4caf7d' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft, #a3a9bf)';
+}
+
+// Runs alongside the email/share step and never blocks or breaks it.
+async function savePayrollReportToDrive(pdfBlob, fileName, toAddress){
+  setDriveStatus('Saving a copy to Drive…');
+  try{
+    const pdfBase64 = await blobToBase64(pdfBlob);
+    const event = document.getElementById('event').value.trim();
+    const eventDate = document.getElementById('eventDate').value.trim();
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'payrollReport', fileName, event, eventDate, toAddress, pdfBase64 })
+    });
+    let data = null;
+    try{ data = await res.json(); } catch(e){}
+    if(!res.ok || !data || data.status !== 'ok') throw new Error((data && data.message) || 'Request failed');
+    setDriveStatus('Saved a copy to Drive ✓', 'ok');
+  } catch(err){
+    setDriveStatus("Couldn't save a copy to Drive (no signal?). Sending isn't affected.", 'err');
+  }
+}
+
 async function sharePayrollPDF(toAddress, ccAddress){
   const statusEl = document.getElementById('emailStatus');
   const recipientLine = ccAddress ? `To: ${toAddress} (cc: ${ccAddress})` : `To: ${toAddress}`;
+  setDriveStatus('');
 
   const doc = buildPayrollPDF();
   const fileName = buildPayrollFileName();
@@ -1216,6 +1255,7 @@ async function sharePayrollPDF(toAddress, ccAddress){
   const subject = `Payroll - ${event || 'Event'}${eventDate ? ' - ' + eventDate : ''}`;
 
   const pdfBlob = doc.output('blob');
+  savePayrollReportToDrive(pdfBlob, fileName, toAddress); // fire-and-forget: don't block the email/share flow below
 
   // Try the device's native share sheet first — this can attach the real PDF
   // to Mail (or any app) on supported browsers, unlike a mailto: link.

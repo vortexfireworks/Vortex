@@ -233,6 +233,33 @@ function trashDriveFileQuietly(fileId) {
   try { DriveApp.getFileById(String(fileId)).setTrashed(true); } catch (err) { /* already gone */ }
 }
 
+const PAYROLL_FOLDER_NAME = 'Vortex Payroll Reports';
+
+// Saved privately in the script owner's Drive (no public link) — these PDFs hold crew names and pay amounts.
+function savePayrollPdfToDrive(base64, fileName) {
+  const bytes = Utilities.base64Decode(base64);
+  if (!bytes || !bytes.length || bytes.length > 15 * 1024 * 1024) return null;   // safety cap: 15 MB
+  const blob = Utilities.newBlob(bytes, 'application/pdf', fileName);
+  const folders = DriveApp.getFoldersByName(PAYROLL_FOLDER_NAME);
+  const folder = folders.hasNext() ? folders.next() : DriveApp.createFolder(PAYROLL_FOLDER_NAME);
+  return folder.createFile(blob).getId();
+}
+
+function getOrCreatePayrollReportsSheet(ss) {
+  const requiredHeaders = ['SavedAt', 'Event', 'EventDate', 'SentTo', 'FileName', 'FileId'];
+  let sheet = ss.getSheetByName('PayrollReports');
+  if (!sheet) {
+    sheet = ss.insertSheet('PayrollReports');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+  });
+  return sheet;
+}
+
 function getOrCreateFireworkProductsSheet(ss) {
   const requiredHeaders = ['Name', 'Type', 'Size', 'Manufacturer', 'Effects', 'SKU', 'IsAssortment', 'AssortmentJson'];
   let sheet = ss.getSheetByName('FireworkProducts');
@@ -726,7 +753,7 @@ const GET_LEVELS = {
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
-  aarReport: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
+  aarReport: 'hp', payrollReport: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp',
   payroll: 'admin', deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
@@ -1182,6 +1209,24 @@ function doPostInner(e) {
       }
     }
     return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'payrollReport') {
+    const base64 = String(data.pdfBase64 || '').replace(/^data:application\/pdf[^,]*;base64,/, '');
+    if (!base64) return jsonOut({status: 'error', message: 'Missing the payroll PDF'});
+    let fileName = String(data.fileName || '').replace(/[\\\/:*?"<>|]/g, '').trim().slice(0, 120);
+    if (!fileName) fileName = 'Payroll_' + (String(data.eventDate || '').trim() || 'report') + '.pdf';
+    if (!/\.pdf$/i.test(fileName)) fileName += '.pdf';
+
+    const fileId = savePayrollPdfToDrive(base64, fileName);
+    if (!fileId) return jsonOut({status: 'error', message: 'Could not save that PDF to Drive'});
+
+    const sheet = getOrCreatePayrollReportsSheet(ss);
+    sheet.appendRow([
+      new Date(), String(data.event || '').trim().slice(0, 200), normalizeDateValue(data.eventDate),
+      String(data.toAddress || '').trim().slice(0, 200), fileName, fileId
+    ]);
+    return jsonOut({status: 'ok', fileId: fileId});
   }
 
   if (data.recordType === 'backupNow') {
