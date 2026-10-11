@@ -532,6 +532,7 @@ function showVenueAddress(opts){
 
   updateModeUI();
   if(!(opts && opts.silent)) maybeAutoLoad();
+  refreshAllRateSuggestions();
 }
 
 // "Untouched" = nothing typed by hand. Crew that only came from check-ins can be swapped out if a different show is picked.
@@ -637,6 +638,93 @@ function onNameEdit(nameInput){
   }
   if(document.getElementById('divideEvenly').checked) recalculate();
   else updateSumDisplay();
+  scheduleRateSuggestion(nameInput);
+}
+
+/* ---------------- Rate memory: suggest each person's last-used amount ---------------- */
+const rateSuggestTimers = new WeakMap();
+
+function ensureRateHintEl(row){
+  let el = row.querySelector('.rate-hint');
+  if(!el){
+    el = document.createElement('div');
+    el.className = 'rate-hint';
+    el.style.cssText = 'font-size:11px;color:var(--ink-soft);margin-top:4px;display:none;';
+    row.querySelector('.p-amount').insertAdjacentElement('afterend', el);
+  }
+  return el;
+}
+
+function clearRateHint(row){
+  const el = ensureRateHintEl(row);
+  el.style.display = 'none';
+  el.innerHTML = '';
+}
+
+function scheduleRateSuggestion(nameInput){
+  const row = nameInput.closest('tr');
+  clearTimeout(rateSuggestTimers.get(row));
+  const name = nameInput.value.trim();
+  if(!name){ clearRateHint(row); return; }
+  rateSuggestTimers.set(row, setTimeout(() => fetchRateSuggestion(row, name), 500));
+}
+
+function refreshAllRateSuggestions(){
+  document.querySelectorAll('#peopleTable .p-name').forEach(input => {
+    if(input.value.trim()) scheduleRateSuggestion(input);
+  });
+}
+
+function formatSuggestionDate(d){
+  if(!d) return '';
+  const p = String(d).slice(0,10).split('-');
+  if(p.length !== 3) return '';
+  return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+}
+
+async function fetchRateSuggestion(row, name){
+  const venue = document.getElementById('event').value.trim();
+  let data;
+  try{
+    const params = new URLSearchParams({ type: 'payRate', name });
+    if(venue) params.set('venue', venue);
+    const res = await fetch(`${CHECKIN_API_URL}?${params.toString()}`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    data = await res.json();
+  } catch(err){
+    clearRateHint(row);
+    return;
+  }
+  // The name field may have changed, or the row may be gone, while this was in flight.
+  if(!row.isConnected) return;
+  const nameField = row.querySelector('.p-name');
+  if(!nameField || nameField.value.trim().toLowerCase() !== name.toLowerCase()){ return; }
+
+  const suggestion = data && data.suggestion;
+  const hours = isHoursMode();
+  if(!suggestion || (suggestion.unit === 'hours') !== hours){
+    clearRateHint(row);
+    return;
+  }
+
+  const hintEl = ensureRateHintEl(row);
+  const amountInput = row.querySelector('.p-amount');
+  const sameVenue = venue && suggestion.event && suggestion.event.trim().toLowerCase() === venue.toLowerCase();
+  const label = `Last paid ${formatUnit(suggestion.amount, hours)}${sameVenue ? ' here' : (suggestion.event ? ' at ' + suggestion.event : '')} (${formatSuggestionDate(suggestion.eventDate)})`;
+  const canFill = !amountInput.value.trim();
+  hintEl.style.display = '';
+  hintEl.innerHTML = canFill
+    ? `${escHtml(label)} — <button type="button" class="rate-use-btn" style="background:none;border:none;color:var(--navy);text-decoration:underline;cursor:pointer;font-size:11px;padding:0;">Use this</button>`
+    : escHtml(label);
+  if(canFill){
+    const btn = hintEl.querySelector('.rate-use-btn');
+    if(btn) btn.onclick = () => {
+      amountInput.value = suggestion.amount;
+      hintEl.textContent = label;
+      if(document.getElementById('divideEvenly').checked) recalculate();
+      else updateSumDisplay();
+    };
+  }
 }
 
 function formatCheckInTime(timestamp){
@@ -1243,10 +1331,12 @@ async function savePayrollReportToDrive(pdfBlob, fileName, toAddress){
     const shouldLogEntries = !payrollEntriesLogged;
     const entries = shouldLogEntries ? buildPayrollEntriesForLog() : [];
     const unit = isHoursMode() ? 'hours' : 'usd';
+    const declaredTotalRaw = document.getElementById('totalPayroll').value.trim();
+    const declaredTotal = declaredTotalRaw === '' ? '' : (parseFloat(declaredTotalRaw) || 0);
     const res = await fetch(CHECKIN_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ recordType: 'payrollReport', fileName, event, eventDate, toAddress, pdfBase64, entries, unit })
+      body: JSON.stringify({ recordType: 'payrollReport', fileName, event, eventDate, toAddress, pdfBase64, entries, unit, declaredTotal })
     });
     let data = null;
     try{ data = await res.json(); } catch(e){}

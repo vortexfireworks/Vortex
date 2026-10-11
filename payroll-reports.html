@@ -51,7 +51,7 @@ updateThemeToggleIcon();
     --logo-ring-bg:#0d1220;
     --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
     --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
-    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d; --warn:#ffb74d;
     --accent1:#d92b2b; --accent2:#ff8c00;
   }
   :root[data-theme="light"]{
@@ -65,7 +65,7 @@ updateThemeToggleIcon();
     padding:32px 16px 80px;
     min-height:100vh;
   }
-  .sheet{max-width:720px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  .sheet{max-width:760px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
   header{text-align:center;margin-bottom:12px;}
   .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
   .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
@@ -76,20 +76,24 @@ updateThemeToggleIcon();
   .section{padding:22px 24px;}
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
-  input[type=text], input[type=date]{
+  input[type=text], input[type=date], select{
     font-size:14px;padding:9px 11px;border:1px solid var(--line);
     border-radius:6px;background:var(--surface-55);color:var(--ink);
     width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
   }
-  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input:focus, select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
   button.secondary{
     background:none; border:1px solid var(--line); color:var(--navy);
     font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
   }
   button.secondary:hover{border-color:var(--navy);}
   button.secondary:disabled{opacity:0.5;cursor:wait;}
+  button.tiny{background:none;border:1px solid var(--line);color:var(--navy);font-size:11px;padding:4px 9px;border-radius:5px;cursor:pointer;}
+  button.tiny:hover{border-color:var(--navy);}
+  button.tiny.danger{color:var(--brick);}
+  button.tiny.danger:hover{border-color:var(--brick);}
   .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
-  .back-link{display:block; max-width:720px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link{display:block; max-width:760px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
   .back-link:hover{color:var(--navy);}
   .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
   @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
@@ -115,7 +119,7 @@ updateThemeToggleIcon();
   .clear-link{font-size:12px;color:var(--ink-soft);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;}
   .clear-link:hover{color:var(--navy);}
 
-  .tab-row{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--line);}
+  .tab-row{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
   .tab-btn{background:none;border:none;color:var(--ink-soft);font-size:13px;font-weight:600;padding:9px 4px;cursor:pointer;border-bottom:2px solid transparent;margin-right:14px;}
   .tab-btn.active{color:var(--navy);border-bottom-color:var(--navy);}
 
@@ -126,21 +130,37 @@ updateThemeToggleIcon();
   .show-head .sh-venue{font-weight:700;font-size:14px;color:var(--ink);}
   .show-head .sh-date{font-size:12.5px;color:var(--ink-soft);}
   .show-rows{padding:4px 14px;}
-  .show-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13px;}
+  .show-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13px;}
   .show-row:first-child{border-top:none;}
   .show-row .sr-name{color:var(--ink);}
   .show-row .sr-role{font-size:11px;color:var(--ink-soft);margin-left:6px;}
+  .show-row .sr-right{display:flex;align-items:center;gap:8px;}
   .show-row .sr-amount{font-weight:600;color:var(--ink);white-space:nowrap;}
-  .show-foot{padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-5);display:flex;justify-content:space-between;font-size:13px;font-weight:700;}
+  .show-foot{padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-5);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;font-weight:700;}
+  .discrepancy{font-size:11.5px;font-weight:600;color:var(--warn);padding:8px 14px 0;}
 
-  .person-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);font-size:13.5px;}
+  .person-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);font-size:13.5px;cursor:pointer;}
   .person-row:first-child{border-top:none;}
+  .person-row:hover{background:var(--surface-4);}
   .person-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;}
   .person-name{font-weight:700;color:var(--ink);}
+  .person-name .arrow{display:inline-block;font-size:10px;color:var(--ink-soft);margin-right:5px;transition:transform 0.15s ease;}
+  .person-name .arrow.open{transform:rotate(90deg);}
   .person-shows{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
   .person-amount{font-weight:700;color:var(--ink);text-align:right;white-space:nowrap;}
   .person-amount .pa-sub{display:block;font-size:11px;font-weight:400;color:var(--ink-soft);}
+  .person-detail{display:none;border-top:1px solid var(--line);background:var(--surface-4);padding:4px 14px;}
+  .person-detail.open{display:block;}
+  .pd-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px;}
+  .pd-row:first-child{border-top:none;}
+  .pd-row .pd-venue{color:var(--ink);}
+  .pd-row .pd-date{color:var(--ink-soft);font-size:11.5px;margin-left:6px;}
   .grand-total{padding:12px 14px;display:flex;justify-content:space-between;font-size:14.5px;font-weight:800;background:var(--surface-5);border-top:1px solid var(--line);}
+
+  .badge-1099{display:inline-block;margin-left:7px;font-size:10px;font-weight:700;color:#0a0f1e;background:var(--warn);padding:2px 6px;border-radius:4px;vertical-align:middle;}
+  .missing-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);font-size:13px;}
+  .missing-row:first-child{border-top:none;}
+  .missing-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;}
 </style>
 </head>
 <body>
@@ -185,11 +205,37 @@ updateThemeToggleIcon();
     <div class="tab-row">
       <button type="button" class="tab-btn active" data-tab="shows" onclick="switchTab('shows')">By Show</button>
       <button type="button" class="tab-btn" data-tab="people" onclick="switchTab('people')">Totals by Person</button>
+      <button type="button" class="tab-btn" data-tab="yearend" onclick="switchTab('yearend')">Year-End / 1099</button>
+      <button type="button" class="tab-btn" data-tab="missing" onclick="switchTab('missing')">Missing Payroll</button>
     </div>
 
     <p class="count-line" id="countLine"></p>
     <div id="showsPane"><p class="loading-pulse">Loading…</p></div>
     <div id="peoplePane" style="display:none;"></div>
+
+    <div id="yearendPane" style="display:none;">
+      <div class="filters" style="grid-template-columns:160px 1fr;">
+        <div>
+          <label for="yearSelect">Tax year</label>
+          <select id="yearSelect" onchange="renderYearEnd()"></select>
+        </div>
+        <div></div>
+      </div>
+      <p class="hint" style="margin:0 0 14px;">Totals below are dollar pay only (hours-only jobs aren't wages). Anyone at or over $600 for the year is flagged — the IRS 1099-NEC threshold for non-employee compensation — but confirm with your accountant before filing.</p>
+      <div class="filter-actions" style="margin-top:0;">
+        <span></span>
+        <div class="export-row">
+          <button type="button" class="secondary" onclick="exportYearEndCsv()">Export Year-End (CSV)</button>
+        </div>
+      </div>
+      <p class="count-line" id="yearendCountLine"></p>
+      <div id="yearendList"></div>
+    </div>
+
+    <div id="missingPane" style="display:none;">
+      <p class="hint" style="margin:0 0 14px;">Venue dates that have already happened but have no payroll logged for them yet. Checked against the venue list's dates (through today), matched by venue name and date.</p>
+      <div id="missingList"><p class="loading-pulse">Loading…</p></div>
+    </div>
   </div>
 </div>
 
@@ -209,8 +255,17 @@ function formatEventDate(d){
   if(p.length !== 3) return d;
   return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
 }
+function todayIso(){ return new Date().toISOString().slice(0,10); }
 
 let RECORDS = [];
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+  return data;
+}
 
 async function loadRecords(){
   const wrap = $('showsPane');
@@ -224,6 +279,7 @@ async function loadRecords(){
     $('countLine').textContent = '';
     return;
   }
+  populateYearSelect();
   renderAll();
 }
 
@@ -238,6 +294,9 @@ function switchTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $('showsPane').style.display = tab === 'shows' ? '' : 'none';
   $('peoplePane').style.display = tab === 'people' ? '' : 'none';
+  $('yearendPane').style.display = tab === 'yearend' ? '' : 'none';
+  $('missingPane').style.display = tab === 'missing' ? '' : 'none';
+  if(tab === 'missing' && !MISSING_LOADED) loadMissingPayroll();
 }
 
 // The filtered record set, grouped into shows (one per submission) and into per-person totals.
@@ -258,7 +317,7 @@ function getFilteredData(){
   filtered.forEach(r => {
     const key = r.submissionId || `${r.event}|${r.eventDate}|${r.timestamp}`;
     if(!showMap.has(key)){
-      showMap.set(key, { event: r.event, eventDate: r.eventDate, timestamp: r.timestamp, items: [] });
+      showMap.set(key, { submissionId: r.submissionId, event: r.event, eventDate: r.eventDate, timestamp: r.timestamp, items: [] });
     }
     showMap.get(key).items.push(r);
   });
@@ -269,14 +328,15 @@ function getFilteredData(){
   filtered.forEach(r => {
     const key = keyOf(r.name);
     if(!personMap.has(key)){
-      personMap.set(key, { name: r.name, totalUsd: 0, totalHours: 0, shows: new Set() });
+      personMap.set(key, { name: r.name, totalUsd: 0, totalHours: 0, shows: new Set(), items: [] });
     }
     const p = personMap.get(key);
     if(r.unit === 'hours') p.totalHours += r.amount; else p.totalUsd += r.amount;
     p.shows.add(r.submissionId || `${r.event}|${r.eventDate}`);
+    p.items.push(r);
   });
   const people = [...personMap.values()]
-    .map(p => ({ name: p.name, totalUsd: p.totalUsd, totalHours: p.totalHours, showCount: p.shows.size }))
+    .map(p => ({ name: p.name, totalUsd: p.totalUsd, totalHours: p.totalHours, showCount: p.shows.size, items: p.items }))
     .sort((a, b) => b.totalUsd - a.totalUsd || b.totalHours - a.totalHours || a.name.localeCompare(b.name));
 
   const grandTotalUsd = people.reduce((a, p) => a + p.totalUsd, 0);
@@ -294,6 +354,18 @@ function showSubtotalLine(items){
   return parts.join(' + ') || fmtUsd(0);
 }
 
+// Flags a show whose logged line items don't add up to what was typed as the total when it
+// was sent — a sign a line was missed, double-entered, or edited after the fact.
+function showDiscrepancy(items){
+  const declared = items.find(it => it.declaredTotal != null);
+  if(!declared || declared.declaredTotal == null) return null;
+  const unit = items[0] ? items[0].unit : 'usd';
+  const sum = items.filter(it => it.unit === unit).reduce((a, it) => a + it.amount, 0);
+  if(Math.abs(sum - declared.declaredTotal) < 0.01) return null;
+  const fmt = unit === 'hours' ? fmtHrs : fmtUsd;
+  return `⚠ Logged lines total ${fmt(sum)}, but ${fmt(declared.declaredTotal)} was entered as the total when this was sent.`;
+}
+
 function renderAll(){
   const { shows, people, grandTotalUsd, grandTotalHours, filtered } = getFilteredData();
 
@@ -307,21 +379,31 @@ function renderAll(){
   } else if(!shows.length){
     showsPane.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No payroll matches those filters.</p></div>';
   } else {
-    showsPane.innerHTML = shows.map(s => `
-      <div class="show-card">
+    showsPane.innerHTML = shows.map(s => {
+      const warning = showDiscrepancy(s.items);
+      return `
+      <div class="show-card" data-submission-id="${esc(s.submissionId)}">
         <div class="show-head">
           <span class="sh-venue">${esc(s.event || '(no venue)')}</span>
           <span class="sh-date">${esc(formatEventDate(s.eventDate))}</span>
         </div>
+        ${warning ? `<div class="discrepancy">${esc(warning)}</div>` : ''}
         <div class="show-rows">
           ${s.items.map(it => `
-            <div class="show-row">
+            <div class="show-row" data-id="${esc(it.id)}">
               <span class="sr-name">${esc(it.name)}${it.role === 'Head Pyro' ? '<span class="sr-role">Head Pyro</span>' : ''}</span>
-              <span class="sr-amount">${it.unit === 'hours' ? esc(fmtHrs(it.amount)) : esc(fmtUsd(it.amount))}</span>
+              <span class="sr-right">
+                <span class="sr-amount">${it.unit === 'hours' ? esc(fmtHrs(it.amount)) : esc(fmtUsd(it.amount))}</span>
+                <button type="button" class="tiny danger" data-action="delete-line" title="Delete this line">✕</button>
+              </span>
             </div>`).join('')}
         </div>
-        <div class="show-foot"><span>Show total</span><span>${esc(showSubtotalLine(s.items))}</span></div>
-      </div>`).join('');
+        <div class="show-foot">
+          <span>Show total: ${esc(showSubtotalLine(s.items))}</span>
+          <button type="button" class="tiny danger" data-action="void-show">Void this show</button>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   const peoplePane = $('peoplePane');
@@ -330,21 +412,78 @@ function renderAll(){
       ? '<div class="empty-state"><div class="icon">🔍</div><p>No payroll matches those filters.</p></div>'
       : '<div class="empty-state"><div class="icon">💵</div><p>No payroll logged yet.</p></div>';
   } else {
-    peoplePane.innerHTML = `<div class="person-card">` + people.map(p => `
-      <div class="person-row">
+    peoplePane.innerHTML = `<div class="person-card">` + people.map((p, pi) => `
+      <div class="person-row" data-person-index="${pi}">
         <div>
-          <div class="person-name">${esc(p.name)}</div>
+          <div class="person-name"><span class="arrow">▶</span>${esc(p.name)}</div>
           <div class="person-shows">${p.showCount} show${p.showCount === 1 ? '' : 's'}</div>
         </div>
         <div class="person-amount">
           ${p.totalUsd ? esc(fmtUsd(p.totalUsd)) : (p.totalHours ? '' : esc(fmtUsd(0)))}
           ${p.totalHours ? `<span class="pa-sub">${esc(fmtHrs(p.totalHours))}</span>` : ''}
         </div>
+      </div>
+      <div class="person-detail" data-person-detail="${pi}">
+        ${p.items.slice().sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || '')).map(it => `
+          <div class="pd-row">
+            <span><span class="pd-venue">${esc(it.event || '(no venue)')}</span><span class="pd-date">${esc(formatEventDate(it.eventDate))}</span></span>
+            <span>${it.unit === 'hours' ? esc(fmtHrs(it.amount)) : esc(fmtUsd(it.amount))}</span>
+          </div>`).join('')}
       </div>`).join('') +
       `<div class="grand-total"><span>Total (all people, this range)</span><span>${esc([grandTotalUsd ? fmtUsd(grandTotalUsd) : '', grandTotalHours ? fmtHrs(grandTotalHours) : ''].filter(Boolean).join(' + ') || fmtUsd(0))}</span></div>`
       + `</div>`;
   }
 }
+
+/* ---------------- By-show row actions: delete a line, or void the whole show ---------------- */
+$('showsPane').addEventListener('click', async (e) => {
+  const delBtn = e.target.closest('[data-action="delete-line"]');
+  const voidBtn = e.target.closest('[data-action="void-show"]');
+  if(delBtn){
+    const row = delBtn.closest('.show-row');
+    const id = row.dataset.id;
+    const record = RECORDS.find(r => r.id === id);
+    const name = record ? record.name : 'this person';
+    if(!confirm(`Delete the logged payroll line for ${name}? This can't be undone.`)) return;
+    delBtn.disabled = true;
+    try{
+      await postJson({ recordType: 'deletePayrollLine', id });
+      RECORDS = RECORDS.filter(r => r.id !== id);
+      renderAll();
+    } catch(err){
+      delBtn.disabled = false;
+      alert("Couldn't delete that line — check your connection and try again.");
+    }
+  } else if(voidBtn){
+    const card = voidBtn.closest('.show-card');
+    const submissionId = card.dataset.submissionId;
+    const venue = card.querySelector('.sh-venue').textContent.trim();
+    const date = card.querySelector('.sh-date').textContent.trim();
+    if(!confirm(`Void the entire logged payroll for ${venue} — ${date}? This removes every line for this show from the report. This can't be undone.`)) return;
+    voidBtn.disabled = true;
+    try{
+      await postJson({ recordType: 'deletePayrollShow', submissionId });
+      RECORDS = RECORDS.filter(r => r.submissionId !== submissionId);
+      renderAll();
+    } catch(err){
+      voidBtn.disabled = false;
+      alert("Couldn't void that show — check your connection and try again.");
+    }
+  }
+});
+
+/* ---------------- Totals by Person: click a name to see their shows ---------------- */
+$('peoplePane').addEventListener('click', (e) => {
+  const row = e.target.closest('.person-row');
+  if(!row) return;
+  const idx = row.dataset.personIndex;
+  const detail = document.querySelector(`[data-person-detail="${idx}"]`);
+  const arrow = row.querySelector('.arrow');
+  if(!detail) return;
+  const opening = !detail.classList.contains('open');
+  detail.classList.toggle('open', opening);
+  arrow.classList.toggle('open', opening);
+});
 
 function dateRangeLabel(){
   const from = $('fromDate').value, to = $('toDate').value;
@@ -352,6 +491,98 @@ function dateRangeLabel(){
   if(from) return `From ${formatEventDate(from)}`;
   if(to) return `Through ${formatEventDate(to)}`;
   return 'All dates';
+}
+
+/* ---------------- Year-End / 1099 summary ---------------- */
+function populateYearSelect(){
+  const years = [...new Set(RECORDS.map(r => (r.eventDate || r.timestamp || '').slice(0,4)).filter(Boolean))].sort().reverse();
+  const currentYear = String(new Date().getFullYear());
+  if(!years.includes(currentYear)) years.unshift(currentYear);
+  $('yearSelect').innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+  renderYearEnd();
+}
+
+function getYearEndData(){
+  const year = $('yearSelect').value;
+  const rows = RECORDS.filter(r => (r.eventDate || r.timestamp || '').slice(0,4) === year && r.unit !== 'hours');
+  const personMap = new Map();
+  rows.forEach(r => {
+    const key = keyOf(r.name);
+    if(!personMap.has(key)) personMap.set(key, { name: r.name, total: 0, showCount: new Set() });
+    const p = personMap.get(key);
+    p.total += r.amount;
+    p.showCount.add(r.submissionId || `${r.event}|${r.eventDate}`);
+  });
+  const people = [...personMap.values()]
+    .map(p => ({ name: p.name, total: p.total, showCount: p.showCount.size }))
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+  return { year, people, grandTotal: people.reduce((a, p) => a + p.total, 0) };
+}
+
+function renderYearEnd(){
+  const { year, people, grandTotal } = getYearEndData();
+  $('yearendCountLine').textContent = people.length ? `${people.length} PERSON${people.length === 1 ? '' : 'S'} PAID IN ${year}` : '';
+  const list = $('yearendList');
+  if(!people.length){
+    list.innerHTML = `<div class="empty-state"><div class="icon">💵</div><p>No dollar payroll logged for ${esc(year)}.</p></div>`;
+    return;
+  }
+  list.innerHTML = `<div class="person-card">` + people.map(p => `
+    <div class="person-row" style="cursor:default;">
+      <div>
+        <div class="person-name">${esc(p.name)}${p.total >= 600 ? '<span class="badge-1099">1099</span>' : ''}</div>
+        <div class="person-shows">${p.showCount} show${p.showCount === 1 ? '' : 's'}</div>
+      </div>
+      <div class="person-amount">${esc(fmtUsd(p.total))}</div>
+    </div>`).join('') +
+    `<div class="grand-total"><span>Total paid, ${esc(year)}</span><span>${esc(fmtUsd(grandTotal))}</span></div>`
+    + `</div>`;
+}
+
+function exportYearEndCsv(){
+  const { year, people, grandTotal } = getYearEndData();
+  const rows = [
+    ['Vortex Productions Inc. — Year-End Payroll Summary'],
+    [year],
+    [],
+    ['Name', 'Total Paid ($)', 'Shows', '1099 Threshold ($600+)'],
+  ];
+  people.forEach(p => rows.push([p.name, p.total.toFixed(2), p.showCount, p.total >= 600 ? 'Yes' : '']));
+  rows.push([]);
+  rows.push(['Grand total', grandTotal.toFixed(2)]);
+  downloadCsv(`Payroll_YearEnd_${year}.csv`, rows);
+}
+
+/* ---------------- Missing Payroll: venue dates with nothing logged ---------------- */
+let MISSING_LOADED = false;
+async function loadMissingPayroll(){
+  const list = $('missingList');
+  list.innerHTML = '<p class="loading-pulse">Loading…</p>';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    const venues = await res.json();
+    MISSING_LOADED = true;
+
+    const logged = new Set(RECORDS.map(r => `${keyOf(r.event)}|${(r.eventDate || '').slice(0,10)}`));
+    const today = todayIso();
+    const missing = (Array.isArray(venues) ? venues : [])
+      .filter(v => v.eventDate && v.eventDate.slice(0,10) <= today)
+      .filter(v => !logged.has(`${keyOf(v.name)}|${v.eventDate.slice(0,10)}`))
+      .sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || ''));
+
+    if(!missing.length){
+      list.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>Every past venue date has payroll logged.</p></div>';
+      return;
+    }
+    list.innerHTML = `<div class="missing-card">` + missing.map(v => `
+      <div class="missing-row">
+        <span>${esc(v.name)}</span>
+        <span style="color:var(--ink-soft);">${esc(formatEventDate(v.eventDate))}</span>
+      </div>`).join('') + `</div>`;
+  } catch(err){
+    list.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not check the venue list — check your connection and try again.</p>';
+  }
 }
 
 /* ---------------- CSV export (opens in Excel) ---------------- */
@@ -442,6 +673,14 @@ function exportPdf(){
         doc.text(it.unit === 'hours' ? fmtHrs(it.amount) : fmtUsd(it.amount), pageWidth - marginX, y, { align: 'right' });
         y += 13;
       });
+      const warning = showDiscrepancy(s.items);
+      if(warning){
+        ensureRoom(13);
+        doc.setFontSize(8.5); doc.setTextColor(180, 110, 20);
+        doc.text(warning, marginX + 10, y);
+        doc.setTextColor(0); doc.setFontSize(10);
+        y += 13;
+      }
       ensureRoom(16);
       doc.setFont('helvetica', 'bold');
       doc.text('Show total', marginX + 10, y);

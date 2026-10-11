@@ -260,9 +260,37 @@ function getOrCreatePayrollReportsSheet(ss) {
   return sheet;
 }
 
+// Every logged Payroll line item as plain objects — shared by the admin report, the
+// self-serve "My Pay" lookup, and the rate-memory suggestion.
+function readPayrollRecords(ss) {
+  const records = [];
+  const sheet = ss.getSheetByName('Payroll');
+  if (!sheet || sheet.getLastRow() <= 1) return records;
+  const map = headerMap(sheet);
+  sheet.getDataRange().getValues().slice(1).forEach(r => {
+    const name = String(r[map['Name']] || '').trim();
+    if (!name) return;
+    const ts = r[map['Timestamp']];
+    const declared = r[map['DeclaredTotal']];
+    records.push({
+      id: String(r[map['Id']] || ''),
+      submissionId: String(r[map['SubmissionId']] || ''),
+      timestamp: ts instanceof Date ? ts.toISOString() : String(ts || ''),
+      event: String(r[map['Event']] || ''),
+      eventDate: normalizeDateValue(r[map['EventDate']]),
+      name: name,
+      role: String(r[map['Role']] || 'Crew'),
+      amount: Number(r[map['Amount']]) || 0,
+      unit: r[map['Unit']] === 'hours' ? 'hours' : 'usd',
+      declaredTotal: declared === '' || declared == null ? null : Number(declared) || 0
+    });
+  });
+  return records;
+}
+
 // Structured line items (who was paid what, per show) powering the Manage/Edit payroll report.
 function getOrCreatePayrollSheet(ss) {
-  const requiredHeaders = ['SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit'];
+  const requiredHeaders = ['Id', 'SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit', 'DeclaredTotal'];
   let sheet = ss.getSheetByName('Payroll');
   if (!sheet) {
     sheet = ss.insertSheet('Payroll');
@@ -764,7 +792,8 @@ const GET_LEVELS = {
   contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
-  inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin'
+  inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
+  payrollRecordsForName: 'hp', payRate: 'hp'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
@@ -777,7 +806,7 @@ const POST_LEVELS = {
   product: 'admin', productsImport: 'admin', deleteProduct: 'admin',
   fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
   inventoryContainer: 'admin', deleteInventoryContainer: 'admin', inventoryTransfer: 'admin',
-  deleteAarReport: 'admin', backupNow: 'admin'
+  deleteAarReport: 'admin', deletePayrollLine: 'admin', deletePayrollShow: 'admin', backupNow: 'admin'
 };
 
 function bytesToHex(bytes) {
@@ -1239,10 +1268,12 @@ function doPostInner(e) {
     const entries = Array.isArray(data.entries) ? data.entries : [];
     if (entries.length) {
       const unit = data.unit === 'hours' ? 'hours' : 'usd';
+      const declaredTotal = data.declaredTotal === '' || data.declaredTotal == null ? '' : Number(data.declaredTotal) || 0;
       const payrollSheet = getOrCreatePayrollSheet(ss);
       const map = headerMap(payrollSheet);
       const rows = entries.map(entry => {
         const row = new Array(Object.keys(map).length).fill('');
+        row[map['Id']] = Utilities.getUuid();
         row[map['SubmissionId']] = submissionId;
         row[map['Timestamp']] = savedAt;
         row[map['Event']] = event;
@@ -1251,12 +1282,37 @@ function doPostInner(e) {
         row[map['Role']] = entry.role === 'headPyro' ? 'Head Pyro' : 'Crew';
         row[map['Amount']] = Number(entry.amount) || 0;
         row[map['Unit']] = unit;
+        row[map['DeclaredTotal']] = declaredTotal;
         return row;
       }).filter(row => row[map['Name']]);
       if (rows.length) payrollSheet.getRange(payrollSheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
     }
 
     return jsonOut({status: 'ok', fileId: fileId, submissionId: submissionId});
+  }
+
+  if (data.recordType === 'deletePayrollLine') {
+    const sheet = ss.getSheetByName('Payroll');
+    if (sheet && data.id) {
+      const map = headerMap(sheet);
+      const rows = sheet.getDataRange().getValues();
+      for (let i = rows.length - 1; i >= 1; i--) {
+        if (String(rows[i][map['Id']]) === String(data.id)) { sheet.deleteRow(i + 1); break; }
+      }
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'deletePayrollShow') {
+    const sheet = ss.getSheetByName('Payroll');
+    if (sheet && data.submissionId) {
+      const map = headerMap(sheet);
+      const rows = sheet.getDataRange().getValues();
+      for (let i = rows.length - 1; i >= 1; i--) {
+        if (String(rows[i][map['SubmissionId']]) === String(data.submissionId)) sheet.deleteRow(i + 1);
+      }
+    }
+    return jsonOut({status: 'ok'});
   }
 
   if (data.recordType === 'backupNow') {
@@ -2066,27 +2122,29 @@ function doGetInner(e) {
   if (e.parameter.type === 'payrollRecords') {
     // Every logged line item (who was paid what, per show) — the Manage/Edit payroll
     // report groups and totals these client-side, including by date range.
-    const records = [];
-    const sheet = ss.getSheetByName('Payroll');
-    if (sheet && sheet.getLastRow() > 1) {
-      const map = headerMap(sheet);
-      sheet.getDataRange().getValues().slice(1).forEach(r => {
-        const name = String(r[map['Name']] || '').trim();
-        if (!name) return;
-        const ts = r[map['Timestamp']];
-        records.push({
-          submissionId: String(r[map['SubmissionId']] || ''),
-          timestamp: ts instanceof Date ? ts.toISOString() : String(ts || ''),
-          event: String(r[map['Event']] || ''),
-          eventDate: normalizeDateValue(r[map['EventDate']]),
-          name: name,
-          role: String(r[map['Role']] || 'Crew'),
-          amount: Number(r[map['Amount']]) || 0,
-          unit: r[map['Unit']] === 'hours' ? 'hours' : 'usd'
-        });
-      });
-    }
-    return jsonOut({records: records.slice(0, 20000)});
+    return jsonOut({records: readPayrollRecords(ss).slice(0, 20000)});
+  }
+
+  if (e.parameter.type === 'payrollRecordsForName') {
+    // Self-serve "My Pay": only this one person's own line items, by exact (case-insensitive) name match.
+    const nameKey = String(e.parameter.name || '').trim().toLowerCase();
+    if (!nameKey) return jsonOut({records: []});
+    const records = readPayrollRecords(ss).filter(r => r.name.trim().toLowerCase() === nameKey);
+    return jsonOut({records: records.slice(0, 2000)});
+  }
+
+  if (e.parameter.type === 'payRate') {
+    // One rate-memory suggestion for the Payroll page: this person's most recent amount,
+    // preferring a match at the same venue if there is one.
+    const nameKey = String(e.parameter.name || '').trim().toLowerCase();
+    if (!nameKey) return jsonOut({suggestion: null});
+    const venueKey = String(e.parameter.venue || '').trim().toLowerCase();
+    const mine = readPayrollRecords(ss).filter(r => r.name.trim().toLowerCase() === nameKey);
+    const pick = (list) => list.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))[0] || null;
+    let best = venueKey ? pick(mine.filter(r => r.event.trim().toLowerCase() === venueKey)) : null;
+    if (!best) best = pick(mine);
+    if (!best) return jsonOut({suggestion: null});
+    return jsonOut({suggestion: {amount: best.amount, unit: best.unit, event: best.event, eventDate: best.eventDate}});
   }
 
   if (e.parameter.type === 'backups') {
