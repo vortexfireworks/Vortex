@@ -246,10 +246,26 @@ function savePayrollPdfToDrive(base64, fileName) {
 }
 
 function getOrCreatePayrollReportsSheet(ss) {
-  const requiredHeaders = ['SavedAt', 'Event', 'EventDate', 'SentTo', 'FileName', 'FileId'];
+  const requiredHeaders = ['SavedAt', 'Event', 'EventDate', 'SentTo', 'FileName', 'FileId', 'SubmissionId'];
   let sheet = ss.getSheetByName('PayrollReports');
   if (!sheet) {
     sheet = ss.insertSheet('PayrollReports');
+    sheet.appendRow(requiredHeaders);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+  });
+  return sheet;
+}
+
+// Structured line items (who was paid what, per show) powering the Manage/Edit payroll report.
+function getOrCreatePayrollSheet(ss) {
+  const requiredHeaders = ['SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit'];
+  let sheet = ss.getSheetByName('Payroll');
+  if (!sheet) {
+    sheet = ss.insertSheet('Payroll');
     sheet.appendRow(requiredHeaders);
     return sheet;
   }
@@ -748,14 +764,14 @@ const GET_LEVELS = {
   contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
-  inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin'
+  inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
   aarReport: 'hp', payrollReport: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp',
-  payroll: 'admin', deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
+  deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
   product: 'admin', productsImport: 'admin', deleteProduct: 'admin',
@@ -938,20 +954,6 @@ function doPostInner(e) {
   if (data.recordType && data.recordType !== 'contact') {
     const denied = authorize(data.token, POST_LEVELS[data.recordType] || 'admin');
     if (denied) return denied;
-  }
-
-  if (data.recordType === 'payroll') {
-    let sheet = ss.getSheetByName('Payroll');
-    if (!sheet) {
-      sheet = ss.insertSheet('Payroll');
-      sheet.appendRow(['Timestamp', 'Event', 'Event Date', 'Name', 'Amount']);
-    }
-    const timestamp = new Date();
-    (data.entries || []).forEach(entry => {
-      sheet.appendRow([timestamp, data.event, data.eventDate, entry.name, entry.amount]);
-    });
-    return ContentService.createTextOutput(JSON.stringify({status: 'ok'}))
-      .setMimeType(ContentService.MimeType.JSON);
   }
 
   if (data.recordType === 'contact') {
@@ -1221,12 +1223,40 @@ function doPostInner(e) {
     const fileId = savePayrollPdfToDrive(base64, fileName);
     if (!fileId) return jsonOut({status: 'error', message: 'Could not save that PDF to Drive'});
 
-    const sheet = getOrCreatePayrollReportsSheet(ss);
-    sheet.appendRow([
-      new Date(), String(data.event || '').trim().slice(0, 200), normalizeDateValue(data.eventDate),
-      String(data.toAddress || '').trim().slice(0, 200), fileName, fileId
+    const submissionId = Utilities.getUuid();
+    const event = String(data.event || '').trim().slice(0, 200);
+    const eventDate = normalizeDateValue(data.eventDate);
+    const savedAt = new Date();
+
+    const reportsSheet = getOrCreatePayrollReportsSheet(ss);
+    reportsSheet.appendRow([
+      savedAt, event, eventDate, String(data.toAddress || '').trim().slice(0, 200), fileName, fileId, submissionId
     ]);
-    return jsonOut({status: 'ok', fileId: fileId});
+
+    // Structured line items for the Manage/Edit payroll report, logged at most once per
+    // submission (the page only sends `entries` the first time it's sent/shared; repeat
+    // emails of the same unedited payroll just save another Drive copy of the PDF).
+    const entries = Array.isArray(data.entries) ? data.entries : [];
+    if (entries.length) {
+      const unit = data.unit === 'hours' ? 'hours' : 'usd';
+      const payrollSheet = getOrCreatePayrollSheet(ss);
+      const map = headerMap(payrollSheet);
+      const rows = entries.map(entry => {
+        const row = new Array(Object.keys(map).length).fill('');
+        row[map['SubmissionId']] = submissionId;
+        row[map['Timestamp']] = savedAt;
+        row[map['Event']] = event;
+        row[map['EventDate']] = eventDate;
+        row[map['Name']] = String(entry.name || '').trim().slice(0, 120);
+        row[map['Role']] = entry.role === 'headPyro' ? 'Head Pyro' : 'Crew';
+        row[map['Amount']] = Number(entry.amount) || 0;
+        row[map['Unit']] = unit;
+        return row;
+      }).filter(row => row[map['Name']]);
+      if (rows.length) payrollSheet.getRange(payrollSheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
+    }
+
+    return jsonOut({status: 'ok', fileId: fileId, submissionId: submissionId});
   }
 
   if (data.recordType === 'backupNow') {
@@ -2031,6 +2061,32 @@ function doGetInner(e) {
     } catch (err) {
       return jsonOut({dataUrl: '', error: 'Could not read the saved PDF from Drive'});
     }
+  }
+
+  if (e.parameter.type === 'payrollRecords') {
+    // Every logged line item (who was paid what, per show) — the Manage/Edit payroll
+    // report groups and totals these client-side, including by date range.
+    const records = [];
+    const sheet = ss.getSheetByName('Payroll');
+    if (sheet && sheet.getLastRow() > 1) {
+      const map = headerMap(sheet);
+      sheet.getDataRange().getValues().slice(1).forEach(r => {
+        const name = String(r[map['Name']] || '').trim();
+        if (!name) return;
+        const ts = r[map['Timestamp']];
+        records.push({
+          submissionId: String(r[map['SubmissionId']] || ''),
+          timestamp: ts instanceof Date ? ts.toISOString() : String(ts || ''),
+          event: String(r[map['Event']] || ''),
+          eventDate: normalizeDateValue(r[map['EventDate']]),
+          name: name,
+          role: String(r[map['Role']] || 'Crew'),
+          amount: Number(r[map['Amount']]) || 0,
+          unit: r[map['Unit']] === 'hours' ? 'hours' : 'usd'
+        });
+      });
+    }
+    return jsonOut({records: records.slice(0, 20000)});
   }
 
   if (e.parameter.type === 'backups') {

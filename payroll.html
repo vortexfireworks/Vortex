@@ -1222,6 +1222,17 @@ function setDriveStatus(msg, kind){
   el.style.color = kind === 'ok' ? '#4caf7d' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft, #a3a9bf)';
 }
 
+// Who got what on this payroll, for the Manage/Edit payroll report. Only sent the first time
+// an unedited payroll is sent/shared — payrollEntriesLogged guards against a second email
+// (e.g. "Email to Chuck" then "Email to Vortex") double-counting the same pay in the report.
+let payrollEntriesLogged = false;
+function buildPayrollEntriesForLog(){
+  const entries = collectPeople().map(p => ({ name: p.name, amount: p.amount, role: 'crew' }));
+  const hp = headPyroEntry();
+  if(hp && hp.name) entries.push({ name: hp.name, amount: hp.amount, role: 'headPyro' });
+  return entries.filter(e => e.name);
+}
+
 // Runs alongside the email/share step and never blocks or breaks it.
 async function savePayrollReportToDrive(pdfBlob, fileName, toAddress){
   setDriveStatus('Saving a copy to Drive…');
@@ -1229,14 +1240,18 @@ async function savePayrollReportToDrive(pdfBlob, fileName, toAddress){
     const pdfBase64 = await blobToBase64(pdfBlob);
     const event = document.getElementById('event').value.trim();
     const eventDate = document.getElementById('eventDate').value.trim();
+    const shouldLogEntries = !payrollEntriesLogged;
+    const entries = shouldLogEntries ? buildPayrollEntriesForLog() : [];
+    const unit = isHoursMode() ? 'hours' : 'usd';
     const res = await fetch(CHECKIN_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ recordType: 'payrollReport', fileName, event, eventDate, toAddress, pdfBase64 })
+      body: JSON.stringify({ recordType: 'payrollReport', fileName, event, eventDate, toAddress, pdfBase64, entries, unit })
     });
     let data = null;
     try{ data = await res.json(); } catch(e){}
     if(!res.ok || !data || data.status !== 'ok') throw new Error((data && data.message) || 'Request failed');
+    if(shouldLogEntries) payrollEntriesLogged = true;
     setDriveStatus('Saved a copy to Drive ✓', 'ok');
   } catch(err){
     setDriveStatus("Couldn't save a copy to Drive (no signal?). Sending isn't affected.", 'err');
@@ -1355,6 +1370,7 @@ function onPayEdit(e){
   if(!e.target.closest || !e.target.closest('#mainContent')) return;
   paySuppressed = false;
   payrollSubmitted = false;
+  payrollEntriesLogged = false; // the payroll changed, so the next send should log fresh entries
   schedulePayDraftSave();
 }
 document.addEventListener('input', onPayEdit);
@@ -1401,8 +1417,10 @@ function startOver(){
   document.getElementById('sendResult').style.display = 'none';
   hideReview();
   payrollSubmitted = false;
+  payrollEntriesLogged = false;
   paySuppressed = false;
   updateModeUI();
+  setDriveStatus('');
 }
 
 let payrollSubmitted = false;

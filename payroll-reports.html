@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<title>Payroll Reports — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:720px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=date]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary:disabled{opacity:0.5;cursor:wait;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .back-link{display:block; max-width:720px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .filters{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:6px;}
+  .filters .full{grid-column:1/-1;}
+  @media(max-width:560px){ .filters{grid-template-columns:1fr 1fr;} .filters .full{grid-column:1/-1;} }
+  .filter-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 18px;}
+  .export-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .clear-link{font-size:12px;color:var(--ink-soft);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;}
+  .clear-link:hover{color:var(--navy);}
+
+  .tab-row{display:flex;gap:6px;margin-bottom:16px;border-bottom:1px solid var(--line);}
+  .tab-btn{background:none;border:none;color:var(--ink-soft);font-size:13px;font-weight:600;padding:9px 4px;cursor:pointer;border-bottom:2px solid transparent;margin-right:14px;}
+  .tab-btn.active{color:var(--navy);border-bottom-color:var(--navy);}
+
+  .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+
+  .show-card{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+  .show-head{background:var(--surface-5);padding:11px 14px;display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .show-head .sh-venue{font-weight:700;font-size:14px;color:var(--ink);}
+  .show-head .sh-date{font-size:12.5px;color:var(--ink-soft);}
+  .show-rows{padding:4px 14px;}
+  .show-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:13px;}
+  .show-row:first-child{border-top:none;}
+  .show-row .sr-name{color:var(--ink);}
+  .show-row .sr-role{font-size:11px;color:var(--ink-soft);margin-left:6px;}
+  .show-row .sr-amount{font-weight:600;color:var(--ink);white-space:nowrap;}
+  .show-foot{padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-5);display:flex;justify-content:space-between;font-size:13px;font-weight:700;}
+
+  .person-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);font-size:13.5px;}
+  .person-row:first-child{border-top:none;}
+  .person-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .person-name{font-weight:700;color:var(--ink);}
+  .person-shows{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .person-amount{font-weight:700;color:var(--ink);text-align:right;white-space:nowrap;}
+  .person-amount .pa-sub{display:block;font-size:11px;font-weight:400;color:var(--ink-soft);}
+  .grand-total{padding:12px 14px;display:flex;justify-content:space-between;font-size:14.5px;font-weight:800;background:var(--surface-5);border-top:1px solid var(--line);}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Payroll Reports</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Every payroll logged when it's emailed or shared from the Payroll page, compiled by show and by person. Filter by date range or search, then export the detailed report to CSV (opens in Excel) or PDF.</p>
+
+    <div class="filters">
+      <div>
+        <label for="fromDate">From date</label>
+        <input type="date" id="fromDate" onchange="renderAll()">
+      </div>
+      <div>
+        <label for="toDate">To date</label>
+        <input type="date" id="toDate" onchange="renderAll()">
+      </div>
+      <div class="full">
+        <label for="searchBox">Search</label>
+        <input type="text" id="searchBox" placeholder="Name or venue…" oninput="renderAll()" autocomplete="off">
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button type="button" class="clear-link" onclick="clearFilters()">Clear filters</button>
+      <div class="export-row">
+        <button type="button" class="secondary" onclick="exportCsv()">Export to CSV (Excel)</button>
+        <button type="button" class="secondary" onclick="exportPdf()">Export to PDF</button>
+      </div>
+    </div>
+
+    <div class="tab-row">
+      <button type="button" class="tab-btn active" data-tab="shows" onclick="switchTab('shows')">By Show</button>
+      <button type="button" class="tab-btn" data-tab="people" onclick="switchTab('people')">Totals by Person</button>
+    </div>
+
+    <p class="count-line" id="countLine"></p>
+    <div id="showsPane"><p class="loading-pulse">Loading…</p></div>
+    <div id="peoplePane" style="display:none;"></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function keyOf(s){ return String(s || '').trim().toLowerCase(); }
+function fmtUsd(n){ return `$${(Number(n) || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`; }
+function fmtHrs(n){ return `${(Number(n) || 0).toLocaleString(undefined, {maximumFractionDigits: 2})} hrs`; }
+function formatEventDate(d){
+  if(!d) return 'No date';
+  const p = String(d).slice(0,10).split('-');
+  if(p.length !== 3) return d;
+  return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+}
+
+let RECORDS = [];
+
+async function loadRecords(){
+  const wrap = $('showsPane');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecords`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    const data = await res.json();
+    RECORDS = Array.isArray(data.records) ? data.records : [];
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load payroll records — check your connection and try again.</p>';
+    $('countLine').textContent = '';
+    return;
+  }
+  renderAll();
+}
+
+function clearFilters(){
+  $('fromDate').value = '';
+  $('toDate').value = '';
+  $('searchBox').value = '';
+  renderAll();
+}
+
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  $('showsPane').style.display = tab === 'shows' ? '' : 'none';
+  $('peoplePane').style.display = tab === 'people' ? '' : 'none';
+}
+
+// The filtered record set, grouped into shows (one per submission) and into per-person totals.
+// Shared by the on-screen render and both export functions, so what you see is exactly what exports.
+function getFilteredData(){
+  const from = $('fromDate').value;
+  const to = $('toDate').value;
+  const term = keyOf($('searchBox').value);
+
+  const filtered = RECORDS.filter(r => {
+    if(from && (r.eventDate || '') < from) return false;
+    if(to && (r.eventDate || '') > to) return false;
+    if(!term) return true;
+    return keyOf(r.name).includes(term) || keyOf(r.event).includes(term);
+  });
+
+  const showMap = new Map();
+  filtered.forEach(r => {
+    const key = r.submissionId || `${r.event}|${r.eventDate}|${r.timestamp}`;
+    if(!showMap.has(key)){
+      showMap.set(key, { event: r.event, eventDate: r.eventDate, timestamp: r.timestamp, items: [] });
+    }
+    showMap.get(key).items.push(r);
+  });
+  const shows = [...showMap.values()].sort((a, b) =>
+    (b.eventDate || '').localeCompare(a.eventDate || '') || (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+  const personMap = new Map();
+  filtered.forEach(r => {
+    const key = keyOf(r.name);
+    if(!personMap.has(key)){
+      personMap.set(key, { name: r.name, totalUsd: 0, totalHours: 0, shows: new Set() });
+    }
+    const p = personMap.get(key);
+    if(r.unit === 'hours') p.totalHours += r.amount; else p.totalUsd += r.amount;
+    p.shows.add(r.submissionId || `${r.event}|${r.eventDate}`);
+  });
+  const people = [...personMap.values()]
+    .map(p => ({ name: p.name, totalUsd: p.totalUsd, totalHours: p.totalHours, showCount: p.shows.size }))
+    .sort((a, b) => b.totalUsd - a.totalUsd || b.totalHours - a.totalHours || a.name.localeCompare(b.name));
+
+  const grandTotalUsd = people.reduce((a, p) => a + p.totalUsd, 0);
+  const grandTotalHours = people.reduce((a, p) => a + p.totalHours, 0);
+
+  return { shows, people, grandTotalUsd, grandTotalHours, filtered };
+}
+
+function showSubtotalLine(items){
+  const usd = items.filter(it => it.unit !== 'hours').reduce((a, it) => a + it.amount, 0);
+  const hrs = items.filter(it => it.unit === 'hours').reduce((a, it) => a + it.amount, 0);
+  const parts = [];
+  if(usd) parts.push(fmtUsd(usd));
+  if(hrs) parts.push(fmtHrs(hrs));
+  return parts.join(' + ') || fmtUsd(0);
+}
+
+function renderAll(){
+  const { shows, people, grandTotalUsd, grandTotalHours, filtered } = getFilteredData();
+
+  $('countLine').textContent = RECORDS.length
+    ? `${shows.length} SHOW${shows.length === 1 ? '' : 'S'} · ${filtered.length} LINE ITEM${filtered.length === 1 ? '' : 'S'}`
+    : '';
+
+  const showsPane = $('showsPane');
+  if(!RECORDS.length){
+    showsPane.innerHTML = '<div class="empty-state"><div class="icon">💵</div><p>No payroll logged yet. It\'s recorded automatically the next time a payroll is emailed or shared.</p></div>';
+  } else if(!shows.length){
+    showsPane.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No payroll matches those filters.</p></div>';
+  } else {
+    showsPane.innerHTML = shows.map(s => `
+      <div class="show-card">
+        <div class="show-head">
+          <span class="sh-venue">${esc(s.event || '(no venue)')}</span>
+          <span class="sh-date">${esc(formatEventDate(s.eventDate))}</span>
+        </div>
+        <div class="show-rows">
+          ${s.items.map(it => `
+            <div class="show-row">
+              <span class="sr-name">${esc(it.name)}${it.role === 'Head Pyro' ? '<span class="sr-role">Head Pyro</span>' : ''}</span>
+              <span class="sr-amount">${it.unit === 'hours' ? esc(fmtHrs(it.amount)) : esc(fmtUsd(it.amount))}</span>
+            </div>`).join('')}
+        </div>
+        <div class="show-foot"><span>Show total</span><span>${esc(showSubtotalLine(s.items))}</span></div>
+      </div>`).join('');
+  }
+
+  const peoplePane = $('peoplePane');
+  if(!people.length){
+    peoplePane.innerHTML = RECORDS.length
+      ? '<div class="empty-state"><div class="icon">🔍</div><p>No payroll matches those filters.</p></div>'
+      : '<div class="empty-state"><div class="icon">💵</div><p>No payroll logged yet.</p></div>';
+  } else {
+    peoplePane.innerHTML = `<div class="person-card">` + people.map(p => `
+      <div class="person-row">
+        <div>
+          <div class="person-name">${esc(p.name)}</div>
+          <div class="person-shows">${p.showCount} show${p.showCount === 1 ? '' : 's'}</div>
+        </div>
+        <div class="person-amount">
+          ${p.totalUsd ? esc(fmtUsd(p.totalUsd)) : (p.totalHours ? '' : esc(fmtUsd(0)))}
+          ${p.totalHours ? `<span class="pa-sub">${esc(fmtHrs(p.totalHours))}</span>` : ''}
+        </div>
+      </div>`).join('') +
+      `<div class="grand-total"><span>Total (all people, this range)</span><span>${esc([grandTotalUsd ? fmtUsd(grandTotalUsd) : '', grandTotalHours ? fmtHrs(grandTotalHours) : ''].filter(Boolean).join(' + ') || fmtUsd(0))}</span></div>`
+      + `</div>`;
+  }
+}
+
+function dateRangeLabel(){
+  const from = $('fromDate').value, to = $('toDate').value;
+  if(from && to) return `${formatEventDate(from)} – ${formatEventDate(to)}`;
+  if(from) return `From ${formatEventDate(from)}`;
+  if(to) return `Through ${formatEventDate(to)}`;
+  return 'All dates';
+}
+
+/* ---------------- CSV export (opens in Excel) ---------------- */
+function csvField(v){
+  v = String(v == null ? '' : v);
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+function downloadCsv(filename, rows){
+  const text = rows.map(r => r.map(csvField).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function exportCsv(){
+  const { shows, people, grandTotalUsd, grandTotalHours } = getFilteredData();
+  const rows = [];
+  rows.push(['Vortex Productions Inc. — Payroll Report']);
+  rows.push([dateRangeLabel()]);
+  rows.push([]);
+  rows.push(['PAYROLL DETAIL BY SHOW']);
+  rows.push(['Event', 'Event Date', 'Name', 'Role', 'Amount', 'Unit']);
+  shows.forEach(s => {
+    s.items.forEach(it => rows.push([s.event, s.eventDate, it.name, it.role, it.amount, it.unit]));
+  });
+  rows.push([]);
+  rows.push(['TOTALS BY PERSON']);
+  rows.push(['Name', 'Total ($)', 'Total (hrs)', 'Shows']);
+  people.forEach(p => rows.push([p.name, p.totalUsd ? p.totalUsd.toFixed(2) : '', p.totalHours ? p.totalHours.toFixed(2) : '', p.showCount]));
+  rows.push([]);
+  rows.push(['Grand total', grandTotalUsd ? grandTotalUsd.toFixed(2) : '', grandTotalHours ? grandTotalHours.toFixed(2) : '']);
+  downloadCsv(`Payroll_Report_${new Date().toISOString().slice(0,10)}.csv`, rows);
+}
+
+/* ---------------- PDF export ---------------- */
+function exportPdf(){
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('The PDF library did not load — check your connection and try again.');
+    return;
+  }
+  const { shows, people, grandTotalUsd, grandTotalHours } = getFilteredData();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginX = 48;
+  let y = 56;
+
+  const ensureRoom = (needed) => {
+    if(y + needed > pageHeight - 48){
+      doc.addPage();
+      y = 56;
+    }
+  };
+
+  // Vortex Productions Inc. header
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
+  doc.text('Vortex Productions Inc.', marginX, y); y += 20;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(110);
+  doc.text('vortexfireworksartists@gmail.com', marginX, y); doc.setTextColor(0); y += 22;
+  doc.setDrawColor(200); doc.line(marginX, y, pageWidth - marginX, y); y += 26;
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+  doc.text('Payroll Report', marginX, y); y += 16;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(110);
+  doc.text(`${dateRangeLabel()}  ·  Printed ${new Date().toLocaleString()}`, marginX, y);
+  doc.setTextColor(0); y += 26;
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5);
+  doc.text('BY SHOW', marginX, y); y += 14;
+  doc.setDrawColor(220); doc.line(marginX, y, pageWidth - marginX, y); y += 16;
+
+  if(!shows.length){
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(110);
+    doc.text('No payroll in this range.', marginX, y); doc.setTextColor(0); y += 18;
+  } else {
+    shows.forEach(s => {
+      ensureRoom(34);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+      doc.text(`${s.event || '(no venue)'} — ${formatEventDate(s.eventDate)}`, marginX, y); y += 15;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+      s.items.forEach(it => {
+        ensureRoom(15);
+        const label = it.name + (it.role === 'Head Pyro' ? ' (Head Pyro)' : '');
+        doc.text(label, marginX + 10, y);
+        doc.text(it.unit === 'hours' ? fmtHrs(it.amount) : fmtUsd(it.amount), pageWidth - marginX, y, { align: 'right' });
+        y += 13;
+      });
+      ensureRoom(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Show total', marginX + 10, y);
+      doc.text(showSubtotalLine(s.items), pageWidth - marginX, y, { align: 'right' });
+      y += 22;
+    });
+  }
+
+  ensureRoom(40);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5);
+  doc.text('TOTALS BY PERSON', marginX, y); y += 14;
+  doc.setDrawColor(220); doc.line(marginX, y, pageWidth - marginX, y); y += 16;
+
+  if(!people.length){
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(10.5); doc.setTextColor(110);
+    doc.text('No payroll in this range.', marginX, y); doc.setTextColor(0); y += 18;
+  } else {
+    doc.setFontSize(10);
+    people.forEach(p => {
+      ensureRoom(15);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${p.name} (${p.showCount} show${p.showCount === 1 ? '' : 's'})`, marginX + 10, y);
+      const amt = [p.totalUsd ? fmtUsd(p.totalUsd) : '', p.totalHours ? fmtHrs(p.totalHours) : ''].filter(Boolean).join(' + ') || fmtUsd(0);
+      doc.text(amt, pageWidth - marginX, y, { align: 'right' });
+      y += 14;
+    });
+    ensureRoom(22);
+    doc.setDrawColor(220); doc.line(marginX, y, pageWidth - marginX, y); y += 16;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text('Grand total', marginX + 10, y);
+    const grand = [grandTotalUsd ? fmtUsd(grandTotalUsd) : '', grandTotalHours ? fmtHrs(grandTotalHours) : ''].filter(Boolean).join(' + ') || fmtUsd(0);
+    doc.text(grand, pageWidth - marginX, y, { align: 'right' });
+  }
+
+  const pageCount = doc.getNumberOfPages();
+  for(let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(120,128,140);
+    doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 28, { align:'center' });
+  }
+
+  doc.save(`Payroll_Report_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+loadRecords();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
