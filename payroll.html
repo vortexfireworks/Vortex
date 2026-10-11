@@ -854,6 +854,13 @@ function onAmountEdit(){
   }
 }
 
+// Dollar amount that was already in the Head Pyro's pay field the moment "Divide evenly" turned
+// on. A real amount there is left alone and only the rest is split among the crew; an empty field
+// means the Head Pyro shares the even split with everyone else, same as before. Captured once per
+// "divide evenly" session (see dividingHpLocked) so it doesn't drift as the field gets overwritten.
+let hpFixedAmount = null;
+let dividingHpLocked = false;
+
 function recalculate(){
   const rows = Array.from(document.querySelectorAll('#peopleBody tr'));
   const divideEvenly = document.getElementById('divideEvenly').checked;
@@ -862,14 +869,30 @@ function recalculate(){
   const hpNamed = !hours && !!document.getElementById('hpName').value.trim();
   const namedRows = rows.filter(r => r.querySelector('.p-name').value.trim());
   const emptyRows = rows.filter(r => !r.querySelector('.p-name').value.trim());
-  // Only people who will really be on the report share the money. An empty row (the page starts with two) must not take a share.
-  const sharers = namedRows.map(r => r.querySelector('.p-amount')).concat(hpNamed ? [hpAmountInput] : []);
+
+  if(divideEvenly){
+    if(!dividingHpLocked){
+      const raw = hpAmountInput.value.trim();
+      hpFixedAmount = (hpNamed && raw !== '') ? (parseFloat(raw) || 0) : null;
+      dividingHpLocked = true;
+    }
+  } else {
+    dividingHpLocked = false;
+    hpFixedAmount = null;
+  }
+  const hpHasFixedAmount = divideEvenly && hpNamed && hpFixedAmount !== null;
+
+  // Only people who will really be on the report, and aren't already getting a fixed amount, share the remaining money.
+  // An empty row (the page starts with two) must not take a share.
+  const sharers = namedRows.map(r => r.querySelector('.p-amount')).concat((hpNamed && !hpHasFixedAmount) ? [hpAmountInput] : []);
 
   if(divideEvenly){
     sharers.forEach(inp => inp.readOnly = true);
     emptyRows.forEach(r => { const inp = r.querySelector('.p-amount'); inp.value = ''; inp.readOnly = true; });
     if(!hpNamed && !hours){ hpAmountInput.value = ''; hpAmountInput.readOnly = true; }
+    if(hpHasFixedAmount){ hpAmountInput.value = hpFixedAmount; hpAmountInput.readOnly = true; }
     const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
+    const remaining = hpHasFixedAmount ? Math.max(0, total - hpFixedAmount) : total;
     const n = sharers.length;
     if(n === 0){
       updateSumDisplay();
@@ -877,7 +900,7 @@ function recalculate(){
     }
     if(hours){
       // Distribute in quarter-hour increments so the sum matches exactly
-      const totalQuarters = Math.round(total * 4);
+      const totalQuarters = Math.round(remaining * 4);
       const baseQuarters = Math.floor(totalQuarters / n);
       let remainder = totalQuarters - baseQuarters * n;
       sharers.forEach((inp, i) => {
@@ -885,7 +908,7 @@ function recalculate(){
         inp.value = (quarters / 4).toFixed(2).replace(/\.?0+$/, '') || '0';
       });
     } else {
-      const totalRounded = Math.round(total);
+      const totalRounded = Math.round(remaining);
       const base = Math.floor(totalRounded / n);
       let remainder = totalRounded - base * n;
       sharers.forEach((inp, i) => {
