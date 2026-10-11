@@ -2126,11 +2126,29 @@ function doGetInner(e) {
   }
 
   if (e.parameter.type === 'payrollRecordsForName') {
-    // Self-serve "My Pay": only this one person's own line items, by exact (case-insensitive) name match.
+    // Self-serve "My Pay": being signed in to Head Pyro Tools isn't proof of who you are (it's
+    // one shared password), so this also checks the phone number on file for that exact name —
+    // the same way the Contacts page lets someone update their own record. Locked out per name
+    // after repeated wrong phone numbers, so a phone can't just be brute-forced digit by digit.
     const nameKey = String(e.parameter.name || '').trim().toLowerCase();
-    if (!nameKey) return jsonOut({records: []});
+    if (!nameKey) return jsonOut({verified: false, records: []});
+    const cache = CacheService.getScriptCache();
+    const failKey = 'payrollPhoneFail_' + nameKey.replace(/[^a-z0-9]/g, '_').slice(0, 80);
+    const failures = Number(cache.get(failKey) || 0);
+    if (failures >= 8) {
+      return jsonOut({verified: false, locked: true, records: []});
+    }
+    const merged = getMergedContacts(ss);
+    const match = merged[nameKey];
+    const onFilePhone = match ? String(match.phone || '').replace(/\D/g, '') : '';
+    const enteredPhone = String(e.parameter.phone || '').replace(/\D/g, '');
+    if (!match || !onFilePhone || enteredPhone.length < 7 || onFilePhone !== enteredPhone) {
+      cache.put(failKey, String(failures + 1), 600);
+      return jsonOut({verified: false, records: []});
+    }
+    cache.remove(failKey);
     const records = readPayrollRecords(ss).filter(r => r.name.trim().toLowerCase() === nameKey);
-    return jsonOut({records: records.slice(0, 2000)});
+    return jsonOut({verified: true, records: records.slice(0, 2000)});
   }
 
   if (e.parameter.type === 'payRate') {

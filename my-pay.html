@@ -137,12 +137,16 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
-    <p class="desc">Look up your own payroll history — logged automatically each time a payroll is emailed or shared. Pick your name below.</p>
+    <p class="desc">Look up your own payroll history — logged automatically each time a payroll is emailed or shared. Since everyone shares one Head Pyro password, this also checks the phone number on file for your name, so you can only see your own pay.</p>
 
     <div class="field">
       <label for="nameInput">Your name</label>
       <input type="text" id="nameInput" list="namesList" placeholder="Start typing your name…" autocomplete="off" oninput="scheduleLoad()">
       <datalist id="namesList"></datalist>
+    </div>
+    <div class="field">
+      <label for="phoneInput">Your phone number (on file)</label>
+      <input type="text" id="phoneInput" inputmode="tel" placeholder="(555) 555-5555" autocomplete="off" oninput="scheduleLoad()">
     </div>
     <div class="filters">
       <div>
@@ -156,7 +160,7 @@ updateThemeToggleIcon();
     </div>
     <div style="margin-bottom:16px;"><button type="button" class="clear-link" onclick="clearFilters()">Clear date filters</button></div>
 
-    <div id="resultWrap"><div class="empty-state"><div class="icon">💵</div><p>Pick your name above to see your pay history.</p></div></div>
+    <div id="resultWrap"><div class="empty-state"><div class="icon">💵</div><p>Enter your name and phone number above to see your pay history.</p></div></div>
   </div>
 </div>
 
@@ -200,23 +204,33 @@ function scheduleLoad(){
 
 async function loadMyPay(){
   const name = $('nameInput').value.trim();
+  const phoneDigits = $('phoneInput').value.replace(/\D/g, '');
   const wrap = $('resultWrap');
-  if(!name){
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">💵</div><p>Pick your name above to see your pay history.</p></div>';
+  if(!name || phoneDigits.length < 7){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">💵</div><p>Enter your name and phone number above to see your pay history.</p></div>';
     return;
   }
-  wrap.innerHTML = '<p class="loading-pulse">Loading…</p>';
-  let records;
+  wrap.innerHTML = '<p class="loading-pulse">Checking…</p>';
+  let data;
   try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecordsForName&name=${encodeURIComponent(name)}`, { cache: 'no-store' });
+    const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecordsForName&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phoneDigits)}`, { cache: 'no-store' });
     if(!res.ok) throw new Error('Request failed');
-    const data = await res.json();
-    records = Array.isArray(data.records) ? data.records : [];
+    data = await res.json();
   } catch(err){
     wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load your payroll — check your connection and try again.</p>';
     return;
   }
 
+  if(data.locked){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Too many attempts for that name. Wait a few minutes and try again, or ask your Head Pyro to look it up.</p>';
+    return;
+  }
+  if(!data.verified){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">That name and phone number don\'t match what\'s on file together. Double-check both and try again.</p>';
+    return;
+  }
+
+  let records = Array.isArray(data.records) ? data.records : [];
   const from = $('fromDate').value, to = $('toDate').value;
   records = records.filter(r => {
     if(from && (r.eventDate || '') < from) return false;
