@@ -136,6 +136,12 @@ updateThemeToggleIcon();
   .show-row .sr-role{font-size:11px;color:var(--ink-soft);margin-left:6px;}
   .show-row .sr-right{display:flex;align-items:center;gap:8px;}
   .show-row .sr-amount{font-weight:600;color:var(--ink);white-space:nowrap;}
+  .edit-note{font-size:11px;color:var(--ink-soft);font-style:italic;padding:0 0 7px;margin-top:-4px;}
+  .edit-panel{padding:8px 0 10px;border-top:1px dashed var(--line);}
+  .edit-panel input[type=number], .edit-panel input[type=text]{
+    font-size:13px;padding:7px 9px;border:1px solid var(--line);border-radius:6px;
+    background:var(--surface-55);color:var(--ink);font-family:inherit;
+  }
   .show-foot{padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-5);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;font-weight:700;}
   .discrepancy{font-size:11.5px;font-weight:600;color:var(--warn);padding:8px 14px 0;}
 
@@ -425,9 +431,11 @@ function renderAll(){
               <span class="sr-name">${esc(it.name)}${it.role === 'Head Pyro' ? '<span class="sr-role">Head Pyro</span>' : ''}</span>
               <span class="sr-right">
                 <span class="sr-amount">${it.unit === 'hours' ? esc(fmtHrs(it.amount)) : esc(fmtUsd(it.amount))}</span>
+                <button type="button" class="tiny" data-action="edit-line" title="Change this amount">✎</button>
                 <button type="button" class="tiny danger" data-action="delete-line" title="Delete this line">✕</button>
               </span>
-            </div>`).join('')}
+            </div>
+            ${it.editReason ? `<div class="edit-note">Amount changed${it.editedAt ? ' ' + esc(formatEventDate(it.editedAt)) : ''} — ${esc(it.editReason)}</div>` : ''}`).join('')}
         </div>
         <div class="show-foot">
           <span>Show total: ${esc(showSubtotalLine(s.items))}</span>
@@ -471,13 +479,88 @@ function renderAll(){
   }
 }
 
-/* ---------------- By-show row actions: delete a line, or void the whole show ---------------- */
+/* ---------------- By-show row actions: edit, delete, approve/void ---------------- */
+function closeAllEditPanels(){
+  document.querySelectorAll('.edit-panel').forEach(p => p.remove());
+}
+function openEditPanel(id){
+  const record = RECORDS.find(r => r.id === id);
+  const row = document.querySelector(`.show-row[data-id="${id}"]`);
+  if(!record || !row) return;
+  const already = row.nextElementSibling && row.nextElementSibling.classList.contains('edit-panel') && row.nextElementSibling.dataset.forId === id;
+  closeAllEditPanels();
+  if(already) return; // clicking edit again just closes it
+  const unitLabel = record.unit === 'hours' ? 'hrs' : '$';
+  const panel = document.createElement('div');
+  panel.className = 'edit-panel';
+  panel.dataset.forId = id;
+  panel.innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <span style="display:flex;align-items:center;gap:6px;">
+        <label style="font-size:11px;color:var(--ink-soft);">${esc(unitLabel)}</label>
+        <input type="number" step="0.01" min="0" id="editAmountInput-${id}" value="${record.amount}" style="width:100px;">
+      </span>
+      <input type="text" id="editReasonInput-${id}" placeholder="Reason for change" style="flex:1;min-width:160px;">
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button type="button" class="tiny" data-action="save-edit" data-id="${esc(id)}" style="color:var(--ok);border-color:var(--ok);">Save change</button>
+      <button type="button" class="tiny" data-action="cancel-edit">Cancel</button>
+    </div>`;
+  row.insertAdjacentElement('afterend', panel);
+  $(`editAmountInput-${id}`).focus();
+}
+
 $('showsPane').addEventListener('click', async (e) => {
   const delBtn = e.target.closest('[data-action="delete-line"]');
   const voidBtn = e.target.closest('[data-action="void-show"]');
   const approveBtn = e.target.closest('[data-action="approve-show"]');
   const unapproveBtn = e.target.closest('[data-action="unapprove-show"]');
-  if(approveBtn || unapproveBtn){
+  const editBtn = e.target.closest('[data-action="edit-line"]');
+  const cancelEditBtn = e.target.closest('[data-action="cancel-edit"]');
+  const saveEditBtn = e.target.closest('[data-action="save-edit"]');
+  if(editBtn){
+    const row = editBtn.closest('.show-row');
+    openEditPanel(row.dataset.id);
+    return;
+  } else if(cancelEditBtn){
+    closeAllEditPanels();
+    return;
+  } else if(saveEditBtn){
+    const id = saveEditBtn.dataset.id;
+    const record = RECORDS.find(r => r.id === id);
+    if(!record) return;
+    const amountInput = $(`editAmountInput-${id}`);
+    const reasonInput = $(`editReasonInput-${id}`);
+    const newAmount = parseFloat(amountInput.value);
+    if(!Number.isFinite(newAmount) || newAmount < 0){
+      alert('Enter a valid amount of zero or more.');
+      return;
+    }
+    if(Math.abs(newAmount - record.amount) < 0.005){
+      closeAllEditPanels();
+      return;
+    }
+    const reason = reasonInput.value.trim();
+    if(!reason){
+      alert('Enter a reason for this change before saving.');
+      return;
+    }
+    const fmt = record.unit === 'hours' ? fmtHrs : fmtUsd;
+    if(!confirm(`Change ${record.name}'s amount for ${record.event || '(no venue)'} — ${formatEventDate(record.eventDate)} from ${fmt(record.amount)} to ${fmt(newAmount)}?\n\nReason: ${reason}`)) return;
+    saveEditBtn.disabled = true;
+    try{
+      const result = await postJson({ recordType: 'editPayrollLine', id, newAmount, reason });
+      record.amount = newAmount;
+      record.editReason = reason;
+      record.editedAt = result.editedAt || new Date().toISOString();
+      if(record.status === 'Approved') record.status = 'Pending';
+      renderAll();
+    } catch(err){
+      saveEditBtn.disabled = false;
+      alert("Couldn't save that change — check your connection and try again.");
+    }
+    return;
+  } else if(approveBtn || unapproveBtn){
     const btn = approveBtn || unapproveBtn;
     const card = btn.closest('.show-card');
     const submissionId = card.dataset.submissionId;

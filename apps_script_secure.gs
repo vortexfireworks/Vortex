@@ -275,6 +275,7 @@ function readPayrollRecords(ss) {
     // Rows logged before approval existed have no Status at all — treat those as already
     // approved rather than retroactively putting old, already-paid payroll into limbo.
     const status = String(r[map['Status']] || '').trim() || 'Approved';
+    const editedAt = r[map['EditedAt']];
     records.push({
       id: String(r[map['Id']] || ''),
       submissionId: String(r[map['SubmissionId']] || ''),
@@ -286,7 +287,9 @@ function readPayrollRecords(ss) {
       amount: Number(r[map['Amount']]) || 0,
       unit: r[map['Unit']] === 'hours' ? 'hours' : 'usd',
       declaredTotal: declared === '' || declared == null ? null : Number(declared) || 0,
-      status: status === 'Pending' ? 'Pending' : 'Approved'
+      status: status === 'Pending' ? 'Pending' : 'Approved',
+      editedAt: editedAt instanceof Date ? editedAt.toISOString() : (editedAt ? String(editedAt) : ''),
+      editReason: String(r[map['EditReason']] || '')
     });
   });
   return records;
@@ -332,7 +335,7 @@ function setPayrollPinHash(ss, nameKey, pinHash) {
 
 // Structured line items (who was paid what, per show) powering the Manage/Edit payroll report.
 function getOrCreatePayrollSheet(ss) {
-  const requiredHeaders = ['Id', 'SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit', 'DeclaredTotal', 'Status'];
+  const requiredHeaders = ['Id', 'SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit', 'DeclaredTotal', 'Status', 'EditedAt', 'EditReason'];
   let sheet = ss.getSheetByName('Payroll');
   if (!sheet) {
     sheet = ss.insertSheet('Payroll');
@@ -1381,6 +1384,37 @@ function doPostInner(e) {
     cache.remove(failKey);
     setPayrollPinHash(ss, nameKey, saltedHash(pin));
     return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'editPayrollLine') {
+    // Changing an already-logged amount — requires a reason, which is kept with the line so
+    // anyone looking at the report later can see why it doesn't match what was first entered.
+    // If that show had already been approved, this puts it back to Pending: the approval was
+    // for the old number, not this one.
+    const sheet = ss.getSheetByName('Payroll');
+    if (!sheet || !data.id) return jsonOut({status: 'error', message: 'Missing which line to change.'});
+    const newAmount = Number(data.newAmount);
+    if (!Number.isFinite(newAmount) || newAmount < 0) return jsonOut({status: 'error', message: 'Enter a valid amount of zero or more.'});
+    const reason = String(data.reason || '').trim().slice(0, 500);
+    if (!reason) return jsonOut({status: 'error', message: 'Enter a reason for this change.'});
+    const map = headerMap(sheet);
+    const rows = sheet.getDataRange().getValues();
+    let found = false;
+    const editedAt = new Date();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][map['Id']]) === String(data.id)) {
+        sheet.getRange(i + 1, map['Amount'] + 1).setValue(newAmount);
+        sheet.getRange(i + 1, map['EditedAt'] + 1).setValue(editedAt);
+        sheet.getRange(i + 1, map['EditReason'] + 1).setValue(reason);
+        if (String(rows[i][map['Status']] || '').trim() === 'Approved') {
+          sheet.getRange(i + 1, map['Status'] + 1).setValue('Pending');
+        }
+        found = true;
+        break;
+      }
+    }
+    if (!found) return jsonOut({status: 'error', message: 'Could not find that payroll line.'});
+    return jsonOut({status: 'ok', editedAt: editedAt.toISOString()});
   }
 
   if (data.recordType === 'deletePayrollLine') {
