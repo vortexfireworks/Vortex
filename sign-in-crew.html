@@ -298,6 +298,7 @@ function currentVenue(){
   return VENUES.find(v => v.id === $('eventName').value) || null;
 }
 function onVenueChange(){
+  refreshMoment();   // fills in this venue's actual event date, unless the date was already edited by hand
   loadRoster();
 }
 
@@ -385,17 +386,19 @@ function setHeadPyroLock(enabled, message){
   label.textContent = enabled ? 'Head Pyro for this event' : `Head Pyro for this event (${message})`;
 }
 
-/* ---------- when (date/time) ---------- */
-let whenTouched = false;
+/* ---------- when (date/time) ----------
+   The date defaults to the SELECTED VENUE's actual event date (not today), since that's what
+   payroll and After Action Reports match check-ins against. Only the time defaults to right now.
+   Either field stops auto-updating as soon as someone edits it by hand. */
+let dateTouched = false;
+let timeTouched = false;
 function updateWhenText(){
   let text = 'now';
-  if(whenTouched){
-    const d = $('eventDate').value, t = $('checkInTime').value;
-    const dt = d && t ? new Date(d + 'T' + t) : null;
-    if(dt && !isNaN(dt.getTime())){
-      const time = dt.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
-      text = (d === new Date().toLocaleDateString('en-CA') ? 'today' : dt.toLocaleDateString([], { month:'short', day:'numeric' })) + ' at ' + time;
-    }
+  const d = $('eventDate').value, t = $('checkInTime').value;
+  const dt = d && t ? new Date(d + 'T' + t) : null;
+  if(dt && !isNaN(dt.getTime())){
+    const time = dt.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+    text = (d === new Date().toLocaleDateString('en-CA') ? 'today' : dt.toLocaleDateString([], { month:'short', day:'numeric' })) + ' at ' + time;
   }
   $('whenText').textContent = text;
 }
@@ -404,14 +407,17 @@ function toggleWhenEditor(){
   ed.style.display = ed.style.display === 'none' ? '' : 'none';
 }
 function refreshMoment(){
-  if(whenTouched) return;
-  const now = new Date();
-  $('eventDate').value = now.toLocaleDateString('en-CA');
-  $('checkInTime').value = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  if(!timeTouched){
+    $('checkInTime').value = new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  }
+  if(!dateTouched){
+    const venue = currentVenue();
+    $('eventDate').value = (venue && venue.eventDate) ? venue.eventDate.slice(0, 10) : new Date().toLocaleDateString('en-CA');
+  }
+  updateWhenText();
 }
-['eventDate','checkInTime'].forEach(id => {
-  $(id).addEventListener('input', () => { whenTouched = true; updateWhenText(); });
-});
+$('eventDate').addEventListener('input', () => { dateTouched = true; updateWhenText(); });
+$('checkInTime').addEventListener('input', () => { timeTouched = true; updateWhenText(); });
 refreshMoment();
 
 /* ---------- the "Russ Check" — same license format rule as checkin.html ---------- */
