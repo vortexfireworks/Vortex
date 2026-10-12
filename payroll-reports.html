@@ -158,6 +158,10 @@ updateThemeToggleIcon();
   .grand-total{padding:12px 14px;display:flex;justify-content:space-between;font-size:14.5px;font-weight:800;background:var(--surface-5);border-top:1px solid var(--line);}
 
   .badge-1099{display:inline-block;margin-left:7px;font-size:10px;font-weight:700;color:#0a0f1e;background:var(--warn);padding:2px 6px;border-radius:4px;vertical-align:middle;}
+  .badge-approved{display:inline-block;margin-left:7px;font-size:10px;font-weight:700;color:#0a0f1e;background:var(--ok);padding:2px 6px;border-radius:4px;vertical-align:middle;}
+  .badge-pending{display:inline-block;margin-left:7px;font-size:10px;font-weight:700;color:#0a0f1e;background:var(--warn);padding:2px 6px;border-radius:4px;vertical-align:middle;}
+  .settings-row{display:flex;align-items:center;gap:8px;margin:0 0 18px;}
+  .settings-row label{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-soft);font-weight:600;cursor:pointer;}
   .missing-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid var(--line);font-size:13px;}
   .missing-row:first-child{border-top:none;}
   .missing-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;}
@@ -200,6 +204,10 @@ updateThemeToggleIcon();
         <button type="button" class="secondary" onclick="exportCsv()">Export to CSV (Excel)</button>
         <button type="button" class="secondary" onclick="exportPdf()">Export to PDF</button>
       </div>
+    </div>
+
+    <div class="settings-row">
+      <label><input type="checkbox" id="hideUnapprovedToggle" onchange="onHideUnapprovedToggle()"> Hide pending (not yet approved) payroll from Totals/Year-End and My Pay until approved</label>
     </div>
 
     <div class="tab-row">
@@ -258,6 +266,7 @@ function formatEventDate(d){
 function todayIso(){ return new Date().toISOString().slice(0,10); }
 
 let RECORDS = [];
+let HIDE_UNAPPROVED = false;
 
 async function postJson(payload){
   const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
@@ -274,6 +283,8 @@ async function loadRecords(){
     if(!res.ok) throw new Error('Request failed');
     const data = await res.json();
     RECORDS = Array.isArray(data.records) ? data.records : [];
+    HIDE_UNAPPROVED = !!data.hideUnapproved;
+    $('hideUnapprovedToggle').checked = HIDE_UNAPPROVED;
   } catch(err){
     wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load payroll records — check your connection and try again.</p>';
     $('countLine').textContent = '';
@@ -281,6 +292,22 @@ async function loadRecords(){
   }
   populateYearSelect();
   renderAll();
+}
+
+async function onHideUnapprovedToggle(){
+  const checkbox = $('hideUnapprovedToggle');
+  const wanted = checkbox.checked;
+  checkbox.disabled = true;
+  try{
+    await postJson({ recordType: 'payrollSettings', hideUnapproved: wanted });
+    HIDE_UNAPPROVED = wanted;
+  } catch(err){
+    checkbox.checked = !wanted;
+    alert("Couldn't save that setting — check your connection and try again.");
+  }
+  checkbox.disabled = false;
+  renderAll();
+  renderYearEnd();
 }
 
 function clearFilters(){
@@ -324,8 +351,11 @@ function getFilteredData(){
   const shows = [...showMap.values()].sort((a, b) =>
     (b.eventDate || '').localeCompare(a.eventDate || '') || (b.timestamp || '').localeCompare(a.timestamp || ''));
 
+  // Totals by Person (and its grand total) can be set to leave out anything not yet approved —
+  // the By Show list above always shows everything regardless, since that's where it gets approved.
+  const peopleSource = HIDE_UNAPPROVED ? filtered.filter(r => r.status === 'Approved') : filtered;
   const personMap = new Map();
-  filtered.forEach(r => {
+  peopleSource.forEach(r => {
     const key = keyOf(r.name);
     if(!personMap.has(key)){
       personMap.set(key, { name: r.name, totalUsd: 0, totalHours: 0, shows: new Set(), items: [] });
@@ -381,10 +411,11 @@ function renderAll(){
   } else {
     showsPane.innerHTML = shows.map(s => {
       const warning = showDiscrepancy(s.items);
+      const showApproved = s.items.every(it => it.status === 'Approved');
       return `
       <div class="show-card" data-submission-id="${esc(s.submissionId)}">
         <div class="show-head">
-          <span class="sh-venue">${esc(s.event || '(no venue)')}</span>
+          <span><span class="sh-venue">${esc(s.event || '(no venue)')}</span>${showApproved ? '<span class="badge-approved">Approved</span>' : '<span class="badge-pending">Pending approval</span>'}</span>
           <span class="sh-date">${esc(formatEventDate(s.eventDate))}</span>
         </div>
         ${warning ? `<div class="discrepancy">${esc(warning)}</div>` : ''}
@@ -400,7 +431,12 @@ function renderAll(){
         </div>
         <div class="show-foot">
           <span>Show total: ${esc(showSubtotalLine(s.items))}</span>
-          <button type="button" class="tiny danger" data-action="void-show">Void this show</button>
+          <div style="display:flex;gap:8px;">
+            ${showApproved
+              ? '<button type="button" class="tiny" data-action="unapprove-show">Un-approve</button>'
+              : '<button type="button" class="tiny" data-action="approve-show" style="color:var(--ok);border-color:var(--ok);">Approve payroll</button>'}
+            <button type="button" class="tiny danger" data-action="void-show">Void this show</button>
+          </div>
         </div>
       </div>`;
     }).join('');
@@ -426,7 +462,7 @@ function renderAll(){
       <div class="person-detail" data-person-detail="${pi}">
         ${p.items.slice().sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || '')).map(it => `
           <div class="pd-row">
-            <span><span class="pd-venue">${esc(it.event || '(no venue)')}</span><span class="pd-date">${esc(formatEventDate(it.eventDate))}</span></span>
+            <span><span class="pd-venue">${esc(it.event || '(no venue)')}</span><span class="pd-date">${esc(formatEventDate(it.eventDate))}</span>${it.status === 'Pending' ? '<span class="badge-pending">Pending</span>' : ''}</span>
             <span>${it.unit === 'hours' ? esc(fmtHrs(it.amount)) : esc(fmtUsd(it.amount))}</span>
           </div>`).join('')}
       </div>`).join('') +
@@ -439,7 +475,23 @@ function renderAll(){
 $('showsPane').addEventListener('click', async (e) => {
   const delBtn = e.target.closest('[data-action="delete-line"]');
   const voidBtn = e.target.closest('[data-action="void-show"]');
-  if(delBtn){
+  const approveBtn = e.target.closest('[data-action="approve-show"]');
+  const unapproveBtn = e.target.closest('[data-action="unapprove-show"]');
+  if(approveBtn || unapproveBtn){
+    const btn = approveBtn || unapproveBtn;
+    const card = btn.closest('.show-card');
+    const submissionId = card.dataset.submissionId;
+    const newStatus = approveBtn ? 'Approved' : 'Pending';
+    btn.disabled = true;
+    try{
+      await postJson({ recordType: approveBtn ? 'approvePayrollShow' : 'unapprovePayrollShow', submissionId });
+      RECORDS.forEach(r => { if(r.submissionId === submissionId) r.status = newStatus; });
+      renderAll();
+    } catch(err){
+      btn.disabled = false;
+      alert(`Couldn't ${approveBtn ? 'approve' : 'un-approve'} that show — check your connection and try again.`);
+    }
+  } else if(delBtn){
     const row = delBtn.closest('.show-row');
     const id = row.dataset.id;
     const record = RECORDS.find(r => r.id === id);
@@ -504,7 +556,8 @@ function populateYearSelect(){
 
 function getYearEndData(){
   const year = $('yearSelect').value;
-  const rows = RECORDS.filter(r => (r.eventDate || r.timestamp || '').slice(0,4) === year && r.unit !== 'hours');
+  const rows = RECORDS.filter(r => (r.eventDate || r.timestamp || '').slice(0,4) === year && r.unit !== 'hours'
+    && (!HIDE_UNAPPROVED || r.status === 'Approved'));
   const personMap = new Map();
   rows.forEach(r => {
     const key = keyOf(r.name);

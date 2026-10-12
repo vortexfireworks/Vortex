@@ -119,6 +119,7 @@ updateThemeToggleIcon();
   .pay-venue{font-weight:600;color:var(--ink);}
   .pay-date{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
   .pay-amount{font-weight:700;color:var(--ink);white-space:nowrap;}
+  .pay-pending{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;color:#0a0f1e;background:#ffb74d;padding:2px 6px;border-radius:4px;vertical-align:middle;}
   .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
 </style>
 </head>
@@ -333,7 +334,7 @@ function applyDateFilterAndRender(records){
     <div class="show-list">${filtered.map(r => `
       <div class="pay-row">
         <div>
-          <div class="pay-venue">${esc(r.event || '(no venue)')}</div>
+          <div class="pay-venue">${esc(r.event || '(no venue)')}${r.status === 'Pending' ? '<span class="pay-pending">Pending</span>' : ''}</div>
           <div class="pay-date">${esc(formatEventDate(r.eventDate))}</div>
         </div>
         <div class="pay-amount">${r.unit === 'hours' ? esc(fmtHrs(r.amount)) : esc(fmtUsd(r.amount))}</div>

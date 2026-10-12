@@ -272,6 +272,9 @@ function readPayrollRecords(ss) {
     if (!name) return;
     const ts = r[map['Timestamp']];
     const declared = r[map['DeclaredTotal']];
+    // Rows logged before approval existed have no Status at all — treat those as already
+    // approved rather than retroactively putting old, already-paid payroll into limbo.
+    const status = String(r[map['Status']] || '').trim() || 'Approved';
     records.push({
       id: String(r[map['Id']] || ''),
       submissionId: String(r[map['SubmissionId']] || ''),
@@ -282,10 +285,18 @@ function readPayrollRecords(ss) {
       role: String(r[map['Role']] || 'Crew'),
       amount: Number(r[map['Amount']]) || 0,
       unit: r[map['Unit']] === 'hours' ? 'hours' : 'usd',
-      declaredTotal: declared === '' || declared == null ? null : Number(declared) || 0
+      declaredTotal: declared === '' || declared == null ? null : Number(declared) || 0,
+      status: status === 'Pending' ? 'Pending' : 'Approved'
     });
   });
   return records;
+}
+
+// Whether a show's payroll stays hidden from My Pay (and from Totals/Year-End totals in the
+// admin report) until an admin approves it, or shows right away marked Pending. Admin-wide,
+// changed from the Payroll Reports page.
+function payrollHideUnapproved() {
+  return PropertiesService.getScriptProperties().getProperty('PAYROLL_HIDE_UNAPPROVED') === 'true';
 }
 
 // PINs crew members set up for themselves on "My Pay" — an optional, faster alternative to
@@ -321,7 +332,7 @@ function setPayrollPinHash(ss, nameKey, pinHash) {
 
 // Structured line items (who was paid what, per show) powering the Manage/Edit payroll report.
 function getOrCreatePayrollSheet(ss) {
-  const requiredHeaders = ['Id', 'SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit', 'DeclaredTotal'];
+  const requiredHeaders = ['Id', 'SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit', 'DeclaredTotal', 'Status'];
   let sheet = ss.getSheetByName('Payroll');
   if (!sheet) {
     sheet = ss.insertSheet('Payroll');
@@ -828,7 +839,7 @@ const GET_LEVELS = {
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
-  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp'
+  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
@@ -1336,6 +1347,7 @@ function doPostInner(e) {
         row[map['Amount']] = Number(entry.amount) || 0;
         row[map['Unit']] = unit;
         row[map['DeclaredTotal']] = declaredTotal;
+        row[map['Status']] = 'Pending';
         return row;
       }).filter(row => row[map['Name']]);
       if (rows.length) payrollSheet.getRange(payrollSheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
@@ -1392,6 +1404,28 @@ function doPostInner(e) {
         if (String(rows[i][map['SubmissionId']]) === String(data.submissionId)) sheet.deleteRow(i + 1);
       }
     }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'approvePayrollShow' || data.recordType === 'unapprovePayrollShow') {
+    const sheet = ss.getSheetByName('Payroll');
+    const newStatus = data.recordType === 'approvePayrollShow' ? 'Approved' : 'Pending';
+    if (sheet && data.submissionId) {
+      const map = headerMap(sheet);
+      const rows = sheet.getDataRange().getValues();
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][map['SubmissionId']]) === String(data.submissionId)) {
+          sheet.getRange(i + 1, map['Status'] + 1).setValue(newStatus);
+        }
+      }
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'payrollSettings') {
+    // One admin-wide switch: whether a show's payroll stays visible (marked Pending) on My Pay
+    // and in the Totals/Year-End tabs before it's approved, or is held back until it is.
+    PropertiesService.getScriptProperties().setProperty('PAYROLL_HIDE_UNAPPROVED', data.hideUnapproved ? 'true' : 'false');
     return jsonOut({status: 'ok'});
   }
 
@@ -2201,8 +2235,13 @@ function doGetInner(e) {
 
   if (e.parameter.type === 'payrollRecords') {
     // Every logged line item (who was paid what, per show) — the Manage/Edit payroll
-    // report groups and totals these client-side, including by date range.
-    return jsonOut({records: readPayrollRecords(ss).slice(0, 20000)});
+    // report groups and totals these client-side, including by date range. Always returns
+    // pending lines too (with their status) so an admin can find and approve them.
+    return jsonOut({records: readPayrollRecords(ss).slice(0, 20000), hideUnapproved: payrollHideUnapproved()});
+  }
+
+  if (e.parameter.type === 'payrollSettings') {
+    return jsonOut({hideUnapproved: payrollHideUnapproved()});
   }
 
   if (e.parameter.type === 'payrollPinStatus') {
@@ -2243,7 +2282,8 @@ function doGetInner(e) {
       return jsonOut({verified: false, records: [], hasPin: !!pinHash});
     }
     cache.remove(failKey);
-    const records = readPayrollRecords(ss).filter(r => r.name.trim().toLowerCase() === nameKey);
+    let records = readPayrollRecords(ss).filter(r => r.name.trim().toLowerCase() === nameKey);
+    if (payrollHideUnapproved()) records = records.filter(r => r.status === 'Approved');
     return jsonOut({verified: true, records: records.slice(0, 2000), hasPin: !!pinHash});
   }
 
