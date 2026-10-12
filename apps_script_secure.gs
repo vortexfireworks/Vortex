@@ -288,6 +288,37 @@ function readPayrollRecords(ss) {
   return records;
 }
 
+// PINs crew members set up for themselves on "My Pay" — an optional, faster alternative to
+// re-entering the phone number every time. Keyed by lowercased name, same as the phone check.
+function getOrCreatePayrollPinsSheet(ss) {
+  let sheet = ss.getSheetByName('PayrollPins');
+  if (!sheet) {
+    sheet = ss.insertSheet('PayrollPins');
+    sheet.appendRow(['NameKey', 'PinHash', 'UpdatedAt']);
+  }
+  return sheet;
+}
+function getPayrollPinHash(ss, nameKey) {
+  const sheet = getOrCreatePayrollPinsSheet(ss);
+  if (sheet.getLastRow() <= 1) return null;
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim().toLowerCase() === nameKey) return String(rows[i][1] || '') || null;
+  }
+  return null;
+}
+function setPayrollPinHash(ss, nameKey, pinHash) {
+  const sheet = getOrCreatePayrollPinsSheet(ss);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim().toLowerCase() === nameKey) {
+      sheet.getRange(i + 1, 2, 1, 2).setValues([[pinHash, new Date()]]);
+      return;
+    }
+  }
+  sheet.appendRow([nameKey, pinHash, new Date()]);
+}
+
 // Structured line items (who was paid what, per show) powering the Manage/Edit payroll report.
 function getOrCreatePayrollSheet(ss) {
   const requiredHeaders = ['Id', 'SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit', 'DeclaredTotal'];
@@ -797,12 +828,12 @@ const GET_LEVELS = {
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
-  payrollRecordsForName: 'hp', payRate: 'hp'
+  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
-  aarReport: 'hp', payrollReport: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
+  aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp',
   deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
@@ -1311,6 +1342,33 @@ function doPostInner(e) {
     }
 
     return jsonOut({status: 'ok', fileId: fileId, submissionId: submissionId});
+  }
+
+  if (data.recordType === 'payrollSetPin') {
+    // Setting (or replacing) a PIN still requires proving it's really that person, the same way
+    // looking up their pay does today — with the phone number on file for their exact name.
+    const nameKey = String(data.name || '').trim().toLowerCase();
+    if (!nameKey) return jsonOut({status: 'error', message: 'Enter your name.'});
+    const pin = String(data.pin || '').trim();
+    if (!/^\d{4,8}$/.test(pin)) return jsonOut({status: 'error', message: 'Use a PIN of 4 to 8 digits.'});
+
+    const cache = CacheService.getScriptCache();
+    const failKey = 'payrollPhoneFail_' + nameKey.replace(/[^a-z0-9]/g, '_').slice(0, 80);
+    const failures = Number(cache.get(failKey) || 0);
+    if (failures >= 8) {
+      return jsonOut({status: 'error', code: 'locked', message: 'Too many attempts for that name. Wait a few minutes and try again.'});
+    }
+    const merged = getMergedContacts(ss);
+    const match = merged[nameKey];
+    const onFilePhone = match ? String(match.phone || '').replace(/\D/g, '') : '';
+    const enteredPhone = String(data.phone || '').replace(/\D/g, '');
+    if (!match || !onFilePhone || enteredPhone.length < 7 || onFilePhone !== enteredPhone) {
+      cache.put(failKey, String(failures + 1), 600);
+      return jsonOut({status: 'error', message: 'That name and phone number don\'t match what\'s on file together.'});
+    }
+    cache.remove(failKey);
+    setPayrollPinHash(ss, nameKey, saltedHash(pin));
+    return jsonOut({status: 'ok'});
   }
 
   if (data.recordType === 'deletePayrollLine') {
@@ -2147,11 +2205,19 @@ function doGetInner(e) {
     return jsonOut({records: readPayrollRecords(ss).slice(0, 20000)});
   }
 
+  if (e.parameter.type === 'payrollPinStatus') {
+    // So the page can show a PIN box instead of the phone box as soon as a name is typed,
+    // without waiting for a failed lookup first.
+    const nameKey = String(e.parameter.name || '').trim().toLowerCase();
+    return jsonOut({hasPin: nameKey ? !!getPayrollPinHash(ss, nameKey) : false});
+  }
+
   if (e.parameter.type === 'payrollRecordsForName') {
     // Self-serve "My Pay": being signed in to Head Pyro Tools isn't proof of who you are (it's
-    // one shared password), so this also checks the phone number on file for that exact name —
-    // the same way the Contacts page lets someone update their own record. Locked out per name
-    // after repeated wrong phone numbers, so a phone can't just be brute-forced digit by digit.
+    // one shared password), so this also checks either a PIN the person set up for themselves, or
+    // (if they never set one up, or forgot it) the phone number on file for that exact name — the
+    // same way the Contacts page lets someone update their own record. Locked out per name after
+    // repeated wrong attempts, so neither a PIN nor a phone number can just be brute-forced.
     const nameKey = String(e.parameter.name || '').trim().toLowerCase();
     if (!nameKey) return jsonOut({verified: false, records: []});
     const cache = CacheService.getScriptCache();
@@ -2160,17 +2226,25 @@ function doGetInner(e) {
     if (failures >= 8) {
       return jsonOut({verified: false, locked: true, records: []});
     }
-    const merged = getMergedContacts(ss);
-    const match = merged[nameKey];
-    const onFilePhone = match ? String(match.phone || '').replace(/\D/g, '') : '';
-    const enteredPhone = String(e.parameter.phone || '').replace(/\D/g, '');
-    if (!match || !onFilePhone || enteredPhone.length < 7 || onFilePhone !== enteredPhone) {
+    const pinHash = getPayrollPinHash(ss, nameKey);
+    const enteredPin = String(e.parameter.pin || '').trim();
+    let ok = false;
+    if (enteredPin) {
+      ok = !!pinHash && passwordMatches(pinHash, enteredPin);
+    } else {
+      const merged = getMergedContacts(ss);
+      const match = merged[nameKey];
+      const onFilePhone = match ? String(match.phone || '').replace(/\D/g, '') : '';
+      const enteredPhone = String(e.parameter.phone || '').replace(/\D/g, '');
+      ok = !!match && !!onFilePhone && enteredPhone.length >= 7 && onFilePhone === enteredPhone;
+    }
+    if (!ok) {
       cache.put(failKey, String(failures + 1), 600);
-      return jsonOut({verified: false, records: []});
+      return jsonOut({verified: false, records: [], hasPin: !!pinHash});
     }
     cache.remove(failKey);
     const records = readPayrollRecords(ss).filter(r => r.name.trim().toLowerCase() === nameKey);
-    return jsonOut({verified: true, records: records.slice(0, 2000)});
+    return jsonOut({verified: true, records: records.slice(0, 2000), hasPin: !!pinHash});
   }
 
   if (e.parameter.type === 'payRate') {

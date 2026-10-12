@@ -137,30 +137,36 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
-    <p class="desc">Look up your own payroll history — logged automatically each time a payroll is emailed or shared. Since everyone shares one Head Pyro password, this also checks the phone number on file for your name, so you can only see your own pay.</p>
+    <p class="desc">Look up your own payroll history — logged automatically each time a payroll is emailed or shared. Since everyone shares one Head Pyro password, this also checks a PIN or phone number for your name, so you can only see your own pay.</p>
 
     <div class="field">
       <label for="nameInput">Your name</label>
       <input type="text" id="nameInput" list="namesList" placeholder="Start typing your name…" autocomplete="off" oninput="scheduleLoad()">
       <datalist id="namesList"></datalist>
     </div>
-    <div class="field">
+    <div class="field" id="phoneField">
       <label for="phoneInput">Your phone number (on file)</label>
       <input type="text" id="phoneInput" inputmode="tel" placeholder="(555) 555-5555" autocomplete="off" oninput="scheduleLoad()">
     </div>
+    <div class="field" id="pinField" style="display:none;">
+      <label for="pinInput">Your PIN</label>
+      <input type="text" id="pinInput" inputmode="numeric" placeholder="4 to 8 digits" autocomplete="off" maxlength="8" oninput="scheduleLoad()">
+      <button type="button" class="clear-link" style="width:fit-content;" onclick="useForgotPin()">Forgot your PIN? Use your phone number instead</button>
+    </div>
+    <div id="pinOfferWrap" style="display:none;margin-bottom:14px;"></div>
     <div class="filters">
       <div>
         <label for="fromDate">From date</label>
-        <input type="date" id="fromDate" onchange="loadMyPay()">
+        <input type="date" id="fromDate" onchange="rerenderOrLookup()">
       </div>
       <div>
         <label for="toDate">To date</label>
-        <input type="date" id="toDate" onchange="loadMyPay()">
+        <input type="date" id="toDate" onchange="rerenderOrLookup()">
       </div>
     </div>
     <div style="margin-bottom:16px;"><button type="button" class="clear-link" onclick="clearFilters()">Clear date filters</button></div>
 
-    <div id="resultWrap"><div class="empty-state"><div class="icon">💵</div><p>Enter your name and phone number above to see your pay history.</p></div></div>
+    <div id="resultWrap"><div class="empty-state"><div class="icon">💵</div><p>Enter your name above, then your PIN or phone number, to see your pay history.</p></div></div>
   </div>
 </div>
 
@@ -193,27 +199,179 @@ async function loadNames(){
 function clearFilters(){
   $('fromDate').value = '';
   $('toDate').value = '';
-  loadMyPay();
+  rerenderOrLookup();
 }
 
 let loadTimer = null;
 function scheduleLoad(){
   clearTimeout(loadTimer);
-  loadTimer = setTimeout(loadMyPay, 350);
+  loadTimer = setTimeout(runLookup, 350);
 }
 
-async function loadMyPay(){
-  const name = $('nameInput').value.trim();
-  const phoneDigits = $('phoneInput').value.replace(/\D/g, '');
-  const wrap = $('resultWrap');
-  if(!name || phoneDigits.length < 7){
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">💵</div><p>Enter your name and phone number above to see your pay history.</p></div>';
+// The records from the last successful lookup, so changing the date filters just re-renders
+// instead of re-checking the PIN or phone number against the server again.
+let lastRecords = null;
+let knownHasPin = false;
+
+function rerenderOrLookup(){
+  if(lastRecords){
+    applyDateFilterAndRender(lastRecords);
+  } else {
+    runLookup();
+  }
+}
+
+function updateCredentialField(hasPin){
+  knownHasPin = hasPin;
+  $('phoneField').style.display = hasPin ? 'none' : '';
+  $('pinField').style.display = hasPin ? '' : 'none';
+}
+
+function useForgotPin(){
+  updateCredentialField(false);
+  $('phoneInput').focus();
+  scheduleLoad();
+}
+
+function pinOfferDismissKey(name){
+  return 'pinOfferDismissed_' + name.trim().toLowerCase();
+}
+
+let pinOfferName = '';
+function showPinOffer(name, phoneDigits){
+  let dismissed = false;
+  try{ dismissed = localStorage.getItem(pinOfferDismissKey(name)) === '1'; } catch(e){}
+  if(dismissed) return;
+  pinOfferName = name;
+  const wrap = $('pinOfferWrap');
+  wrap.style.display = '';
+  wrap.innerHTML = `
+    <div style="background:var(--surface-4);border:1px solid var(--line);border-radius:8px;padding:12px;">
+      <p style="margin:0 0 8px;font-size:12.5px;color:var(--ink-soft);">Want a faster way back in next time? Set up a PIN instead of re-entering your phone number.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="newPinInput" inputmode="numeric" maxlength="8" placeholder="New PIN (4-8 digits)" autocomplete="off" style="flex:1;min-width:120px;">
+        <input type="text" id="newPinConfirm" inputmode="numeric" maxlength="8" placeholder="Confirm PIN" autocomplete="off" style="flex:1;min-width:120px;">
+      </div>
+      <p id="pinOfferMsg" style="margin:8px 0 0;font-size:12.5px;color:var(--brick);display:none;"></p>
+      <div style="display:flex;gap:16px;margin-top:10px;align-items:center;">
+        <button type="button" class="secondary" onclick="submitPinOffer('${esc(phoneDigits)}')">Create PIN</button>
+        <button type="button" class="clear-link" onclick="dismissPinOffer()">No thanks</button>
+      </div>
+    </div>`;
+}
+
+function hidePinOffer(){
+  $('pinOfferWrap').style.display = 'none';
+  $('pinOfferWrap').innerHTML = '';
+}
+
+function dismissPinOffer(){
+  try{ localStorage.setItem(pinOfferDismissKey(pinOfferName), '1'); } catch(e){}
+  hidePinOffer();
+}
+
+async function submitPinOffer(phoneDigits){
+  const pin = $('newPinInput').value.trim();
+  const confirmPin = $('newPinConfirm').value.trim();
+  const msg = $('pinOfferMsg');
+  msg.style.display = 'none';
+  if(!/^\d{4,8}$/.test(pin)){
+    msg.textContent = 'Use a PIN of 4 to 8 digits.';
+    msg.style.display = 'block';
     return;
   }
+  if(pin !== confirmPin){
+    msg.textContent = 'Those two PINs don\'t match.';
+    msg.style.display = 'block';
+    return;
+  }
+  let data;
+  try{
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'payrollSetPin', name: pinOfferName, phone: phoneDigits, pin: pin })
+    });
+    data = await res.json();
+  } catch(err){
+    msg.textContent = 'Could not reach the server — check your connection and try again.';
+    msg.style.display = 'block';
+    return;
+  }
+  if(data.status !== 'ok'){
+    msg.textContent = data.message || 'Could not save that PIN — please try again.';
+    msg.style.display = 'block';
+    return;
+  }
+  $('pinOfferWrap').innerHTML = '<p style="margin:0;font-size:12.5px;color:var(--ok);">PIN saved — next time, enter your PIN instead of your phone number.</p>';
+  setTimeout(hidePinOffer, 4000);
+}
+
+function applyDateFilterAndRender(records){
+  records = Array.isArray(records) ? records : [];
+  const from = $('fromDate').value, to = $('toDate').value;
+  const filtered = records.filter(r => {
+    if(from && (r.eventDate || '') < from) return false;
+    if(to && (r.eventDate || '') > to) return false;
+    return true;
+  });
+  const wrap = $('resultWrap');
+  if(!filtered.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No payroll found for that name in this range.</p></div>';
+    return;
+  }
+  filtered.sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || ''));
+  const totalUsd = filtered.filter(r => r.unit !== 'hours').reduce((a, r) => a + r.amount, 0);
+  const totalHours = filtered.filter(r => r.unit === 'hours').reduce((a, r) => a + r.amount, 0);
+
+  wrap.innerHTML = `
+    <div class="total-card">
+      <div class="amount">${totalUsd ? esc(fmtUsd(totalUsd)) : esc(fmtUsd(0))}${totalHours ? `<span class="sub">${esc(fmtHrs(totalHours))}</span>` : ''}</div>
+      <div class="label">${filtered.length} SHOW${filtered.length === 1 ? '' : 'S'}</div>
+    </div>
+    <p class="count-line">SHOWS, NEWEST FIRST</p>
+    <div class="show-list">${filtered.map(r => `
+      <div class="pay-row">
+        <div>
+          <div class="pay-venue">${esc(r.event || '(no venue)')}</div>
+          <div class="pay-date">${esc(formatEventDate(r.eventDate))}</div>
+        </div>
+        <div class="pay-amount">${r.unit === 'hours' ? esc(fmtHrs(r.amount)) : esc(fmtUsd(r.amount))}</div>
+      </div>`).join('')}</div>`;
+}
+
+async function runLookup(){
+  const name = $('nameInput').value.trim();
+  const wrap = $('resultWrap');
+  lastRecords = null;
+  hidePinOffer();
+  if(!name){
+    updateCredentialField(false);
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">💵</div><p>Enter your name above, then your PIN or phone number, to see your pay history.</p></div>';
+    return;
+  }
+
+  // Figure out whether this name has a PIN on file, so the right box (PIN or phone) is showing.
+  try{
+    const statusRes = await fetch(`${CHECKIN_API_URL}?type=payrollPinStatus&name=${encodeURIComponent(name)}`, { cache: 'no-store' });
+    const statusData = await statusRes.json();
+    updateCredentialField(!!statusData.hasPin);
+  } catch(err){ /* keep whatever box was already showing */ }
+
+  const usingPin = knownHasPin;
+  const pin = $('pinInput').value.trim();
+  const phoneDigits = $('phoneInput').value.replace(/\D/g, '');
+  const haveCredential = usingPin ? pin.length >= 4 : phoneDigits.length >= 7;
+  if(!haveCredential){
+    wrap.innerHTML = `<div class="empty-state"><div class="icon">💵</div><p>Enter your ${usingPin ? 'PIN' : 'phone number'} above to see your pay history.</p></div>`;
+    return;
+  }
+
   wrap.innerHTML = '<p class="loading-pulse">Checking…</p>';
   let data;
   try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecordsForName&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phoneDigits)}`, { cache: 'no-store' });
+    const credParam = usingPin ? `&pin=${encodeURIComponent(pin)}` : `&phone=${encodeURIComponent(phoneDigits)}`;
+    const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecordsForName&name=${encodeURIComponent(name)}${credParam}`, { cache: 'no-store' });
     if(!res.ok) throw new Error('Request failed');
     data = await res.json();
   } catch(err){
@@ -226,41 +384,19 @@ async function loadMyPay(){
     return;
   }
   if(!data.verified){
-    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">That name and phone number don\'t match what\'s on file together. Double-check both and try again.</p>';
+    wrap.innerHTML = usingPin
+      ? '<p style="font-size:13px;color:var(--brick);">That PIN doesn\'t match. Double-check it, or use "Forgot your PIN?" below to switch back to your phone number.</p>'
+      : '<p style="font-size:13px;color:var(--brick);">That name and phone number don\'t match what\'s on file together. Double-check both and try again.</p>';
     return;
   }
 
-  let records = Array.isArray(data.records) ? data.records : [];
-  const from = $('fromDate').value, to = $('toDate').value;
-  records = records.filter(r => {
-    if(from && (r.eventDate || '') < from) return false;
-    if(to && (r.eventDate || '') > to) return false;
-    return true;
-  });
+  lastRecords = Array.isArray(data.records) ? data.records : [];
+  applyDateFilterAndRender(lastRecords);
 
-  if(!records.length){
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No payroll found for that name in this range.</p></div>';
-    return;
+  // First time this name has looked itself up with no PIN set up yet — offer to create one.
+  if(!usingPin && !data.hasPin){
+    showPinOffer(name, phoneDigits);
   }
-
-  records.sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || ''));
-  const totalUsd = records.filter(r => r.unit !== 'hours').reduce((a, r) => a + r.amount, 0);
-  const totalHours = records.filter(r => r.unit === 'hours').reduce((a, r) => a + r.amount, 0);
-
-  wrap.innerHTML = `
-    <div class="total-card">
-      <div class="amount">${totalUsd ? esc(fmtUsd(totalUsd)) : esc(fmtUsd(0))}${totalHours ? `<span class="sub">${esc(fmtHrs(totalHours))}</span>` : ''}</div>
-      <div class="label">${records.length} SHOW${records.length === 1 ? '' : 'S'}</div>
-    </div>
-    <p class="count-line">SHOWS, NEWEST FIRST</p>
-    <div class="show-list">${records.map(r => `
-      <div class="pay-row">
-        <div>
-          <div class="pay-venue">${esc(r.event || '(no venue)')}</div>
-          <div class="pay-date">${esc(formatEventDate(r.eventDate))}</div>
-        </div>
-        <div class="pay-amount">${r.unit === 'hours' ? esc(fmtHrs(r.amount)) : esc(fmtUsd(r.amount))}</div>
-      </div>`).join('')}</div>`;
 }
 
 loadNames();
