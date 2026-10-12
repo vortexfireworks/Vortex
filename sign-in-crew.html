@@ -276,7 +276,7 @@ async function loadVenues(){
     const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
     if(!res.ok) throw new Error('Request failed');
     const sheetVenues = await res.json();
-    const cutoff = new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate() - 2);
+    const cutoff = new Date(); cutoff.setHours(0,0,0,0); cutoff.setDate(cutoff.getDate() - 21);
     VENUES = (Array.isArray(sheetVenues) ? sheetVenues : [])
       .filter(v => v.name)
       .filter(v => {

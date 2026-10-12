@@ -334,7 +334,7 @@ function isSignInEffectivelyEnabled(v){
   if(!v.signInEnabled) return false;
   const today = new Date(); today.setHours(0,0,0,0);
   const eventDay = new Date(v.eventDate.slice(0, 10) + 'T00:00:00');
-  const expiresAt = new Date(eventDay); expiresAt.setDate(expiresAt.getDate() + 21);
+  const expiresAt = new Date(eventDay); expiresAt.setDate(expiresAt.getDate() + 3);
   return today <= expiresAt;
 }
 
