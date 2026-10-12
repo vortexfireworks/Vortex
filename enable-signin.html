@@ -176,7 +176,7 @@ updateThemeToggleIcon();
 
 <div class="card">
   <p class="sub" style="margin:0 0 14px;">
-    Check a venue to make it available on Check-In. It turns off automatically 2 days after the event date &mdash;
+    Check a venue to make it available on Check-In. It turns off automatically 3 weeks after the event date &mdash;
     Shop Time, Trailer Loading, and Bunker Time are always available and don't need to be enabled.
     Changes save automatically when you check or uncheck a box, and each row confirms it saved.
   </p>
@@ -224,11 +224,11 @@ async function fetchVenuesFresh(){
   return Array.isArray(venues) ? venues : [];
 }
 
-// Two days after the event the sign-in closes by itself, whatever the checkbox says.
+// Three weeks after the event the sign-in closes by itself, whatever the checkbox says.
 function signInExpired(eventDate){
   const today = new Date(); today.setHours(0,0,0,0);
   const expiresAt = new Date(String(eventDate).slice(0, 10) + 'T00:00:00');
-  expiresAt.setDate(expiresAt.getDate() + 2);
+  expiresAt.setDate(expiresAt.getDate() + 21);
   return today > expiresAt;
 }
 
@@ -238,7 +238,8 @@ async function fetchSignInToggleList(){
     const venues = await fetchVenuesFresh();
 
     const today = new Date(); today.setHours(0,0,0,0);
-    const weekAgo = new Date(today); weekAgo.setDate(today.getDate() - 7);
+    // Keep a venue in this list at least as long as its sign-in can still be effectively enabled.
+    const threeWeeksAgo = new Date(today); threeWeeksAgo.setDate(today.getDate() - 21);
     const twoMonthsAhead = new Date(today); twoMonthsAhead.setMonth(today.getMonth() + 2);
 
     const dated = venues
@@ -248,7 +249,7 @@ async function fetchSignInToggleList(){
         const expired = signInExpired(v.eventDate);
         return { id: v.id || '', name: v.name, eventDate: v.eventDate, eventDay, effectiveEnabled: !!v.signInEnabled && !expired, expired };
       })
-      .filter(v => v.eventDay >= weekAgo && v.eventDay <= twoMonthsAhead)
+      .filter(v => v.eventDay >= threeWeeksAgo && v.eventDay <= twoMonthsAhead)
       .sort((a, b) => a.eventDay - b.eventDay || a.name.localeCompare(b.name));
 
     if(dated.length === 0){
