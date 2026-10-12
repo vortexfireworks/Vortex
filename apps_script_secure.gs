@@ -785,6 +785,10 @@ const MAX_LOGIN_FAILS = 10;
 const LOGIN_LOCKOUT_SECONDS = 600;
 const ORIGINAL_HP_HASH = '3527374c1ff8dad43a5fae9007904cc82041d83a5d9adb69e030a71340f54b2a';
 const ORIGINAL_ADMIN_HASH = 'cf7c3f3c216f72e7b13203c30ff418dfff1206d08139fe52411603eeda3aedb2';
+// A master password an administrator can type into ANY lock screen (Head Pyro Tools or Manage/Edit)
+// to sign in at the admin level directly, instead of having to remember and switch between the two
+// separate passwords. Starts as "!sB9057214"; change it with setMasterPasswordNow() below.
+const ORIGINAL_MASTER_HASH = '0494931c1f7a91230b20808cbbe48256730cdc1d7d398c935f2a4f2ca753e927';
 
 // What each read needs. Anything not listed here (including the check-in list) needs the Head Pyro level.
 const GET_LEVELS = {
@@ -827,6 +831,7 @@ function getSecurityProps() {
   if (!props.getProperty('TOKEN_SECRET')) props.setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid());
   if (!props.getProperty('HP_PASSWORD_HASH')) props.setProperty('HP_PASSWORD_HASH', ORIGINAL_HP_HASH);
   if (!props.getProperty('ADMIN_PASSWORD_HASH')) props.setProperty('ADMIN_PASSWORD_HASH', ORIGINAL_ADMIN_HASH);
+  if (!props.getProperty('MASTER_PASSWORD_HASH')) props.setProperty('MASTER_PASSWORD_HASH', ORIGINAL_MASTER_HASH);
   return props;
 }
 // A stored password is either an original plain SHA-256 hash, or "salt$hash" for passwords set with the functions below.
@@ -880,8 +885,16 @@ function handleLogin(data) {
     return jsonOut({status: 'error', code: 'locked', message: 'Too many wrong passwords. Wait a few minutes and try again.'});
   }
   const tier = data.tier === 'admin' ? 'admin' : 'hp';
+  const enteredPassword = String(data.password || '');
+  const masterHash = getSecurityProps().getProperty('MASTER_PASSWORD_HASH');
+  // The master password works on either lock screen and always signs in at the admin level, so an
+  // administrator never has to remember or switch between the separate Head Pyro and Manage/Edit passwords.
+  if (passwordMatches(masterHash, enteredPassword)) {
+    cache.remove(LOGIN_FAIL_KEY);
+    return jsonOut({status: 'ok', token: makeToken('admin'), tier: 'admin', expiresIn: TOKEN_LIFETIME_SECONDS});
+  }
   const stored = getSecurityProps().getProperty(tier === 'admin' ? 'ADMIN_PASSWORD_HASH' : 'HP_PASSWORD_HASH');
-  if (passwordMatches(stored, String(data.password || ''))) {
+  if (passwordMatches(stored, enteredPassword)) {
     cache.remove(LOGIN_FAIL_KEY);
     return jsonOut({status: 'ok', token: makeToken(tier), tier: tier, expiresIn: TOKEN_LIFETIME_SECONDS});
   }
@@ -906,6 +919,14 @@ function setHpPasswordNow() {
   setPasswordFor('hp', NEW_PASSWORD);
   console.log('Head Pyro Tools password changed. Now delete the password from this function and save.');
 }
+function setMasterPasswordNow() {
+  const NEW_PASSWORD = '';   // type the new master (admin-on-any-lock-screen) password between the quotes, run this once, then delete it from here and save
+  const newPassword = String(NEW_PASSWORD || '');
+  if (newPassword.length < 8) throw new Error('Use at least 8 characters for the new password.');
+  getSecurityProps().setProperty('MASTER_PASSWORD_HASH', saltedHash(newPassword));
+  signOutEveryone();   // anyone logged in with the old password has to sign in again
+  console.log('Master password changed. Now delete the password from this function and save.');
+}
 function signOutEveryone() {
   PropertiesService.getScriptProperties().setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid());
 }
@@ -914,6 +935,7 @@ function securityStatus() {
   const describe = key => (String(props.getProperty(key)).indexOf('$') > -1) ? 'changed (good)' : 'STILL THE ORIGINAL — change it';
   console.log('Manage/Edit password: ' + describe('ADMIN_PASSWORD_HASH'));
   console.log('Head Pyro Tools password: ' + describe('HP_PASSWORD_HASH'));
+  console.log('Master password: ' + describe('MASTER_PASSWORD_HASH'));
 }
 
 /* ===================== BACKUPS =====================
