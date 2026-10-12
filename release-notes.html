@@ -141,6 +141,20 @@ updateThemeToggleIcon();
   <p class="sub">A running log of what's changed in Pyrotechnician Tools.</p>
 
   <div class="entry">
+    <p class="date">October 12, 2026</p>
+    <ul>
+      <li>Payroll now saves a PDF copy to Drive every time it's emailed or shared, automatically, under Manage/Edit &rarr; Saved Payroll Reports — no extra step needed</li>
+      <li>Payroll now keeps a per-person ledger of every amount paid, with a discrepancy flag if the line items don't add up to the typed total. Manage/Edit &rarr; Payroll Reports is a new admin page with four tabs: By Show (with a delete-line or void-the-whole-show option), Totals by Person (tap a name to see their shows), Year-End/1099 (flags anyone paid $600 or more in a year), and Missing Payroll (shows which past shows have no payroll on file yet)</li>
+      <li>Added "My Pay" to Head Pyro Tools — anyone can look up their own payroll history by name. Since everyone shares one Head Pyro password, it also checks the phone number on file for that name before showing anything, with a short lockout after repeated wrong attempts</li>
+      <li>Payroll Submit now suggests a pay amount for each person as you type their name, based on what they were paid last at that venue (or most recently anywhere), with a one-tap "Use this" fill-in</li>
+      <li>Fixed "Divide evenly" on Payroll Submit always splitting the full total across everyone, including the Head Pyro, even when a Head Pyro amount was already typed in. Now: an empty Head Pyro field still splits the whole total evenly as before, but a pre-filled amount is left alone and only what's left is split evenly among the crew</li>
+      <li>Crew sign-in windows are now set separately per page: Sign In Crew (Head Pyro Tools' manual sign-in) keeps a show selectable for 3 weeks after the event, and Check-In now stays open for 3 days after the event. Enable Sign-In is unchanged, still 2 days</li>
+      <li>Fixed manually signing someone in always recording today's date instead of the actual show date unless it was corrected by hand — since Payroll and the After-Action Report both match check-ins by exact event date, this was quietly hiding manual sign-ins from both. The date now fills in from the selected venue automatically</li>
+      <li>Added a master password that works on either the Head Pyro Tools or Manage/Edit lock screen and always signs in at the full admin level, so an administrator no longer has to remember or switch between two separate passwords</li>
+    </ul>
+  </div>
+
+  <div class="entry">
     <p class="date">October 5, 2026</p>
     <ul>
       <li>The app is now called CueSheet, with a new name on every page, a new app icon, and a brief loading screen when you open it</li>
