@@ -75,7 +75,7 @@ updateThemeToggleIcon();
   .section{padding:22px 24px;}
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
   label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
-  input[type=text], input[type=date]{
+  input[type=text], input[type=date], input[type=password]{
     font-size:14px;padding:9px 11px;border:1px solid var(--line);
     border-radius:6px;background:var(--surface-55);color:var(--ink);
     width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
@@ -150,7 +150,7 @@ updateThemeToggleIcon();
     </div>
     <div class="field" id="pinField" style="display:none;">
       <label for="pinInput">Your PIN</label>
-      <input type="text" id="pinInput" inputmode="numeric" placeholder="4 to 8 digits" autocomplete="off" maxlength="8" oninput="scheduleLoad()">
+      <input type="password" id="pinInput" inputmode="numeric" placeholder="4 to 8 digits" autocomplete="off" maxlength="8" oninput="scheduleLoad()">
       <button type="button" class="clear-link" style="width:fit-content;" onclick="useForgotPin()">Forgot your PIN? Use your phone number instead</button>
     </div>
     <div id="pinOfferWrap" style="display:none;margin-bottom:14px;"></div>
@@ -249,8 +249,8 @@ function showPinOffer(name, phoneDigits){
     <div style="background:var(--surface-4);border:1px solid var(--line);border-radius:8px;padding:12px;">
       <p style="margin:0 0 8px;font-size:12.5px;color:var(--ink-soft);">Want a faster way back in next time? Set up a PIN instead of re-entering your phone number.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="text" id="newPinInput" inputmode="numeric" maxlength="8" placeholder="New PIN (4-8 digits)" autocomplete="off" style="flex:1;min-width:120px;">
-        <input type="text" id="newPinConfirm" inputmode="numeric" maxlength="8" placeholder="Confirm PIN" autocomplete="off" style="flex:1;min-width:120px;">
+        <input type="password" id="newPinInput" inputmode="numeric" maxlength="8" placeholder="New PIN (4-8 digits)" autocomplete="off" style="flex:1;min-width:120px;">
+        <input type="password" id="newPinConfirm" inputmode="numeric" maxlength="8" placeholder="Confirm PIN" autocomplete="off" style="flex:1;min-width:120px;">
       </div>
       <p id="pinOfferMsg" style="margin:8px 0 0;font-size:12.5px;color:var(--brick);display:none;"></p>
       <div style="display:flex;gap:16px;margin-top:10px;align-items:center;">
