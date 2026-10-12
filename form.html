@@ -307,10 +307,10 @@ updateThemeToggleIcon();
   </header>
 
   <div id="aarNotice" style="padding:0 28px 18px;display:none;">
-    <div style="background:rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.35);border-radius:8px;padding:11px 14px;display:flex;align-items:flex-start;gap:10px;">
+    <div style="position:relative;background:rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.35);border-radius:8px;padding:11px 36px;text-align:center;">
       <span style="font-size:15px;line-height:1.2;">📢</span>
-      <div style="flex:1;font-size:12.5px;color:var(--ink);line-height:1.4;">After Action Report uses New Oct 2026 AAR Report from Nia</div>
-      <button type="button" onclick="dismissAarNotice()" aria-label="Dismiss" style="background:none;border:none;color:var(--ink-soft);font-size:16px;cursor:pointer;line-height:1;padding:0;">&times;</button>
+      <span style="font-size:12.5px;color:var(--ink);line-height:1.4;">After Action Report uses New Oct 2026 AAR Report from Nia</span>
+      <button type="button" onclick="dismissAarNotice()" aria-label="Dismiss" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--ink-soft);font-size:16px;cursor:pointer;line-height:1;padding:0;">&times;</button>
     </div>
   </div>
 
@@ -382,7 +382,7 @@ updateThemeToggleIcon();
       </div>
       <div class="field full"><label for="address">Address and/or location of event or show</label><input type="text" id="address"></div>
       <div class="field"><label for="venue">County</label><input type="text" id="venue"></div>
-      <div class="field"><label for="dept">Permit — department</label><input type="text" id="dept"></div>
+      <div class="field"><label for="dept">Fire Department</label><input type="text" id="dept"></div>
       <div class="field"><label for="ahj">AHJ name &amp; title</label><input type="text" id="ahj"></div>
       <div class="field"><label for="permitNum">Permit number</label><input type="text" id="permitNum"></div>
     </div>
@@ -1129,7 +1129,7 @@ function buildReportText(){
   lines.push(`Address/location of event or show: ${val('address')}`);
   lines.push(`Venue: ${val('event')}`);
   lines.push(`County: ${val('venue')}`);
-  lines.push(`Permit department: ${val('dept')}`);
+  lines.push(`Fire department: ${val('dept')}`);
   lines.push(`AHJ name & title: ${val('ahj')}`);
   lines.push(`Permit number: ${val('permitNum')}`);
   lines.push(`Display type: ${checkboxVals('dtype') || '(not selected)'}`);
