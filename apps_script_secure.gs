@@ -302,6 +302,11 @@ function payrollHideUnapproved() {
   return PropertiesService.getScriptProperties().getProperty('PAYROLL_HIDE_UNAPPROVED') === 'true';
 }
 
+// Admin-wide kill switch for the self-serve My Pay lookup, changed from the Payroll Reports page.
+function myPayDisabled() {
+  return PropertiesService.getScriptProperties().getProperty('MY_PAY_DISABLED') === 'true';
+}
+
 // PINs crew members set up for themselves on "My Pay" — an optional, faster alternative to
 // re-entering the phone number every time. Keyed by lowercased name, same as the phone check.
 function getOrCreatePayrollPinsSheet(ss) {
@@ -842,7 +847,7 @@ const GET_LEVELS = {
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
-  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin'
+  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
@@ -1457,9 +1462,15 @@ function doPostInner(e) {
   }
 
   if (data.recordType === 'payrollSettings') {
-    // One admin-wide switch: whether a show's payroll stays visible (marked Pending) on My Pay
-    // and in the Totals/Year-End tabs before it's approved, or is held back until it is.
-    PropertiesService.getScriptProperties().setProperty('PAYROLL_HIDE_UNAPPROVED', data.hideUnapproved ? 'true' : 'false');
+    // Each setting is only touched when the caller actually sends it, so flipping one switch
+    // (e.g. from the checkbox's onchange) never resets the other one back to its default.
+    const props = PropertiesService.getScriptProperties();
+    if (Object.prototype.hasOwnProperty.call(data, 'hideUnapproved')) {
+      props.setProperty('PAYROLL_HIDE_UNAPPROVED', data.hideUnapproved ? 'true' : 'false');
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'myPayDisabled')) {
+      props.setProperty('MY_PAY_DISABLED', data.myPayDisabled ? 'true' : 'false');
+    }
     return jsonOut({status: 'ok'});
   }
 
@@ -2271,11 +2282,16 @@ function doGetInner(e) {
     // Every logged line item (who was paid what, per show) — the Manage/Edit payroll
     // report groups and totals these client-side, including by date range. Always returns
     // pending lines too (with their status) so an admin can find and approve them.
-    return jsonOut({records: readPayrollRecords(ss).slice(0, 20000), hideUnapproved: payrollHideUnapproved()});
+    return jsonOut({records: readPayrollRecords(ss).slice(0, 20000), hideUnapproved: payrollHideUnapproved(), myPayDisabled: myPayDisabled()});
   }
 
   if (e.parameter.type === 'payrollSettings') {
-    return jsonOut({hideUnapproved: payrollHideUnapproved()});
+    return jsonOut({hideUnapproved: payrollHideUnapproved(), myPayDisabled: myPayDisabled()});
+  }
+
+  if (e.parameter.type === 'myPayStatus') {
+    // Lets the My Pay page itself check the admin's kill switch before showing the lookup form.
+    return jsonOut({disabled: myPayDisabled()});
   }
 
   if (e.parameter.type === 'payrollPinStatus') {
@@ -2291,6 +2307,7 @@ function doGetInner(e) {
     // (if they never set one up, or forgot it) the phone number on file for that exact name — the
     // same way the Contacts page lets someone update their own record. Locked out per name after
     // repeated wrong attempts, so neither a PIN nor a phone number can just be brute-forced.
+    if (myPayDisabled()) return jsonOut({verified: false, disabled: true, records: []});
     const nameKey = String(e.parameter.name || '').trim().toLowerCase();
     if (!nameKey) return jsonOut({verified: false, records: []});
     const cache = CacheService.getScriptCache();
