@@ -925,8 +925,10 @@ function authError(needed) {
   });
 }
 function authorize(token, needed) {
-  if (needed === 'public') return null;
-  return tierRank(tierFromToken(token)) >= tierRank(needed) ? null : authError(needed);
+  // DEMO BUILD: the password gate is switched off so prospective clients can click through every
+  // page with no sign-in. This file only backs the /demo/ copy of the app — the real deployment
+  // keeps its own, unmodified copy of this function and still enforces the real passwords.
+  return null;
 }
 function handleLogin(data) {
   const cache = CacheService.getScriptCache();

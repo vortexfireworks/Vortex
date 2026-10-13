@@ -10,6 +10,15 @@ production, seeded with made-up data. I can't do this part myself: this
 sandbox's network access is blocked from Google's OAuth/Sheets/Apps Script
 APIs, so it has to happen in your browser.
 
+**Password gate removed.** The Head Pyro Tools and Manage/Edit password
+screens are switched off in this copy (`auth.js`'s `DEMO_OPEN_ACCESS` flag,
+and `authorize()` in `apps_script_secure.gs` always allows) so prospective
+clients can click straight into every page. This only affects the files in
+`/demo/` — the real app's `auth.js` and `apps_script_secure.gs` at the repo
+root are untouched and still enforce the real hp/admin/master passwords.
+My Pay's own phone+PIN verification (a separate, per-person check, not a
+company password) was left as-is — say the word if you want that off too.
+
 ## 1. Create a demo copy of the Sheet (keeps the real schema, loses the real data)
 
 1. Open the real Vortex CueSheet Google Sheet.
@@ -57,15 +66,16 @@ grep -rl 'REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID' --include='*.html' -
 
 ## 4. Go live
 
-GitHub Pages only serves one branch per repo at a time, so to actually show
-this at a URL you have two options:
+Done — this folder is merged into `main` under `/demo/`, so it's served
+alongside the real app from the same GitHub Pages site. Once step 3 above
+is wired up, the demo will be live at:
 
-- **Quick/manual:** Repo → Settings → Pages → switch the source branch to
-  `demo` right before a client call, switch it back to `main` afterward.
-- **Always-on:** merge this branch's files into `main` under a `/demo/`
-  subfolder, so the real app and the demo are both live permanently at
-  their own paths on the same Pages site. I can do this once the backend
-  is wired up, if you'd rather have it always-on.
+`https://vortexfireworks.github.io/Vortex/demo/index.html`
+
+No branch-switching needed; both the real app and the demo stay live at
+their own paths going forward. (The standalone `demo` git branch still
+exists too, but `main` is what's actually deployed — merge future demo
+changes from there into this `/demo/` folder the same way.)
 
 ## Known placeholders left for you to review
 
