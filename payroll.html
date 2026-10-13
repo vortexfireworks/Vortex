@@ -8,7 +8,7 @@
 <title>Payroll Submit — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
@@ -47,17 +47,17 @@ updateThemeToggleIcon();
 </script>
 <style>
   :root{
-    --kicker:#ffb98a; --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
-    --logo-ring-bg:#0d1220;
-    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
-    --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
-    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
-    --accent1:#d92b2b; --accent2:#ff8c00;
+    --kicker:#A5B4FC; --surface-5:rgba(15,23,42,0.5); --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --navy:#A5B4FC; --brick:#6366F1; --brick-light:#818CF8;
+    --card:rgba(30,41,59,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --ok:#22C55E;
+    --accent1:#4F46E5; --accent2:#8B5CF6;
   }
 
   :root[data-theme="light"]{
-    --kicker:#c9601f; --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --navy:#c9601f;
-    --logo-ring-bg:#fffaf3;
+    --kicker:#4F46E5; --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12); --navy:#4F46E5;
+    --logo-ring-bg:#FFFFFF;
   }
   *{box-sizing:border-box;}
   body{
@@ -73,9 +73,9 @@ updateThemeToggleIcon();
   .logo-ring{
     width:92px;height:92px;border-radius:50%;
     padding:3px;
-    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
     margin:0 auto 16px;
-    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
   }
   .logo-ring-inner{
     width:100%;height:100%;border-radius:50%;
@@ -89,18 +89,18 @@ updateThemeToggleIcon();
   }
   header h1{
     margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
-    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
     line-height:1.15;
   }
   .divider{
     height:3px;width:64px;margin:20px auto 24px;
-    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
     border-radius:2px;
-    box-shadow:0 0 12px rgba(255,140,0,0.4);
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
   }
   .section{padding:22px 24px;border-bottom:1px solid var(--line);}
-  .section h2{font-size:13px;font-weight:600;color:#ffb98a;margin:0 0 14px;}
+  .section h2{font-size:13px;font-weight:600;color:#A5B4FC;margin:0 0 14px;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;min-width:0;}
   /* A dropdown is as wide as its longest option and a date input has a fixed native width, so without
      this a long venue name stretched the whole column past the edge of the card on phones. */
@@ -112,12 +112,12 @@ updateThemeToggleIcon();
     font-size:14px;padding:9px 11px;border:1px solid var(--line);
     border-radius:6px;background:var(--surface-55);color:var(--ink);
   }
-  input:focus,select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input:focus,select:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
   input[readonly]{background:rgba(255,255,255,0.04);color:var(--ink-soft);}
   button.primary{
-    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#F8FAFC; border:none;
     font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
-    box-shadow:0 0 16px rgba(255,140,0,0.3);
+    box-shadow:0 0 16px rgba(139,92,246,0.3);
   }
   button.primary:hover{filter:brightness(1.1);}
   button.secondary{
@@ -166,19 +166,19 @@ updateThemeToggleIcon();
   .totals .mismatch{color:var(--brick); font-weight:600; font-size:12.5px;}
   .totals .match{color:var(--ok); font-weight:600; font-size:12.5px;}
   .status{font-size:11.5px;color:var(--ink-soft);margin-top:8px;}
-  input.invalid, select.invalid{border-color:#ff6a5a !important;}
-  .orphan-msg{font-size:12.5px;color:#ff6a5a;font-weight:600;margin:8px 0 0;line-height:1.4;}
+  input.invalid, select.invalid{border-color:#6366F1 !important;}
+  .orphan-msg{font-size:12.5px;color:#6366F1;font-weight:600;margin:8px 0 0;line-height:1.4;}
   .draft-note{font-size:12px;color:var(--ink-soft);margin:0 0 14px;}
-  button.link-btn{background:none;border:none;box-shadow:none;padding:0;font:inherit;font-size:12.5px;font-weight:400;color:#ffb98a;text-decoration:underline;cursor:pointer;}
-  :root[data-theme="light"] button.link-btn, :root[data-theme="light"] .section h2{color:#c9601f;}
+  button.link-btn{background:none;border:none;box-shadow:none;padding:0;font:inherit;font-size:12.5px;font-weight:400;color:#A5B4FC;text-decoration:underline;cursor:pointer;}
+  :root[data-theme="light"] button.link-btn, :root[data-theme="light"] .section h2{color:#4F46E5;}
   .review-box{margin:0 24px 6px;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.5;}
-  .review-box.err{background:rgba(255,106,90,0.12);border:1px solid rgba(255,106,90,0.5);}
-  .review-box.warn{background:rgba(255,190,60,0.12);border:1px solid rgba(255,190,60,0.5);}
+  .review-box.err{background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.5);}
+  .review-box.warn{background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.5);}
   .review-box h3{margin:0 0 6px;font-size:13.5px;color:var(--ink);}
   .review-box ul{margin:0 0 10px;padding-left:18px;color:var(--ink);}
   .review-box li{margin:3px 0;}
   .review-box .btns{display:flex;gap:10px;flex-wrap:wrap;}
-  .send-result{margin:12px 24px 0;background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.4);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.5;}
+  .send-result{margin:12px 24px 0;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.4);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.5;}
   .send-result h3{margin:0 0 4px;font-size:14px;color:var(--ink);}
   .send-result p{margin:6px 0 0;color:var(--ink);}
   details.trouble{padding:0 24px 20px;margin-top:12px;}
@@ -206,14 +206,15 @@ updateThemeToggleIcon();
   @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
 </style>
 
+<script src="theme-picker.js" defer></script>
 </head>
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
 
 
-<div id="undoToast" style="display:none;position:fixed;left:16px;right:16px;bottom:20px;max-width:400px;margin:0 auto;background:#1c2434;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;">
+<div id="undoToast" style="display:none;position:fixed;left:16px;right:16px;bottom:20px;max-width:400px;margin:0 auto;background:#1E293B;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;">
   <span id="undoToastMsg" style="font-size:13px;color:var(--ink);">Person removed</span>
-  <button type="button" onclick="undoRemove()" style="background:none;border:none;color:#ffb98a;font-weight:700;font-size:13px;cursor:pointer;padding:4px 8px;">Undo</button>
+  <button type="button" onclick="undoRemove()" style="background:none;border:none;color:#A5B4FC;font-weight:700;font-size:13px;cursor:pointer;padding:4px 8px;">Undo</button>
 </div>
 
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
@@ -258,7 +259,7 @@ updateThemeToggleIcon();
         <tr><th style="width:30%">Name</th><th style="width:40%">Address</th><th style="width:22%" id="amountHeader">Amount ($)</th><th></th></tr>
       </thead>
       <tbody>
-        <tr id="headPyroRow" style="background:rgba(255,140,0,0.08);">
+        <tr id="headPyroRow" style="background:rgba(139,92,246,0.08);">
           <td data-label="Name">
             <input type="text" class="p-name" id="hpName" list="licensedOperatorDirectoryList" oninput="onNameEdit(this)" placeholder="Head Pyro name">
           </td>
@@ -1330,7 +1331,7 @@ function setDriveStatus(msg, kind){
   const el = document.getElementById('driveStatus');
   if(!el) return;
   el.textContent = msg || '';
-  el.style.color = kind === 'ok' ? '#4caf7d' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft, #a3a9bf)';
+  el.style.color = kind === 'ok' ? '#22C55E' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft, #94A3B8)';
 }
 
 // Who got what on this payroll, for the Manage/Edit payroll report. Only sent the first time

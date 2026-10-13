@@ -6,7 +6,7 @@
 <title>New Hire Documents — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
@@ -45,16 +45,16 @@ updateThemeToggleIcon();
 </script>
 <style>
   :root{
-    --kicker:#ffb98a; --surface-6:rgba(10,14,26,0.6); --surface-5:rgba(10,14,26,0.5); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
-    --logo-ring-bg:#0d1220;
-    --accent1:#d92b2b; --accent2:#ff8c00; --accent3:#ffd23f; --accent4:#2f7ec9; --accent5:#123a63;
-    --ink:#f4f1ea; --ink-soft:#a3a9bf; --line:rgba(255,255,255,0.1);
-    --card:rgba(22,28,48,0.7); --ok:#4caf7d;
+    --kicker:#A5B4FC; --surface-6:rgba(15,23,42,0.6); --surface-5:rgba(15,23,42,0.5); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --accent1:#4F46E5; --accent2:#8B5CF6; --accent3:#22D3EE; --accent4:#3B82F6; --accent5:#312E81;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --line:rgba(255,255,255,0.1);
+    --card:rgba(30,41,59,0.7); --ok:#22C55E;
   }
 
   :root[data-theme="light"]{
-    --kicker:#c9601f; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
-    --logo-ring-bg:#fffaf3;
+    --kicker:#4F46E5; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --logo-ring-bg:#FFFFFF;
   }
   *{box-sizing:border-box;}
   body{
@@ -70,14 +70,14 @@ updateThemeToggleIcon();
     display:block; margin:0 0 18px; font-size:12.5px;
     color:var(--ink-soft); text-decoration:none;
   }
-  .back-link:hover{color:#ffb98a;}
+  .back-link:hover{color:#A5B4FC;}
   header{text-align:center;margin-bottom:12px;}
   .logo-ring{
     width:92px;height:92px;border-radius:50%;
     padding:3px;
-    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
     margin:0 auto 16px;
-    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
   }
   .logo-ring-inner{
     width:100%;height:100%;border-radius:50%;
@@ -91,22 +91,22 @@ updateThemeToggleIcon();
   }
   header h1{
     margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
-    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
     line-height:1.15;
   }
   .divider{
     height:3px;width:64px;margin:20px auto 24px;
-    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
     border-radius:2px;
-    box-shadow:0 0 12px rgba(255,140,0,0.4);
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
   }
   .section{
     background:var(--card); border:1px solid var(--line); border-radius:12px;
     padding:22px 24px; margin-bottom:20px;
     backdrop-filter:blur(6px);
   }
-  .section h2{font-size:14px;font-weight:600;color:#ffb98a;margin:0 0 6px;}
+  .section h2{font-size:14px;font-weight:600;color:#A5B4FC;margin:0 0 6px;}
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;line-height:1.5;}
   .doc-link{
     display:flex; align-items:center; justify-content:space-between; gap:12px;
@@ -114,10 +114,10 @@ updateThemeToggleIcon();
     padding:14px 16px; text-decoration:none; color:inherit;
     margin-bottom:10px; transition:border-color .15s;
   }
-  .doc-link:hover{border-color:#ffb98a;}
+  .doc-link:hover{border-color:#A5B4FC;}
   .doc-link .name{font-weight:600;font-size:14px;color:var(--ink);}
   .doc-link .sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
-  .doc-link .ext{font-size:13px;color:#ffb98a;font-weight:700;flex-shrink:0;}
+  .doc-link .ext{font-size:13px;color:#A5B4FC;font-weight:700;flex-shrink:0;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;min-width:0;}
   /* Date inputs and long text have a natural width that pushed the two-column layout past the edge of the card. */
   input[type=text],input[type=email],input[type=tel],input[type=date],input[type=number],textarea{width:100%;min-width:0;max-width:100%;}
@@ -129,26 +129,26 @@ updateThemeToggleIcon();
     border-radius:6px;background:var(--surface-6);color:var(--ink);font-family:inherit;
   }
   textarea{resize:vertical;min-height:70px;}
-  input:focus,textarea:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input:focus,textarea:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
   .radiorow{display:flex;gap:18px;flex-wrap:wrap;margin-top:2px;}
   .radiorow label{display:flex;align-items:center;gap:6px;font-weight:400;color:var(--ink);font-size:13.5px;}
   .radiorow input{width:auto;}
   .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;}
   button{
-    color:#fdf6f2; border:none;
+    color:#F8FAFC; border:none;
     background:linear-gradient(135deg,var(--accent1),var(--accent2));
     font-size:14px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer;
-    box-shadow:0 0 16px rgba(255,140,0,0.3);
+    box-shadow:0 0 16px rgba(139,92,246,0.3);
   }
   button:hover{filter:brightness(1.1);}
   button.secondary{background:none;border:1px solid var(--line);color:var(--ink);box-shadow:none;}
-  button.secondary:hover{border-color:#ffb98a;filter:none;}
+  button.secondary:hover{border-color:#A5B4FC;filter:none;}
   .photo-btn{
     display:inline-flex; align-items:center; gap:6px;
     background:none; border:1px solid var(--line); color:var(--ink);
     font-size:13px; padding:9px 14px; border-radius:8px; cursor:pointer;
   }
-  .photo-btn:hover{border-color:#ffb98a;}
+  .photo-btn:hover{border-color:#A5B4FC;}
   .status{font-size:12px;color:var(--ink-soft);margin-top:10px;}
   /* The peach used for headings and arrows is nearly invisible on the cream light theme. */
   :root[data-theme="light"] .section h2, :root[data-theme="light"] .doc-link .ext, :root[data-theme="light"] .doc-link:hover{color:var(--kicker);}
@@ -158,21 +158,21 @@ updateThemeToggleIcon();
   .progress-text{font-size:12px;color:var(--ink-soft);margin:6px 0 16px;}
   .step{margin-bottom:12px;}
   .step .doc-link{margin-bottom:6px;}
-  .step.done .doc-link{border-color:rgba(76,175,125,0.55);}
+  .step.done .doc-link{border-color:rgba(34,197,94,0.55);}
   .step.done .doc-link .name::after{content:' \2713';color:var(--ok);}
   .done-toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);font-weight:400;padding:2px 4px;cursor:pointer;}
   .done-toggle input{width:auto;}
   .group-title{font-size:11px;color:var(--ink-soft);font-weight:700;letter-spacing:.06em;margin:24px 0 10px;}
   .group-title.first{margin-top:6px;}
-  .field-err{font-size:11.5px;color:#ff6a5a;margin:0;}
-  input.invalid{border-color:#ff6a5a !important;}
-  .req{color:#ff8c00;}
-  button.link-btn{background:none;border:none;box-shadow:none;padding:0;font:inherit;font-size:12.5px;font-weight:400;color:#ffb98a;text-decoration:underline;cursor:pointer;}
-  :root[data-theme="light"] button.link-btn{color:#c9601f;}
+  .field-err{font-size:11.5px;color:#6366F1;margin:0;}
+  input.invalid{border-color:#6366F1 !important;}
+  .req{color:#8B5CF6;}
+  button.link-btn{background:none;border:none;box-shadow:none;padding:0;font:inherit;font-size:12.5px;font-weight:400;color:#A5B4FC;text-decoration:underline;cursor:pointer;}
+  :root[data-theme="light"] button.link-btn{color:#4F46E5;}
   button.link-btn:hover{filter:none;opacity:.8;}
   .sendto{font-size:12px;color:var(--ink-soft);margin:12px 0 0;}
   .sendto strong{color:var(--ink);font-weight:600;word-break:break-all;}
-  .result{background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.4);border-radius:10px;padding:14px 16px;margin-top:14px;font-size:13px;line-height:1.5;}
+  .result{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.4);border-radius:10px;padding:14px 16px;margin-top:14px;font-size:13px;line-height:1.5;}
   .result h3{margin:0 0 4px;font-size:14px;color:var(--ink);}
   .result p{margin:8px 0 0;color:var(--ink);}
   .draft-note{font-size:12px;color:var(--ink-soft);margin:0 0 4px;}
@@ -196,6 +196,7 @@ updateThemeToggleIcon();
   @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
 </style>
 
+<script src="theme-picker.js" defer></script>
 </head>
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>

@@ -5,13 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CueSheet — Field Ops Sorted</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
 <script src="reorder.js"></script>
+<script src="theme-picker.js" defer></script>
 <script>
   (function(){
     try{
@@ -32,31 +33,31 @@
 </script>
 <style>
   :root{
-    --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
-    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ink-faint:#6b7290;
-    --card-bg:rgba(22,28,48,0.7); --card-border:rgba(255,255,255,0.08);
+    --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --ink-faint:#6b7290;
+    --card-bg:rgba(30,41,59,0.7); --card-border:rgba(255,255,255,0.08);
     --surface:var(--surface-55); --surface-border:rgba(255,255,255,0.15);
-    --divider-glow:rgba(255,140,0,0.4);
-    --logo-ring-bg:#0d1220;
-    --footer-link:#4a5170;
-    --feature-bg:rgba(255,255,255,0.04); --feature-border:rgba(255,255,255,0.08); --feature-ink:#7d84a0;
-    --kicker:#ffb98a; --tagline:#a6acc4;
-    --bubble-bg:#fdfcfa; --bubble-ink:#1c1a17; --bubble-border:transparent;
-    --title-gradient:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    --divider-glow:rgba(139,92,246,0.4);
+    --logo-ring-bg:#0F172A;
+    --footer-link:#475569;
+    --feature-bg:rgba(255,255,255,0.04); --feature-border:rgba(255,255,255,0.08); --feature-ink:#64748B;
+    --kicker:#A5B4FC; --tagline:#94A3B8;
+    --bubble-bg:#FFFFFF; --bubble-ink:#0F172A; --bubble-border:transparent;
+    --title-gradient:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
     --burst-opacity:0.4; --watermark-opacity:0.07;
   }
   :root[data-theme="light"]{
-    --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9;
-    --ink:#241f18; --ink-soft:#6b6152; --ink-faint:#8a8072;
-    --card-bg:rgba(255,255,255,0.75); --card-border:rgba(36,31,24,0.1);
-    --surface:rgba(255,255,255,0.6); --surface-border:rgba(36,31,24,0.15);
-    --divider-glow:rgba(255,140,0,0.3);
-    --logo-ring-bg:#fffaf3;
-    --footer-link:#a68a5c;
-    --feature-bg:rgba(36,31,24,0.035); --feature-border:rgba(36,31,24,0.1); --feature-ink:#8a7c68;
-    --kicker:#c9601f; --tagline:#6b6152;
-    --bubble-bg:#ffffff; --bubble-ink:#1c1a17; --bubble-border:rgba(255,140,0,0.35);
-    --title-gradient:linear-gradient(90deg,#d92b2b 0%,#e26a00 30%,#c98a00 50%,#2f7ec9 75%,#123a63 100%);
+    --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0;
+    --ink:#0F172A; --ink-soft:#475569; --ink-faint:#64748B;
+    --card-bg:rgba(255,255,255,0.75); --card-border:rgba(15,23,42,0.1);
+    --surface:rgba(255,255,255,0.6); --surface-border:rgba(15,23,42,0.15);
+    --divider-glow:rgba(139,92,246,0.3);
+    --logo-ring-bg:#FFFFFF;
+    --footer-link:#64748B;
+    --feature-bg:rgba(15,23,42,0.035); --feature-border:rgba(15,23,42,0.1); --feature-ink:#64748B;
+    --kicker:#4F46E5; --tagline:#475569;
+    --bubble-bg:#ffffff; --bubble-ink:#0F172A; --bubble-border:rgba(139,92,246,0.35);
+    --title-gradient:linear-gradient(90deg,#4F46E5 0%,#7C3AED 30%,#0891B2 50%,#3B82F6 75%,#312E81 100%);
     --burst-opacity:0.16; --watermark-opacity:0.04;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -82,7 +83,7 @@
     position:absolute; top:-30px; right:-50px;
     width:300px;height:340px;
     opacity:var(--watermark-opacity);
-    background:linear-gradient(160deg, #d92b2b, #ff8c00 30%, #ffd23f 50%, #2f7ec9 75%, #123a63);
+    background:linear-gradient(160deg, #4F46E5, #8B5CF6 30%, #22D3EE 50%, #3B82F6 75%, #312E81);
     clip-path:polygon(0 0, 100% 0, 55% 100%, 45% 100%);
     pointer-events:none;
     filter:blur(1px);
@@ -92,9 +93,9 @@
   .logo-ring{
     width:104px;height:104px;border-radius:50%;
     padding:3px;
-    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
     margin:0 auto 18px;
-    box-shadow:0 0 40px rgba(255,140,0,0.35), 0 0 70px rgba(47,126,201,0.25);
+    box-shadow:0 0 40px rgba(139,92,246,0.35), 0 0 70px rgba(59,130,246,0.25);
   }
   .logo-ring-inner{
     width:100%;height:100%;border-radius:50%;
@@ -118,9 +119,9 @@
   }
   .divider{
     height:3px;width:64px;margin:22px auto 26px;
-    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
     border-radius:2px;
-    box-shadow:0 0 12px rgba(255,140,0,0.4);
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
   }
   .cards{
     display:flex; flex-wrap:wrap; justify-content:center; gap:28px 18px;
@@ -142,15 +143,15 @@
   .icon-circle svg{width:29px;height:29px;}
   .card .label{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.3;}
   .card .ext{font-size:10px;color:var(--kicker);font-weight:700;}
-  .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00); --glow:rgba(255,140,0,0.4);}
-  .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63); --glow:rgba(47,126,201,0.4);}
-  .c3{--grad:linear-gradient(135deg,#ff8c00,#ffd23f); --glow:rgba(255,210,63,0.4);}
+  .c1{--grad:linear-gradient(135deg,#4F46E5,#8B5CF6); --glow:rgba(139,92,246,0.4);}
+  .c2{--grad:linear-gradient(135deg,#3B82F6,#312E81); --glow:rgba(59,130,246,0.4);}
+  .c3{--grad:linear-gradient(135deg,#8B5CF6,#22D3EE); --glow:rgba(34,211,238,0.4);}
   footer{
     margin-top:32px;text-align:center;font-size:11px;color:var(--ink-faint);
   }
   footer .brand{
     font-weight:700;
-    background:linear-gradient(90deg,#ff8c5a,#ff8c00 40%,#5a9de0 80%);
+    background:linear-gradient(90deg,#818CF8,#8B5CF6 40%,#60A5FA 80%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
   footer a:hover{color:var(--ink-soft) !important;}
@@ -172,9 +173,9 @@
   }
   .announcement-bubble .close-btn{
     position:absolute; top:8px; right:10px; background:none; border:none;
-    color:#8a8478; font-size:18px; line-height:1; cursor:pointer; padding:4px;
+    color:#64748B; font-size:18px; line-height:1; cursor:pointer; padding:4px;
   }
-  .announcement-bubble .close-btn:hover{color:#1c1a17;}
+  .announcement-bubble .close-btn:hover{color:#0F172A;}
   .theme-toggle{
     position:absolute; top:12px; right:12px; z-index:5;
     width:36px;height:36px;border-radius:50%;
@@ -237,9 +238,9 @@
 </script>
 
 <div class="decor" aria-hidden="true">
-<div class="burst" style="width:260px;height:260px;top:-70px;left:-70px;background:radial-gradient(circle,#ff8c00 0%,transparent 70%);"></div>
-<div class="burst" style="width:220px;height:220px;top:10px;right:-70px;background:radial-gradient(circle,#2f7ec9 0%,transparent 70%);"></div>
-<div class="burst" style="width:180px;height:180px;bottom:40px;left:-50px;background:radial-gradient(circle,#d92b2b 0%,transparent 70%);"></div>
+<div class="burst" style="width:260px;height:260px;top:-70px;left:-70px;background:radial-gradient(circle,#8B5CF6 0%,transparent 70%);"></div>
+<div class="burst" style="width:220px;height:220px;top:10px;right:-70px;background:radial-gradient(circle,#3B82F6 0%,transparent 70%);"></div>
+<div class="burst" style="width:180px;height:180px;bottom:40px;left:-50px;background:radial-gradient(circle,#4F46E5 0%,transparent 70%);"></div>
 <div class="v-watermark"></div>
 </div>
 

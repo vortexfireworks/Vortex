@@ -6,7 +6,7 @@
 <title>Event Check-In — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <script>
 function toggleTheme(){
@@ -44,16 +44,16 @@ updateThemeToggleIcon();
 </script>
 <style>
   :root{
-    --kicker:#ffb98a; --surface-6:rgba(10,14,26,0.6); --surface-5:rgba(10,14,26,0.5); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
-    --logo-ring-bg:#0d1220;
-    --accent1:#d92b2b; --accent2:#ff8c00; --accent3:#ffd23f; --accent4:#2f7ec9; --accent5:#123a63;
-    --ink:#f4f1ea; --ink-soft:#a3a9bf; --line:rgba(255,255,255,0.1);
-    --card:rgba(22,28,48,0.75); --ok:#4caf7d; --err:#ff6a5a;
+    --kicker:#A5B4FC; --surface-6:rgba(15,23,42,0.6); --surface-5:rgba(15,23,42,0.5); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --accent1:#4F46E5; --accent2:#8B5CF6; --accent3:#22D3EE; --accent4:#3B82F6; --accent5:#312E81;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --line:rgba(255,255,255,0.1);
+    --card:rgba(30,41,59,0.75); --ok:#22C55E; --err:#6366F1;
   }
 
   :root[data-theme="light"]{
-    --kicker:#c9601f; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
-    --logo-ring-bg:#fffaf3;
+    --kicker:#4F46E5; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --logo-ring-bg:#FFFFFF;
   }
   *{box-sizing:border-box;}
   body{
@@ -74,9 +74,9 @@ updateThemeToggleIcon();
   .logo-ring{
     width:92px;height:92px;border-radius:50%;
     padding:3px;
-    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
     margin:0 auto 16px;
-    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
   }
   .logo-ring-inner{
     width:100%;height:100%;border-radius:50%;
@@ -90,15 +90,15 @@ updateThemeToggleIcon();
   }
   header h1{
     margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
-    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
     line-height:1.15;
   }
   .divider{
     height:3px;width:64px;margin:20px auto 24px;
-    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
     border-radius:2px;
-    box-shadow:0 0 12px rgba(255,140,0,0.4);
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
   }
   .body{padding:24px;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
@@ -107,21 +107,21 @@ updateThemeToggleIcon();
     font-size:15px;padding:10px 12px;border:1px solid var(--line);
     border-radius:6px;background:var(--surface-6);color:var(--ink);
   }
-  input:focus,select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input:focus,select:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
   input[readonly]{background:rgba(255,255,255,0.04);color:var(--ink-soft);}
   button.primary{
-    width:100%; color:#fdf6f2; border:none;
+    width:100%; color:#F8FAFC; border:none;
     background:linear-gradient(135deg,var(--accent1),var(--accent2));
     font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
-    box-shadow:0 0 18px rgba(255,140,0,0.3);
+    box-shadow:0 0 18px rgba(139,92,246,0.3);
   }
   button.primary:disabled{opacity:.6;cursor:default;box-shadow:none;}
   button.primary:hover:not(:disabled){filter:brightness(1.1);}
-  .link-btn, .welcome-back a{color:#ffb98a;text-decoration:underline;background:none;border:none;padding:0;font:inherit;font-size:12.5px;cursor:pointer;}
-  :root[data-theme="light"] .link-btn, :root[data-theme="light"] .welcome-back a{color:#c9601f;}
+  .link-btn, .welcome-back a{color:#A5B4FC;text-decoration:underline;background:none;border:none;padding:0;font:inherit;font-size:12.5px;cursor:pointer;}
+  :root[data-theme="light"] .link-btn, :root[data-theme="light"] .welcome-back a{color:#4F46E5;}
   .welcome-back{font-size:13px;color:var(--ink-soft);margin:0 0 16px;}
   .welcome-back strong{color:var(--ink);}
-  .verified-card{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.4);border-radius:10px;padding:11px 14px;margin:0 0 16px;font-size:13px;color:var(--ink);}
+  .verified-card{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.4);border-radius:10px;padding:11px 14px;margin:0 0 16px;font-size:13px;color:var(--ink);}
   .verified-card .vc-text{flex:1 1 200px;line-height:1.4;}
   .when-line{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;}
   .when-line strong{color:var(--ink);font-weight:600;}
@@ -138,10 +138,10 @@ updateThemeToggleIcon();
   }
   .success .check{
     width:56px;height:56px;border-radius:50%;
-    background:linear-gradient(135deg,var(--ok),#2f7ec9);
+    background:linear-gradient(135deg,var(--ok),#3B82F6);
     color:#fff;display:flex;align-items:center;justify-content:center;
     font-size:28px;margin:0 auto 16px;
-    box-shadow:0 0 20px rgba(76,175,125,0.4);
+    box-shadow:0 0 20px rgba(34,197,94,0.4);
     animation:checkPop 0.45s cubic-bezier(0.34,1.56,0.64,1) both;
   }
   @keyframes checkPop{
@@ -155,7 +155,7 @@ updateThemeToggleIcon();
     display:block; max-width:440px; margin:0 auto 12px; padding:0 4px;
     font-size:12.5px; color:var(--ink-soft); text-decoration:none;
   }
-  .back-link:hover{color:#ffb98a;}
+  .back-link:hover{color:#A5B4FC;}
   .theme-toggle{
     position:fixed; top:14px; right:14px; z-index:50;
     width:36px;height:36px;border-radius:50%;
@@ -170,6 +170,7 @@ updateThemeToggleIcon();
   @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
 </style>
 
+<script src="theme-picker.js" defer></script>
 </head>
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
@@ -183,15 +184,15 @@ updateThemeToggleIcon();
       double-check the number you typed. If you're new, please fill out New Hire Documents before you
       check in — it only takes a minute.
     </p>
-    <a href="new-hire.html" style="display:block;text-decoration:none;background:linear-gradient(135deg,#d92b2b,#ff8c00);color:#fdf6f2;font-weight:700;font-size:14px;padding:11px 16px;border-radius:8px;margin-bottom:10px;">Go to New Hire Documents</a>
+    <a href="new-hire.html" style="display:block;text-decoration:none;background:linear-gradient(135deg,#4F46E5,#8B5CF6);color:#F8FAFC;font-weight:700;font-size:14px;padding:11px 16px;border-radius:8px;margin-bottom:10px;">Go to New Hire Documents</a>
     <button type="button" onclick="dismissNewHirePopup()" style="background:none;border:1px solid var(--line);color:var(--ink-soft);font-size:13px;padding:9px 16px;border-radius:8px;cursor:pointer;width:100%;">I'm already on the crew, continue</button>
   </div>
 </div>
 
 <div style="max-width:440px;width:100%;">
-<div id="queueBanner" style="display:none;margin:0 0 12px;background:rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.35);border-radius:10px;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:#f4f1ea;">
+<div id="queueBanner" style="display:none;margin:0 0 12px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);border-radius:10px;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:#F1F5F9;">
   <span id="queueBannerMsg">Waiting to send…</span>
-  <button type="button" onclick="flushQueue()" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#f4f1ea;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;">Retry now</button>
+  <button type="button" onclick="flushQueue()" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#F1F5F9;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;">Retry now</button>
 </div>
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 

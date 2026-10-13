@@ -7,7 +7,7 @@
 <script>Auth.require('hp');</script>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Display/Special Effects/Flame Effects Operator — After Action Report</title>
@@ -47,21 +47,21 @@ updateThemeToggleIcon();
 </script>
 <style>
   :root{
-    --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
-    --navy:#ffb98a;
-    --brick:#ff6a5a;
-    --brick-light:#ff8c66;
-    --card:rgba(22,28,48,0.75);
+    --surface-5:rgba(15,23,42,0.5); --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --navy:#A5B4FC;
+    --brick:#6366F1;
+    --brick-light:#818CF8;
+    --card:rgba(30,41,59,0.75);
     --line:rgba(255,255,255,0.12);
-    --ink:#f4f1ea;
-    --ink-soft:#a3a9bf;
-    --ok:#4caf7d;
-    --warn:#ff6a5a;
-    --accent1:#d92b2b; --accent2:#ff8c00;
+    --ink:#F1F5F9;
+    --ink-soft:#94A3B8;
+    --ok:#22C55E;
+    --warn:#6366F1;
+    --accent1:#4F46E5; --accent2:#8B5CF6;
   }
 
   :root[data-theme="light"]{
-    --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --navy:#c9601f;
+    --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12); --navy:#4F46E5;
   }
   *{box-sizing:border-box;}
   body{
@@ -100,7 +100,7 @@ updateThemeToggleIcon();
     font-weight:800;
     letter-spacing:-0.01em;
     line-height:1.35;
-    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
   header p.ref{
@@ -111,9 +111,9 @@ updateThemeToggleIcon();
   }
   header .divider{
     height:3px;width:64px;margin:20px auto 0;
-    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
     border-radius:2px;
-    box-shadow:0 0 12px rgba(255,140,0,0.4);
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
   }
   .section{
     padding:22px 28px;
@@ -123,7 +123,7 @@ updateThemeToggleIcon();
     font-family:"Helvetica Neue",Arial,sans-serif;
     font-size:13px;
     font-weight:600;
-    color:#ffb98a;
+    color:#A5B4FC;
     margin:0 0 14px;
     letter-spacing:.02em;
   }
@@ -147,8 +147,8 @@ updateThemeToggleIcon();
   }
   input:focus,textarea:focus,select:focus{
     outline:none;
-    border-color:#ff8c00;
-    box-shadow:0 0 0 2px rgba(255,140,0,0.2);
+    border-color:#8B5CF6;
+    box-shadow:0 0 0 2px rgba(139,92,246,0.2);
   }
   textarea{resize:vertical;min-height:64px;}
   .radiorow{display:flex;gap:18px;flex-wrap:wrap;margin-top:2px;}
@@ -205,8 +205,8 @@ updateThemeToggleIcon();
   .incident .q{font-size:13.5px;padding-top:8px;}
   .incident .expl{width:100%;}
   .notice{
-    background:rgba(76,175,125,0.12);
-    border:1px solid rgba(76,175,125,0.35);
+    background:rgba(34,197,94,0.12);
+    border:1px solid rgba(34,197,94,0.35);
     color:var(--ok);
     font-family:"Helvetica Neue",Arial,sans-serif;
     font-size:12px;
@@ -220,14 +220,14 @@ updateThemeToggleIcon();
   }
   button.primary{
     background:linear-gradient(135deg,var(--accent1),var(--accent2));
-    color:#fdf6f2;
+    color:#F8FAFC;
     border:none;
     font-family:"Helvetica Neue",Arial,sans-serif;
     font-size:14px;font-weight:700;
     padding:12px 22px;
     border-radius:8px;
     cursor:pointer;
-    box-shadow:0 0 18px rgba(255,140,0,0.3);
+    box-shadow:0 0 18px rgba(139,92,246,0.3);
   }
   button.primary:hover{filter:brightness(1.1);}
   button.secondary, label.secondary{
@@ -278,23 +278,24 @@ updateThemeToggleIcon();
   @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
 </style>
 
+<script src="theme-picker.js" defer></script>
 </head>
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
 
 
-<div id="undoToast" style="display:none;position:fixed;left:16px;right:16px;bottom:20px;max-width:600px;margin:0 auto;background:#1c2434;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;font-family:"Helvetica Neue",Arial,sans-serif;">
+<div id="undoToast" style="display:none;position:fixed;left:16px;right:16px;bottom:20px;max-width:600px;margin:0 auto;background:#1E293B;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;font-family:"Helvetica Neue",Arial,sans-serif;">
   <span id="undoToastMsg" style="font-size:13px;color:var(--ink);">Person removed</span>
-  <button type="button" onclick="undoRemovePersonnel()" style="background:none;border:none;color:#ffb98a;font-weight:700;font-size:13px;cursor:pointer;padding:4px 8px;">Undo</button>
+  <button type="button" onclick="undoRemovePersonnel()" style="background:none;border:none;color:#A5B4FC;font-weight:700;font-size:13px;cursor:pointer;padding:4px 8px;">Undo</button>
 </div>
 
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 
-<div id="draftBanner" style="display:none;max-width:820px;margin:0 auto 14px;background:rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.35);border-radius:10px;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-family:'Helvetica Neue',Arial,sans-serif;">
-  <span style="font-size:13px;color:#f4f1ea;">You have a saved draft of this report.</span>
+<div id="draftBanner" style="display:none;max-width:820px;margin:0 auto 14px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);border-radius:10px;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <span style="font-size:13px;color:#F1F5F9;">You have a saved draft of this report.</span>
   <div style="display:flex;gap:10px;">
-    <button type="button" id="restoreDraftBtn" style="background:linear-gradient(135deg,#d92b2b,#ff8c00);color:#fdf6f2;border:none;font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:6px;cursor:pointer;">Restore draft</button>
-    <button type="button" id="discardDraftBtn" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#f4f1ea;font-size:12.5px;padding:8px 14px;border-radius:6px;cursor:pointer;">Discard</button>
+    <button type="button" id="restoreDraftBtn" style="background:linear-gradient(135deg,#4F46E5,#8B5CF6);color:#F8FAFC;border:none;font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:6px;cursor:pointer;">Restore draft</button>
+    <button type="button" id="discardDraftBtn" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#F1F5F9;font-size:12.5px;padding:8px 14px;border-radius:6px;cursor:pointer;">Discard</button>
   </div>
 </div>
 
@@ -307,7 +308,7 @@ updateThemeToggleIcon();
   </header>
 
   <div id="aarNotice" style="padding:0 28px 18px;display:none;">
-    <div style="position:relative;background:rgba(255,140,0,0.12);border:1px solid rgba(255,140,0,0.35);border-radius:8px;padding:11px 36px;text-align:center;">
+    <div style="position:relative;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);border-radius:8px;padding:11px 36px;text-align:center;">
       <span style="font-size:15px;line-height:1.2;">📢</span>
       <span style="font-size:12.5px;color:var(--ink);line-height:1.4;">After Action Report uses New Oct 2026 AAR Report from Nia</span>
       <button type="button" onclick="dismissAarNotice()" aria-label="Dismiss" style="position:absolute;top:8px;right:10px;background:none;border:none;color:var(--ink-soft);font-size:16px;cursor:pointer;line-height:1;padding:0;">&times;</button>
@@ -467,7 +468,7 @@ updateThemeToggleIcon();
     </div>
     <div class="field full" style="margin-top:14px;">
       <label>Signature</label>
-      <div style="border:1px solid var(--line);border-radius:3px;background:#fdfcfa;touch-action:none;">
+      <div style="border:1px solid var(--line);border-radius:3px;background:#FFFFFF;touch-action:none;">
         <canvas id="sigPad" width="740" height="160" style="display:block;width:100%;height:160px;cursor:crosshair;"></canvas>
       </div>
       <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
@@ -719,7 +720,7 @@ fetchVenueDirectory();
 
 const sigCanvas = document.getElementById('sigPad');
 const sigCtx = sigCanvas.getContext('2d');
-sigCtx.strokeStyle = '#20262c';
+sigCtx.strokeStyle = '#1E293B';
 sigCtx.lineWidth = 2.2;
 sigCtx.lineCap = 'round';
 sigCtx.lineJoin = 'round';
@@ -1308,7 +1309,7 @@ function incidentSummary(){
 function setDriveStatus(msg, kind){
   const el = document.getElementById('driveStatus');
   el.textContent = msg || '';
-  el.style.color = kind === 'ok' ? '#4caf7d' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft, #a3a9bf)';
+  el.style.color = kind === 'ok' ? '#22C55E' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft, #94A3B8)';
 }
 
 async function postReportToDrive(bytes){

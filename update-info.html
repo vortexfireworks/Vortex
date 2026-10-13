@@ -6,7 +6,7 @@
 <title>Update My Info — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <script>
 function toggleTheme(){
@@ -44,16 +44,16 @@ updateThemeToggleIcon();
 </script>
 <style>
   :root{
-    --kicker:#ffb98a; --surface-6:rgba(10,14,26,0.6); --surface-5:rgba(10,14,26,0.5); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
-    --logo-ring-bg:#0d1220;
-    --accent1:#d92b2b; --accent2:#ff8c00; --accent3:#ffd23f; --accent4:#2f7ec9; --accent5:#123a63;
-    --ink:#f4f1ea; --ink-soft:#a3a9bf; --line:rgba(255,255,255,0.1);
-    --card:rgba(22,28,48,0.75); --ok:#4caf7d; --err:#ff6a5a;
+    --kicker:#A5B4FC; --surface-6:rgba(15,23,42,0.6); --surface-5:rgba(15,23,42,0.5); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --accent1:#4F46E5; --accent2:#8B5CF6; --accent3:#22D3EE; --accent4:#3B82F6; --accent5:#312E81;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --line:rgba(255,255,255,0.1);
+    --card:rgba(30,41,59,0.75); --ok:#22C55E; --err:#6366F1;
   }
 
   :root[data-theme="light"]{
-    --kicker:#c9601f; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
-    --logo-ring-bg:#fffaf3;
+    --kicker:#4F46E5; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --logo-ring-bg:#FFFFFF;
   }
   *{box-sizing:border-box;}
   body{
@@ -69,7 +69,7 @@ updateThemeToggleIcon();
     display:block; margin:0 0 12px; padding:0 4px;
     font-size:12.5px; color:var(--ink-soft); text-decoration:none;
   }
-  .back-link:hover{color:#ffb98a;}
+  .back-link:hover{color:#A5B4FC;}
   .card{
     background:var(--card); border:1px solid var(--line);
     border-radius:14px; overflow:hidden;
@@ -79,9 +79,9 @@ updateThemeToggleIcon();
   .logo-ring{
     width:92px;height:92px;border-radius:50%;
     padding:3px;
-    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
     margin:0 auto 16px;
-    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
   }
   .logo-ring-inner{
     width:100%;height:100%;border-radius:50%;
@@ -95,15 +95,15 @@ updateThemeToggleIcon();
   }
   header h1{
     margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
-    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
     line-height:1.15;
   }
   .divider{
     height:3px;width:64px;margin:20px auto 24px;
-    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
     border-radius:2px;
-    box-shadow:0 0 12px rgba(255,140,0,0.4);
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
   }
   .body{padding:24px;}
   p.sub{color:var(--ink-soft);font-size:13px;margin:0 0 20px;line-height:1.5;}
@@ -118,7 +118,7 @@ updateThemeToggleIcon();
   }
   .step-indicator .dot.active{
     background:linear-gradient(135deg,var(--accent1),var(--accent2));
-    box-shadow:0 0 8px rgba(255,140,0,0.5);
+    box-shadow:0 0 8px rgba(139,92,246,0.5);
   }
   .step-indicator .dot.done{background:var(--ok);}
   .step-indicator .line{flex:1;font-size:11px;color:var(--ink-soft);text-align:right;}
@@ -128,13 +128,13 @@ updateThemeToggleIcon();
     font-size:15px;padding:10px 12px;border:1px solid var(--line);
     border-radius:6px;background:var(--surface-6);color:var(--ink);
   }
-  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
   input[readonly]{background:rgba(255,255,255,0.04);color:var(--ink-soft);}
   button.primary{
-    width:100%; color:#fdf6f2; border:none;
+    width:100%; color:#F8FAFC; border:none;
     background:linear-gradient(135deg,var(--accent1),var(--accent2));
     font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
-    box-shadow:0 0 18px rgba(255,140,0,0.3);
+    box-shadow:0 0 18px rgba(139,92,246,0.3);
   }
   button.primary:hover{filter:brightness(1.1);}
   .photo-btn{
@@ -142,17 +142,17 @@ updateThemeToggleIcon();
     background:none; border:1px solid var(--line); color:var(--ink);
     font-size:13px; padding:9px 14px; border-radius:8px; cursor:pointer;
   }
-  .photo-btn:hover{border-color:#ffb98a;}
+  .photo-btn:hover{border-color:#A5B4FC;}
   .msg{font-size:13px;margin-top:14px;text-align:center;}
   .msg.ok{color:var(--ok);}
   .msg.err{color:var(--err);}
   .success{padding:36px 24px;text-align:center;}
   .success .check{
     width:56px;height:56px;border-radius:50%;
-    background:linear-gradient(135deg,var(--ok),#2f7ec9);
+    background:linear-gradient(135deg,var(--ok),#3B82F6);
     color:#fff;display:flex;align-items:center;justify-content:center;
     font-size:28px;margin:0 auto 16px;
-    box-shadow:0 0 20px rgba(76,175,125,0.4);
+    box-shadow:0 0 20px rgba(34,197,94,0.4);
   }
   .success h2{margin:0 0 6px;font-size:18px;color:var(--ink);}
   .success p{margin:0;color:var(--ink-soft);font-size:13.5px;}
@@ -170,6 +170,7 @@ updateThemeToggleIcon();
   @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
 </style>
 
+<script src="theme-picker.js" defer></script>
 </head>
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>

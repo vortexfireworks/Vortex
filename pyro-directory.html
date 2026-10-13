@@ -8,7 +8,7 @@
 <title>Pyro Directory — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <script>
 function toggleTheme(){
@@ -46,16 +46,16 @@ updateThemeToggleIcon();
 </script>
 <style>
   :root{
-    --kicker:#ffb98a; --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
-    --logo-ring-bg:#0d1220;
-    --accent1:#d92b2b; --accent2:#ff8c00; --accent3:#ffd23f; --accent4:#2f7ec9; --accent5:#123a63;
-    --ink:#f4f1ea; --ink-soft:#a3a9bf; --line:rgba(255,255,255,0.1);
-    --card:rgba(22,28,48,0.75); --ok:#4caf7d;
+    --kicker:#A5B4FC; --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --accent1:#4F46E5; --accent2:#8B5CF6; --accent3:#22D3EE; --accent4:#3B82F6; --accent5:#312E81;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --line:rgba(255,255,255,0.1);
+    --card:rgba(30,41,59,0.75); --ok:#22C55E;
   }
 
   :root[data-theme="light"]{
-    --kicker:#c9601f; --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
-    --logo-ring-bg:#fffaf3;
+    --kicker:#4F46E5; --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --logo-ring-bg:#FFFFFF;
   }
   *{box-sizing:border-box;}
   body{
@@ -70,14 +70,14 @@ updateThemeToggleIcon();
     display:block; margin:0 0 18px; font-size:12.5px;
     color:var(--ink-soft); text-decoration:none;
   }
-  .back-link:hover{color:#ffb98a;}
+  .back-link:hover{color:#A5B4FC;}
   header{text-align:center;margin-bottom:12px;}
   .logo-ring{
     width:92px;height:92px;border-radius:50%;
     padding:3px;
-    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
     margin:0 auto 16px;
-    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
   }
   .logo-ring-inner{
     width:100%;height:100%;border-radius:50%;
@@ -91,22 +91,22 @@ updateThemeToggleIcon();
   }
   header h1{
     margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
-    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
     line-height:1.15;
   }
   .divider{
     height:3px;width:64px;margin:20px auto 24px;
-    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
     border-radius:2px;
-    box-shadow:0 0 12px rgba(255,140,0,0.4);
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
   }
   p.sub{font-size:12.5px;color:var(--ink-soft);margin:12px 0 18px;line-height:1.5;}
   .search-box input{
     width:100%; font-size:14px; padding:10px 12px; border:1px solid var(--line);
     border-radius:8px; background:var(--surface-55); color:var(--ink); margin-bottom:16px;
   }
-  .search-box input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .search-box input:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
   .directory-list{
     background:var(--card); border:1px solid var(--line); border-radius:12px;
     backdrop-filter:blur(6px); overflow:hidden;
@@ -131,14 +131,14 @@ updateThemeToggleIcon();
   .directory-row:last-child{border-bottom:none;}
   .directory-row .name{font-weight:700;font-size:15px;margin-bottom:4px;}
   .directory-row .detail{font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
-  .directory-row .detail a{color:#7fa8e8;text-decoration:none;}
+  .directory-row .detail a{color:#818CF8;text-decoration:none;}
   .directory-row .detail a:hover{text-decoration:underline;}
   .status{font-size:13px;color:var(--ink-soft);text-align:center;padding:30px 16px;}
-  .status.err{color:#ff6a5a;}
+  .status.err{color:#6366F1;}
   .warning-banner{
-    background:rgba(255,140,0,0.12); border:1px solid rgba(255,140,0,0.35);
+    background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.35);
     border-radius:10px; padding:10px 14px; margin-bottom:16px;
-    font-size:12px; font-weight:700; color:#ffb98a; text-align:center;
+    font-size:12px; font-weight:700; color:#A5B4FC; text-align:center;
   }
   .loading-pulse{animation:pulseFade 1.4s ease-in-out infinite;}
   @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
@@ -157,6 +157,7 @@ updateThemeToggleIcon();
   @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
 </style>
 
+<script src="theme-picker.js" defer></script>
 </head>
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
