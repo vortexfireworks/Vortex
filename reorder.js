@@ -47,16 +47,18 @@
     const style = document.createElement('style');
     style.id = 'reorderStyle';
     style.textContent = `
+      .reorder-bar{
+        display:flex; align-items:center; justify-content:center; gap:12px;
+        max-width:480px; margin:0 auto 20px; flex-wrap:wrap;
+      }
       .reorder-toggle{
-        position:fixed; top:14px; left:14px; z-index:50;
-        padding:8px 14px; border-radius:20px; border:1px solid var(--line, rgba(255,255,255,0.14));
+        padding:7px 14px; border-radius:20px; border:1px solid var(--line, rgba(255,255,255,0.14));
         background:var(--card, rgba(22,28,48,0.75)); color:var(--ink, #f4f1ea);
         font-size:12.5px; font-weight:600; font-family:"Helvetica Neue",Arial,sans-serif;
-        cursor:pointer; backdrop-filter:blur(6px);
+        cursor:pointer;
       }
       .reorder-toggle:hover{ opacity:.9; }
       .reorder-reset{
-        position:fixed; top:54px; left:14px; z-index:50;
         font-size:11.5px; color:var(--ink-soft, #a3a9bf); background:none; border:none;
         text-decoration:underline; cursor:pointer; padding:2px 4px; display:none;
         font-family:"Helvetica Neue",Arial,sans-serif;
@@ -148,8 +150,11 @@
     location.reload();
   }
 
-  function injectControls(){
+  function injectControls(firstContainer){
     if(document.getElementById('reorderToggle')) return;
+    const bar = document.createElement('div');
+    bar.className = 'reorder-bar';
+
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.id = 'reorderToggle';
@@ -157,14 +162,26 @@
     btn.textContent = '✎ Edit layout';
     btn.setAttribute('aria-label', 'Rearrange the buttons on this page');
     btn.addEventListener('click', () => setEditing(!editing));
-    document.body.appendChild(btn);
+    bar.appendChild(btn);
 
     const reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'reorder-reset';
     reset.textContent = 'Reset to default order';
     reset.addEventListener('click', resetAll);
-    document.body.appendChild(reset);
+    bar.appendChild(reset);
+
+    // Sits inline in the page flow (right above the first card group) rather
+    // than floating fixed, so it never overlaps a back link, theme toggle,
+    // or anything else a given page happens to put in a corner.
+    const divider = document.querySelector('.divider');
+    if(divider && divider.parentNode){
+      divider.insertAdjacentElement('afterend', bar);
+    } else if(firstContainer && firstContainer.parentNode){
+      firstContainer.parentNode.insertBefore(bar, firstContainer);
+    } else {
+      document.body.insertBefore(bar, document.body.firstChild);
+    }
   }
 
   function init(){
@@ -177,7 +194,7 @@
       groups.push({ container, key });
       cardsIn(container).forEach(c => c.addEventListener('click', blockNavWhileEditing));
     });
-    injectControls();
+    injectControls(containers[0]);
   }
 
   // Cards exist in the DOM even on pages that sit behind a password lock
