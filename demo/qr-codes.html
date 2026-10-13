@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
+<title>Check-In QR Code — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --surface-6:rgba(10,14,26,0.6); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --kicker:#ffb98a; --logo-ring-bg:#0d1220;
+    --accent1:#d92b2b; --accent2:#ff8c00; --accent3:#ffd23f; --accent4:#2f7ec9; --accent5:#123a63;
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --line:rgba(255,255,255,0.1);
+    --card:rgba(22,28,48,0.75);
+  }
+
+  :root[data-theme="light"]{
+    --surface-6:rgba(255,255,255,0.7); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
+    --kicker:#c9601f; --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    padding:32px 16px;
+  }
+  .card{
+    max-width:420px; width:100%;
+    background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:28px 24px; text-align:center;
+    backdrop-filter:blur(6px);
+  }
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  p.sub{color:var(--ink-soft);font-size:13px;margin:0 0 20px;line-height:1.5;}
+  .qr-holder{display:inline-flex;justify-content:center;margin-bottom:16px;padding:14px;background:#fff;border-radius:12px;}
+  .loading-pulse{animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .qr-holder canvas, .qr-holder img{width:220px !important;height:220px !important;}
+  .link{font-size:11.5px;color:var(--ink-soft);word-break:break-all;margin-bottom:20px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;text-align:left;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=date],select{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-6);color:var(--ink);width:100%;
+  }
+  input:focus,select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
+  button{
+    color:#fdf6f2; border:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    font-size:13.5px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button:hover{filter:brightness(1.1);}
+  button.secondary{background:none;border:1px solid var(--line);color:var(--ink);box-shadow:none;}
+  button.secondary:hover{border-color:#ffb98a;filter:none;}
+  .back-link{
+    display:block; max-width:400px; margin:0 auto 12px; padding:0 4px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:#ffb98a;}
+  @media print{
+    body{background:#fff;}
+    .card{border:none;}
+    button, .field, .back-link{display:none;}
+  }
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<div style="max-width:420px;width:100%;">
+<a class="back-link" href="hp-tools.html">&larr; Back to Head Pyro Tools</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
+  <h1>Check-In QR Code</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="card">
+  <p class="sub">Scan to check in to today's event. Print this and post it at the venue.</p>
+  <div class="qr-holder" id="qr"></div>
+  <div class="link" id="checkinUrlDisplay"></div>
+
+  <div class="field">
+    <label for="pdfVenue">Venue (for the printable flyer)</label>
+    <select id="pdfVenue">
+      <option value="" disabled selected>Select a venue…</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="pdfDate">Date of event</label>
+    <input type="date" id="pdfDate">
+  </div>
+
+  <div class="actions">
+    <button type="button" onclick="downloadQr()">Download PNG</button>
+    <button class="secondary" type="button" onclick="downloadFlyerPDF()">Download flyer as PDF</button>
+  </div>
+</div>
+
+<p class="sub" style="text-align:center;margin:16px 0 0;">Crew can only check in to a show once sign-in is enabled for it. <a href="enable-signin.html" style="color:#ffb98a;">Enable Sign-In</a></p>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
+// Derived from wherever this page is actually hosted, so the QR code and
+// printable flyer always point at this deployment instead of a hardcoded URL.
+const CHECKIN_URL = new URL('checkin.html', window.location.href).href;
+(() => {
+  const el = document.getElementById('checkinUrlDisplay');
+  if (el) el.textContent = CHECKIN_URL;
+})();
+
+function drawRoundedRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function renderQrWithLogo(){
+  const holder = document.getElementById('qr');
+  holder.innerHTML = '';
+  /* eslint-disable no-new */
+  new QRCode(holder, {
+    text: CHECKIN_URL,
+    width: 640,
+    height: 640,
+    colorDark: "#1c2b3a",
+    colorLight: "#ffffff",
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  setTimeout(() => {
+    const canvas = holder.querySelector('canvas');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const logo = new Image();
+    logo.onload = () => {
+      const logoSize = canvas.width * 0.22;
+      const x = (canvas.width - logoSize) / 2;
+      const y = (canvas.height - logoSize) / 2;
+      const pad = canvas.width * 0.018;
+      const cornerRadius = canvas.width * 0.024;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.fillStyle = '#ffffff';
+      drawRoundedRect(ctx, x - pad, y - pad, logoSize + pad * 2, logoSize + pad * 2, cornerRadius + pad);
+      ctx.fill();
+      ctx.save();
+      drawRoundedRect(ctx, x, y, logoSize, logoSize, cornerRadius);
+      ctx.clip();
+      ctx.drawImage(logo, x, y, logoSize, logoSize);
+      ctx.restore();
+
+      // Some browsers show a fallback <img> instead of the canvas — keep it in sync
+      const img = holder.querySelector('img');
+      if(img) img.src = canvas.toDataURL('image/png');
+    };
+    logo.src = 'logo.jpg';
+  }, 60);
+}
+renderQrWithLogo();
+
+function downloadQr(){
+  const canvas = document.getElementById('qr').querySelector('canvas');
+  if(!canvas) return;
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = 'QR_Event_CheckIn.png';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+const VENUE_DIRECTORY = {};
+[
+  "Real Salt Lake","University of Utah","Salt Lake Bees","Trailer Loading","Shop Time","Bunker Time",
+  "Hillcrest High School","Jordan High School","Copper Hills High School","Herriman High School",
+  "North Ridge High School","Bee's - Class \"C\" Show","West Jordan High School","American Heritage High School",
+  "Sleepy Ridge","Mountain Ridge High School","Stansbury High School","Bingham High School","Bluffdale City",
+  "Midvale City","Utah Valley University","Southeast Township Days","Magna - Day 1","Magna - Day 2",
+  "Murray City","Ogden Raptors","Farr West","West Point","Moab - 4th of July","Dutch John",
+  "Weber State University","Draper City","Bountiful City","American Fork City","Lehi City","Springville City",
+  "West Valley City (West Fest)","Clinton City","Thanksgiving Point Waterfall Concert","Dugway City",
+  "Taylorsville - Thursday","Taylorsville - Friday","Taylorsville - Saturday","Olympus High School","Moab - Music Festival"
+].forEach(name => { VENUE_DIRECTORY[name.toLowerCase()] = name; });
+
+function populateVenueSelect(){
+  const select = document.getElementById('pdfVenue');
+  const currentValue = select.value;
+  const sortedNames = Object.values(VENUE_DIRECTORY).sort((a,b) => a.localeCompare(b));
+  select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
+    sortedNames.map(name => `<option value="${name.replace(/"/g,'&quot;')}">${name}</option>`).join('');
+  if(currentValue) select.value = currentValue;
+}
+populateVenueSelect();
+
+async function fetchVenueDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetVenues = await res.json();
+    if(Array.isArray(sheetVenues)){
+      sheetVenues.forEach(v => {
+        if(!v.name) return;
+        VENUE_DIRECTORY[v.name.trim().toLowerCase()] = v.name.trim();
+      });
+      populateVenueSelect();
+    }
+  } catch(err){
+    // fall back silently to the built-in venue list
+  }
+}
+fetchVenueDirectory();
+
+
+function downloadFlyerPDF(){
+  const canvas = document.getElementById('qr').querySelector('canvas');
+  if(!canvas){
+    alert('QR code is still loading — try again in a moment.');
+    return;
+  }
+  const venue = document.getElementById('pdfVenue').value;
+  const dateVal = document.getElementById('pdfDate').value;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit: 'pt', format: 'letter'});
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let y = 90;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(28, 43, 58);
+  doc.text('Event Check-In', pageWidth / 2, y, {align: 'center'});
+  y += 28;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(12);
+  doc.setTextColor(91, 100, 112);
+  doc.text('Scan the code below to check in', pageWidth / 2, y, {align: 'center'});
+  y += 40;
+
+  const qrSize = 260;
+  const qrX = (pageWidth - qrSize) / 2;
+  const qrImg = canvas.toDataURL('image/png');
+  doc.addImage(qrImg, 'PNG', qrX, y, qrSize, qrSize);
+  y += qrSize + 36;
+
+  if(venue){
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(28, 43, 58);
+    doc.text(venue, pageWidth / 2, y, {align: 'center'});
+    y += 22;
+  }
+  if(dateVal){
+    const [yyyy, mm, dd] = dateVal.split('-');
+    const displayDate = `${mm}/${dd}/${yyyy}`;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(13);
+    doc.setTextColor(91, 100, 112);
+    doc.text(displayDate, pageWidth / 2, y, {align: 'center'});
+    y += 20;
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(91, 100, 112);
+  doc.text(CHECKIN_URL, pageWidth / 2, pageHeight - 50, {align: 'center'});
+  doc.text('Apex Pyrotechnics', pageWidth / 2, pageHeight - 36, {align: 'center'});
+
+  const namePart = (venue || 'Event').replace(/\s+/g, '_');
+  const datePart = dateVal ? '_' + dateVal : '';
+  doc.save(`CheckIn_Flyer_${namePart}${datePart}.pdf`);
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

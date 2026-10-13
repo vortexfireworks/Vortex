@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
+<title>Payroll Submit — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  .section{padding:22px 24px;border-bottom:1px solid var(--line);}
+  .section h2{font-size:13px;font-weight:600;color:#ffb98a;margin:0 0 14px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;min-width:0;}
+  /* A dropdown is as wide as its longest option and a date input has a fixed native width, so without
+     this a long venue name stretched the whole column past the edge of the card on phones. */
+  .field select, .field input[type=text], .field input[type=date], .field input[type=number]{width:100%;min-width:0;max-width:100%;}
+  #venueAddress{overflow-wrap:anywhere;}
+  .row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text],input[type=date],input[type=number],select{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+  }
+  input:focus,select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input[readonly]{background:rgba(255,255,255,0.04);color:var(--ink-soft);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.small{font-size:12px;padding:6px 10px;}
+  .checkbox-row{display:flex;align-items:center;gap:8px;margin:8px 0 16px;}
+  .checkbox-row input{width:auto;}
+  .checkbox-row label{font-size:13.5px;color:var(--ink);font-weight:400;}
+  table.people{width:100%;border-collapse:collapse;}
+  table.people th{
+    font-size:10.5px;color:var(--ink-soft);text-align:left;
+    padding:0 8px 6px 0;font-weight:600;
+  }
+  table.people td{padding:4px 8px 4px 0;}
+  table.people input[type=text]{width:100%;}
+  table.people input[type=number]{width:100%;text-align:right;}
+  @media(max-width:480px){
+    table.people thead{display:none;}
+    table.people, table.people tbody, table.people tr, table.people td{display:block;width:100%;}
+    table.people tr{
+      border:1px solid var(--line); border-radius:8px;
+      padding:10px 12px; margin-bottom:10px;
+    }
+    table.people td{padding:6px 0;}
+    table.people td[data-label]:not([data-label=""])::before{
+      content:attr(data-label);
+      display:block; font-size:10.5px; color:var(--ink-soft); font-weight:600; margin-bottom:3px;
+    }
+    table.people td:last-child{
+      display:flex; justify-content:flex-end; padding-top:0;
+    }
+  }
+  .rm-row{background:none;border:none;color:var(--brick);cursor:pointer;font-size:17px;line-height:1;padding:4px;}
+  .add-row{
+    margin-top:8px; background:none; border:1px dashed var(--line);
+    color:var(--navy); font-size:12.5px; padding:7px 12px; border-radius:6px; cursor:pointer;
+  }
+  .add-row:hover{border-color:var(--navy);}
+  .totals{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:14px 0 0; font-size:14px; font-weight:600;
+  }
+  .totals .mismatch{color:var(--brick); font-weight:600; font-size:12.5px;}
+  .totals .match{color:var(--ok); font-weight:600; font-size:12.5px;}
+  .status{font-size:11.5px;color:var(--ink-soft);margin-top:8px;}
+  input.invalid, select.invalid{border-color:#ff6a5a !important;}
+  .orphan-msg{font-size:12.5px;color:#ff6a5a;font-weight:600;margin:8px 0 0;line-height:1.4;}
+  .draft-note{font-size:12px;color:var(--ink-soft);margin:0 0 14px;}
+  button.link-btn{background:none;border:none;box-shadow:none;padding:0;font:inherit;font-size:12.5px;font-weight:400;color:#ffb98a;text-decoration:underline;cursor:pointer;}
+  :root[data-theme="light"] button.link-btn, :root[data-theme="light"] .section h2{color:#c9601f;}
+  .review-box{margin:0 24px 6px;border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.5;}
+  .review-box.err{background:rgba(255,106,90,0.12);border:1px solid rgba(255,106,90,0.5);}
+  .review-box.warn{background:rgba(255,190,60,0.12);border:1px solid rgba(255,190,60,0.5);}
+  .review-box h3{margin:0 0 6px;font-size:13.5px;color:var(--ink);}
+  .review-box ul{margin:0 0 10px;padding-left:18px;color:var(--ink);}
+  .review-box li{margin:3px 0;}
+  .review-box .btns{display:flex;gap:10px;flex-wrap:wrap;}
+  .send-result{margin:12px 24px 0;background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.4);border-radius:10px;padding:14px 16px;font-size:13px;line-height:1.5;}
+  .send-result h3{margin:0 0 4px;font-size:14px;color:var(--ink);}
+  .send-result p{margin:6px 0 0;color:var(--ink);}
+  details.trouble{padding:0 24px 20px;margin-top:12px;}
+  details.trouble summary{font-size:12px;color:var(--ink-soft);cursor:pointer;}
+  .actions{padding:22px 24px 26px; display:flex; gap:12px; flex-wrap:wrap;}
+  @media(max-width:480px){
+    .row2{grid-template-columns:minmax(0,1fr);}
+  }
+  .back-link{
+    display:block; max-width:640px; margin:16px auto 0; padding:0 16px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+
+<div id="undoToast" style="display:none;position:fixed;left:16px;right:16px;bottom:20px;max-width:400px;margin:0 auto;background:#1c2434;border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:12px 16px;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:100;">
+  <span id="undoToastMsg" style="font-size:13px;color:var(--ink);">Person removed</span>
+  <button type="button" onclick="undoRemove()" style="background:none;border:none;color:#ffb98a;font-weight:700;font-size:13px;cursor:pointer;padding:4px 8px;">Undo</button>
+</div>
+
+<a class="back-link" href="index.html">&larr; Back to main menu</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
+  <h1>Payroll Submit</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet" id="mainContent">
+  <div class="section">
+    <h2>Event</h2>
+    <p class="draft-note" id="draftNote" style="display:none;">Picked up your unfinished payroll. <button type="button" class="link-btn" onclick="startOver()">Start over</button></p>
+    <div class="row2">
+      <div class="field">
+        <label for="event">Venue</label>
+        <select id="event" onchange="showVenueAddress()">
+          <option value="" disabled selected>Select a venue…</option>
+        </select>
+        <p id="venueAddress" style="font-size:12px;color:var(--ink-soft);margin:6px 0 0;"></p>
+      </div>
+      <div class="field">
+        <label for="eventDate">Date of event</label>
+        <input type="date" id="eventDate">
+      </div>
+    </div>
+    <div class="field" id="descriptionField" style="display:none;">
+      <label for="hoursDescription">Description</label>
+      <textarea id="hoursDescription" rows="3" style="font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);resize:vertical;font-family:inherit;" placeholder="What was worked on during this time?"></textarea>
+    </div>
+    <button class="secondary" type="button" onclick="loadFromCheckins()">Load people who checked in</button>
+    <p class="status" id="loadStatus"></p>
+  </div>
+
+  <div class="section">
+    <h2>People &amp; pay</h2>
+    <table class="people" id="peopleTable">
+      <thead>
+        <tr><th style="width:30%">Name</th><th style="width:40%">Address</th><th style="width:22%" id="amountHeader">Amount ($)</th><th></th></tr>
+      </thead>
+      <tbody>
+        <tr id="headPyroRow" style="background:rgba(255,140,0,0.08);">
+          <td data-label="Name">
+            <input type="text" class="p-name" id="hpName" list="licensedOperatorDirectoryList" oninput="onNameEdit(this)" placeholder="Head Pyro name">
+          </td>
+          <td data-label="Address"><input type="text" class="p-address" id="hpAddress"></td>
+          <td data-label="Amount ($)"><input type="number" class="p-amount" id="hpAmount" min="0" step="1" oninput="onAmountEdit()"></td>
+          <td data-label="" style="font-size:9.5px;color:var(--brick);font-weight:700;text-align:center;white-space:nowrap;">HP</td>
+        </tr>
+      </tbody>
+      <tbody id="peopleBody"></tbody>
+    </table>
+    <button class="add-row" type="button" onclick="addPersonRowAndFocus()">+ Add person</button>
+    <datalist id="operatorDirectoryList"></datalist>
+    <datalist id="licensedOperatorDirectoryList"></datalist>
+  </div>
+
+  <div class="section" style="border-bottom:none;">
+    <h2 id="payrollSectionTitle">Budget</h2>
+    <div class="field">
+      <label for="totalPayroll" id="totalPayrollLabel">Total budget ($)</label>
+      <input type="number" id="totalPayroll" min="0" step="1" oninput="recalculate()">
+    </div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="divideEvenly" onchange="recalculate()">
+      <label for="divideEvenly" id="divideEvenlyLabel">Divide evenly between all people</label>
+    </div>
+    <div class="totals">
+      <span id="sumLabel">Total budget allocation:</span>
+      <span id="sumDisplay">$0</span>
+    </div>
+    <p id="matchMsg" class="status"></p>
+    <p id="orphanMsg" class="orphan-msg" style="display:none;" role="alert"></p>
+  </div>
+
+  <div class="review-box" id="reviewBox" style="display:none;" role="alert"></div>
+  <div class="actions">
+    <button class="secondary" type="button" onclick="emailToAccounting()">Email to Accounting (cc Apex)</button>
+    <button class="secondary" type="button" onclick="emailToApex()">Email to Apex</button>
+    <button class="secondary" type="button" onclick="downloadPayrollPDF()">Download as PDF</button>
+    <button class="secondary" type="button" onclick="downloadPayrollCSV()">Download as CSV</button>
+  </div>
+  <p class="status" id="emailStatus" style="padding:0 24px;" aria-live="polite"></p>
+  <p class="status" id="driveStatus" style="padding:0 24px;" aria-live="polite"></p>
+  <div class="send-result" id="sendResult" style="display:none;" aria-live="polite"></div>
+  <details class="trouble">
+    <summary>Trouble emailing?</summary>
+    <p style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;">"Email to Accounting" sends to accounting@apexpyrotechnics.com and CCs demo@apexpyrotechnics.com; "Email to Apex" sends to demo@apexpyrotechnics.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach &mdash; the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself. Either way, a copy of the PDF is also saved to the Apex Payroll Reports folder in Drive.</p>
+  </details>
+</div>
+
+<script>
+// The crew list is NOT written into this page. It comes from the sheet once signed in, and a copy is kept on this phone
+// so autofill still works with no signal.
+const CONTACTS = Directory.cached();
+
+const CONTACTS_BY_NAME = {};
+CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
+
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
+
+async function fetchOperatorDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=contacts`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetContacts = await res.json();
+    if(Array.isArray(sheetContacts)){
+      Directory.save(sheetContacts);
+      sheetContacts.forEach(c => {
+        if(!c.name) return;
+        CONTACTS_BY_NAME[c.name.trim().toLowerCase()] = {
+          name: c.name.trim(),
+          license: c.license || '',
+          address: c.address || '',
+          age: c.age || ''
+        };
+      });
+    }
+  } catch(err){
+    // fall back silently — manual entry still works
+  }
+  const dl = document.getElementById('operatorDirectoryList');
+  if(dl) dl.innerHTML = Object.values(CONTACTS_BY_NAME).map(c => `<option value="${c.name}">`).join('');
+  populateLicensedDatalist();
+}
+fetchOperatorDirectory();
+
+function populateLicensedDatalist(){
+  const dl = document.getElementById('licensedOperatorDirectoryList');
+  const sorted = Object.values(CONTACTS_BY_NAME)
+    .filter(c => c.license && c.license.trim())
+    .sort((a,b) => a.name.localeCompare(b.name));
+  dl.innerHTML = sorted.map(c => `<option value="${c.name.replace(/"/g,'&quot;')}">`).join('');
+}
+
+async function fetchVenueDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetVenues = await res.json();
+    if(Array.isArray(sheetVenues)){
+      const fetchedList = [];
+      sheetVenues.forEach(v => {
+        if(!v.name) return;
+        const entry = {
+          name: v.name.trim(),
+          address: v.address || '',
+          county: v.county || '',
+          eventDate: v.eventDate || ''
+        };
+        // VENUE_INFO stays one entry per name (fine — address doesn't vary by date),
+        // but every fetched row, duplicates included, goes into VENUE_LIST so the
+        // dropdown can show the same venue name on more than one date.
+        VENUE_INFO[v.name.trim().toLowerCase()] = entry;
+        fetchedList.push(entry);
+      });
+      // The sheet usually has its own Shop Time / Trailer Loading / Bunker Time rows too, so collapse anything
+      // with the same name AND date into one — otherwise those three would each appear twice.
+      const seen = new Set();
+      VENUE_LIST = fetchedList.concat(ALWAYS_AVAILABLE_NO_DATE.map(key => VENUE_INFO[key]).filter(Boolean))
+        .filter(v => {
+          const k = v.name.trim().toLowerCase() + '|' + (v.eventDate || '');
+          if(seen.has(k)) return false;
+          seen.add(k);
+          return true;
+        });
+      populateVenueSelect();
+    }
+  } catch(err){
+    // fall back silently to the built-in venue list
+  }
+}
+
+const VENUE_INFO = {
+  "real salt lake": { name: "Real Salt Lake", address: "America First Field, 9256 S State St, Sandy, UT 84070", county: "Salt Lake" },
+  "university of utah": { name: "University of Utah", address: "Rice-Eccles Stadium, 451 1400 E, Salt Lake City, UT 84112", county: "Salt Lake" },
+  "salt lake bees": { name: "Salt Lake Bees", address: "The Ballpark at America First Square, 11111 South Ballpark Way (5470 W), South Jordan, UT 84009", county: "Salt Lake" },
+  "trailer loading": { name: "Trailer Loading", address: "Shop", county: "Salt Lake" },
+  "shop time": { name: "Shop Time", address: "Shop", county: "Salt Lake" },
+  "bunker time": { name: "Bunker Time", address: "Bunker", county: "Salt Lake" },
+  "hillcrest high school": { name: "Hillcrest High School", address: "7350 S 900 E, Midvale, UT 84047", county: "Salt Lake" },
+  "jordan high school": { name: "Jordan High School", address: "95 Beetdigger Blvd., Sandy, UT 84070", county: "Salt Lake" },
+  "copper hills high school": { name: "Copper Hills High School", address: "5445 Copper Hls Pkwy, West Jordan, UT 84081", county: "Salt Lake" },
+  "herriman high school": { name: "Herriman High School", address: "11917 Mustang Trail Way, Herriman, UT 84096", county: "Salt Lake" },
+  "north ridge high school": { name: "North Ridge High School", address: "2430 N Hill Field Rd, Layton, UT 84041", county: "Salt Lake" },
+  "bee's - class \"c\" show": { name: "Bee's - Class \"C\" Show", address: "11111 Ballpark Dr, South Jordan, UT 84009", county: "Salt Lake" },
+  "west jordan high school": { name: "West Jordan High School", address: "8136 2700 W, West Jordan, UT 84088", county: "Salt Lake" },
+  "american heritage high school": { name: "American Heritage High School", address: "736 N 1100 E, American Fork, UT 84003", county: "Utah" },
+  "sleepy ridge": { name: "Sleepy Ridge", address: "730 S Sleepy Ridge Dr, Orem, UT 84058", county: "Utah" },
+  "mountain ridge high school": { name: "Mountain Ridge High School", address: "14100 Sentinel Ridge Blvd, Herriman, UT 84096", county: "Salt Lake" },
+  "stansbury high school": { name: "Stansbury High School", address: "5300 N Aberdeen Ln, Stansbury Park, UT 84074", county: "Tooele" },
+  "bingham high school": { name: "Bingham High School", address: "2160 South Jordan Pkwy, South Jordan, UT 84095", county: "Salt Lake" },
+  "bluffdale city": { name: "Bluffdale City", address: "2400 14400 S, Bluffdale, UT 84065", county: "Salt Lake" },
+  "midvale city": { name: "Midvale City", address: "425 6th Ave, Midvale, UT 84047", county: "Salt Lake" },
+  "utah valley university": { name: "Utah Valley University", address: "800 W University Pkwy, Orem, UT 84058", county: "Utah" },
+  "southeast township days": { name: "Southeast Township Days", address: "930 E Onyx Ln, Sandy, UT 84094", county: "Salt Lake" },
+  "magna - day 1": { name: "Magna - Day 1", address: "8975 W 2600 S, Magna, UT 84044", county: "Salt Lake" },
+  "magna - day 2": { name: "Magna - Day 2", address: "8975 W 2600 S, Magna, UT 84044", county: "Salt Lake" },
+  "murray city": { name: "Murray City", address: "296 E Murray Park Ave, Murray, UT 84107", county: "Salt Lake" },
+  "ogden raptors": { name: "Ogden Raptors", address: "2330 Lincoln Ave, Ogden, UT 84401", county: "Weber" },
+  "farr west": { name: "Farr West", address: "2500 W 4000 N St, Farr West, UT 84404", county: "Weber" },
+  "west point": { name: "West Point", address: "683 N 3500 W, West Point, UT 84015", county: "Davis" },
+  "moab - 4th of july": { name: "Moab - 4th of July", address: "680 S Mill Creek Dr, Moab, UT 84532", county: "Grand" },
+  "dutch john": { name: "Dutch John", address: "1050 S Blvd, Dutch John, UT 84023", county: "Daggett" },
+  "weber state university": { name: "Weber State University", address: "3848 Harrison Blvd, Ogden, UT 84408", county: "Weber" },
+  "draper city": { name: "Draper City", address: "1020 Pioneer Rd, Draper, UT 84020", county: "Salt Lake" },
+  "bountiful city": { name: "Bountiful City", address: "1077 E 1500 S, Bountiful, UT 84010", county: "Davis" },
+  "american fork city": { name: "American Fork City", address: "1000 N 550 E St, American Fork, UT 84003", county: "Utah" },
+  "lehi city": { name: "Lehi City", address: "601 W 3200 N, Lehi, UT 84043", county: "Utah" },
+  "springville city": { name: "Springville City", address: "1205 E 900 S, Springville, UT 84663", county: "Utah" },
+  "west valley city (west fest)": { name: "West Valley City (West Fest)", address: "5405 W 3100 S, West Valley City, UT 84120", county: "Salt Lake" },
+  "clinton city": { name: "Clinton City", address: "2000 N 2750 W, Clinton, UT 84015", county: "Davis" },
+  "thanksgiving point waterfall concert": { name: "Thanksgiving Point Waterfall Concert", address: "3003 N Thanksgiving Way, Lehi, UT 84043", county: "" },
+  "dugway city": { name: "Dugway City", address: "", county: "" },
+  "taylorsville - thursday": { name: "Taylorsville - Thursday", address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
+  "taylorsville - friday": { name: "Taylorsville - Friday", address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
+  "taylorsville - saturday": { name: "Taylorsville - Saturday", address: "2775 W 5200 S, West Valley City, UT 84118", county: "Salt Lake" },
+  "olympus high school": { name: "Olympus High School", address: "4055 S 2300 E, Holladay, UT 84124", county: "Salt Lake" },
+  "moab - music festival": { name: "Moab - Music Festival", address: "58 E 300 S, Moab, UT 84532", county: "Grand" }
+};
+
+// VENUE_INFO stays keyed by plain name — one address/county per venue name, which is
+// correct since the address doesn't change between dates. The dropdown needs every
+// distinct venue+date row though, since the same venue can legitimately appear on more
+// than one date, so it's built from this separate list instead, never deduped by name.
+const ALWAYS_AVAILABLE_NO_DATE = ['shop time', 'trailer loading', 'bunker time'];
+let VENUE_LIST = ALWAYS_AVAILABLE_NO_DATE.map(key => VENUE_INFO[key]).filter(Boolean);
+
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = dateStr.slice(0, 10);
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
+  return `${Number(m)}/${Number(d)}`;
+}
+
+function venueOptionKey(name, date){
+  return String(name || '').trim().toLowerCase() + '|||' + (date ? String(date).slice(0, 10) : '');
+}
+
+// A venue and date restored from a saved draft, applied as soon as that dated entry exists in the list.
+let pendingVenue = null;
+function applyPendingVenue(){
+  if(!pendingVenue) return;
+  const sel = document.getElementById('event');
+  const opt = Array.from(sel.options).find(o => o.dataset.key === venueOptionKey(pendingVenue.name, pendingVenue.date));
+  if(!opt) return;
+  opt.selected = true;
+  const savedDate = pendingVenue.eventDate;
+  pendingVenue = null;
+  showVenueAddress({ silent:true });
+  if(savedDate) document.getElementById('eventDate').value = savedDate;
+}
+
+function populateVenueSelect(){
+  const select = document.getElementById('event');
+  const currentValue = select.value;
+  const currentKey = select.selectedOptions[0] ? (select.selectedOptions[0].dataset.key || '') : '';
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const threeMonthsAgo = new Date(today); threeMonthsAgo.setMonth(today.getMonth() - 3);
+  const threeMonthsAhead = new Date(today); threeMonthsAhead.setMonth(today.getMonth() + 3);
+
+  const sorted = VENUE_LIST
+    .filter(v => {
+      if(ALWAYS_AVAILABLE_NO_DATE.includes(v.name.trim().toLowerCase())) return true;
+      if(!v.eventDate) return false;
+      const d = new Date(v.eventDate.slice(0, 10) + 'T00:00:00');
+      return d >= threeMonthsAgo && d <= threeMonthsAhead;
+    })
+    .sort((a, b) => {
+      if(a.eventDate && b.eventDate) return a.eventDate.localeCompare(b.eventDate);
+      if(a.eventDate && !b.eventDate) return -1;
+      if(!a.eventDate && b.eventDate) return 1;
+      return a.name.localeCompare(b.name);
+    });
+
+  select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
+    sorted.map(v => {
+      const label = v.eventDate ? `${formatDateForOption(v.eventDate)} — ${v.name}` : v.name;
+      const date = v.eventDate ? v.eventDate.slice(0, 10) : '';
+      const key = venueOptionKey(v.name, date).replace(/"/g,'&quot;');
+      return `<option value="${v.name.replace(/"/g,'&quot;')}" data-key="${key}" data-date="${date}">${label.replace(/</g,'&lt;')}</option>`;
+    }).join('');
+  if(currentValue){
+    // keep the same DATED entry selected, not just the first one that shares the name
+    const exact = currentKey && Array.from(select.options).find(o => o.dataset.key === currentKey);
+    if(exact) exact.selected = true; else select.value = currentValue;
+  } else {
+    select.selectedIndex = 0;
+  }
+  applyPendingVenue();
+}
+populateVenueSelect();
+fetchVenueDirectory();
+
+function showVenueAddress(opts){
+  const sel = document.getElementById('event');
+  const venue = sel.value.trim();
+  const match = VENUE_INFO[venue.toLowerCase()];
+  const addressEl = document.getElementById('venueAddress');
+  addressEl.textContent = match ? `${match.address} · ${match.county} County` : '';
+  sel.classList.remove('invalid');
+
+  // The list already shows each show's date, so choosing it sets the date too. (Hours-only jobs have no date: use today.)
+  const dateEl = document.getElementById('eventDate');
+  const optDate = sel.selectedOptions[0] ? (sel.selectedOptions[0].dataset.date || '') : '';
+  if(optDate) dateEl.value = optDate;
+  else if(!dateEl.value && venue) dateEl.value = new Date().toLocaleDateString('en-CA');
+
+  updateModeUI();
+  if(!(opts && opts.silent)) maybeAutoLoad();
+  refreshAllRateSuggestions();
+}
+
+// "Untouched" = nothing typed by hand. Crew that only came from check-ins can be swapped out if a different show is picked.
+let autoFilledHP = '';
+function isUntouched(){
+  const rows = Array.from(document.querySelectorAll('#peopleBody tr'));
+  const manualRow = rows.some(r => r.querySelector('.p-amount').value.trim() ||
+    (r.querySelector('.p-name').value.trim() && !r.querySelector('.checkin-time').textContent.trim()));
+  const hpName = document.getElementById('hpName').value.trim();
+  const hpTouched = (hpName && hpName !== autoFilledHP) || document.getElementById('hpAmount').value.trim();
+  return !manualRow && !hpTouched && !document.getElementById('totalPayroll').value.trim();
+}
+function maybeAutoLoad(){
+  if(isUntouched()) loadFromCheckins({ auto:true });
+}
+
+function isHoursMode(){
+  const venue = document.getElementById('event').value.trim().toLowerCase();
+  return venue === 'shop time' || venue === 'bunker time' || venue === 'trailer loading';
+}
+
+function updateModeUI(){
+  const hours = isHoursMode();
+  const step = hours ? '0.25' : '1';
+
+  document.getElementById('payrollSectionTitle').textContent = hours ? 'Total hours' : 'Budget';
+  document.getElementById('totalPayrollLabel').textContent = hours ? 'Total hours' : 'Total budget ($)';
+  document.getElementById('totalPayroll').step = step;
+  document.getElementById('divideEvenlyLabel').textContent = hours ? 'Divide hours evenly between all people' : 'Divide evenly between all people';
+  document.getElementById('amountHeader').textContent = hours ? 'Hours' : 'Amount ($)';
+  document.getElementById('sumLabel').textContent = hours ? 'Total hours allocation:' : 'Total budget allocation:';
+  document.getElementById('headPyroRow').style.display = hours ? 'none' : '';
+  document.getElementById('descriptionField').style.display = hours ? '' : 'none';
+
+  document.querySelectorAll('.p-amount').forEach(inp => inp.step = step);
+
+  recalculate();
+}
+
+let lastRemovedPerson = null;
+let undoToastTimer = null;
+
+function removePersonRow(row){
+  const name = row.querySelector('.p-name').value.trim();
+  const address = row.querySelector('.p-address').value.trim();
+  const amount = row.querySelector('.p-amount').value.trim();
+  const checkinTimeEl = row.querySelector('.checkin-time');
+  const checkInTime = checkinTimeEl ? checkinTimeEl.textContent.replace('Checked in ', '').trim() : '';
+
+  lastRemovedPerson = { name, address, amount, checkInTime };
+  row.remove();
+  recalculate();
+
+  const toast = document.getElementById('undoToast');
+  document.getElementById('undoToastMsg').textContent = name ? `${name} removed` : 'Person removed';
+  toast.style.display = 'flex';
+  clearTimeout(undoToastTimer);
+  undoToastTimer = setTimeout(() => { toast.style.display = 'none'; lastRemovedPerson = null; }, 6000);
+}
+
+function undoRemove(){
+  if(!lastRemovedPerson) return;
+  addPersonRow(lastRemovedPerson.name, lastRemovedPerson.address, lastRemovedPerson.checkInTime);
+  const rows = document.querySelectorAll('#peopleBody tr');
+  const newRow = rows[rows.length - 1];
+  if(newRow) newRow.querySelector('.p-amount').value = lastRemovedPerson.amount;
+  recalculate();
+  document.getElementById('undoToast').style.display = 'none';
+  clearTimeout(undoToastTimer);
+  lastRemovedPerson = null;
+}
+
+function addPersonRow(name, address, checkInTime){
+  const tbody = document.getElementById('peopleBody');
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td data-label="Name">
+      <input type="text" class="p-name" value="${name ? name.replace(/"/g,'&quot;') : ''}" list="operatorDirectoryList" oninput="onNameEdit(this)">
+      <div class="checkin-time" style="font-size:10.5px;color:var(--ink-soft);margin-top:3px;${checkInTime ? '' : 'display:none;'}">${checkInTime ? 'Checked in ' + checkInTime : ''}</div>
+    </td>
+    <td data-label="Address"><input type="text" class="p-address" value="${address ? address.replace(/"/g,'&quot;') : ''}"></td>
+    <td data-label="Amount ($)"><input type="number" class="p-amount" min="0" step="${isHoursMode() ? '0.25' : '1'}" oninput="onAmountEdit()"></td>
+    <td data-label=""><button class="rm-row" type="button" onclick="removePersonRow(this.closest('tr'))" aria-label="Remove">&times;</button></td>
+  `;
+  tbody.appendChild(tr);
+  return tr;
+}
+function addPersonRowAndFocus(){
+  const tr = addPersonRow();
+  const input = tr.querySelector('.p-name');
+  input.scrollIntoView({ behavior:'smooth', block:'center' });
+  input.focus({ preventScroll:true });
+}
+addPersonRow();
+addPersonRow();
+
+function onNameEdit(nameInput){
+  const match = CONTACTS_BY_NAME[nameInput.value.trim().toLowerCase()];
+  if(match){
+    const row = nameInput.closest('tr');
+    const addressField = row.querySelector('.p-address');
+    if(!addressField.value.trim()) addressField.value = match.address || '';
+  }
+  if(document.getElementById('divideEvenly').checked) recalculate();
+  else updateSumDisplay();
+  scheduleRateSuggestion(nameInput);
+}
+
+/* ---------------- Rate memory: suggest each person's last-used amount ---------------- */
+const rateSuggestTimers = new WeakMap();
+
+function ensureRateHintEl(row){
+  let el = row.querySelector('.rate-hint');
+  if(!el){
+    el = document.createElement('div');
+    el.className = 'rate-hint';
+    el.style.cssText = 'font-size:11px;color:var(--ink-soft);margin-top:4px;display:none;';
+    row.querySelector('.p-amount').insertAdjacentElement('afterend', el);
+  }
+  return el;
+}
+
+function clearRateHint(row){
+  const el = ensureRateHintEl(row);
+  el.style.display = 'none';
+  el.innerHTML = '';
+}
+
+function scheduleRateSuggestion(nameInput){
+  const row = nameInput.closest('tr');
+  clearTimeout(rateSuggestTimers.get(row));
+  const name = nameInput.value.trim();
+  if(!name){ clearRateHint(row); return; }
+  rateSuggestTimers.set(row, setTimeout(() => fetchRateSuggestion(row, name), 500));
+}
+
+function refreshAllRateSuggestions(){
+  document.querySelectorAll('#peopleTable .p-name').forEach(input => {
+    if(input.value.trim()) scheduleRateSuggestion(input);
+  });
+}
+
+function formatSuggestionDate(d){
+  if(!d) return '';
+  const p = String(d).slice(0,10).split('-');
+  if(p.length !== 3) return '';
+  return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+}
+
+async function fetchRateSuggestion(row, name){
+  const venue = document.getElementById('event').value.trim();
+  let data;
+  try{
+    const params = new URLSearchParams({ type: 'payRate', name });
+    if(venue) params.set('venue', venue);
+    const res = await fetch(`${CHECKIN_API_URL}?${params.toString()}`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    data = await res.json();
+  } catch(err){
+    clearRateHint(row);
+    return;
+  }
+  // The name field may have changed, or the row may be gone, while this was in flight.
+  if(!row.isConnected) return;
+  const nameField = row.querySelector('.p-name');
+  if(!nameField || nameField.value.trim().toLowerCase() !== name.toLowerCase()){ return; }
+
+  const suggestion = data && data.suggestion;
+  const hours = isHoursMode();
+  if(!suggestion || (suggestion.unit === 'hours') !== hours){
+    clearRateHint(row);
+    return;
+  }
+
+  const hintEl = ensureRateHintEl(row);
+  const amountInput = row.querySelector('.p-amount');
+  const sameVenue = venue && suggestion.event && suggestion.event.trim().toLowerCase() === venue.toLowerCase();
+  const label = `Last paid ${formatUnit(suggestion.amount, hours)}${sameVenue ? ' here' : (suggestion.event ? ' at ' + suggestion.event : '')} (${formatSuggestionDate(suggestion.eventDate)})`;
+  const canFill = !amountInput.value.trim();
+  hintEl.style.display = '';
+  hintEl.innerHTML = canFill
+    ? `${escHtml(label)} — <button type="button" class="rate-use-btn" style="background:none;border:none;color:var(--navy);text-decoration:underline;cursor:pointer;font-size:11px;padding:0;">Use this</button>`
+    : escHtml(label);
+  if(canFill){
+    const btn = hintEl.querySelector('.rate-use-btn');
+    if(btn) btn.onclick = () => {
+      amountInput.value = suggestion.amount;
+      hintEl.textContent = label;
+      if(document.getElementById('divideEvenly').checked) recalculate();
+      else updateSumDisplay();
+    };
+  }
+}
+
+function formatCheckInTime(timestamp){
+  if(!timestamp) return '';
+  const d = new Date(timestamp);
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'});
+}
+
+function formatManualTime(timeStr){
+  if(!timeStr) return '';
+  const parts = timeStr.split(':');
+  if(parts.length < 2) return '';
+  let hours = parseInt(parts[0], 10);
+  const minutes = parts[1];
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  if(hours === 0) hours = 12;
+  return `${hours}:${minutes} ${ampm}`;
+}
+
+let loadToken = 0;
+async function loadFromCheckins(opts){
+  const auto = !!(opts && opts.auto);
+  const statusEl = document.getElementById('loadStatus');
+  const eventName = document.getElementById('event').value.trim();
+  const eventDateVal = document.getElementById('eventDate').value.trim();
+  if(!eventName){
+    if(!auto) statusEl.textContent = 'Select a venue first.';
+    return;
+  }
+  const myToken = ++loadToken;
+  statusEl.textContent = 'Loading check-ins…';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?event=${encodeURIComponent(eventName)}`, { cache:'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    let checkins = await res.json();
+    if(myToken !== loadToken) return;                 // a newer choice of venue already took over
+    if(!Array.isArray(checkins)) checkins = [];
+    if(eventDateVal){
+      checkins = checkins.filter(p => String(p.eventDate || '').slice(0, 10) === eventDateVal);
+    }
+
+    // Picking a different show when nothing has been typed by hand swaps the crew; otherwise everything typed is kept.
+    if(auto && isUntouched()){
+      document.getElementById('peopleBody').innerHTML = '';
+      document.getElementById('hpName').value = '';
+      document.getElementById('hpAddress').value = '';
+      autoFilledHP = '';
+    }
+    if(checkins.length === 0){
+      if(document.querySelectorAll('#peopleBody tr').length === 0){ addPersonRow(); addPersonRow(); }
+      statusEl.textContent = eventDateVal
+        ? 'No check-ins found for this venue on that date.'
+        : 'No check-ins found for this venue yet.';
+      recalculate();
+      return;
+    }
+
+    // Keep everything already typed: drop only completely empty rows, then add whoever is not listed yet.
+    document.querySelectorAll('#peopleBody tr').forEach(row => {
+      if(!row.querySelector('.p-name').value.trim() && !row.querySelector('.p-amount').value.trim() && !row.querySelector('.p-address').value.trim()) row.remove();
+    });
+    const listed = new Map();
+    document.querySelectorAll('#peopleBody tr').forEach(row => {
+      const k = row.querySelector('.p-name').value.trim().toLowerCase();
+      if(k) listed.set(k, row);
+    });
+
+    const hours = isHoursMode();
+    const hpTyped = document.getElementById('hpName').value.trim().toLowerCase();
+    let headPyroPerson = null;
+    if(!hours && !hpTyped){
+      const hpCheckin = checkins.find(p => p.isHeadPyro && (p.name || '').trim());
+      if(hpCheckin){
+        const hpDirectoryMatch = CONTACTS_BY_NAME[hpCheckin.name.trim().toLowerCase()];
+        headPyroPerson = {
+          name: hpCheckin.name,
+          address: hpCheckin.address || (hpDirectoryMatch ? hpDirectoryMatch.address : '') || ''
+        };
+      }
+    }
+    const seen = new Set();
+    let added = 0, alreadyListed = 0;
+    checkins.forEach(p => {
+      const key = (p.name || '').trim().toLowerCase();
+      if(!key || seen.has(key)) return;
+      seen.add(key);
+      if(headPyroPerson && key === headPyroPerson.name.trim().toLowerCase()) return;
+      if(!hours && hpTyped && key === hpTyped){ alreadyListed++; return; }
+      const directoryMatch = CONTACTS_BY_NAME[key];
+      const address = p.address || (directoryMatch ? directoryMatch.address : '') || '';
+      const checkInTime = p.checkInTime ? formatManualTime(p.checkInTime) : formatCheckInTime(p.timestamp);
+      if(listed.has(key)){
+        const row = listed.get(key);
+        const addrInput = row.querySelector('.p-address');
+        if(!addrInput.value.trim()) addrInput.value = address;
+        const timeEl = row.querySelector('.checkin-time');
+        if(checkInTime && !timeEl.textContent.trim()){ timeEl.textContent = 'Checked in ' + checkInTime; timeEl.style.display = ''; }
+        alreadyListed++;
+        return;
+      }
+      addPersonRow(p.name, address, checkInTime);
+      added++;
+    });
+    if(headPyroPerson){
+      document.getElementById('hpName').value = headPyroPerson.name;
+      document.getElementById('hpAddress').value = headPyroPerson.address;
+      autoFilledHP = headPyroPerson.name;
+    }
+    if(document.querySelectorAll('#peopleBody tr').length === 0){ addPersonRow(); addPersonRow(); }
+    statusEl.textContent = (added || !alreadyListed
+        ? `Added ${added} ${added === 1 ? 'person' : 'people'} from check-ins.`
+        : 'Everyone who checked in is already listed.') +
+      (added && alreadyListed ? ` ${alreadyListed} already listed.` : '') +
+      (headPyroPerson ? ` ${headPyroPerson.name} was marked as Head Pyro at check-in and filled in below.` : '');
+    recalculate();
+  } catch(err){
+    if(myToken === loadToken) statusEl.textContent = 'Could not load check-ins — check your connection and try again.';
+  }
+}
+
+function onAmountEdit(){
+  // Manual edits only matter when not dividing evenly
+  if(!document.getElementById('divideEvenly').checked){
+    updateSumDisplay();
+  }
+}
+
+// Dollar amount that was already in the Head Pyro's pay field the moment "Divide evenly" turned
+// on. A real amount there is left alone and only the rest is split among the crew; an empty field
+// means the Head Pyro shares the even split with everyone else, same as before. Captured once per
+// "divide evenly" session (see dividingHpLocked) so it doesn't drift as the field gets overwritten.
+let hpFixedAmount = null;
+let dividingHpLocked = false;
+
+function recalculate(){
+  const rows = Array.from(document.querySelectorAll('#peopleBody tr'));
+  const divideEvenly = document.getElementById('divideEvenly').checked;
+  const hours = isHoursMode();
+  const hpAmountInput = document.getElementById('hpAmount');
+  const hpNamed = !hours && !!document.getElementById('hpName').value.trim();
+  const namedRows = rows.filter(r => r.querySelector('.p-name').value.trim());
+  const emptyRows = rows.filter(r => !r.querySelector('.p-name').value.trim());
+
+  if(divideEvenly){
+    if(!dividingHpLocked){
+      const raw = hpAmountInput.value.trim();
+      hpFixedAmount = (hpNamed && raw !== '') ? (parseFloat(raw) || 0) : null;
+      dividingHpLocked = true;
+    }
+  } else {
+    dividingHpLocked = false;
+    hpFixedAmount = null;
+  }
+  const hpHasFixedAmount = divideEvenly && hpNamed && hpFixedAmount !== null;
+
+  // Only people who will really be on the report, and aren't already getting a fixed amount, share the remaining money.
+  // An empty row (the page starts with two) must not take a share.
+  const sharers = namedRows.map(r => r.querySelector('.p-amount')).concat((hpNamed && !hpHasFixedAmount) ? [hpAmountInput] : []);
+
+  if(divideEvenly){
+    sharers.forEach(inp => inp.readOnly = true);
+    emptyRows.forEach(r => { const inp = r.querySelector('.p-amount'); inp.value = ''; inp.readOnly = true; });
+    if(!hpNamed && !hours){ hpAmountInput.value = ''; hpAmountInput.readOnly = true; }
+    if(hpHasFixedAmount){ hpAmountInput.value = hpFixedAmount; hpAmountInput.readOnly = true; }
+    const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
+    const remaining = hpHasFixedAmount ? Math.max(0, total - hpFixedAmount) : total;
+    const n = sharers.length;
+    if(n === 0){
+      updateSumDisplay();
+      return;
+    }
+    if(hours){
+      // Distribute in quarter-hour increments so the sum matches exactly
+      const totalQuarters = Math.round(remaining * 4);
+      const baseQuarters = Math.floor(totalQuarters / n);
+      let remainder = totalQuarters - baseQuarters * n;
+      sharers.forEach((inp, i) => {
+        const quarters = baseQuarters + (i < remainder ? 1 : 0);
+        inp.value = (quarters / 4).toFixed(2).replace(/\.?0+$/, '') || '0';
+      });
+    } else {
+      const totalRounded = Math.round(remaining);
+      const base = Math.floor(totalRounded / n);
+      let remainder = totalRounded - base * n;
+      sharers.forEach((inp, i) => {
+        const amount = base + (i < remainder ? 1 : 0);
+        inp.value = amount;
+      });
+    }
+  } else {
+    rows.forEach(r => r.querySelector('.p-amount').readOnly = false);
+    hpAmountInput.readOnly = false;
+  }
+  updateSumDisplay();
+}
+
+function formatUnit(value, hours){
+  return hours ? `${value.toLocaleString(undefined, {maximumFractionDigits: 2})} hrs` : `$${value.toLocaleString()}`;
+}
+
+function num(v){ return parseFloat(v) || 0; }
+
+// The named Head Pyro, or nothing: the HP row is hidden for hours-only jobs, and an HP amount with no name is never sent.
+function headPyroEntry(){
+  if(isHoursMode()) return null;
+  const name = document.getElementById('hpName').value.trim();
+  if(!name) return null;
+  return { name, address: document.getElementById('hpAddress').value.trim(), amount: num(document.getElementById('hpAmount').value) };
+}
+
+// Exactly what the PDF, CSV and email will contain, so the total on screen can never disagree with what is sent.
+function allocationSum(){
+  const hp = headPyroEntry();
+  return collectPeople().reduce((a, p) => a + p.amount, 0) + (hp ? hp.amount : 0);
+}
+
+// Money typed on a row that has no name: it can never be sent.
+function orphanAmounts(){
+  const out = [];
+  document.querySelectorAll('#peopleBody tr').forEach(row => {
+    const amount = num(row.querySelector('.p-amount').value);
+    if(!row.querySelector('.p-name').value.trim() && amount > 0) out.push({ nameInput: row.querySelector('.p-name'), amount });
+  });
+  const hpInput = document.getElementById('hpName');
+  const hpAmount = num(document.getElementById('hpAmount').value);
+  if(!isHoursMode() && !hpInput.value.trim() && hpAmount > 0) out.push({ nameInput: hpInput, amount: hpAmount });
+  return out;
+}
+
+function updateSumDisplay(){
+  const hours = isHoursMode();
+  const sum = allocationSum();
+  document.getElementById('sumDisplay').textContent = formatUnit(sum, hours);
+
+  const total = parseFloat(document.getElementById('totalPayroll').value) || 0;
+  const compareTotal = hours ? total : Math.round(total);
+  const matchMsg = document.getElementById('matchMsg');
+  if(document.getElementById('totalPayroll').value === ''){
+    matchMsg.textContent = '';
+    matchMsg.className = 'status';
+  } else if(Math.abs(sum - compareTotal) < 0.01){
+    matchMsg.textContent = `Matches total of ${formatUnit(compareTotal, hours)}.`;
+    matchMsg.className = 'status';
+    matchMsg.style.color = 'var(--ok)';
+  } else {
+    matchMsg.textContent = `Does not match total of ${formatUnit(compareTotal, hours)} (off by ${formatUnit(Math.abs(sum - compareTotal), hours)}).`;
+    matchMsg.style.color = 'var(--brick)';
+  }
+
+  document.querySelectorAll('#peopleBody .p-name, #hpName').forEach(el => el.classList.remove('invalid'));
+  const orphans = orphanAmounts();
+  orphans.forEach(o => o.nameInput.classList.add('invalid'));
+  const orphanEl = document.getElementById('orphanMsg');
+  if(orphans.length){
+    const lost = orphans.reduce((a, o) => a + o.amount, 0);
+    orphanEl.textContent = `${formatUnit(lost, hours)} is typed on ${orphans.length === 1 ? 'a row' : 'rows'} with no name, so it will NOT be sent. Add a name, or clear the amount.`;
+    orphanEl.style.display = '';
+  } else {
+    orphanEl.style.display = 'none';
+  }
+}
+
+function hasHeadPyroEntered(){
+  return !isHoursMode() && !!document.getElementById('hpName').value.trim();
+}
+
+function collectPeople(){
+  return Array.from(document.querySelectorAll('#peopleBody tr')).map(row => ({
+    name: row.querySelector('.p-name').value.trim(),
+    address: row.querySelector('.p-address').value.trim(),
+    checkInTime: (row.querySelector('.checkin-time')?.textContent || '').replace('Checked in ', '').trim(),
+    amount: parseFloat(row.querySelector('.p-amount').value) || 0
+  })).filter(p => p.name);
+}
+
+function buildPayrollText(){
+  const event = document.getElementById('event').value.trim();
+  const eventDate = document.getElementById('eventDate').value.trim();
+  const total = document.getElementById('totalPayroll').value.trim();
+  const people = collectPeople();
+  const venueInfo = VENUE_INFO[event.toLowerCase()];
+  const hours = isHoursMode();
+  const unit = hours ? ' hrs' : '';
+  const prefix = hours ? '' : '$';
+  const headPyroName = document.getElementById('hpName').value.trim();
+  const headPyroAddress = document.getElementById('hpAddress').value.trim();
+  const headPyroAmount = parseFloat(document.getElementById('hpAmount').value) || 0;
+  const lines = [];
+  lines.push('PAYROLL SUBMISSION');
+  lines.push(`Venue: ${event || '(not selected)'}`);
+  if(venueInfo) lines.push(`Address: ${venueInfo.address} (${venueInfo.county} County)`);
+  lines.push(`Date of event: ${eventDate || '(not set)'}`);
+  if(hours){
+    const description = document.getElementById('hoursDescription').value.trim();
+    if(description) lines.push(`Description: ${description}`);
+  }
+  lines.push(`Total ${hours ? 'hours' : 'budget'}: ${prefix}${total || '0'}${unit}`);
+  lines.push('');
+  lines.push('Payments:');
+  if(!hours && headPyroName){
+    lines.push(`  - ${headPyroName} (HP)${headPyroAddress ? ' (' + headPyroAddress + ')' : ''}: ${prefix}${headPyroAmount.toLocaleString()}${unit}`);
+  }
+  people.forEach(p => lines.push(`  - ${p.name}${p.checkInTime ? ' [checked in ' + p.checkInTime + ']' : ''}${p.address ? ' (' + p.address + ')' : ''}: ${prefix}${p.amount.toLocaleString()}${unit}`));
+  const sum = allocationSum();
+  lines.push('');
+  lines.push(`Total ${hours ? 'hours' : 'budget'} allocation: ${prefix}${sum.toLocaleString()}${unit}`);
+  return lines.join('\n');
+}
+
+function buildPayrollPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'letter'});
+  const marginX = 40;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let y = 50;
+
+  const event = document.getElementById('event').value.trim() || '(not selected)';
+  const eventDate = document.getElementById('eventDate').value.trim() || '(not set)';
+  const total = document.getElementById('totalPayroll').value.trim() || '0';
+  const people = collectPeople();
+  const venueInfo = VENUE_INFO[event.toLowerCase()];
+  const hours = isHoursMode();
+  const unit = hours ? ' hrs' : '';
+  const prefix = hours ? '' : '$';
+  const headPyroName = document.getElementById('hpName').value.trim();
+  const headPyroAddress = document.getElementById('hpAddress').value.trim();
+  const headPyroAmount = parseFloat(document.getElementById('hpAmount').value) || 0;
+  const sum = allocationSum();
+
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(15);
+  doc.text('Apex Pyrotechnics Inc.', marginX, y); y += 20;
+  doc.setFontSize(12.5);
+  doc.text(hours ? 'Hours Submission' : 'Payroll Submission', marginX, y); y += 24;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+  doc.text('VENUE', marginX, y);
+  doc.text('DATE OF EVENT', marginX + 260, y);
+  y += 13;
+  doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
+  doc.text(event, marginX, y);
+  doc.text(eventDate, marginX + 260, y);
+  y += 16;
+
+  if(venueInfo){
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(91,100,112);
+    doc.text(`${venueInfo.address} (${venueInfo.county} County)`, marginX, y);
+    y += 18;
+  } else {
+    y += 6;
+  }
+
+  if(hours){
+    const description = document.getElementById('hoursDescription').value.trim();
+    if(description){
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+      doc.text('DESCRIPTION', marginX, y); y += 13;
+      doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(20,26,32);
+      const descLines = doc.splitTextToSize(description, pageWidth - marginX * 2);
+      doc.text(descLines, marginX, y);
+      y += descLines.length * 13 + 10;
+    }
+  }
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+  doc.text(hours ? 'TOTAL HOURS' : 'TOTAL BUDGET', marginX, y); y += 13;
+  doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(20,26,32);
+  doc.text(`${prefix}${Number(total).toLocaleString()}${unit}`, marginX, y); y += 24;
+
+  doc.setDrawColor(216,210,196);
+  doc.line(marginX, y, pageWidth - marginX, y); y += 18;
+
+  // A long crew continues on a new page (with the column headings repeated) instead of running off the bottom of page one.
+  function drawTableHeader(){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(91,100,112);
+    doc.text('NAME', marginX, y);
+    doc.text('ADDRESS', marginX + 160, y);
+    doc.text(hours ? 'HOURS' : 'AMOUNT', pageWidth - marginX - 60, y);
+    y += 14;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(20,26,32);
+  }
+  function ensureRoom(needed){
+    if(y + needed > pageHeight - 60){
+      doc.addPage();
+      y = 50;
+      drawTableHeader();
+    }
+  }
+  drawTableHeader();
+
+  if(!hours && headPyroName){
+    ensureRoom(28);
+    doc.text(`${headPyroName} (HP)`, marginX, y);
+    if(headPyroAddress){
+      const addrLines = doc.splitTextToSize(headPyroAddress, pageWidth - marginX - 160 - 70);
+      doc.text(addrLines[0], marginX + 160, y);
+    }
+    doc.text(`$${headPyroAmount.toLocaleString()}`, pageWidth - marginX - 60, y);
+    y += 16;
+  }
+
+  people.forEach(p => {
+    ensureRoom(30);
+    doc.text(p.name, marginX, y);
+    if(p.address){
+      const addrLines = doc.splitTextToSize(p.address, pageWidth - marginX - 160 - 70);
+      doc.text(addrLines[0], marginX + 160, y);
+    }
+    doc.text(`${prefix}${p.amount.toLocaleString()}${unit}`, pageWidth - marginX - 60, y);
+    if(p.checkInTime){
+      y += 11;
+      doc.setFontSize(8); doc.setTextColor(91,100,112);
+      doc.text(`Checked in ${p.checkInTime}`, marginX, y);
+      doc.setFontSize(10); doc.setTextColor(20,26,32);
+      y += 12;
+    } else {
+      y += 16;
+    }
+  });
+
+  ensureRoom(50);
+  y += 8;
+  doc.setDrawColor(216,210,196);
+  doc.line(marginX, y, pageWidth - marginX, y); y += 18;
+  doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.text(hours ? 'Total hours allocation' : 'Total budget allocation', marginX, y);
+  doc.text(`${prefix}${sum.toLocaleString()}${unit}`, pageWidth - marginX - 60, y);
+
+  const pageCount = doc.getNumberOfPages();
+  if(pageCount > 1){
+    for(let i = 1; i <= pageCount; i++){
+      doc.setPage(i);
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(120,128,140);
+      doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 28, { align:'center' });
+    }
+  }
+
+  return doc;
+}
+
+function buildPayrollFileName(){
+  const parts = [];
+  const eventDate = document.getElementById('eventDate').value.trim();
+  if(eventDate) parts.push(eventDate);
+  const venue = document.getElementById('event').value.trim();
+  if(venue) parts.push(venue.replace(/\s+/g,'_'));
+  const hpName = document.getElementById('hpName').value.trim();
+  if(hpName) parts.push(hpName.replace(/\s+/g,'_'));
+  const base = parts.length ? parts.join('_') : 'payroll';
+  return `Payroll_${base}.pdf`.replace(/[\\/:*?"<>|]/g, '');
+}
+
+/* ---------------- Check the report before it goes anywhere ---------------- */
+function escHtml(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function namesList(names){
+  return names.length <= 3 ? names.join(', ').replace(/, ([^,]*)$/, names.length > 1 ? ' and $1' : ', $1')
+                           : names.slice(0, 3).join(', ') + ` and ${names.length - 3} more`;
+}
+
+function reviewPayroll(){
+  const errors = [], warnings = [];
+  const hours = isHoursMode();
+  const venueEl = document.getElementById('event');
+  const dateEl = document.getElementById('eventDate');
+  if(!venueEl.value.trim()) errors.push({ msg:'Choose the venue.', el:venueEl });
+  if(!dateEl.value.trim()) errors.push({ msg:'Set the date of the event.', el:dateEl });
+
+  const hp = headPyroEntry();
+  const people = collectPeople();
+  if(!hp && people.length === 0) errors.push({ msg:'Add at least one person.', el:null });
+  orphanAmounts().forEach(o => errors.push({ msg:`${formatUnit(o.amount, hours)} is typed on a row with no name. Add the name, or clear the amount.`, el:o.nameInput }));
+
+  const everyone = (hp ? [hp] : []).concat(people);
+  const noAmount = everyone.filter(p => !p.amount).map(p => p.name);
+  if(noAmount.length) warnings.push(`${namesList(noAmount)} ${noAmount.length === 1 ? 'has' : 'have'} no ${hours ? 'hours' : 'amount'} entered.`);
+
+  const totalText = document.getElementById('totalPayroll').value.trim();
+  if(totalText !== ''){
+    const total = parseFloat(totalText) || 0;
+    const compareTotal = hours ? total : Math.round(total);
+    const sum = allocationSum();
+    if(Math.abs(sum - compareTotal) >= 0.01){
+      warnings.push(`The ${hours ? 'hours' : 'amounts'} add up to ${formatUnit(sum, hours)}, but the total entered is ${formatUnit(compareTotal, hours)} (off by ${formatUnit(Math.abs(sum - compareTotal), hours)}).`);
+    }
+  }
+
+  const seen = {};
+  everyone.forEach(p => { const k = p.name.toLowerCase(); seen[k] = (seen[k] || 0) + 1; });
+  const dupes = Object.keys(seen).filter(k => seen[k] > 1).map(k => everyone.find(p => p.name.toLowerCase() === k).name);
+  if(dupes.length) warnings.push(`${namesList(dupes)} ${dupes.length === 1 ? 'is' : 'are'} listed more than once.`);
+  return { errors, warnings };
+}
+
+let pendingReviewAction = null;
+function hideReview(){
+  const box = document.getElementById('reviewBox');
+  box.style.display = 'none';
+  box.innerHTML = '';
+  pendingReviewAction = null;
+}
+function proceedAnyway(){
+  const action = pendingReviewAction;
+  hideReview();
+  if(action) action();
+}
+// Errors stop the send. Warnings are shown first and the person decides.
+function runWithReview(action){
+  const { errors, warnings } = reviewPayroll();
+  const box = document.getElementById('reviewBox');
+  if(!errors.length && !warnings.length){ hideReview(); action(); return; }
+  const list = items => '<ul>' + items.map(i => `<li>${escHtml(i)}</li>`).join('') + '</ul>';
+  if(errors.length){
+    pendingReviewAction = null;
+    box.className = 'review-box err';
+    box.innerHTML = `<h3>Fix this first</h3>${list(errors.map(e => e.msg))}<div class="btns"><button type="button" class="secondary" onclick="hideReview()">OK</button></div>`;
+    errors.forEach(e => { if(e.el && e.el.tagName !== 'INPUT') e.el.classList.add('invalid'); else if(e.el && e.el.type === 'date') e.el.classList.add('invalid'); });
+  } else {
+    pendingReviewAction = action;
+    box.className = 'review-box warn';
+    box.innerHTML = `<h3>Check these before sending</h3>${list(warnings)}<div class="btns"><button type="button" class="secondary" onclick="hideReview()">Go back and fix</button><button type="button" class="secondary" onclick="proceedAnyway()">Send anyway</button></div>`;
+  }
+  box.style.display = '';
+  box.scrollIntoView({ behavior:'smooth', block:'center' });
+}
+document.getElementById('eventDate').addEventListener('input', e => e.target.classList.remove('invalid'));
+
+/* ---------------- Export and send ---------------- */
+function downloadPayrollPDF(){
+  runWithReview(() => buildPayrollPDF().save(buildPayrollFileName()));
+}
+
+function csvEscapeField(val){
+  val = String(val == null ? '' : val);
+  if(val.includes(',') || val.includes('"') || val.includes('\n')){
+    return '"' + val.replace(/"/g, '""') + '"';
+  }
+  return val;
+}
+
+function downloadPayrollCSV(){
+  runWithReview(exportPayrollCSV);
+}
+function exportPayrollCSV(){
+  const people = collectPeople();
+  const hours = isHoursMode();
+  const unitLabel = hours ? 'Hours' : 'Amount ($)';
+  const lines = [`Name,Address,${unitLabel},Checked In`];
+
+  const hp = headPyroEntry();
+  if(hp){
+    lines.push([csvEscapeField(hp.name + ' (HP)'), csvEscapeField(hp.address), csvEscapeField(hp.amount), ''].join(','));
+  }
+  people.forEach(p => {
+    lines.push([csvEscapeField(p.name), csvEscapeField(p.address), csvEscapeField(p.amount), csvEscapeField(p.checkInTime || '')].join(','));
+  });
+
+  const blob = new Blob([lines.join('\n')], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = buildPayrollFileName().replace(/\.pdf$/, '.csv');
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function finishPayrollSend(title, lead, toAddress, ccAddress){
+  payrollSubmitted = true;
+  paySuppressed = true;                 // the form stays on screen, but it is no longer an unfinished draft
+  clearTimeout(payDraftTimer);
+  clearPayDraft();
+  document.getElementById('draftNote').style.display = 'none';
+  const hp = headPyroEntry();
+  const count = collectPeople().length + (hp ? 1 : 0);
+  const venue = document.getElementById('event').value.trim();
+  const date = document.getElementById('eventDate').value.trim();
+  const box = document.getElementById('sendResult');
+  box.innerHTML = `
+    <h3>${escHtml(title)}</h3>
+    <p>${escHtml(lead)}</p>
+    <p>${count} ${count === 1 ? 'person' : 'people'} &middot; ${escHtml(formatUnit(allocationSum(), isHoursMode()))} &middot; ${escHtml(venue)}${date ? ' &middot; ' + escHtml(date) : ''}</p>
+    <p>To: ${escHtml(toAddress)}${ccAddress ? ' (cc: ' + escHtml(ccAddress) + ')' : ''}</p>`;
+  box.style.display = '';
+  box.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function blobToBase64(blob){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || '').slice(String(reader.result || '').indexOf('base64,') + 7));
+    reader.onerror = () => reject(reader.error || new Error('Could not read the PDF'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+function setDriveStatus(msg, kind){
+  const el = document.getElementById('driveStatus');
+  if(!el) return;
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? '#4caf7d' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft, #a3a9bf)';
+}
+
+// Who got what on this payroll, for the Manage/Edit payroll report. Only sent the first time
+// an unedited payroll is sent/shared — payrollEntriesLogged guards against a second email
+// (e.g. "Email to Accounting" then "Email to Apex") double-counting the same pay in the report.
+let payrollEntriesLogged = false;
+function buildPayrollEntriesForLog(){
+  const entries = collectPeople().map(p => ({ name: p.name, amount: p.amount, role: 'crew' }));
+  const hp = headPyroEntry();
+  if(hp && hp.name) entries.push({ name: hp.name, amount: hp.amount, role: 'headPyro' });
+  return entries.filter(e => e.name);
+}
+
+// Runs alongside the email/share step and never blocks or breaks it.
+async function savePayrollReportToDrive(pdfBlob, fileName, toAddress){
+  setDriveStatus('Saving a copy to Drive…');
+  try{
+    const pdfBase64 = await blobToBase64(pdfBlob);
+    const event = document.getElementById('event').value.trim();
+    const eventDate = document.getElementById('eventDate').value.trim();
+    const shouldLogEntries = !payrollEntriesLogged;
+    const entries = shouldLogEntries ? buildPayrollEntriesForLog() : [];
+    const unit = isHoursMode() ? 'hours' : 'usd';
+    const declaredTotalRaw = document.getElementById('totalPayroll').value.trim();
+    const declaredTotal = declaredTotalRaw === '' ? '' : (parseFloat(declaredTotalRaw) || 0);
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'payrollReport', fileName, event, eventDate, toAddress, pdfBase64, entries, unit, declaredTotal })
+    });
+    let data = null;
+    try{ data = await res.json(); } catch(e){}
+    if(!res.ok || !data || data.status !== 'ok') throw new Error((data && data.message) || 'Request failed');
+    if(shouldLogEntries) payrollEntriesLogged = true;
+    setDriveStatus('Saved a copy to Drive ✓', 'ok');
+  } catch(err){
+    setDriveStatus("Couldn't save a copy to Drive (no signal?). Sending isn't affected.", 'err');
+  }
+}
+
+async function sharePayrollPDF(toAddress, ccAddress){
+  const statusEl = document.getElementById('emailStatus');
+  const recipientLine = ccAddress ? `To: ${toAddress} (cc: ${ccAddress})` : `To: ${toAddress}`;
+  setDriveStatus('');
+
+  const doc = buildPayrollPDF();
+  const fileName = buildPayrollFileName();
+  const event = document.getElementById('event').value.trim();
+  const eventDate = document.getElementById('eventDate').value.trim();
+  const subject = `Payroll - ${event || 'Event'}${eventDate ? ' - ' + eventDate : ''}`;
+
+  const pdfBlob = doc.output('blob');
+  savePayrollReportToDrive(pdfBlob, fileName, toAddress); // fire-and-forget: don't block the email/share flow below
+
+  // Try the device's native share sheet first — this can attach the real PDF
+  // to Mail (or any app) on supported browsers, unlike a mailto: link.
+  // The share sheet has no way to pre-fill a recipient, so we surface it
+  // clearly on-screen and at the top of the shared text as a backup.
+  if(navigator.canShare){
+    try{
+      const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
+      if(navigator.canShare({files: [file]})){
+        const opening = `Opening share sheet — remember to address it: ${recipientLine}`;
+        statusEl.textContent = opening;
+        statusEl.style.color = 'var(--ink-soft)';
+        // Best effort: put the address on the clipboard so it can simply be pasted into To:. Not awaited: the share sheet needs this tap.
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(toAddress).then(() => {
+            if(statusEl.textContent === opening) statusEl.textContent = opening + ' (address copied \u2014 just paste it)';
+          }).catch(() => {});
+        }
+        await navigator.share({
+          files: [file],
+          title: subject,
+          text: `${recipientLine}\n\n${subject}`
+        });
+        statusEl.textContent = '';
+        finishPayrollSend('Payroll shared', 'Make sure you tapped Send in your email app so it reaches them.', toAddress, ccAddress);
+        return;
+      }
+    } catch(err){
+      if(err && err.name === 'AbortError'){
+        statusEl.textContent = '';
+        return; // user cancelled the share sheet
+      }
+      // otherwise fall through to the mailto fallback below
+    }
+  }
+
+  // Fallback: download the PDF and open a plain-text email addressed and ready to go
+  statusEl.textContent = '';
+  doc.save(fileName);
+  const body = buildPayrollText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
+  const ccParam = ccAddress ? `&cc=${encodeURIComponent(ccAddress)}` : '';
+  const mailto = `mailto:${encodeURIComponent(toAddress)}?${ccParam ? ccParam.slice(1) + '&' : ''}subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+  finishPayrollSend('PDF downloaded', 'Attach the downloaded PDF to the email that just opened, then send it.', toAddress, ccAddress);
+}
+
+function emailToAccounting(){
+  runWithReview(() => sharePayrollPDF('accounting@apexpyrotechnics.com', 'demo@apexpyrotechnics.com'));
+}
+
+function emailToApex(){
+  runWithReview(() => sharePayrollPDF('demo@apexpyrotechnics.com', ''));
+}
+
+/* ---------------- Saves itself as you go ---------------- */
+const PAY_DRAFT_KEY = 'payrollDraft_v1';
+let paySuppressed = false;      // set once sent, until the person edits again
+let payDraftTimer = null;
+
+function collectPayDraft(){
+  const sel = document.getElementById('event');
+  const opt = sel.selectedOptions[0];
+  return {
+    venue: sel.value || '',
+    venueDate: opt ? (opt.dataset.date || '') : '',
+    eventDate: document.getElementById('eventDate').value,
+    total: document.getElementById('totalPayroll').value,
+    divide: document.getElementById('divideEvenly').checked,
+    description: document.getElementById('hoursDescription').value,
+    hp: { name: document.getElementById('hpName').value, address: document.getElementById('hpAddress').value, amount: document.getElementById('hpAmount').value },
+    people: Array.from(document.querySelectorAll('#peopleBody tr')).map(row => ({
+      name: row.querySelector('.p-name').value,
+      address: row.querySelector('.p-address').value,
+      amount: row.querySelector('.p-amount').value,
+      checkInTime: (row.querySelector('.checkin-time').textContent || '').replace('Checked in ', '').trim()
+    }))
+  };
+}
+// Worth restoring only if something was typed by hand. A crew list that simply came from check-ins is one tap to get again.
+function payDraftHasContent(d){
+  return !!(d.total || d.hp.amount || (d.description || '').trim() ||
+    d.people.some(p => p.amount || (p.name.trim() && !p.checkInTime)));
+}
+function clearPayDraft(){ try{ localStorage.removeItem(PAY_DRAFT_KEY); } catch(e){} }
+function schedulePayDraftSave(){
+  clearTimeout(payDraftTimer);
+  payDraftTimer = setTimeout(() => {
+    if(paySuppressed) return;
+    const d = collectPayDraft();
+    try{
+      if(payDraftHasContent(d)) localStorage.setItem(PAY_DRAFT_KEY, JSON.stringify(d));
+      else localStorage.removeItem(PAY_DRAFT_KEY);
+    } catch(e){}
+  }, 600);
+}
+function onPayEdit(e){
+  if(!e.target.closest || !e.target.closest('#mainContent')) return;
+  paySuppressed = false;
+  payrollSubmitted = false;
+  payrollEntriesLogged = false; // the payroll changed, so the next send should log fresh entries
+  schedulePayDraftSave();
+}
+document.addEventListener('input', onPayEdit);
+document.addEventListener('change', onPayEdit);
+
+function restorePayDraft(){
+  let d;
+  try{ d = JSON.parse(localStorage.getItem(PAY_DRAFT_KEY) || 'null'); } catch(e){ d = null; }
+  if(!d || !payDraftHasContent(d)) return false;
+  document.getElementById('peopleBody').innerHTML = '';
+  (d.people || []).forEach(p => {
+    const tr = addPersonRow(p.name, p.address, p.checkInTime);
+    tr.querySelector('.p-amount').value = p.amount;
+  });
+  if(!document.querySelectorAll('#peopleBody tr').length){ addPersonRow(); addPersonRow(); }
+  document.getElementById('hpName').value = d.hp.name || '';
+  document.getElementById('hpAddress').value = d.hp.address || '';
+  document.getElementById('hpAmount').value = d.hp.amount || '';
+  document.getElementById('totalPayroll').value = d.total || '';
+  document.getElementById('hoursDescription').value = d.description || '';
+  document.getElementById('divideEvenly').checked = !!d.divide;
+  document.getElementById('eventDate').value = d.eventDate || '';
+  pendingVenue = d.venue ? { name: d.venue, date: d.venueDate, eventDate: d.eventDate } : null;
+  applyPendingVenue();          // selects it now if it is already listed, otherwise as soon as the venue list loads
+  updateModeUI();               // also re-applies "divide evenly" and the hours/budget wording
+  document.getElementById('draftNote').style.display = '';
+  return true;
+}
+
+function startOver(){
+  clearPayDraft();
+  clearTimeout(payDraftTimer);
+  document.getElementById('peopleBody').innerHTML = '';
+  addPersonRow();
+  addPersonRow();
+  ['hpName','hpAddress','hpAmount','totalPayroll','hoursDescription','eventDate'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('divideEvenly').checked = false;
+  document.getElementById('event').selectedIndex = 0;
+  pendingVenue = null;
+  autoFilledHP = '';
+  document.getElementById('venueAddress').textContent = '';
+  document.getElementById('loadStatus').textContent = '';
+  document.getElementById('draftNote').style.display = 'none';
+  document.getElementById('sendResult').style.display = 'none';
+  hideReview();
+  payrollSubmitted = false;
+  payrollEntriesLogged = false;
+  paySuppressed = false;
+  updateModeUI();
+  setDriveStatus('');
+}
+
+let payrollSubmitted = false;
+function hasUnsavedPayrollContent(){
+  const total = document.getElementById('totalPayroll').value.trim();
+  const hpName = document.getElementById('hpName').value.trim();
+  const anyPeople = Array.from(document.querySelectorAll('#peopleBody .p-name')).some(el => el.value.trim());
+  return !!total || !!hpName || anyPeople;
+}
+window.addEventListener('beforeunload', (e) => {
+  if(payrollSubmitted) return;
+  if(hasUnsavedPayrollContent()){
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+updateModeUI();
+restorePayDraft();
+</script>
+
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

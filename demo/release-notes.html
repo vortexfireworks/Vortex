@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release Notes — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ink-faint:#6b7290; --entry-text:#d5d8e2;
+    --card:rgba(22,28,48,0.7); --line:rgba(255,255,255,0.1);
+    --kicker:#ffb98a; --logo-ring-bg:#0d1220;
+  }
+  :root[data-theme="light"]{
+    --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9;
+    --ink:#241f18; --ink-soft:#6b6152; --ink-faint:#8a8072; --entry-text:#3a3226;
+    --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
+    --kicker:#c9601f; --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:40px 16px 80px;
+  }
+  .wrap{max-width:560px; width:100%;}
+  .back-link{
+    display:block; margin:0 0 18px; font-size:12.5px;
+    color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--kicker);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);margin:0 0 6px;font-weight:700;}
+  header h1{
+    margin:0;font-size:22px;line-height:1.15;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  p.sub{font-size:12.5px;color:var(--ink-soft);margin:8px 0 28px;line-height:1.5;}
+  .entry{
+    background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:18px 20px; margin-bottom:16px;
+    backdrop-filter:blur(6px);
+  }
+  .entry .date{
+    font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--kicker); font-weight:700; margin:0 0 10px;
+  }
+  .entry ul{margin:0; padding-left:18px;}
+  .entry li{font-size:13px; color:var(--entry-text); line-height:1.6; margin-bottom:4px;}
+  .entry li:last-child{margin-bottom:0;}
+  footer{margin-top:28px;font-size:11px;color:var(--ink-faint);text-align:center;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<div class="wrap">
+  <a class="back-link" href="index.html">&larr; Back to main menu</a>
+  <header>
+    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+    <p class="kicker">Apex Pyrotechnics Inc.</p>
+    <h1>Release Notes</h1>
+  </header>
+
+  <div class="divider"></div>
+
+  <p class="sub">A running log of what's changed in Pyrotechnician Tools.</p>
+
+  <div class="entry">
+    <p class="date">October 12, 2026</p>
+    <ul>
+      <li>Payroll now saves a PDF copy to Drive every time it's emailed or shared, automatically, under Manage/Edit &rarr; Saved Payroll Reports — no extra step needed</li>
+      <li>Payroll now keeps a per-person ledger of every amount paid, with a discrepancy flag if the line items don't add up to the typed total. Manage/Edit &rarr; Payroll Reports is a new admin page with four tabs: By Show (with a delete-line or void-the-whole-show option), Totals by Person (tap a name to see their shows), Year-End/1099 (flags anyone paid $600 or more in a year), and Missing Payroll (shows which past shows have no payroll on file yet)</li>
+      <li>Added "My Pay" to Head Pyro Tools — anyone can look up their own payroll history by name. Since everyone shares one Head Pyro password, it also checks the phone number on file for that name before showing anything, with a short lockout after repeated wrong attempts</li>
+      <li>Payroll Submit now suggests a pay amount for each person as you type their name, based on what they were paid last at that venue (or most recently anywhere), with a one-tap "Use this" fill-in</li>
+      <li>Fixed "Divide evenly" on Payroll Submit always splitting the full total across everyone, including the Head Pyro, even when a Head Pyro amount was already typed in. Now: an empty Head Pyro field still splits the whole total evenly as before, but a pre-filled amount is left alone and only what's left is split evenly among the crew</li>
+      <li>Crew sign-in windows are now set separately per page: Sign In Crew (Head Pyro Tools' manual sign-in) keeps a show selectable for 3 weeks after the event, and Check-In now stays open for 3 days after the event. Enable Sign-In is unchanged, still 2 days</li>
+      <li>Fixed manually signing someone in always recording today's date instead of the actual show date unless it was corrected by hand — since Payroll and the After-Action Report both match check-ins by exact event date, this was quietly hiding manual sign-ins from both. The date now fills in from the selected venue automatically</li>
+      <li>Added a master password that works on either the Head Pyro Tools or Manage/Edit lock screen and always signs in at the full admin level, so an administrator no longer has to remember or switch between two separate passwords</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <p class="date">October 5, 2026</p>
+    <ul>
+      <li>The app is now called CueSheet, with a new name on every page, a new app icon, and a brief loading screen when you open it</li>
+      <li>Moved Manage/Edit from Head Pyro Tools to the main screen, as the last icon</li>
+      <li>Manage Operators and Manage Venues now go back to Manage/Edit instead of the main menu, like the other admin pages, and the Manage Venues description now matches what it does</li>
+      <li>Tidied Head Pyro Tools: removed the extra Sign-In button (Check-In is still on the main screen), and split the Check-In QR Code and Enable Sign-In into their own buttons, each on its own page. The QR code page links to Enable Sign-In and back, since crew can only check in to a show once sign-in is on for it</li>
+      <li>Tightened who can see and change what. The Head Pyro Tools and Manage/Edit passwords are now checked by the server, not just by the menu page, and every page behind them asks for the right password if you go straight to its address. A sign-in lasts a day, repeated wrong guesses are held off for a few minutes, and a new "Lock this phone" link at the bottom of each menu signs out and clears the crew list kept on the phone. Check-In, New Hire, and Update My Info still need no password. Crew phone numbers and addresses are no longer written into the pages themselves; Payroll and the After-Action Report keep a copy on phones that have signed in, so autofill still works with no signal</li>
+      <li>Rebuilt Manage Operators. Each change now saves on its own and tells you honestly whether it worked, and the form clearly says whether you're adding or editing. This also fixes "Save all changes", which used to blank everyone's emergency contact, and deleted people who could come back. Importing a CSV now confirms first and keeps each person's other details, and the search covers licenses, phone numbers, and addresses</li>
+      <li>Announcements moved from the bottom of the home screen into Manage/Edit, and a new Backups button keeps dated copies of the whole spreadsheet in Drive (the newest 12), shows when the last one ran, and can take one on demand. Manage Inventory's Product list now comes from the catalog in Plan a Firework Show, and the old catalog page is gone</li>
+      <li>Improved Payroll Submit. Fixed several ways the amounts could go wrong without any warning: "Divide evenly" no longer gives a share of the money to an empty row, a total no longer counts an amount typed on a row with no name (a red note now says it won't be sent), a long crew no longer runs off the bottom of the PDF (it now continues on numbered pages), and an unused or hidden Head Pyro row can no longer inflate the total. Choosing a show now fills in its date and the crew who checked in, "Load people who checked in" adds new arrivals without erasing what you typed, and everything you enter is saved as you go so a locked phone or refresh doesn't lose it. Before anything is emailed or downloaded it checks for a missing venue or date, a person with no amount, a total that doesn't match, or a name listed twice, and afterward it confirms who it went to and what was sent</li>
+      <li>Reworked New Hire Documents. A three-step checklist with a progress bar now sits at the top (W-4, the ATF form, then the questionnaire) and remembers what you've ticked off. The ATF link now says exactly what it is: ATF Form 5400.28, the Explosives Employee Possessor Questionnaire. The questionnaire is split into short sections, starts with today's date, saves itself as you type so a locked phone or a refresh doesn't lose it, opens the front camera for your photo, lets your phone fill in your name, number, and email, and now asks for your age. Name and phone number are required, since the phone number is what lets Check-In recognize you. After you send it, the page tells you what happened and to check in with the same name and number. It also no longer overwrites anyone who is already on the crew: before, a current crew member who filled it in (Check-In sends people there when their number doesn't match) lost their licenses, address, age, and emergency contact</li>
+      <li>Made Check-In quicker. Once your name and phone number match what's on file, your license, address, and age tuck away behind a short "Found you" note (tap Review or edit to see them), so the Check in button is on the first screen. Tick "Remember me on this phone" and next time your name and number are already filled in: open the link, check the venue, tap Check in. "Not you?" clears it. The date and time now say "Checking in now" with a Change link, and the time recorded is when you tap Check in. The phone number box also now matches the other fields instead of showing up plain white</li>
+      <li>Added Enable Sign-In to Head Pyro Tools — pick which upcoming shows crew can sign in to. A show's sign-in stays open until two days after the event, then closes on its own. Check-In now only lists shows with sign-in turned on, plus Shop Time, Trailer Loading, and Bunker Time, which are always available</li>
+      <li>The same venue can now have more than one date — handy for a school you do twice in a season. Check-In and Payroll show each date as its own choice</li>
+      <li>Redesigned Manage Venues: each venue is listed once with all of its dates underneath, "+ Add another date" starts a new entry with the address already filled in, and every date now has its own Edit and Delete button. The form clearly says whether you're adding or editing, past dates are dimmed, the soonest upcoming show is listed first, and search now matches addresses and counties too. "Find duplicates" now only flags entries with the same name and the same date</li>
+      <li>After-Action Reports can now be saved. The report form has a Save to Drive button, and emailing a report saves a copy to Drive automatically. Saving the same report again replaces its copy instead of adding a second one. Find them again under Manage/Edit &rarr; Saved After Action Reports, where you can search by operator, venue, date, or license, filter by year, show only reports where something was reported, open the PDF, or delete one</li>
+      <li>Added Pick Lists. Build one for each show under Manage/Edit — shells by size and quantity, cakes, finale/quint/special racks, setup items, and a site map. Rack counts are worked out for you from the rack capacities you set once. Crews open the finished list under Pick Lists in Head Pyro Tools, check items off as they load, view the site map, and download or email a PDF</li>
+      <li>Every pick list now includes 26 permanent items you use on every show (E-match, batteries, cables in four lengths, radios, canopy, chairs, and more), alphabetized with a quantity box next to each</li>
+      <li>Manage Pick Lists can now copy a whole pick list from one show to another, for shows that are exactly the same. The site map isn't copied, since it belongs to the venue</li>
+      <li>The site map now shows near the top of the pick list PDF instead of on the last page, where it was easy to miss</li>
+      <li>Added Manage Inventory — track what's on hand by container (trailer, conex box, shelf) with each item's size, quantity, manufacturer, effects, and SKU. Scan SKU barcodes with your phone's camera on supported phones, and download a PDF with a signature line for whoever did the count</li>
+      <li>In Manage Inventory, items can now be moved to another container, pulled for a specific show, or removed (used, damaged, disposed of), each with an optional note. A Transaction History at the bottom of the page logs every move</li>
+      <li>Replaced Manage Firework Selection with Plan a Firework Show, a menu with three pages. Import Product Lists brings in your shell and cake catalogs from a CSV, with a downloadable template for each. Catalog lets you search everything by manufacturer, effect, colors, item number, SKU, or name, with assortment boxes grouped together. Plan a Show lets you create named show plans, add items from the Catalog, adjust quantities, and come back to them any time — everything saves automatically</li>
+      <li>The Pyro Directory now shows each person's photo, or their initials if they don't have one</li>
+      <li>Fixed Payroll not letting you submit when only the Head Pyro was entered — PDF, CSV, and email all work now</li>
+      <li>Fixed Manage Venues, Manage Operators, and other pages with text fields sliding sideways on phones</li>
+      <li>Fixed Payroll's Venue and Date of event fields running off the edge of the screen on phones when a venue has a long name</li>
+      <li>Enable Sign-In for an Event now saves automatically the moment you check or uncheck a box. Each row shows Saving… then Saved ✓, reads the sheet back to confirm the right date changed, and puts the box back with a message if it didn't go through</li>
+      <li>Fixed Shop Time, Trailer Loading, and Bunker Time each showing twice in Check-In and Payroll, and fixed Check-In jumping back to the first date of a venue when you had picked a later one</li>
+      <li>Fixed a behind-the-scenes issue where the app could occasionally show old or empty data from its offline storage instead of the latest from the sheet</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <p class="date">September 23, 2026</p>
+    <ul>
+      <li>Rolled out the new centered header (glowing logo ring, gradient title, colored divider) to every remaining page — Check-In, the After-Action Report, Payroll, Manage Operators, Manage Venues, Manage/Edit, New Hire Documents, Update My Info, Pyro Directory, QR Codes, and Release Notes — so the whole app now looks consistent</li>
+      <li>Added an Event Date to Manage Venues, with the list sorted so the soonest upcoming show shows up first</li>
+      <li>Check-In's venue dropdown now shows "Date — Venue" combined and sorted by date, and only shows venues with a date set — except Shop Time, Trailer Loading, and Bunker Time, which are always available</li>
+      <li>Renamed "Date of event" to "Date of Check-In" on Check-In, and reordered the form so Name comes before Phone number, with a clearer note explaining what auto-fills</li>
+      <li>Fixed a bug where a venue's date could show up as "9/NaN" instead of the correct date</li>
+      <li>Added a pop-up on Check-In reminding first-timers to fill out New Hire Documents before signing in, if their name and phone don't match anyone on file</li>
+      <li>Fixed Payroll's venue dropdown, which wasn't using event dates at all — it now shows venues within 3 months of today, sorted soonest first, the same way Check-In does</li>
+      <li>Added "Autofill from Sign-In" to the After-Action Report — pick a real event from Check-In records and it fills in the date, venue, and the Head Pyro's name and license automatically</li>
+      <li>Venue CSV import now recognizes more header name variants for the event date column</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <p class="date">September 22, 2026</p>
+    <ul>
+      <li>Replaced the simple firework icon on every page with 6 distinct, more realistic burst designs, cycled so no two icons on the same screen match</li>
+      <li>Reorganized the main screen and HP Tools into a compact icon grid (icon + short name, like a phone's home screen) instead of large description cards, with more breathing room between icons</li>
+      <li>Renamed "HP Tools" to "Head Pyro Tools" and redesigned its header to match the main screen — the same glowing logo ring, gradient title, and colored divider</li>
+      <li>Added a light theme option across the entire app, with a sun/moon toggle button — defaults to matching your phone's system dark/light setting, and remembers your choice after that</li>
+      <li>Fixed several display bugs found while building the light theme: headers and input fields that weren't switching themes correctly, and a longstanding bug where the "Undo" toast on Payroll and the After-Action Report was always visible instead of only appearing after removing someone</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <p class="date">September 21, 2026</p>
+    <ul>
+      <li>Added a "Delete" option to Manage Operators, with a confirmation prompt before anything is removed</li>
+      <li>Added "Find duplicates" to both Manage Operators and Manage Venues — scans for entries sharing the exact same name, shows each version's details side-by-side, and lets you keep the correct one while removing the rest</li>
+      <li>Fixed a bug where renaming someone (or a venue) created a duplicate entry instead of updating the existing one — renaming now updates the same record in place</li>
+      <li>Added the "Russ Check" to Check-In — license number fields now require the format "FE" followed by numbers, with an on-screen message if an entry doesn't pass</li>
+      <li>Added Email to the crew directory — New Hire Documents, Update My Info, and Manage Operators all now have an Email field, saved alongside everything else</li>
+      <li>Added "Pyro Directory" inside HP Tools — a searchable list of everyone's name, license, phone, and email in one place</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <p class="date">September 15, 2026</p>
+    <ul>
+      <li>Fixed Check-In to show the same three separate license fields (Display, Special Effects, Flame) as the rest of the app, instead of the old single combined field</li>
+      <li>Added the same firework-icon design to HP Tools and Manage/Edit, so every page now matches the main screen's look</li>
+      <li>Phone number fields now consistently bring up the numeric keypad on mobile — fixed on Check-In, Manage Operators, and Update My Info (including emergency contact numbers)</li>
+      <li>Added "Undo" after removing someone from Payroll's crew list or the After-Action Report's personnel table</li>
+      <li>Added a "Download as CSV" option to Payroll, next to the PDF export</li>
+      <li>The After-Action Report now auto-saves your progress as a draft and offers to restore it if you leave and come back before finishing</li>
+      <li>Payroll and the After-Action Report now warn you before leaving the page if you have unsaved changes</li>
+      <li>Check-In now saves your submission on your device and sends it automatically once you're back online, if you check in without a signal</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <p class="date">September 14, 2026</p>
+    <ul>
+      <li>Added a "Head Pyro for this event" checkbox to Check-In, locked until you verify your phone number and confirm you have a license on file</li>
+      <li>Added a "Sign-In" shortcut inside HP Tools, linking to the same Check-In page</li>
+      <li>Payroll and the After-Action Report now auto-fill the Head Pyro / operator fields from whoever checked in with the Head Pyro box marked</li>
+      <li>Fixed Payroll's "Divide evenly between all people" so it actually includes the Head Pyro's amount in the split, instead of skipping it</li>
+      <li>Fixed a bug where loading check-ins into Payroll listed the Head Pyro twice — once in the Head Pyro field and again as a regular crew member</li>
+      <li>Fixed the "Back to main menu" link on HP Tools and Manage/Edit, which was sitting off to the left instead of above the page content</li>
+      <li>Made the "People & pay" table (Payroll) and the personnel table (After-Action Report) mobile-friendly — each person's fields now stack into a labeled card on narrow phone screens instead of squeezing into unreadably narrow columns</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <p class="date">September 12, 2026</p>
+    <ul>
+      <li>Split the single License field into three separate licenses — Display Operator (D), Special Effects Operator (P), and Flame Effects Operator (F) — across Manage Operators, New Hire Documents, and Update My Info</li>
+      <li>Check-In and the After-Action Report still show one combined License field, built automatically from whichever of the three someone has, to match the official state form</li>
+      <li>Added Emergency Contact name &amp; phone, editable in Manage Operators and Update My Info, and now actually saved from the New Hire questionnaire (it was being asked for but not stored before)</li>
+      <li>Added a self-service "Update My Info" page — verify with your name and phone number on file, then update your own license, address, age, photo, and emergency contact without needing an admin password</li>
+      <li>Simplified passwords: HP Tools and Manage/Edit are now the only two locks in the app (Payroll, Manage Operators, and Manage Venues no longer have their own separate passwords)</li>
+      <li>Sped up phone verification on Check-In and fixed a photo-upload permissions issue behind the scenes</li>
+      <li>Added a "Description" field to Payroll that shows up for Shop Time, Bunker Time, and Trailer Loading, so you can note what was worked on</li>
+      <li>Email buttons (Payroll, After-Action Report, New Hire) now show the recipient address clearly on-screen and in the message text — the share sheet that attaches the PDF can't fill in the "To:" field automatically, so this makes it easy to catch and fill in yourself</li>
+    </ul>
+  </div>
+
+  <div class="entry">
+    <p class="date">September 11, 2026</p>
+    <ul>
+      <li>Redesigned the whole app with a new dark, logo-themed look across every page</li>
+      <li>Added Manage Operators &amp; Manage Venues photo/CSV tools, including bulk edit, CSV import/export, and a "View" option for operators</li>
+      <li>Added operator photo uploads (camera or file), viewable across the app</li>
+      <li>Added a New Hire Documents page with a questionnaire, photo upload, and links to required forms</li>
+      <li>Added Head Pyro tracking to Payroll, with an Hours mode for Shop Time/Bunker Time/Trailer Loading</li>
+      <li>Renamed Payroll's total section to "Budget" with a clearer running total</li>
+      <li>Switched email buttons to attach real PDFs via the share sheet on supported phones</li>
+      <li>Improved privacy on Check-In: phone number now verifies against your records before revealing license/address, and no crew data is stored in the page itself</li>
+      <li>Sped up the backend with caching so repeated lookups load faster</li>
+      <li>Fixed a bug where selecting a photo could get wiped out before saving</li>
+      <li>Added this Release Notes page</li>
+    </ul>
+  </div>
+
+  <footer>Apex Pyrotechnics · demo@apexpyrotechnics.com</footer>
+</div>
+</body>
+</html>

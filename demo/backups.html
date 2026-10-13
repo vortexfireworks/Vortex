@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
+<title>Backups — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .full{grid-column:1/-1;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=date]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary.danger{color:var(--brick);}
+  button.secondary.danger:hover{border-color:var(--brick);}
+  .editor-box{
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .search-box{margin-bottom:14px;}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media(max-width:480px){ .grid2{grid-template-columns:1fr;} }
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .venue-group{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+  .venue-group-head{background:var(--surface-5);padding:10px 14px;}
+  .venue-group-head .vg-name{font-weight:700;font-size:14px;color:var(--ink);}
+  .venue-group-head .vg-detail{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .venue-date-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 14px;border-top:1px solid var(--line);font-size:13px;
+  }
+  .venue-date-row .vd-date{font-weight:600;color:var(--ink);}
+  .venue-date-row .vd-date.no-date{font-weight:400;color:var(--ink-soft);font-style:italic;}
+  .venue-date-row .vd-date.past{color:var(--ink-soft);font-weight:400;}
+  .venue-date-row .vd-actions{display:flex;gap:6px;flex-shrink:0;}
+  .venue-date-row .vd-actions button{
+    background:none;border:1px solid var(--line);color:var(--navy);
+    font-size:11.5px;padding:5px 9px;border-radius:6px;cursor:pointer;
+  }
+  .venue-date-row .vd-actions button:hover{border-color:var(--navy);}
+  .venue-date-row .vd-actions button.danger{color:var(--brick);}
+  .venue-date-row .vd-actions button.danger:hover{border-color:var(--brick);}
+  .venue-group-foot{padding:8px 14px;border-top:1px solid var(--line);}
+  .venue-group-foot button{
+    background:none;border:none;color:var(--navy);font-size:12px;cursor:pointer;padding:2px 0;
+  }
+  .venue-group-foot button:hover{text-decoration:underline;}
+
+  .report-card{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+  .report-main{padding:12px 14px;}
+  .report-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .report-date{font-weight:700;font-size:14px;color:var(--ink);}
+  .report-saved{font-size:11px;color:var(--ink-soft);}
+  .report-venue{font-size:13.5px;color:var(--ink);margin-top:3px;}
+  .report-meta{font-size:12px;color:var(--ink-soft);margin-top:3px;}
+  .report-flags{font-size:12px;color:var(--brick);margin-top:5px;font-weight:600;}
+  .report-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:9px 14px;border-top:1px solid var(--line);background:var(--surface-5);}
+  .report-actions button{background:none;border:1px solid var(--line);color:var(--navy);font-size:12px;padding:6px 11px;border-radius:6px;cursor:pointer;}
+  .report-actions button:hover:not(:disabled){border-color:var(--navy);}
+  .report-actions button:disabled{opacity:0.5;cursor:wait;}
+  .report-actions button.danger{color:var(--brick);}
+  .report-actions a{font-size:12px;color:var(--ink-soft);text-decoration:none;margin-left:auto;}
+  .report-actions a:hover{color:var(--navy);}
+  .report-note{font-size:11.5px;color:var(--brick);padding:0 14px 10px;}
+  .filters{display:grid;grid-template-columns:1fr 130px;gap:10px;margin-bottom:8px;}
+  .filters select{font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);width:100%;min-width:0;font-family:inherit;}
+  .check-line{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);margin:0 0 12px;}
+  .check-line input{width:auto;}
+  .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  @media (max-width:420px){ .filters{grid-template-columns:1fr;} }
+
+
+  .ann-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .ann-item.current{border-color:rgba(255,140,0,0.55);background:rgba(255,140,0,0.06);}
+  .ann-meta{font-size:11.5px;color:var(--ink-soft);margin-bottom:5px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;}
+  .ann-text{font-size:13.5px;color:var(--ink);line-height:1.5;white-space:pre-wrap;word-break:break-word;}
+  .ann-actions{margin-top:9px;}
+  .ann-actions button{background:none;border:1px solid var(--line);color:var(--brick);font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;}
+  textarea{width:100%;min-height:90px;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface-55);color:var(--ink);font-family:inherit;box-sizing:border-box;resize:vertical;}
+  textarea:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .char-count{font-size:11px;color:var(--ink-soft);text-align:right;margin-top:4px;}
+  .status-line{font-size:12.5px;margin-left:4px;}
+  .bk-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .bk-row:last-child{border-bottom:none;}
+  .bk-row .when{font-size:11.5px;color:var(--ink-soft);display:block;margin-top:2px;}
+  .bk-row a{color:var(--navy);font-size:12px;text-decoration:none;flex-shrink:0;}
+  .callout{border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:16px;border:1px solid var(--line);}
+  .callout.ok{background:rgba(76,175,125,0.12);border-color:rgba(76,175,125,0.4);}
+  .callout.warn{background:rgba(255,190,60,0.12);border-color:rgba(255,190,60,0.5);}
+  .callout b{color:var(--ink);}
+  .callout code{background:var(--surface-5);padding:1px 6px;border-radius:4px;font-size:12px;}
+
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
+  <h1>Backups</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">A backup is a full copy of the whole spreadsheet (crew, venues, pick lists, inventory, reports, check-ins) saved to the Drive folder "Apex Data Backups". The newest 12 are kept. Older ones move to the Drive trash.</p>
+
+    <div id="weeklyBox" class="callout"><b>Checking…</b></div>
+
+    <div class="save-row" style="margin-bottom:18px;">
+      <button class="primary" type="button" id="backupBtn" onclick="backUpNow()">Back up now</button>
+      <span class="status-line" id="backupStatus"></span>
+    </div>
+
+    <p class="list-title" id="bkCount">BACKUPS</p>
+    <div id="bkList"><p class="loading-pulse">Loading…</p></div>
+
+    <p class="hint" style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin-top:18px;">
+      To get something back: open a backup from the list, then copy the tab you need into the live spreadsheet.
+      Google Sheets also keeps its own edit history: in the live sheet choose File → Version history.
+    </p>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
+function $(id){ return document.getElementById(id); }
+function esc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function setStatus(el, msg, kind){ el.textContent = msg || ''; el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)'; }
+// Reads the server's reply, so a refused or failed request is reported instead of looking like it worked.
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status !== 'ok') throw new Error((data && data.message) || 'Request failed');
+  return data;
+}
+function formatWhen(iso){
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' }) + ' at ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+}
+
+function daysSince(iso){ return Math.floor((Date.now() - new Date(iso).getTime()) / 86400000); }
+
+async function loadBackups(){
+  const box = $('weeklyBox'), list = $('bkList');
+  let data;
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=backups`, { cache:'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    data = await res.json();
+    if(!Array.isArray(data.backups)) throw new Error('Unexpected reply');
+  } catch(err){
+    box.className = 'callout warn';
+    box.innerHTML = "<b>Couldn't load the backups</b> \u2014 check your connection and try again.";
+    list.innerHTML = '';
+    return;
+  }
+  const newest = data.backups[0];
+  const stale = !newest || daysSince(newest.createdAt) > 9;
+
+  if(data.weeklyOn === true && !stale){
+    box.className = 'callout ok';
+    box.innerHTML = '<b>Automatic weekly backup is on.</b> Every Sunday around 3 AM. Last backup: ' + esc(formatWhen(newest.createdAt)) + '.';
+  } else if(data.weeklyOn === true){
+    box.className = 'callout warn';
+    box.innerHTML = '<b>The weekly backup is switched on, but the last one was ' + (newest ? daysSince(newest.createdAt) + ' days ago' : 'never') + '.</b> Press "Back up now", and check the Apps Script project\u2019s Executions list for errors.';
+  } else {
+    box.className = 'callout warn';
+    box.innerHTML = '<b>Automatic weekly backup is ' + (data.weeklyOn === false ? 'off' : 'not confirmed') + '.</b> To turn it on: open the Apps Script project, choose <code>installWeeklyBackup</code> in the function list, and press Run once. Until then, use "Back up now" below.' +
+      (newest ? ' Last backup: ' + esc(formatWhen(newest.createdAt)) + '.' : '');
+  }
+
+  $('bkCount').textContent = data.backups.length ? `${data.backups.length} BACKUP${data.backups.length === 1 ? '' : 'S'} (NEWEST FIRST)` : 'BACKUPS';
+  list.innerHTML = data.backups.length
+    ? data.backups.map(b => `<div class="bk-row"><div>${esc(b.name)}<span class="when">${esc(formatWhen(b.createdAt))}</span></div><a href="${esc(b.url)}" target="_blank" rel="noopener">Open in Drive</a></div>`).join('')
+    : '<div class="empty-state"><div class="icon">\ud83d\udcbe</div><p>No backups yet. Press "Back up now" to make the first one.</p></div>';
+}
+
+async function backUpNow(){
+  const st = $('backupStatus'), btn = $('backupBtn');
+  btn.disabled = true; setStatus(st, 'Backing up\u2026 this can take a few seconds.');
+  try{
+    const r = await postJson({ recordType: 'backupNow' });
+    await loadBackups();
+    setStatus(st, 'Saved \u2713 ' + r.name, 'ok');
+  } catch(err){
+    setStatus(st, "Couldn't back up \u2014 check your connection and try again.", 'err');
+  } finally { btn.disabled = false; }
+}
+
+loadBackups();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CueSheet — Field Ops Sorted</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<script src="reorder.js"></script>
+<script>
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        // No explicit choice yet — follow the phone/browser's system setting.
+        // Default to dark unless the system explicitly prefers light.
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ink-faint:#6b7290;
+    --card-bg:rgba(22,28,48,0.7); --card-border:rgba(255,255,255,0.08);
+    --surface:var(--surface-55); --surface-border:rgba(255,255,255,0.15);
+    --divider-glow:rgba(255,140,0,0.4);
+    --logo-ring-bg:#0d1220;
+    --footer-link:#4a5170;
+    --feature-bg:rgba(255,255,255,0.04); --feature-border:rgba(255,255,255,0.08); --feature-ink:#7d84a0;
+    --kicker:#ffb98a; --tagline:#a6acc4;
+    --bubble-bg:#fdfcfa; --bubble-ink:#1c1a17; --bubble-border:transparent;
+    --title-gradient:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    --burst-opacity:0.4; --watermark-opacity:0.07;
+  }
+  :root[data-theme="light"]{
+    --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9;
+    --ink:#241f18; --ink-soft:#6b6152; --ink-faint:#8a8072;
+    --card-bg:rgba(255,255,255,0.75); --card-border:rgba(36,31,24,0.1);
+    --surface:rgba(255,255,255,0.6); --surface-border:rgba(36,31,24,0.15);
+    --divider-glow:rgba(255,140,0,0.3);
+    --logo-ring-bg:#fffaf3;
+    --footer-link:#a68a5c;
+    --feature-bg:rgba(36,31,24,0.035); --feature-border:rgba(36,31,24,0.1); --feature-ink:#8a7c68;
+    --kicker:#c9601f; --tagline:#6b6152;
+    --bubble-bg:#ffffff; --bubble-ink:#1c1a17; --bubble-border:rgba(255,140,0,0.35);
+    --title-gradient:linear-gradient(90deg,#d92b2b 0%,#e26a00 30%,#c98a00 50%,#2f7ec9 75%,#123a63 100%);
+    --burst-opacity:0.16; --watermark-opacity:0.04;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    color:var(--ink);
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:48px 16px;
+    overflow-x:hidden;
+    position:relative;
+    transition:background 0.25s ease, color 0.25s ease;
+  }
+  .decor{position:absolute; top:0; left:0; right:0; bottom:0; overflow:hidden; pointer-events:none;}
+  .burst{
+    position:absolute; border-radius:50%;
+    filter: blur(2px);
+    opacity:var(--burst-opacity);
+    pointer-events:none;
+  }
+  .v-watermark{
+    position:absolute; top:-30px; right:-50px;
+    width:300px;height:340px;
+    opacity:var(--watermark-opacity);
+    background:linear-gradient(160deg, #d92b2b, #ff8c00 30%, #ffd23f 50%, #2f7ec9 75%, #123a63);
+    clip-path:polygon(0 0, 100% 0, 55% 100%, 45% 100%);
+    pointer-events:none;
+    filter:blur(1px);
+  }
+  .wrap{max-width:440px;width:100%;position:relative;z-index:2;}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:104px;height:104px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    margin:0 auto 18px;
+    box-shadow:0 0 40px rgba(255,140,0,0.35), 0 0 70px rgba(47,126,201,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:82px;height:82px;border-radius:50%;object-fit:cover;}
+  .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  h1{
+    font-size:27px;font-weight:800;letter-spacing:-0.02em;
+    background:var(--title-gradient);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .tagline{
+    font-family:Georgia,"Times New Roman",serif; font-style:italic;
+    font-size:14px; color:var(--tagline); margin-top:6px;
+  }
+  .divider{
+    height:3px;width:64px;margin:22px auto 26px;
+    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(255,140,0,0.4);
+  }
+  .cards{
+    display:flex; flex-wrap:wrap; justify-content:center; gap:28px 18px;
+    max-width:420px; margin:0 auto;
+  }
+  .card{
+    display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
+    text-decoration:none;color:inherit;
+    width:26%;
+    transition:transform .15s ease;
+  }
+  .card:hover{transform:translateY(-2px);}
+  .icon-circle{
+    width:58px;height:58px;border-radius:18px;flex-shrink:0;
+    background:var(--grad);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 14px var(--glow);
+  }
+  .icon-circle svg{width:29px;height:29px;}
+  .card .label{font-size:11.5px;font-weight:600;color:var(--ink);line-height:1.3;}
+  .card .ext{font-size:10px;color:var(--kicker);font-weight:700;}
+  .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00); --glow:rgba(255,140,0,0.4);}
+  .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63); --glow:rgba(47,126,201,0.4);}
+  .c3{--grad:linear-gradient(135deg,#ff8c00,#ffd23f); --glow:rgba(255,210,63,0.4);}
+  footer{
+    margin-top:32px;text-align:center;font-size:11px;color:var(--ink-faint);
+  }
+  footer .brand{
+    font-weight:700;
+    background:linear-gradient(90deg,#ff8c5a,#ff8c00 40%,#5a9de0 80%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  footer a:hover{color:var(--ink-soft) !important;}
+
+  .announcement-bubble{
+    display:none; max-width:420px; margin:0 auto 22px; position:relative;
+    background:var(--bubble-bg);
+    border:1px solid var(--bubble-border);
+    border-radius:18px 18px 18px 4px;
+    padding:16px 36px 16px 18px; font-size:13.5px; line-height:1.5; color:var(--bubble-ink);
+    font-weight:700; text-align:center;
+    box-shadow:0 10px 28px rgba(0,0,0,0.35);
+    animation:bubbleIn 0.35s ease both;
+  }
+  .announcement-bubble .icon{font-size:15px;margin-right:6px;}
+  @keyframes bubbleIn{
+    0%{opacity:0; transform:translateY(-8px);}
+    100%{opacity:1; transform:translateY(0);}
+  }
+  .announcement-bubble .close-btn{
+    position:absolute; top:8px; right:10px; background:none; border:none;
+    color:#8a8478; font-size:18px; line-height:1; cursor:pointer; padding:4px;
+  }
+  .announcement-bubble .close-btn:hover{color:#1c1a17;}
+  .theme-toggle{
+    position:absolute; top:12px; right:12px; z-index:5;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card-bg); border:1px solid var(--card-border);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* Loading screen — "Presented by CueSheet" */
+  #splash{
+    position:fixed; top:0; left:0; right:0; bottom:0; z-index:9999;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    transition:opacity .45s ease, visibility .45s ease;
+  }
+  #splash.hide{opacity:0; visibility:hidden; pointer-events:none;}
+  .splash-presented{
+    font-size:11px; letter-spacing:.3em; text-transform:uppercase;
+    color:var(--ink-soft); font-weight:600; margin:0 0 20px;
+    animation:splashIn .6s ease both;
+  }
+  .splash-card{
+    background:#fff; border-radius:26px; padding:14px;
+    box-shadow:0 18px 50px rgba(0,0,0,.35);
+    animation:splashIn .6s ease .1s both;
+  }
+  .splash-card img{display:block; width:62vw; max-width:260px; height:auto; border-radius:14px;}
+  @keyframes splashIn{from{opacity:0; transform:scale(.94);} to{opacity:1; transform:scale(1);}}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+</head>
+<body>
+<div id="splash" aria-hidden="true">
+  <p class="splash-presented">Presented by</p>
+  <div class="splash-card"><img src="cuesheet-logo.jpg" alt="CueSheet — Fireworks Organization Tool"></div>
+</div>
+<script>
+(function(){
+  var s = document.getElementById('splash');
+  var seen = false;
+  try{ seen = sessionStorage.getItem('cuesheetSplash') === '1'; }catch(e){}
+  if(seen){ s.parentNode.removeChild(s); return; }   // only once per visit, not every time you return to the main screen
+  try{ sessionStorage.setItem('cuesheetSplash', '1'); }catch(e){}
+  var img = s.querySelector('img');
+  var timer;
+  function hide(){
+    clearTimeout(timer);
+    s.classList.add('hide');
+    setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 600);
+  }
+  function arm(){ clearTimeout(timer); timer = setTimeout(hide, 1600); }
+  s.addEventListener('click', hide);                 // tap to skip
+  if(img.complete){ arm(); }
+  else { img.addEventListener('load', arm); img.addEventListener('error', hide); timer = setTimeout(hide, 4000); }
+})();
+</script>
+
+<div class="decor" aria-hidden="true">
+<div class="burst" style="width:260px;height:260px;top:-70px;left:-70px;background:radial-gradient(circle,#ff8c00 0%,transparent 70%);"></div>
+<div class="burst" style="width:220px;height:220px;top:10px;right:-70px;background:radial-gradient(circle,#2f7ec9 0%,transparent 70%);"></div>
+<div class="burst" style="width:180px;height:180px;bottom:40px;left:-50px;background:radial-gradient(circle,#d92b2b 0%,transparent 70%);"></div>
+<div class="v-watermark"></div>
+</div>
+
+<div class="wrap">
+  <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme">
+    <span id="themeToggleIcon">☀️</span>
+  </button>
+
+  <div class="announcement-bubble" id="announcementBubble">
+    <button class="close-btn" type="button" onclick="dismissAnnouncement()" aria-label="Dismiss">&times;</button>
+    <span class="icon">📢</span><span id="announcementText"></span>
+  </div>
+
+  <header>
+    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+    <p class="kicker">Apex Pyrotechnics Inc.</p>
+    <h1>Pyrotechnician Tools</h1>
+    <p class="tagline">Fireworks Artists</p>
+  </header>
+
+  <div class="divider"></div>
+
+  <div class="cards">
+    <a class="card c1" href="checkin.html">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <line x1="12" y1="12" x2="21.50" y2="12.00" stroke-width="2.0"/>
+          <line x1="12" y1="12" x2="19.39" y2="15.06" stroke-width="1.0"/>
+          <line x1="12" y1="12" x2="18.72" y2="18.72" stroke-width="2.0"/>
+          <line x1="12" y1="12" x2="15.06" y2="19.39" stroke-width="1.0"/>
+          <line x1="12" y1="12" x2="12.00" y2="21.50" stroke-width="2.0"/>
+          <line x1="12" y1="12" x2="8.94" y2="19.39" stroke-width="1.0"/>
+          <line x1="12" y1="12" x2="5.28" y2="18.72" stroke-width="2.0"/>
+          <line x1="12" y1="12" x2="4.61" y2="15.06" stroke-width="1.0"/>
+          <line x1="12" y1="12" x2="2.50" y2="12.00" stroke-width="2.0"/>
+          <line x1="12" y1="12" x2="4.61" y2="8.94" stroke-width="1.0"/>
+          <line x1="12" y1="12" x2="5.28" y2="5.28" stroke-width="2.0"/>
+          <line x1="12" y1="12" x2="8.94" y2="4.61" stroke-width="1.0"/>
+          <line x1="12" y1="12" x2="12.00" y2="2.50" stroke-width="2.0"/>
+          <line x1="12" y1="12" x2="15.06" y2="4.61" stroke-width="1.0"/>
+          <line x1="12" y1="12" x2="18.72" y2="5.28" stroke-width="2.0"/>
+          <line x1="12" y1="12" x2="19.39" y2="8.94" stroke-width="1.0"/>
+        </svg>
+      </div>
+      <div class="label">Check-In</div>
+    </a>
+
+    <a class="card c2" href="https://docs.google.com/spreadsheets/d/1ozZ24Xi7LPeMsCVps18pnUwMRZC2KKFf-iz8KkU3Rho/edit?usp=drive_link" target="_blank" rel="noopener">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <path d="M 12 12 Q 16.23 13.54 21.00 12.00" stroke-width="1.3"/>
+          <path d="M 12 12 Q 14.89 15.45 19.79 16.50" stroke-width="1.3"/>
+          <path d="M 12 12 Q 12.78 16.43 16.50 19.79" stroke-width="1.3"/>
+          <path d="M 12 12 Q 10.46 16.23 12.00 21.00" stroke-width="1.3"/>
+          <path d="M 12 12 Q 8.55 14.89 7.50 19.79" stroke-width="1.3"/>
+          <path d="M 12 12 Q 7.57 12.78 4.21 16.50" stroke-width="1.3"/>
+          <path d="M 12 12 Q 7.77 10.46 3.00 12.00" stroke-width="1.3"/>
+          <path d="M 12 12 Q 9.11 8.55 4.21 7.50" stroke-width="1.3"/>
+          <path d="M 12 12 Q 11.22 7.57 7.50 4.21" stroke-width="1.3"/>
+          <path d="M 12 12 Q 13.54 7.77 12.00 3.00" stroke-width="1.3"/>
+          <path d="M 12 12 Q 15.45 9.11 16.50 4.21" stroke-width="1.3"/>
+          <path d="M 12 12 Q 16.43 11.22 19.79 7.50" stroke-width="1.3"/>
+          <path d="M 17.463108243738503 19.866852754294364 C 17.628108243738502 20.801852754294366, 18.398108243738502 20.801852754294366, 18.563108243738505 20.966852754294365 C 17.628108243738502 21.131852754294364, 17.628108243738502 21.131852754294364, 17.463108243738503 22.066852754294366 C 17.298108243738504 21.131852754294364, 16.528108243738505 21.131852754294364, 16.363108243738502 20.966852754294365 C 17.298108243738504 20.801852754294366, 17.298108243738504 20.801852754294366, 17.463108243738503 19.866852754294364 Z" fill="#fff" stroke="none"/>
+          <path d="M 3.0331472457056385 16.363108243738502 C 3.1981472457056386 17.298108243738504, 3.9681472457056386 17.298108243738504, 4.133147245705638 17.463108243738503 C 3.1981472457056386 17.628108243738502, 3.1981472457056386 17.628108243738502, 3.0331472457056385 18.563108243738505 C 2.8681472457056385 17.628108243738502, 2.0981472457056385 17.628108243738502, 1.9331472457056385 17.463108243738503 C 2.8681472457056385 17.298108243738504, 2.8681472457056385 17.298108243738504, 3.0331472457056385 16.363108243738502 Z" fill="#fff" stroke="none"/>
+          <path d="M 6.536891756261492 1.9331472457056402 C 6.701891756261492 2.8681472457056403, 7.471891756261492 2.8681472457056403, 7.636891756261493 3.0331472457056403 C 6.701891756261492 3.1981472457056404, 6.701891756261492 3.1981472457056404, 6.536891756261492 4.13314724570564 C 6.371891756261492 3.1981472457056404, 5.601891756261493 3.1981472457056404, 5.436891756261492 3.0331472457056403 C 6.371891756261492 2.8681472457056403, 6.371891756261492 2.8681472457056403, 6.536891756261492 1.9331472457056402 Z" fill="#fff" stroke="none"/>
+          <path d="M 20.966852754294358 5.43689175626149 C 21.131852754294357 6.3718917562614905, 21.901852754294357 6.3718917562614905, 22.06685275429436 6.5368917562614905 C 21.131852754294357 6.701891756261491, 21.131852754294357 6.701891756261491, 20.966852754294358 7.636891756261491 C 20.80185275429436 6.701891756261491, 20.03185275429436 6.701891756261491, 19.866852754294356 6.5368917562614905 C 20.80185275429436 6.3718917562614905, 20.80185275429436 6.3718917562614905, 20.966852754294358 5.43689175626149 Z" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div class="label">Sign-Up for a Show <span class="ext">↗</span></div>
+    </a>
+
+    <a class="card c3" href="hp-tools.html">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <path d="M 12 22 Q 6.8 17.0 5.0 17.0" stroke-width="1.5"/>
+          <path d="M 12 22 Q 9.0 17.0 8.0 9.0" stroke-width="1.5"/>
+          <path d="M 12 22 Q 11.2 17.0 11.0 4.0" stroke-width="1.5"/>
+          <path d="M 12 22 Q 13.5 17.0 14.0 3.0" stroke-width="1.5"/>
+          <path d="M 12 22 Q 15.8 17.0 17.0 8.0" stroke-width="1.5"/>
+          <path d="M 12 22 Q 18.0 17.0 20.0 16.0" stroke-width="1.5"/>
+          <path d="M 5 1.7 C 5.195 2.805, 6.105 2.805, 6.3 3 C 5.195 3.195, 5.195 3.195, 5 4.3 C 4.805 3.195, 3.895 3.195, 3.7 3 C 4.805 2.805, 4.805 2.805, 5 1.7 Z" fill="#fff" stroke="none"/>
+          <path d="M 11 -0.5 C 11.225 0.775, 12.275 0.775, 12.5 1 C 11.225 1.225, 11.225 1.225, 11 2.5 C 10.775 1.225, 9.725 1.225, 9.5 1 C 10.775 0.775, 10.775 0.775, 11 -0.5 Z" fill="#fff" stroke="none"/>
+          <path d="M 17 1.8 C 17.18 2.82, 18.02 2.82, 18.2 3 C 17.18 3.18, 17.18 3.18, 17 4.2 C 16.82 3.18, 15.98 3.18, 15.8 3 C 16.82 2.82, 16.82 2.82, 17 1.8 Z" fill="#fff" stroke="none"/>
+          <path d="M 2 6.0 C 2.15 6.85, 2.85 6.85, 3.0 7 C 2.15 7.15, 2.15 7.15, 2 8.0 C 1.85 7.15, 1.15 7.15, 1.0 7 C 1.85 6.85, 1.85 6.85, 2 6.0 Z" fill="#fff" stroke="none"/>
+          <path d="M 20 6.0 C 20.15 6.85, 20.85 6.85, 21.0 7 C 20.15 7.15, 20.15 7.15, 20 8.0 C 19.85 7.15, 19.15 7.15, 19.0 7 C 19.85 6.85, 19.85 6.85, 20 6.0 Z" fill="#fff" stroke="none"/>
+          <path d="M 14 6.1 C 14.135 6.865, 14.765 6.865, 14.9 7 C 14.135 7.135, 14.135 7.135, 14 7.9 C 13.865 7.135, 13.235 7.135, 13.1 7 C 13.865 6.865, 13.865 6.865, 14 6.1 Z" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div class="label">HP Tools</div>
+    </a>
+
+    <a class="card c1" href="new-hire.html">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <path d="M 12 12 Q 16.10 14.24 20.50 12.00" stroke-width="1.5"/>
+          <path d="M 20.5 11.1 C 20.635 11.865, 21.265 11.865, 21.4 12.0 C 20.635 12.135, 20.635 12.135, 20.5 12.9 C 20.365 12.135, 19.735 12.135, 19.6 12.0 C 20.365 11.865, 20.365 11.865, 20.5 11.1 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 13.32 16.49 18.01 18.01" stroke-width="1.5"/>
+          <path d="M 18.010407640085653 17.110407640085654 C 18.145407640085654 17.87540764008565, 18.775407640085653 17.87540764008565, 18.91040764008565 18.010407640085653 C 18.145407640085654 18.145407640085654, 18.145407640085654 18.145407640085654, 18.010407640085653 18.91040764008565 C 17.87540764008565 18.145407640085654, 17.245407640085652 18.145407640085654, 17.110407640085654 18.010407640085653 C 17.87540764008565 17.87540764008565, 17.87540764008565 17.87540764008565, 18.010407640085653 17.110407640085654 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 9.76 16.10 12.00 20.50" stroke-width="1.5"/>
+          <path d="M 12.0 19.6 C 12.135 20.365, 12.765 20.365, 12.9 20.5 C 12.135 20.635, 12.135 20.635, 12.0 21.4 C 11.865 20.635, 11.235 20.635, 11.1 20.5 C 11.865 20.365, 11.865 20.365, 12.0 19.6 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 7.51 13.32 5.99 18.01" stroke-width="1.5"/>
+          <path d="M 5.989592359914346 17.110407640085654 C 6.124592359914346 17.87540764008565, 6.754592359914346 17.87540764008565, 6.889592359914347 18.010407640085653 C 6.124592359914346 18.145407640085654, 6.124592359914346 18.145407640085654, 5.989592359914346 18.91040764008565 C 5.854592359914347 18.145407640085654, 5.224592359914347 18.145407640085654, 5.089592359914346 18.010407640085653 C 5.854592359914347 17.87540764008565, 5.854592359914347 17.87540764008565, 5.989592359914346 17.110407640085654 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 7.90 9.76 3.50 12.00" stroke-width="1.5"/>
+          <path d="M 3.5 11.100000000000001 C 3.635 11.865000000000002, 4.265 11.865000000000002, 4.4 12.000000000000002 C 3.635 12.135000000000002, 3.635 12.135000000000002, 3.5 12.900000000000002 C 3.365 12.135000000000002, 2.735 12.135000000000002, 2.6 12.000000000000002 C 3.365 11.865000000000002, 3.365 11.865000000000002, 3.5 11.100000000000001 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 10.68 7.51 5.99 5.99" stroke-width="1.5"/>
+          <path d="M 5.989592359914345 5.089592359914346 C 6.124592359914344 5.854592359914347, 6.754592359914344 5.854592359914347, 6.889592359914345 5.989592359914346 C 6.124592359914344 6.124592359914346, 6.124592359914344 6.124592359914346, 5.989592359914345 6.889592359914347 C 5.854592359914345 6.124592359914346, 5.224592359914345 6.124592359914346, 5.089592359914344 5.989592359914346 C 5.854592359914345 5.854592359914347, 5.854592359914345 5.854592359914347, 5.989592359914345 5.089592359914346 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 14.24 7.90 12.00 3.50" stroke-width="1.5"/>
+          <path d="M 11.999999999999998 2.6 C 12.134999999999998 3.365, 12.764999999999999 3.365, 12.899999999999999 3.5 C 12.134999999999998 3.635, 12.134999999999998 3.635, 11.999999999999998 4.4 C 11.864999999999998 3.635, 11.234999999999998 3.635, 11.099999999999998 3.5 C 11.864999999999998 3.365, 11.864999999999998 3.365, 11.999999999999998 2.6 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 16.49 10.68 18.01 5.99" stroke-width="1.5"/>
+          <path d="M 18.010407640085653 5.089592359914344 C 18.145407640085654 5.854592359914345, 18.775407640085653 5.854592359914345, 18.91040764008565 5.989592359914345 C 18.145407640085654 6.124592359914344, 18.145407640085654 6.124592359914344, 18.010407640085653 6.889592359914345 C 17.87540764008565 6.124592359914344, 17.245407640085652 6.124592359914344, 17.110407640085654 5.989592359914345 C 17.87540764008565 5.854592359914345, 17.87540764008565 5.854592359914345, 18.010407640085653 5.089592359914344 Z" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div class="label">New Hire Documents</div>
+    </a>
+
+    <a class="card c2" href="update-info.html">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <path d="M 12 22 Q 6.0 16.0 5.0 15.0" stroke-width="1.5"/>
+          <path d="M 5 13.9 C 5.165 14.835, 5.9350000000000005 14.835, 6.1 15 C 5.165 15.165, 5.165 15.165, 5 16.1 C 4.835 15.165, 4.0649999999999995 15.165, 3.9 15 C 4.835 14.835, 4.835 14.835, 5 13.9 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 9.0 16.0 8.5 8.0" stroke-width="1.5"/>
+          <path d="M 8.5 6.7 C 8.695 7.805, 9.605 7.805, 9.8 8 C 8.695 8.195, 8.695 8.195, 8.5 9.3 C 8.305 8.195, 7.395 8.195, 7.2 8 C 8.305 7.805, 8.305 7.805, 8.5 6.7 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 12.0 16.0 12.0 4.0" stroke-width="1.5"/>
+          <path d="M 12 2.6 C 12.21 3.79, 13.19 3.79, 13.4 4 C 12.21 4.21, 12.21 4.21, 12 5.4 C 11.79 4.21, 10.81 4.21, 10.6 4 C 11.79 3.79, 11.79 3.79, 12 2.6 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 15.0 16.0 15.5 8.0" stroke-width="1.5"/>
+          <path d="M 15.5 6.8 C 15.68 7.82, 16.52 7.82, 16.7 8 C 15.68 8.18, 15.68 8.18, 15.5 9.2 C 15.32 8.18, 14.48 8.18, 14.3 8 C 15.32 7.82, 15.32 7.82, 15.5 6.8 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 17.9 16.0 19.0 15.0" stroke-width="1.5"/>
+          <path d="M 19 14.0 C 19.15 14.85, 19.85 14.85, 20.0 15 C 19.15 15.15, 19.15 15.15, 19 16.0 C 18.85 15.15, 18.15 15.15, 18.0 15 C 18.85 14.85, 18.85 14.85, 19 14.0 Z" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div class="label">Update My Info</div>
+    </a>
+
+    <a class="card c3" href="manage.html">
+      <div class="icon-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <path d="M 12 22 Q 6.0 16.0 5.0 15.0" stroke-width="1.5"/>
+          <path d="M 5 13.9 C 5.165 14.835, 5.9350000000000005 14.835, 6.1 15 C 5.165 15.165, 5.165 15.165, 5 16.1 C 4.835 15.165, 4.0649999999999995 15.165, 3.9 15 C 4.835 14.835, 4.835 14.835, 5 13.9 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 9.0 16.0 8.5 8.0" stroke-width="1.5"/>
+          <path d="M 8.5 6.7 C 8.695 7.805, 9.605 7.805, 9.8 8 C 8.695 8.195, 8.695 8.195, 8.5 9.3 C 8.305 8.195, 7.395 8.195, 7.2 8 C 8.305 7.805, 8.305 7.805, 8.5 6.7 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 12.0 16.0 12.0 4.0" stroke-width="1.5"/>
+          <path d="M 12 2.6 C 12.21 3.79, 13.19 3.79, 13.4 4 C 12.21 4.21, 12.21 4.21, 12 5.4 C 11.79 4.21, 10.81 4.21, 10.6 4 C 11.79 3.79, 11.79 3.79, 12 2.6 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 15.0 16.0 15.5 8.0" stroke-width="1.5"/>
+          <path d="M 15.5 6.8 C 15.68 7.82, 16.52 7.82, 16.7 8 C 15.68 8.18, 15.68 8.18, 15.5 9.2 C 15.32 8.18, 14.48 8.18, 14.3 8 C 15.32 7.82, 15.32 7.82, 15.5 6.8 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 17.9 16.0 19.0 15.0" stroke-width="1.5"/>
+          <path d="M 19 14.0 C 19.15 14.85, 19.85 14.85, 20.0 15 C 19.15 15.15, 19.15 15.15, 19 16.0 C 18.85 15.15, 18.15 15.15, 18.0 15 C 18.85 14.85, 18.85 14.85, 19 14.0 Z" fill="#fff" stroke="none"/>
+        </svg>
+      </div>
+      <div class="label">Manage/Edit</div>
+    </a>
+  </div>
+
+  <footer>
+    <span class="brand">Apex Pyrotechnics</span> &middot; demo@apexpyrotechnics.com<br>
+    <a href="release-notes.html" style="color:var(--footer-link);text-decoration:none;font-size:10px;">Release notes</a>
+    <p style="margin-top:10px;font-size:10px;color:var(--ink-faint);">Made by CueSheet — Field Ops Sorted</p>
+  </footer>
+
+  <a href="mailto:darren@boekweg.com?subject=Feature%20Request%20-%20Pyrotechnician%20Tools&body=I'd%20like%20to%20suggest%3A%0A%0A"
+     style="display:block;margin-top:16px;text-align:center;padding:9px 12px;border-radius:8px;
+            background:var(--feature-bg);border:1px solid var(--feature-border);
+            color:var(--feature-ink);text-decoration:none;font-size:11px;">
+    💡 Submit a feature request
+  </a>
+
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
+let ANNOUNCEMENTS = [];
+
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  document.getElementById('themeToggleIcon').textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+async function loadAnnouncements(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=announcements`);
+    if(!res.ok) return;
+    ANNOUNCEMENTS = await res.json();
+    showLatestAnnouncement();
+  } catch(err){
+    // fail silently — announcements are a nice-to-have, not core functionality
+  }
+}
+
+function showLatestAnnouncement(){
+  if(!ANNOUNCEMENTS || ANNOUNCEMENTS.length === 0) return;
+  const latest = ANNOUNCEMENTS[0];
+  const dismissedTimestamp = localStorage.getItem('dismissedAnnouncementTimestamp');
+  if(dismissedTimestamp === latest.timestamp) return;
+  document.getElementById('announcementText').textContent = latest.message;
+  document.getElementById('announcementBubble').style.display = 'block';
+  document.getElementById('announcementBubble').dataset.timestamp = latest.timestamp;
+}
+
+function dismissAnnouncement(){
+  const bubble = document.getElementById('announcementBubble');
+  localStorage.setItem('dismissedAnnouncementTimestamp', bubble.dataset.timestamp || '');
+  bubble.style.display = 'none';
+}
+
+loadAnnouncements();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
