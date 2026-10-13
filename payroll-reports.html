@@ -216,6 +216,10 @@ updateThemeToggleIcon();
       <label><input type="checkbox" id="hideUnapprovedToggle" onchange="onHideUnapprovedToggle()"> Hide pending (not yet approved) payroll from Totals/Year-End and My Pay until approved</label>
     </div>
 
+    <div class="settings-row">
+      <label><input type="checkbox" id="myPayDisabledToggle" onchange="onMyPayDisabledToggle()"> Turn off My Pay self-serve lookup for everyone</label>
+    </div>
+
     <div class="tab-row">
       <button type="button" class="tab-btn active" data-tab="shows" onclick="switchTab('shows')">By Show</button>
       <button type="button" class="tab-btn" data-tab="people" onclick="switchTab('people')">Totals by Person</button>
@@ -273,6 +277,7 @@ function todayIso(){ return new Date().toISOString().slice(0,10); }
 
 let RECORDS = [];
 let HIDE_UNAPPROVED = false;
+let MY_PAY_DISABLED = false;
 
 async function postJson(payload){
   const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
@@ -291,6 +296,8 @@ async function loadRecords(){
     RECORDS = Array.isArray(data.records) ? data.records : [];
     HIDE_UNAPPROVED = !!data.hideUnapproved;
     $('hideUnapprovedToggle').checked = HIDE_UNAPPROVED;
+    MY_PAY_DISABLED = !!data.myPayDisabled;
+    $('myPayDisabledToggle').checked = MY_PAY_DISABLED;
   } catch(err){
     wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load payroll records — check your connection and try again.</p>';
     $('countLine').textContent = '';
@@ -314,6 +321,20 @@ async function onHideUnapprovedToggle(){
   checkbox.disabled = false;
   renderAll();
   renderYearEnd();
+}
+
+async function onMyPayDisabledToggle(){
+  const checkbox = $('myPayDisabledToggle');
+  const wanted = checkbox.checked;
+  checkbox.disabled = true;
+  try{
+    await postJson({ recordType: 'payrollSettings', myPayDisabled: wanted });
+    MY_PAY_DISABLED = wanted;
+  } catch(err){
+    checkbox.checked = !wanted;
+    alert("Couldn't save that setting — check your connection and try again.");
+  }
+  checkbox.disabled = false;
 }
 
 function clearFilters(){

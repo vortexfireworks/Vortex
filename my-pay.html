@@ -138,6 +138,11 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
+    <div id="disabledNotice" style="display:none;text-align:center;padding:10px 0 4px;">
+      <div class="icon" style="font-size:32px;margin-bottom:8px;">🚧</div>
+      <p class="desc" style="margin:0;">My Pay is turned off right now. Check with your Head Pyro for your pay.</p>
+    </div>
+    <div id="lookupSection">
     <p class="desc">Look up your own payroll history — logged automatically each time a payroll is emailed or shared. Since everyone shares one Head Pyro password, this also checks a PIN or phone number for your name, so you can only see your own pay.</p>
 
     <div class="field">
@@ -168,6 +173,7 @@ updateThemeToggleIcon();
     <div style="margin-bottom:16px;"><button type="button" class="clear-link" onclick="clearFilters()">Clear date filters</button></div>
 
     <div id="resultWrap"><div class="empty-state"><div class="icon">💵</div><p>Enter your name above, then your PIN or phone number, to see your pay history.</p></div></div>
+    </div>
   </div>
 </div>
 
@@ -400,7 +406,19 @@ async function runLookup(){
   }
 }
 
-loadNames();
+async function checkMyPayStatus(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=myPayStatus`, { cache: 'no-store' });
+    const data = await res.json();
+    if(data && data.disabled){
+      $('disabledNotice').style.display = 'block';
+      $('lookupSection').style.display = 'none';
+      return;
+    }
+  } catch(err){ /* if the check itself fails, fall through and let the normal lookup try */ }
+  loadNames();
+}
+checkMyPayStatus();
 </script>
 
 <script>
