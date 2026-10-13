@@ -8,7 +8,7 @@
 <title>Catalog — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <script>
 function toggleTheme(){
@@ -46,16 +46,16 @@ updateThemeToggleIcon();
 </script>
 <style>
   :root{
-    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
-    --logo-ring-bg:#0d1220;
-    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
-    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
-    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
-    --accent1:#d92b2b; --accent2:#ff8c00;
+    --kicker:#A5B4FC; --surface-4:rgba(15,23,42,0.4); --surface-5:rgba(15,23,42,0.5); --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --navy:#A5B4FC; --brick:#6366F1; --brick-light:#818CF8;
+    --paper:#1E293B; --card:rgba(30,41,59,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --ok:#22C55E;
+    --accent1:#4F46E5; --accent2:#8B5CF6;
   }
   :root[data-theme="light"]{
-    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
-    --logo-ring-bg:#fffaf3;
+    --kicker:#4F46E5; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12); --paper:#F8FAFC; --navy:#4F46E5;
+    --logo-ring-bg:#FFFFFF;
   }
   *{box-sizing:border-box;}
   body{
@@ -66,12 +66,12 @@ updateThemeToggleIcon();
   }
   .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
   header{text-align:center;margin-bottom:12px;}
-  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);margin:0 auto 16px;box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);}
   .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
   .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
   header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
-  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
-  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);border-radius:2px;box-shadow:0 0 12px rgba(139,92,246,0.4);}
   .section{padding:22px 24px;}
   .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
@@ -81,7 +81,7 @@ updateThemeToggleIcon();
     border-radius:6px; background:var(--surface-55); color:var(--ink);
     width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
   }
-  input:focus, select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  input:focus, select:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
   button.secondary{background:none; border:1px solid var(--line); color:var(--navy);font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;}
   button.secondary:hover{border-color:var(--navy);}
   button.secondary:disabled{opacity:0.4;cursor:default;}
@@ -96,7 +96,7 @@ updateThemeToggleIcon();
 
   .tabs{display:flex;gap:8px;margin-bottom:14px;}
   .tabs button{flex:1 1 0;background:var(--surface-5);border:1px solid var(--line);color:var(--ink-soft);font-size:13px;font-weight:700;padding:9px 10px;border-radius:7px;cursor:pointer;}
-  .tabs button.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#fdf6f2;border-color:transparent;}
+  .tabs button.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#F8FAFC;border-color:transparent;}
 
   .cat-group{border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden;}
   .cat-group-head{background:var(--surface-5);padding:8px 12px;font-size:11.5px;font-weight:700;color:var(--kicker);display:flex;justify-content:space-between;gap:8px;}
@@ -172,6 +172,7 @@ updateThemeToggleIcon();
   }
   .modal-body a.md-link:hover{border-color:var(--navy);}
 </style>
+<script src="theme-picker.js" defer></script>
 </head>
 <body>
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>

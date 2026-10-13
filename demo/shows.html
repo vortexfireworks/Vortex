@@ -5,51 +5,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Show Sign-Ups — Apex Pyrotechnics</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <style>
   *{box-sizing:border-box;}
   body{
     margin:0; min-height:100vh;
-    background: radial-gradient(ellipse at 50% -10%, #16233f 0%, #0a0f1e 55%, #05070f 100%);
-    color:#f4f1ea;
+    background: radial-gradient(ellipse at 50% -10%, #1E293B 0%, #0F172A 55%, #020617 100%);
+    color:#F1F5F9;
     font-family:"Helvetica Neue",Arial,sans-serif;
     padding:32px 16px 60px;
   }
   .wrap{max-width:920px; margin:0 auto;}
   .back-link{
     display:block; margin:0 0 18px; font-size:12.5px;
-    color:#a3a9bf; text-decoration:none;
+    color:#94A3B8; text-decoration:none;
   }
-  .back-link:hover{color:#ffb98a;}
+  .back-link:hover{color:#A5B4FC;}
   header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;}
-  .titles .kicker{font-size:11px;letter-spacing:.08em;color:#ffb98a;margin:0 0 4px;font-weight:700;text-transform:uppercase;}
+  .titles .kicker{font-size:11px;letter-spacing:.08em;color:#A5B4FC;margin:0 0 4px;font-weight:700;text-transform:uppercase;}
   .titles h1{
     margin:0;font-size:21px;font-weight:800;
-    background:linear-gradient(90deg,#ff6a5a,#ff8c00 40%,#5a9de0 80%);
+    background:linear-gradient(90deg,#6366F1,#8B5CF6 40%,#60A5FA 80%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
   }
   button.refresh{
-    background:none; border:1px solid rgba(255,255,255,0.15); color:#f4f1ea;
+    background:none; border:1px solid rgba(255,255,255,0.15); color:#F1F5F9;
     font-size:12.5px; padding:8px 14px; border-radius:8px; cursor:pointer;
   }
-  button.refresh:hover{border-color:#ffb98a;}
-  p.sub{font-size:12.5px;color:#a3a9bf;margin:8px 0 20px;line-height:1.5;}
+  button.refresh:hover{border-color:#A5B4FC;}
+  p.sub{font-size:12.5px;color:#94A3B8;margin:8px 0 20px;line-height:1.5;}
   .grid-card{
-    background:#fdfcfa; border-radius:12px; padding:14px;
+    background:#FFFFFF; border-radius:12px; padding:14px;
     overflow-x:auto; -webkit-overflow-scrolling:touch;
     box-shadow:0 8px 30px rgba(0,0,0,0.35);
   }
-  table.signup-grid{border-collapse:collapse; font-size:12.5px; color:#1c1a17; min-width:100%;}
+  table.signup-grid{border-collapse:collapse; font-size:12.5px; color:#0F172A; min-width:100%;}
   table.signup-grid td{
-    border:1px solid #d8d2c4; padding:4px 8px; white-space:nowrap;
+    border:1px solid #CBD5E1; padding:4px 8px; white-space:nowrap;
     vertical-align:middle;
   }
   table.signup-grid td.bold{font-weight:700;}
-  .status{font-size:13px;color:#a3a9bf;text-align:center;padding:40px 20px;}
-  .status.err{color:#ff6a5a;}
+  .status{font-size:13px;color:#94A3B8;text-align:center;padding:40px 20px;}
+  .status.err{color:#6366F1;}
   footer{margin-top:28px;font-size:11px;color:#6b7290;text-align:center;}
 </style>
+<script src="theme-picker.js" defer></script>
 </head>
 <body>
 <div class="wrap">

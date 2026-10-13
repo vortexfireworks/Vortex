@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="auth.js"></script>
 <script src="reorder.js"></script>
+<script src="theme-picker.js" defer></script>
 <title>Head Pyro Tools — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
-<meta name="theme-color" content="#0a0f1e">
+<meta name="theme-color" content="#0F172A">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <script>
@@ -47,14 +48,14 @@ updateThemeToggleIcon();
 </script>
 <style>
   :root{
-    --surface-6:rgba(10,14,26,0.6); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
-    --ink:#f4f1ea; --ink-soft:#a3a9bf; --card:rgba(22,28,48,0.7); --line:rgba(255,255,255,0.1);
-    --kicker:#ffb98a; --logo-ring-bg:#0d1220;
+    --surface-6:rgba(15,23,42,0.6); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --card:rgba(30,41,59,0.7); --line:rgba(255,255,255,0.1);
+    --kicker:#A5B4FC; --logo-ring-bg:#0F172A;
   }
   :root[data-theme="light"]{
-    --surface-6:rgba(255,255,255,0.7); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9;
-    --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12);
-    --kicker:#c9601f; --logo-ring-bg:#fffaf3;
+    --surface-6:rgba(255,255,255,0.7); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0;
+    --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --kicker:#4F46E5; --logo-ring-bg:#FFFFFF;
   }
   *{box-sizing:border-box;}
   body{
@@ -75,9 +76,9 @@ updateThemeToggleIcon();
   .logo-ring{
     width:92px;height:92px;border-radius:50%;
     padding:3px;
-    background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
     margin:0 auto 16px;
-    box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
   }
   .logo-ring-inner{
     width:100%;height:100%;border-radius:50%;
@@ -91,15 +92,15 @@ updateThemeToggleIcon();
   }
   header h1{
     margin:0;font-size:24px;font-weight:800;letter-spacing:-0.02em;
-    background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
     -webkit-background-clip:text;background-clip:text;color:transparent;
     line-height:1.15;
   }
   .divider{
     height:3px;width:64px;margin:20px auto 24px;
-    background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
     border-radius:2px;
-    box-shadow:0 0 12px rgba(255,140,0,0.4);
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
   }
   .cards{
     display:flex; flex-wrap:wrap; justify-content:center; gap:28px 18px;
@@ -126,9 +127,9 @@ updateThemeToggleIcon();
     color:var(--ink-soft);margin:26px 0 10px;text-transform:uppercase;
     text-align:center;
   }
-  .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00); --glow:rgba(255,140,0,0.4);}
-  .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63); --glow:rgba(47,126,201,0.4);}
-  .c3{--grad:linear-gradient(135deg,#ff8c00,#ffd23f); --glow:rgba(255,210,63,0.4);}
+  .c1{--grad:linear-gradient(135deg,#4F46E5,#8B5CF6); --glow:rgba(139,92,246,0.4);}
+  .c2{--grad:linear-gradient(135deg,#3B82F6,#312E81); --glow:rgba(59,130,246,0.4);}
+  .c3{--grad:linear-gradient(135deg,#8B5CF6,#22D3EE); --glow:rgba(34,211,238,0.4);}
   footer{margin-top:28px;font-size:11.5px;color:var(--ink-soft);text-align:center;}
   .theme-toggle{
     position:fixed; top:14px; right:14px; z-index:50;
@@ -156,8 +157,8 @@ updateThemeToggleIcon();
     <h1 style="font-size:17px;margin:0 0 6px;color:var(--ink);">Head Pyro Tools</h1>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;">This page is password protected.</p>
     <input type="password" id="lockPassword" placeholder="Password" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;margin-bottom:12px;box-sizing:border-box;background:var(--surface-6);color:var(--ink);" onkeydown="if(event.key==='Enter') checkPassword()">
-    <button type="button" style="width:100%;color:#fdf6f2;border:none;background:linear-gradient(135deg,#d92b2b,#ff8c00);font-size:14px;font-weight:700;padding:11px 16px;border-radius:8px;cursor:pointer;" onclick="checkPassword()">Unlock</button>
-    <p id="lockError" style="font-size:12px;color:#ff6a5a;margin:12px 0 0;display:none;">Incorrect password.</p>
+    <button type="button" style="width:100%;color:#F8FAFC;border:none;background:linear-gradient(135deg,#4F46E5,#8B5CF6);font-size:14px;font-weight:700;padding:11px 16px;border-radius:8px;cursor:pointer;" onclick="checkPassword()">Unlock</button>
+    <p id="lockError" style="font-size:12px;color:#6366F1;margin:12px 0 0;display:none;">Incorrect password.</p>
   </div>
 </div>
 
@@ -429,7 +430,7 @@ updateThemeToggleIcon();
   </a>
   </div>
 
-  <footer>Apex Pyrotechnics · demo@apexpyrotechnics.com<br><a href="#" onclick="lockThisPhone();return false;" style="color:inherit;opacity:.8;">&#128274; Lock this phone</a></footer>
+  <footer>Apex Pyrotechnics · demo@apexpyrotechnics.com<br><a href="#" onclick="lockThisPhone();return false;" style="color:inherit;opacity:.8;">&#0D9488; Lock this phone</a></footer>
 </div>
 
 <script>
