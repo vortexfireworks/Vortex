@@ -53,7 +53,7 @@ company password) was left as-is — say the word if you want that off too.
 Every page in this branch currently has:
 
 ```js
-const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec";
 ```
 
 Send me that URL and I'll swap it into all ~27 files and push the branch —
@@ -61,7 +61,7 @@ or run this yourself from the repo root:
 
 ```bash
 grep -rl 'REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID' --include='*.html' --include='*.js' . \
-  | xargs sed -i 's#https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec#YOUR_NEW_URL_HERE#g'
+  | xargs sed -i 's#https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec#YOUR_NEW_URL_HERE#g'
 ```
 
 ## 4. Go live

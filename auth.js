@@ -12,7 +12,7 @@
    also always allows (see that file), since a real backend would still reject unauthenticated requests server-side. */
 (function(){
   var DEMO_OPEN_ACCESS = true;
-  var API = 'https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec';
+  var API = 'https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec';
   var KEY = { hp: 'authToken_hp', admin: 'authToken_admin' };
   var LOCK_PAGE = { hp: 'hp-tools.html', admin: 'manage.html' };
   var realFetch = window.fetch.bind(window);
