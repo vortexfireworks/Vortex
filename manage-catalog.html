@@ -164,8 +164,8 @@ updateThemeToggleIcon();
 <a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
 
 <header>
-  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
-  <p class="kicker">Vortex Productions Inc.</p>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
   <h1>Manage Catalog</h1>
 </header>
 
@@ -224,7 +224,7 @@ updateThemeToggleIcon();
         </div>
         <div class="field full" style="flex-direction:row;align-items:center;gap:8px;">
           <input type="checkbox" id="pEditApproved" style="width:auto;flex:0 0 auto;margin:0;">
-          <label for="pEditApproved" style="margin:0;">Kurtis Approved</label>
+          <label for="pEditApproved" style="margin:0;">Staff Approved</label>
         </div>
       </div>
       <datalist id="categoryDirectoryList"></datalist>
@@ -247,7 +247,7 @@ updateThemeToggleIcon();
       <button class="secondary" type="button" onclick="downloadTemplate()">⬇ Download blank template</button>
       <button class="secondary" type="button" onclick="findDuplicateProducts()">Find duplicates</button>
     </div>
-    <p class="hint">CSV columns: Id, Class, Category, Product Name, Brand, Color, Effect, Duration, Price, Description, Product URL, Kurtis Approved (every column but Product Name and Category is optional). "Export catalog to CSV" downloads everything currently in the catalog — edit it and re-import the same file to update those rows in place (matched by the Id column) instead of creating duplicates. Rows with no Id, or an Id that isn't found, are added as new products.</p>
+    <p class="hint">CSV columns: Id, Class, Category, Product Name, Brand, Color, Effect, Duration, Price, Description, Product URL, Staff Approved (every column but Product Name and Category is optional). "Export catalog to CSV" downloads everything currently in the catalog — edit it and re-import the same file to update those rows in place (matched by the Id column) instead of creating duplicates. Rows with no Id, or an Id that isn't found, are added as new products.</p>
     <p id="csvImportStatus" class="hint"></p>
     <div id="duplicatesWrap" style="margin:10px 0 16px;"></div>
 
@@ -281,7 +281,7 @@ updateThemeToggleIcon();
 </div>
 
 <script>
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
 
 function $(id){ return document.getElementById(id); }
 function esc(s){
@@ -385,7 +385,7 @@ async function loadProducts(){
     PRODUCTS = (json.products || []).map(p => ({
       id: p.id || '', class: p.class || '', category: p.category || '', name: String(p.name || '').trim(),
       brand: p.brand || '', color: p.color || '', effect: p.effect || '', duration: p.duration || '', price: p.price || '', description: p.description || '', url: p.url || '',
-      kurtisApproved: !!p.kurtisApproved
+      staffApproved: !!p.staffApproved
     }));
   } catch(err){
     PRODUCTS = [];
@@ -441,7 +441,7 @@ function editProduct(id){
   $('pEditPrice').value = p.price || '';
   $('pEditUrl').value = p.url || '';
   $('pEditDesc').value = p.description || '';
-  $('pEditApproved').checked = !!p.kurtisApproved;
+  $('pEditApproved').checked = !!p.staffApproved;
   $('formTitle').textContent = 'EDITING: ' + (p.name || '(unnamed product)');
   $('cancelEditBtn').style.display = '';
   setStatus($('productSaveStatus'), '');
@@ -462,7 +462,7 @@ async function saveProduct(){
     price: normalizePrice($('pEditPrice').value),
     description: $('pEditDesc').value.trim(),
     url: $('pEditUrl').value.trim(),
-    kurtisApproved: $('pEditApproved').checked
+    staffApproved: $('pEditApproved').checked
   };
   if(!payload.name){
     setStatus(statusEl, 'Enter a product name first.', 'err');
@@ -533,7 +533,7 @@ function renderProductList(){
         return `
         <div class="prod-row">
           <div class="pr-main">
-            <div class="pr-title">${esc(p.name || '(unnamed product)')}${p.kurtisApproved ? ' <span class="ka-badge" title="Kurtis Approved">&#10003;</span>' : ''}</div>
+            <div class="pr-title">${esc(p.name || '(unnamed product)')}${p.staffApproved ? ' <span class="ka-badge" title="Staff Approved">&#10003;</span>' : ''}</div>
             ${bits.length ? `<div class="pr-sub">${esc(bits.join(' · '))}</div>` : ''}
           </div>
           <div class="pr-actions">
@@ -660,9 +660,9 @@ function downloadCsv(filename, rows){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-const PRODUCT_CSV_HEADER = ['Id', 'Class', 'Category', 'Product Name', 'Brand', 'Color', 'Effect', 'Duration', 'Price', 'Description', 'Product URL', 'Kurtis Approved'];
+const PRODUCT_CSV_HEADER = ['Id', 'Class', 'Category', 'Product Name', 'Brand', 'Color', 'Effect', 'Duration', 'Price', 'Description', 'Product URL', 'Staff Approved'];
 function productToCsvRow(p){
-  return [p.id || '', p.class || '', p.category || '', p.name || '', p.brand || '', p.color || '', p.effect || '', p.duration || '', p.price || '', p.description || '', p.url || '', p.kurtisApproved ? 'Yes' : ''];
+  return [p.id || '', p.class || '', p.category || '', p.name || '', p.brand || '', p.color || '', p.effect || '', p.duration || '', p.price || '', p.description || '', p.url || '', p.staffApproved ? 'Yes' : ''];
 }
 function downloadTemplate(){
   downloadCsv('products-template.csv', [
@@ -739,7 +739,7 @@ const PRODUCT_ALIASES = {
   price: ['price'],
   description: ['description','desc'],
   url: ['producturl','url','link'],
-  kurtisApproved: ['kurtisapproved','approved']
+  staffApproved: ['staffapproved','approved']
 };
 function truthyCell(v){ return /^(yes|y|true|1)$/i.test(String(v || '').trim()); }
 
@@ -766,7 +766,7 @@ async function handleProductsCsv(event){
       price: normalizePrice(o.price),
       description: o.description,
       url: o.url,
-      kurtisApproved: truthyCell(o.kurtisApproved)
+      staffApproved: truthyCell(o.staffApproved)
     })).filter(o => o.name || o.category);
     if(!objs.length){ setStatus(st, 'No usable rows found in that file.', 'err'); return; }
     setStatus(st, `Importing ${objs.length} rows…`);

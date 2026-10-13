@@ -179,8 +179,8 @@ updateThemeToggleIcon();
 <a class="back-link" href="plan-show.html">&larr; Back to Plan a Firework Show</a>
 
 <header>
-  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
-  <p class="kicker">Vortex Productions Inc.</p>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
   <h1>Catalog</h1>
 </header>
 
@@ -252,8 +252,8 @@ updateThemeToggleIcon();
     <div class="modal-body">
       <h3 id="miTitle"></h3>
       <div class="ka-modal-badge" id="miApproved" style="display:none;">
-        <img src="kurtis-approved.jpg" alt="">
-        <span>Kurtis Approved</span>
+        <img src="staff-approved.jpg" alt="">
+        <span>Staff Approved</span>
       </div>
       <p class="md-meta" id="miMeta"></p>
       <p class="md-desc" id="miDesc"></p>
@@ -269,7 +269,7 @@ updateThemeToggleIcon();
 </div>
 
 <script>
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
 const ACTIVE_PLAN_KEY = 'planShowActivePlan';
 
 function $(id){ return document.getElementById(id); }
@@ -520,7 +520,7 @@ function productRowHtml(p, addDisabled){
     <div class="cat-row" onclick="openItemModal('${p.id}')">
       ${thumb}
       <div class="cr-main">
-        <div class="cr-title">${esc(p.name || '(unnamed product)')}${p.kurtisApproved ? ' <span class="ka-badge" title="Kurtis Approved">&#10003;</span>' : ''}</div>
+        <div class="cr-title">${esc(p.name || '(unnamed product)')}${p.staffApproved ? ' <span class="ka-badge" title="Staff Approved">&#10003;</span>' : ''}</div>
         ${bits.length ? `<div class="cr-sub">${bits.join(' · ')}</div>` : ''}
       </div>
       <div class="cr-addwrap" onclick="event.stopPropagation()">
@@ -538,7 +538,7 @@ function openItemModal(productId){
   currentModalId = productId;
 
   $('miTitle').textContent = p.name || '(unnamed product)';
-  $('miApproved').style.display = p.kurtisApproved ? 'flex' : 'none';
+  $('miApproved').style.display = p.staffApproved ? 'flex' : 'none';
   const metaBits = [p.brand, p.color, p.effect, p.duration, classLabel(p.class), p.category, formatPrice(p.price)].filter(Boolean);
   $('miMeta').innerHTML = metaBits.map(esc).join(' &middot; ');
   $('miDesc').textContent = p.description || '';

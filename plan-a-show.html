@@ -111,8 +111,8 @@ updateThemeToggleIcon();
 <a class="back-link" href="plan-show.html">&larr; Back to Plan a Firework Show</a>
 
 <header>
-  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
-  <p class="kicker">Vortex Productions Inc.</p>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
   <h1>Show Plans</h1>
 </header>
 
@@ -161,7 +161,7 @@ updateThemeToggleIcon();
 </div>
 
 <script>
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
 const ACTIVE_PLAN_KEY = 'planShowActivePlan';
 
 function $(id){ return document.getElementById(id); }
@@ -444,15 +444,15 @@ function exportPlanPdf(){
   const marginX = 48;
   let y = 56;
 
-  // Vortex Productions Inc. header
+  // Apex Pyrotechnics Inc. header
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('Vortex Productions Inc.', marginX, y);
+  doc.text('Apex Pyrotechnics Inc.', marginX, y);
   y += 20;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(110);
-  doc.text('vortexfireworksartists@gmail.com', marginX, y);
+  doc.text('demo@apexpyrotechnics.com', marginX, y);
   doc.setTextColor(0);
   y += 22;
   doc.setDrawColor(200);

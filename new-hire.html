@@ -203,8 +203,8 @@ updateThemeToggleIcon();
 <div class="wrap">
   <a class="back-link" href="index.html">&larr; Back to main menu</a>
   <header>
-    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
-    <p class="kicker">Vortex Productions Inc.</p>
+    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+    <p class="kicker">Apex Pyrotechnics Inc.</p>
     <h1>New Hire Documents</h1>
   </header>
 
@@ -220,7 +220,7 @@ updateThemeToggleIcon();
       <a class="doc-link" href="https://www.irs.gov/pub/irs-pdf/fw4.pdf" target="_blank" rel="noopener">
         <div>
           <div class="name">1. IRS Form W-4</div>
-          <div class="sub">Employee's Withholding Certificate &mdash; fill it out, sign it, and return it to Vortex</div>
+          <div class="sub">Employee's Withholding Certificate &mdash; fill it out, sign it, and return it to Apex Pyrotechnics</div>
         </div>
         <span class="ext">&#8599;</span>
       </a>
@@ -242,7 +242,7 @@ updateThemeToggleIcon();
       <a class="doc-link" href="#questionnaire" onclick="jumpToQuestionnaire();return false;">
         <div>
           <div class="name">3. Get-to-know-you questionnaire</div>
-          <div class="sub">Fill it out below and email it to Vortex &mdash; this also adds you to the crew directory</div>
+          <div class="sub">Fill it out below and email it to Apex Pyrotechnics &mdash; this also adds you to the crew directory</div>
         </div>
         <span class="ext">&#8595;</span>
       </a>
@@ -300,7 +300,7 @@ updateThemeToggleIcon();
 
     <p class="group-title">YOUR EXPERIENCE</p>
     <div class="field">
-      <label for="nhHeard">How did you hear about Vortex?</label>
+      <label for="nhHeard">How did you hear about Apex Pyrotechnics?</label>
       <input type="text" id="nhHeard" autocomplete="off">
     </div>
     <div class="field">
@@ -336,22 +336,22 @@ updateThemeToggleIcon();
     </div>
 
     <div class="actions">
-      <button type="button" id="nhEmailBtn" onclick="emailQuestionnaire()">Email to Vortex (PDF)</button>
+      <button type="button" id="nhEmailBtn" onclick="emailQuestionnaire()">Email to Apex (PDF)</button>
       <button class="secondary" type="button" onclick="downloadQuestionnairePDF()">Download as PDF</button>
     </div>
-    <p class="sendto">Goes to <strong>vortexfireworksartists@gmail.com</strong> &middot; <button type="button" class="link-btn" onclick="copyVortexEmail()">Copy address</button></p>
+    <p class="sendto">Goes to <strong>demo@apexpyrotechnics.com</strong> &middot; <button type="button" class="link-btn" onclick="copyApexEmail()">Copy address</button></p>
     <p class="status" id="nhStatus" aria-live="polite"></p>
     <div class="result" id="nhResult" style="display:none;" aria-live="polite"></div>
     <details class="trouble">
       <summary>Trouble emailing?</summary>
-      <p class="note">On phones that support it, "Email to Vortex" opens your share sheet with the actual PDF ready to attach. The share sheet can't fill in the recipient for you, so double-check the "To:" field once Mail opens &mdash; use "Copy address" above if it helps. On devices that don't support this, it downloads the PDF and opens a plain email instead, and you'll need to attach the PDF yourself.</p>
+      <p class="note">On phones that support it, "Email to Apex" opens your share sheet with the actual PDF ready to attach. The share sheet can't fill in the recipient for you, so double-check the "To:" field once Mail opens &mdash; use "Copy address" above if it helps. On devices that don't support this, it downloads the PDF and opens a plain email instead, and you'll need to attach the PDF yourself.</p>
     </details>
   </div>
 </div>
 
 <script>
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
-const VORTEX_EMAIL = 'vortexfireworksartists@gmail.com';
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
+const APEX_EMAIL = 'demo@apexpyrotechnics.com';
 
 function val(id){ return document.getElementById(id).value.trim(); }
 function radioVal(name){
@@ -518,7 +518,7 @@ function buildQuestionnairePDF(){
   }
 
   doc.setFont('helvetica','bold'); doc.setFontSize(15);
-  doc.text('Vortex Productions Inc.', marginX, y); y += 20;
+  doc.text('Apex Pyrotechnics Inc.', marginX, y); y += 20;
   doc.setFontSize(12.5);
   doc.text('New Hire Questionnaire', marginX, y); y += 26;
 
@@ -531,7 +531,7 @@ function buildQuestionnairePDF(){
   field('Special Effects Operator license (P)', val('nhSFXLicense'));
   field('Flame Effects Operator license (F)', val('nhFlameLicense'));
   field('Address', val('nhAddress'));
-  field('How did you hear about Vortex?', val('nhHeard'));
+  field('How did you hear about Apex Pyrotechnics?', val('nhHeard'));
   field('Fireworks / pyrotechnics experience', val('nhExperience'));
   field('Relevant work history', val('nhWorkHistory'));
   field('Availability', val('nhAvailability'));
@@ -646,7 +646,7 @@ function showResult(title, lead, sync){
   } else if(sync.status === 'exists'){
     lines.push("You're already in the crew directory, so nothing there was changed. To update your details, use Update My Info.");
   } else {
-    lines.push("We couldn't add you to the crew directory just now (no signal?). Vortex can add you from your questionnaire.");
+    lines.push("We couldn't add you to the crew directory just now (no signal?). Apex Pyrotechnics can add you from your questionnaire.");
   }
   const box = document.getElementById('nhResult');
   box.innerHTML = `
@@ -666,11 +666,11 @@ function finishSubmit(title, lead, sync){
   showResult(title, lead, sync);
 }
 
-function copyVortexEmail(){
+function copyApexEmail(){
   const statusEl = document.getElementById('nhStatus');
-  const done = ok => { statusEl.textContent = ok ? `Copied ${VORTEX_EMAIL}` : `Send it to ${VORTEX_EMAIL}`; statusEl.style.color = 'var(--ink-soft)'; };
+  const done = ok => { statusEl.textContent = ok ? `Copied ${APEX_EMAIL}` : `Send it to ${APEX_EMAIL}`; statusEl.style.color = 'var(--ink-soft)'; };
   if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(VORTEX_EMAIL).then(() => done(true)).catch(() => done(false));
+    navigator.clipboard.writeText(APEX_EMAIL).then(() => done(true)).catch(() => done(false));
   } else { done(false); }
 }
 
@@ -679,7 +679,7 @@ function downloadQuestionnairePDF(){
   const name = val('nhName').replace(/\s+/g,'_');
   const sync = syncOnce();
   buildQuestionnairePDF().save(`New_Hire_${name}.pdf`);
-  sync.then(result => finishSubmit('PDF downloaded', `Email the downloaded PDF to ${VORTEX_EMAIL} to finish this step.`, result));
+  sync.then(result => finishSubmit('PDF downloaded', `Email the downloaded PDF to ${APEX_EMAIL} to finish this step.`, result));
 }
 
 async function emailQuestionnaire(){
@@ -693,7 +693,7 @@ async function emailQuestionnaire(){
   const doc = buildQuestionnairePDF();
   const fileName = `New_Hire_${name.replace(/\s+/g,'_')}.pdf`;
   const subject = `New Hire Questionnaire - ${name}`;
-  const recipientLine = `To: ${VORTEX_EMAIL}`;
+  const recipientLine = `To: ${APEX_EMAIL}`;
   const pdfBlob = doc.output('blob');
 
   if(navigator.canShare){
@@ -704,7 +704,7 @@ async function emailQuestionnaire(){
         statusEl.style.color = 'var(--ink-soft)';
         await navigator.share({ files: [file], title: subject, text: `${recipientLine}\n\n${subject}` });
         statusEl.textContent = '';
-        finishSubmit('Questionnaire shared', 'Make sure you tapped Send in your email app so it reaches Vortex.', await syncing);
+        finishSubmit('Questionnaire shared', 'Make sure you tapped Send in your email app so it reaches Apex Pyrotechnics.', await syncing);
         return;
       }
     } catch(err){
@@ -718,9 +718,9 @@ async function emailQuestionnaire(){
   statusEl.textContent = '';
   doc.save(fileName);
   const body = `New hire questionnaire submitted by ${name}.\n\n(PDF copy downloaded separately \u2014 please attach it to this email before sending.)`;
-  const mailto = `mailto:${VORTEX_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const mailto = `mailto:${APEX_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
-  finishSubmit('PDF downloaded', `Attach the downloaded PDF to the email that just opened and send it to ${VORTEX_EMAIL}.`, await syncing);
+  finishSubmit('PDF downloaded', `Attach the downloaded PDF to the email that just opened and send it to ${APEX_EMAIL}.`, await syncing);
 }
 
 /* ---------------- Start-up ---------------- */

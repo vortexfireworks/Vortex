@@ -103,7 +103,7 @@ function getOrCreateAnnouncementsSheet(ss) {
   return sheet;
 }
 
-const SITEMAP_FOLDER_NAME = 'Vortex Site Maps';
+const SITEMAP_FOLDER_NAME = 'Apex Site Maps';
 
 function jsonOut(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
@@ -149,7 +149,7 @@ function getOrCreateCakeProductsSheet(ss) {
 // categorizes it (Cakes, Shells 3in, Fountains, Comets, Finale Chains, ...), with
 // price and a description carried straight through from the price list.
 function getOrCreateProductsSheet(ss) {
-  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Color', 'Effect', 'Duration', 'Price', 'Description', 'Url', 'ImageUrl', 'VideoId', 'KurtisApproved'];
+  const requiredHeaders = ['Id', 'Class', 'Category', 'Name', 'Brand', 'Color', 'Effect', 'Duration', 'Price', 'Description', 'Url', 'ImageUrl', 'VideoId', 'StaffApproved'];
   let sheet = ss.getSheetByName('Products');
   if (!sheet) {
     sheet = ss.insertSheet('Products');
@@ -191,7 +191,7 @@ function findShowPlanRow(sheet, map, name) {
   return -1;
 }
 
-const AAR_FOLDER_NAME = 'Vortex After Action Reports';
+const AAR_FOLDER_NAME = 'Apex After Action Reports';
 
 function getOrCreateAarSheet(ss) {
   const requiredHeaders = ['Id', 'SavedAt', 'EventDate', 'Venue', 'Operator', 'License', 'Incidents', 'FileName', 'FileId'];
@@ -233,7 +233,7 @@ function trashDriveFileQuietly(fileId) {
   try { DriveApp.getFileById(String(fileId)).setTrashed(true); } catch (err) { /* already gone */ }
 }
 
-const PAYROLL_FOLDER_NAME = 'Vortex Payroll Reports';
+const PAYROLL_FOLDER_NAME = 'Apex Payroll Reports';
 
 // Saved privately in the script owner's Drive (no public link) — these PDFs hold crew names and pay amounts.
 function savePayrollPdfToDrive(base64, fileName) {
@@ -616,7 +616,7 @@ function fetch76FireworksMedia(pageUrl) {
     const res = UrlFetchApp.fetch(apiUrl, {
       muteHttpExceptions: true,
       followRedirects: true,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)', 'Accept': 'application/json' }
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApexCueSheet/1.0)', 'Accept': 'application/json' }
     });
     if (res.getResponseCode() >= 400) return { imageUrl: '', videoId: '' };
     const data = JSON.parse(res.getContentText());
@@ -642,7 +642,7 @@ function fetchBrothersPyroMedia(pageUrl) {
     const res = UrlFetchApp.fetch(pageUrl, {
       muteHttpExceptions: true,
       followRedirects: true,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApexCueSheet/1.0)' }
     });
     if (res.getResponseCode() >= 400) return { imageUrl: '', videoId: '' };
     html = res.getContentText();
@@ -669,7 +669,7 @@ function fetchProductMedia(pageUrl) {
     const res = UrlFetchApp.fetch(pageUrl, {
       muteHttpExceptions: true,
       followRedirects: true,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApexCueSheet/1.0)' }
     });
     if (res.getResponseCode() >= 400) return { imageUrl: '', videoId: '' };
     html = res.getContentText();
@@ -691,7 +691,7 @@ function resolveUrl(url, base) {
   }
 }
 
-const PRODUCT_PICTURES_FOLDER_NAME = 'VortexProductPictures';
+const PRODUCT_PICTURES_FOLDER_NAME = 'ApexProductPictures';
 
 function getOrCreateProductPicturesFolder() {
   const folders = DriveApp.getFoldersByName(PRODUCT_PICTURES_FOLDER_NAME);
@@ -699,14 +699,14 @@ function getOrCreateProductPicturesFolder() {
 }
 
 // Downloads the actual image bytes (not just the URL) and saves them into the
-// VortexProductPictures Drive folder, so the picture keeps working even if the
+// ApexProductPictures Drive folder, so the picture keeps working even if the
 // supplier later changes or removes it from their page.
 function saveProductImageToDrive(imageUrl, productName) {
   try {
     const res = UrlFetchApp.fetch(imageUrl, {
       muteHttpExceptions: true,
       followRedirects: true,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApexCueSheet/1.0)' }
     });
     if (res.getResponseCode() >= 400) return '';
     const blob = res.getBlob();
@@ -758,7 +758,7 @@ function debugFetchOneProduct() {
     const res = UrlFetchApp.fetch(pageUrl, {
       muteHttpExceptions: true,
       followRedirects: true,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; VortexCueSheet/1.0)' }
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ApexCueSheet/1.0)' }
     });
     const code = res.getResponseCode();
     Logger.log('HTTP status: ' + code);
@@ -801,7 +801,7 @@ function resetStuckProductMedia() {
 }
 
 function getOrCreatePhotoFolder() {
-  const folderName = 'Vortex Operator Photos';
+  const folderName = 'Apex Operator Photos';
   const folders = DriveApp.getFoldersByName(folderName);
   if (folders.hasNext()) return folders.next();
   return DriveApp.createFolder(folderName);
@@ -991,7 +991,7 @@ function securityStatus() {
 /* ===================== BACKUPS =====================
    A dated copy of this whole spreadsheet goes into a Drive folder, and only the newest few are kept.
    Run installWeeklyBackup() once from the editor to make it automatic; the Backups page can also take one on demand. */
-const BACKUP_FOLDER_NAME = 'Vortex Data Backups';
+const BACKUP_FOLDER_NAME = 'Apex Data Backups';
 const BACKUPS_TO_KEEP = 12;
 
 function getBackupFolder() {
@@ -1002,7 +1002,7 @@ function backupSpreadsheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const folder = getBackupFolder();
   const stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm');
-  const copy = DriveApp.getFileById(ss.getId()).makeCopy('Vortex Data Backup ' + stamp, folder);
+  const copy = DriveApp.getFileById(ss.getId()).makeCopy('Apex Data Backup ' + stamp, folder);
   const files = [];
   const iter = folder.getFiles();
   while (iter.hasNext()) files.push(iter.next());
@@ -1579,7 +1579,7 @@ function doPostInner(e) {
     newRow[map['Color']] = String(data.color || '');
     newRow[map['Effect']] = String(data.effect || '');
     newRow[map['Duration']] = String(data.duration || '');
-    newRow[map['KurtisApproved']] = data.kurtisApproved ? 'Yes' : '';
+    newRow[map['StaffApproved']] = data.staffApproved ? 'Yes' : '';
     newRow[map['Price']] = String(data.price || '');
     newRow[map['Description']] = String(data.description || '');
     newRow[map['Url']] = newUrl;
@@ -1628,7 +1628,7 @@ function doPostInner(e) {
       row[map['Color']] = String(r.color || '');
       row[map['Effect']] = String(r.effect || '');
       row[map['Duration']] = String(r.duration || '');
-      row[map['KurtisApproved']] = r.kurtisApproved ? 'Yes' : '';
+      row[map['StaffApproved']] = r.staffApproved ? 'Yes' : '';
       row[map['Price']] = String(r.price || '');
       row[map['Description']] = String(r.description || '');
       row[map['Url']] = String(r.url || '');
@@ -2424,7 +2424,7 @@ function doGetInner(e) {
           url: String(r[map['Url']] || ''),
           imageUrl: String(r[map['ImageUrl']] || ''),
           videoId: String(r[map['VideoId']] || ''),
-          kurtisApproved: String(r[map['KurtisApproved']] || '') === 'Yes'
+          staffApproved: String(r[map['StaffApproved']] || '') === 'Yes'
         });
       });
     }
@@ -2503,7 +2503,7 @@ function doGetInner(e) {
         url: String(row[map['Url']] || ''),
         imageUrl: String(row[map['ImageUrl']] || ''),
         videoId: String(row[map['VideoId']] || ''),
-        kurtisApproved: String(row[map['KurtisApproved']] || '') === 'Yes'
+        staffApproved: String(row[map['StaffApproved']] || '') === 'Yes'
       });
     });
     const duplicates = Object.values(groups)

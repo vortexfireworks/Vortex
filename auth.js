@@ -6,7 +6,7 @@
    Script gets that token added automatically, and the SERVER decides what it may see or change. If the server says the
    sign-in is missing or has run out, the person is sent back to the right password screen and returns here afterwards. */
 (function(){
-  var API = 'https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec';
+  var API = 'https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec';
   var KEY = { hp: 'authToken_hp', admin: 'authToken_admin' };
   var LOCK_PAGE = { hp: 'hp-tools.html', admin: 'manage.html' };
   var realFetch = window.fetch.bind(window);

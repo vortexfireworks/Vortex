@@ -179,8 +179,8 @@ updateThemeToggleIcon();
 <a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
 
 <header>
-  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
-  <p class="kicker">Vortex Productions Inc.</p>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
   <h1>Payroll Reports</h1>
 </header>
 
@@ -258,7 +258,7 @@ updateThemeToggleIcon();
 </div>
 
 <script>
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
 
 function $(id){ return document.getElementById(id); }
 function esc(s){
@@ -699,7 +699,7 @@ function renderYearEnd(){
 function exportYearEndCsv(){
   const { year, people, grandTotal } = getYearEndData();
   const rows = [
-    ['Vortex Productions Inc. — Year-End Payroll Summary'],
+    ['Apex Pyrotechnics Inc. — Year-End Payroll Summary'],
     [year],
     [],
     ['Name', 'Total Paid ($)', 'Shows', '1099 Threshold ($600+)'],
@@ -759,7 +759,7 @@ function downloadCsv(filename, rows){
 function exportCsv(){
   const { shows, people, grandTotalUsd, grandTotalHours } = getFilteredData();
   const rows = [];
-  rows.push(['Vortex Productions Inc. — Payroll Report']);
+  rows.push(['Apex Pyrotechnics Inc. — Payroll Report']);
   rows.push([dateRangeLabel()]);
   rows.push([]);
   rows.push(['PAYROLL DETAIL BY SHOW']);
@@ -797,11 +797,11 @@ function exportPdf(){
     }
   };
 
-  // Vortex Productions Inc. header
+  // Apex Pyrotechnics Inc. header
   doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
-  doc.text('Vortex Productions Inc.', marginX, y); y += 20;
+  doc.text('Apex Pyrotechnics Inc.', marginX, y); y += 20;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(110);
-  doc.text('vortexfireworksartists@gmail.com', marginX, y); doc.setTextColor(0); y += 22;
+  doc.text('demo@apexpyrotechnics.com', marginX, y); doc.setTextColor(0); y += 22;
   doc.setDrawColor(200); doc.line(marginX, y, pageWidth - marginX, y); y += 26;
 
   doc.setFont('helvetica', 'bold'); doc.setFontSize(15);

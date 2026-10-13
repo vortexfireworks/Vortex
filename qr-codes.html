@@ -159,8 +159,8 @@ updateThemeToggleIcon();
 <a class="back-link" href="hp-tools.html">&larr; Back to Head Pyro Tools</a>
 
 <header>
-  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
-  <p class="kicker">Vortex Productions Inc.</p>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
   <h1>Check-In QR Code</h1>
 </header>
 
@@ -169,7 +169,7 @@ updateThemeToggleIcon();
 <div class="card">
   <p class="sub">Scan to check in to today's event. Print this and post it at the venue.</p>
   <div class="qr-holder" id="qr"></div>
-  <div class="link">https://vortexfireworks.github.io/Vortex/checkin.html</div>
+  <div class="link" id="checkinUrlDisplay"></div>
 
   <div class="field">
     <label for="pdfVenue">Venue (for the printable flyer)</label>
@@ -192,8 +192,14 @@ updateThemeToggleIcon();
 </div>
 
 <script>
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
-const CHECKIN_URL = "https://vortexfireworks.github.io/Vortex/checkin.html";
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
+// Derived from wherever this page is actually hosted, so the QR code and
+// printable flyer always point at this deployment instead of a hardcoded URL.
+const CHECKIN_URL = new URL('checkin.html', window.location.href).href;
+(() => {
+  const el = document.getElementById('checkinUrlDisplay');
+  if (el) el.textContent = CHECKIN_URL;
+})();
 
 function drawRoundedRect(ctx, x, y, w, h, r){
   ctx.beginPath();
@@ -356,7 +362,7 @@ function downloadFlyerPDF(){
   doc.setFontSize(9);
   doc.setTextColor(91, 100, 112);
   doc.text(CHECKIN_URL, pageWidth / 2, pageHeight - 50, {align: 'center'});
-  doc.text('Vortex Fireworks Artists', pageWidth / 2, pageHeight - 36, {align: 'center'});
+  doc.text('Apex Pyrotechnics', pageWidth / 2, pageHeight - 36, {align: 'center'});
 
   const namePart = (venue || 'Event').replace(/\s+/g, '_');
   const datePart = dateVal ? '_' + dateVal : '';

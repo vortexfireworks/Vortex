@@ -219,8 +219,8 @@ updateThemeToggleIcon();
 <a class="back-link" href="index.html">&larr; Back to main menu</a>
 
 <header>
-  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
-  <p class="kicker">Vortex Productions Inc.</p>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
   <h1>Payroll Submit</h1>
 </header>
 
@@ -294,8 +294,8 @@ updateThemeToggleIcon();
 
   <div class="review-box" id="reviewBox" style="display:none;" role="alert"></div>
   <div class="actions">
-    <button class="secondary" type="button" onclick="emailToChuck()">Email to Chuck (cc Vortex)</button>
-    <button class="secondary" type="button" onclick="emailToVortex()">Email to Vortex</button>
+    <button class="secondary" type="button" onclick="emailToAccounting()">Email to Accounting (cc Apex)</button>
+    <button class="secondary" type="button" onclick="emailToApex()">Email to Apex</button>
     <button class="secondary" type="button" onclick="downloadPayrollPDF()">Download as PDF</button>
     <button class="secondary" type="button" onclick="downloadPayrollCSV()">Download as CSV</button>
   </div>
@@ -304,7 +304,7 @@ updateThemeToggleIcon();
   <div class="send-result" id="sendResult" style="display:none;" aria-live="polite"></div>
   <details class="trouble">
     <summary>Trouble emailing?</summary>
-    <p style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;">"Email to Chuck" sends to chuckj@xmission.com and CCs vortexfireworksartists@gmail.com; "Email to Vortex" sends to vortexfireworksartists@gmail.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach &mdash; the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself. Either way, a copy of the PDF is also saved to the Vortex Payroll Reports folder in Drive.</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;">"Email to Accounting" sends to accounting@apexpyrotechnics.com and CCs demo@apexpyrotechnics.com; "Email to Apex" sends to demo@apexpyrotechnics.com only. On phones that support it, this opens your share sheet with the actual PDF ready to attach &mdash; the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself. Either way, a copy of the PDF is also saved to the Apex Payroll Reports folder in Drive.</p>
   </details>
 </div>
 
@@ -316,7 +316,7 @@ const CONTACTS = Directory.cached();
 const CONTACTS_BY_NAME = {};
 CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
 
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
 
 async function fetchOperatorDirectory(){
   try{
@@ -1059,7 +1059,7 @@ function buildPayrollPDF(){
 
   doc.setFont('helvetica','bold');
   doc.setFontSize(15);
-  doc.text('Vortex Productions Inc.', marginX, y); y += 20;
+  doc.text('Apex Pyrotechnics Inc.', marginX, y); y += 20;
   doc.setFontSize(12.5);
   doc.text(hours ? 'Hours Submission' : 'Payroll Submission', marginX, y); y += 24;
 
@@ -1335,7 +1335,7 @@ function setDriveStatus(msg, kind){
 
 // Who got what on this payroll, for the Manage/Edit payroll report. Only sent the first time
 // an unedited payroll is sent/shared — payrollEntriesLogged guards against a second email
-// (e.g. "Email to Chuck" then "Email to Vortex") double-counting the same pay in the report.
+// (e.g. "Email to Accounting" then "Email to Apex") double-counting the same pay in the report.
 let payrollEntriesLogged = false;
 function buildPayrollEntriesForLog(){
   const entries = collectPeople().map(p => ({ name: p.name, amount: p.amount, role: 'crew' }));
@@ -1430,12 +1430,12 @@ async function sharePayrollPDF(toAddress, ccAddress){
   finishPayrollSend('PDF downloaded', 'Attach the downloaded PDF to the email that just opened, then send it.', toAddress, ccAddress);
 }
 
-function emailToChuck(){
-  runWithReview(() => sharePayrollPDF('chuckj@xmission.com', 'vortexfireworksartists@gmail.com'));
+function emailToAccounting(){
+  runWithReview(() => sharePayrollPDF('accounting@apexpyrotechnics.com', 'demo@apexpyrotechnics.com'));
 }
 
-function emailToVortex(){
-  runWithReview(() => sharePayrollPDF('vortexfireworksartists@gmail.com', ''));
+function emailToApex(){
+  runWithReview(() => sharePayrollPDF('demo@apexpyrotechnics.com', ''));
 }
 
 /* ---------------- Saves itself as you go ---------------- */

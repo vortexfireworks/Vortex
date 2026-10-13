@@ -327,7 +327,7 @@ updateThemeToggleIcon();
       <div class="field"><label for="opName">Name of operator or artisan</label><input type="text" id="opName" list="licensedContactsList" oninput="autofillOperator(this)"></div>
       <div class="field"><label for="eventDate">Date of event or show</label><input type="date" id="eventDate"></div>
       <div class="field"><label for="company">Name of company</label><input type="text" id="company" list="companyList"></div>
-      <datalist id="companyList"><option value="Vortex Productions Inc."></datalist>
+      <datalist id="companyList"><option value="Apex Pyrotechnics Inc."></datalist>
       <div class="field"><label for="license">License number</label><input type="text" id="license"></div>
       <div class="field full">
         <label for="event">Venue</label>
@@ -491,9 +491,9 @@ updateThemeToggleIcon();
   </div>
   <p class="status" id="emailStatus" style="padding:0 28px;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;color:var(--brick);"></p>
   <p class="status" id="driveStatus" style="padding:0 28px;font-size:12px;font-family:'Helvetica Neue',Arial,sans-serif;" aria-live="polite"></p>
-  <p class="footer-note">Office of the State Fire Marshal · 410 W. 9800 South, Suite 372, Sandy, UT 84070 · 801‑256‑2390 · fireworks@utah.gov<br>
-  "Save to Drive" keeps a copy of the PDF in Vortex's Drive so it can be found again under Manage/Edit &rarr; Saved After Action Reports. Emailing the report saves a copy there automatically.<br>
-  "Email to state fire marshal" addresses a message to fireworks@utah.gov (CC: Chuck &amp; Vortex). On phones that support it, this opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
+  <p class="footer-note">Office of the State Fire Marshal (example) · 123 Example Ave, Suite 100, Example City, ST 00000 · (555) 010-0100 · firemarshal@example-state.gov<br>
+  "Save to Drive" keeps a copy of the PDF in Apex Pyrotechnics' Drive so it can be found again under Manage/Edit &rarr; Saved After Action Reports. Emailing the report saves a copy there automatically.<br>
+  "Email to state fire marshal" addresses a message to firemarshal@example-state.gov (CC: Accounting &amp; Apex Pyrotechnics). On phones that support it, this opens your share sheet with the actual PDF ready to attach — the share sheet can't fill in the recipient automatically, so double-check the "To:" field once Mail opens. On devices where that's not supported, it downloads the PDF and opens a plain email instead, and you'll need to attach it yourself.</p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
@@ -504,7 +504,7 @@ const CONTACTS = Directory.cached();
 const CONTACTS_BY_NAME = {};
 CONTACTS.forEach(c => CONTACTS_BY_NAME[c.name.toLowerCase()] = c);
 
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+const CHECKIN_API_URL = "https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec";
 
 async function fetchOperatorDirectory(){
   try{
@@ -1370,7 +1370,7 @@ async function sendReport(){
   const eventDate = document.getElementById('eventDate').value.trim();
   const subject = `After-Action Report - ${opName} - ${eventDate}`;
   const fileName = buildAarFileName();
-  const recipientLine = 'To: fireworks@utah.gov (cc: chuckj@xmission.com, vortexfireworksartists@gmail.com)';
+  const recipientLine = 'To: firemarshal@example-state.gov (cc: accounting@apexpyrotechnics.com, demo@apexpyrotechnics.com)';
   const statusEl = document.getElementById('emailStatus');
 
   let bytes;
@@ -1415,7 +1415,7 @@ async function sendReport(){
   // Fallback: download the PDF and open a plain-text email addressed and ready to go
   downloadBytes(bytes, fileName);
   const body = buildReportText() + '\n\n(PDF copy downloaded separately — please attach it to this email before sending.)';
-  const mailto = `mailto:fireworks@utah.gov?cc=chuckj@xmission.com,vortexfireworksartists@gmail.com&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const mailto = `mailto:firemarshal@example-state.gov?cc=accounting@apexpyrotechnics.com,demo@apexpyrotechnics.com&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
   aarSubmitted = true;
   clearDraft();
