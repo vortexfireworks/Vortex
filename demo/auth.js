@@ -4,8 +4,14 @@
    How it works: the lock screens call Auth.login(), which asks the server to check the password and hands back a signed
    token that lasts a day. The token is kept for this browser tab only. Every request this page sends to the Google Apps
    Script gets that token added automatically, and the SERVER decides what it may see or change. If the server says the
-   sign-in is missing or has run out, the person is sent back to the right password screen and returns here afterwards. */
+   sign-in is missing or has run out, the person is sent back to the right password screen and returns here afterwards.
+
+   DEMO BUILD: the password gate is switched off below (DEMO_OPEN_ACCESS) so prospective clients can click straight
+   into every page with no password screens. This file only ships inside /demo/ — the real app's auth.js (at the repo
+   root) is untouched and still enforces the real passwords. Pair with a demo apps_script_secure.gs whose authorize()
+   also always allows (see that file), since a real backend would still reject unauthenticated requests server-side. */
 (function(){
+  var DEMO_OPEN_ACCESS = true;
   var API = 'https://script.google.com/macros/s/REPLACE_WITH_YOUR_DEMO_APPS_SCRIPT_DEPLOYMENT_ID/exec';
   var KEY = { hp: 'authToken_hp', admin: 'authToken_admin' };
   var LOCK_PAGE = { hp: 'hp-tools.html', admin: 'manage.html' };
@@ -16,7 +22,7 @@
   function read(tier){ var s = store(); return s ? s.getItem(KEY[tier]) : null; }
   function clear(tier){ var s = store(); if(s) s.removeItem(KEY[tier]); }
   // A Manage/Edit sign-in also satisfies anything that only needs Head Pyro access.
-  function has(tier){ return tier === 'admin' ? !!read('admin') : !!(read('hp') || read('admin')); }
+  function has(tier){ return DEMO_OPEN_ACCESS ? true : (tier === 'admin' ? !!read('admin') : !!(read('hp') || read('admin'))); }
   function bestToken(){ return read('admin') || read('hp') || ''; }
   function here(){ return (location.pathname.split('/').pop() || 'index.html') + location.search; }
   function toLock(tier, why){
@@ -28,7 +34,7 @@
 
     // Call first thing on a protected page. Sends the person to the password screen if they have not signed in.
     // The page's own level is remembered, so if the sign-in runs out later they are sent to the RIGHT password screen.
-    require: function(tier){ pageTier = tier; if(!has(tier)) toLock(tier); },
+    require: function(tier){ pageTier = tier; if(!DEMO_OPEN_ACCESS && !has(tier)) toLock(tier); },
 
     login: function(tier, password){
       return realFetch(API, {
@@ -51,6 +57,7 @@
     // (A Manage/Edit page can ask for something that only needs Head Pyro level, such as the crew list. When that is
     // refused it is still the Manage/Edit sign-in that has run out, so the page's own level decides which screen to show.)
     expired: function(needs){
+      if(DEMO_OPEN_ACCESS) return; // demo backend doesn't require sign-in; never bounce to a lock screen
       var tier = (pageTier === 'admin' || needs === 'admin') ? 'admin' : 'hp';
       clear('hp'); clear('admin');
       toLock(tier, 'expired');

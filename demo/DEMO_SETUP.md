@@ -10,6 +10,15 @@ production, seeded with made-up data. I can't do this part myself: this
 sandbox's network access is blocked from Google's OAuth/Sheets/Apps Script
 APIs, so it has to happen in your browser.
 
+**Password gate removed.** The Head Pyro Tools and Manage/Edit password
+screens are switched off in this copy (`auth.js`'s `DEMO_OPEN_ACCESS` flag,
+and `authorize()` in `apps_script_secure.gs` always allows) so prospective
+clients can click straight into every page. This only affects the files in
+`/demo/` — the real app's `auth.js` and `apps_script_secure.gs` at the repo
+root are untouched and still enforce the real hp/admin/master passwords.
+My Pay's own phone+PIN verification (a separate, per-person check, not a
+company password) was left as-is — say the word if you want that off too.
+
 ## 1. Create a demo copy of the Sheet (keeps the real schema, loses the real data)
 
 1. Open the real Vortex CueSheet Google Sheet.
