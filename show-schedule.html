@@ -95,7 +95,6 @@ updateThemeToggleIcon();
   .show-list{border:1px solid var(--line);border-radius:10px;overflow:hidden;}
   .sched-row{padding:12px 14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
   .sched-row:first-child{border-top:none;}
-  .sched-row.past{opacity:0.55;}
   .sched-venue{font-weight:600;color:var(--ink);font-size:13.5px;}
   .sched-date{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
   .sched-addr{font-size:11px;color:var(--ink-soft);margin-top:2px;}
@@ -160,7 +159,7 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
-    <p class="desc">Every show on the venue list — the date, venue, who's assigned as Head Pyro, and call time. An admin assigns the Head Pyro and sets the call time from Manage &rarr; Venues. Some shows also have crew sign-up slots — enter your name above to sign up or remove yourself.</p>
+    <p class="desc">Every upcoming show on the venue list — the date, venue, who's assigned as Head Pyro, and call time. Past shows drop off this list automatically. An admin assigns the Head Pyro and sets the call time from Manage &rarr; Venues. Some shows also have crew sign-up slots — enter your name above to sign up or remove yourself.</p>
     <div id="disabledNotice" style="display:none;"><div class="icon">🚧</div><p>The schedule page is turned off right now. Check with your Head Pyro for show details.</p></div>
     <div id="scheduleBody">
       <div class="filter-row">
@@ -350,8 +349,9 @@ async function loadSchedule(){
     wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the schedule — check your connection and try again.</p>';
     return;
   }
+  const today = todayIso();
   ROWS = (Array.isArray(venues) ? venues : [])
-    .filter(v => v.eventDate)
+    .filter(v => v.eventDate && v.eventDate.slice(0,10) >= today)
     .sort((a, b) => (a.eventDate || '').localeCompare(b.eventDate || ''));
   await Promise.all([loadNamesAndPhones(), loadShowSignups()]);
   render();
@@ -367,22 +367,21 @@ function render(){
     : ROWS;
 
   $('countLine').textContent = rows.length
-    ? `${rows.length} show${rows.length === 1 ? '' : 's'}${onlyMine ? ' involving you' : ' on the schedule'}`
+    ? `${rows.length} upcoming show${rows.length === 1 ? '' : 's'}${onlyMine ? ' involving you' : ''}`
     : '';
   if(!rows.length){
     wrap.innerHTML = onlyMine
-      ? '<div class="empty-state"><div class="icon">📅</div><p>No shows involving that name yet.</p></div>'
-      : '<div class="empty-state"><div class="icon">📅</div><p>No shows on the venue list yet.</p></div>';
+      ? '<div class="empty-state"><div class="icon">📅</div><p>No upcoming shows involving that name.</p></div>'
+      : '<div class="empty-state"><div class="icon">📅</div><p>No upcoming shows on the venue list.</p></div>';
     return;
   }
 
   wrap.innerHTML = '<div class="show-list">' + rows.map(v => {
     const dateOnly = v.eventDate.slice(0,10);
-    const isPast = dateOnly < today;
     const daysOut = daysBetween(today, dateOnly);
     const isToday = daysOut === 0;
-    const isSoon = !isPast && !isToday && daysOut > 0 && daysOut <= 7;
-    const rowClass = isPast ? 'past' : (isToday ? 'is-today' : (isSoon ? 'is-soon' : ''));
+    const isSoon = !isToday && daysOut > 0 && daysOut <= 7;
+    const rowClass = isToday ? 'is-today' : (isSoon ? 'is-soon' : '');
     const whenFlag = isToday ? '<div class="sched-when-flag today">Today</div>'
       : (isSoon ? `<div class="sched-when-flag soon">In ${daysOut} day${daysOut === 1 ? '' : 's'}</div>` : '');
     const phone = v.assignedHp ? PHONE_BY_NAME[keyOf(v.assignedHp)] : '';
