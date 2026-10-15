@@ -184,12 +184,13 @@ updateThemeToggleIcon();
         </div>
         <div class="field full"><label for="vEditAddress">Address</label><input type="text" id="vEditAddress" onblur="this.value = toTitleCase(this.value)" autocomplete="off"></div>
         <div class="field"><label for="vEditCounty">County</label><input type="text" id="vEditCounty" autocomplete="off"></div>
-        <div class="field"><label for="vEditDate">Event date</label><input type="date" id="vEditDate"></div>
-        <div class="field"><label for="vEditAssignedHp">Assigned Head Pyro</label><input type="text" id="vEditAssignedHp" list="namesDirectoryList" placeholder="Leave blank if not assigned yet" autocomplete="off"></div>
+        <div class="field"><label for="vEditDate">Event date</label><input type="date" id="vEditDate" onchange="checkAssignmentWarnings()"></div>
+        <div class="field"><label for="vEditAssignedHp">Assigned Head Pyro</label><input type="text" id="vEditAssignedHp" list="namesDirectoryList" placeholder="Leave blank if not assigned yet" autocomplete="off" oninput="checkAssignmentWarnings()"></div>
         <div class="field"><label for="vEditCallTime">Call time</label><input type="time" id="vEditCallTime"></div>
       </div>
       <datalist id="venueDirectoryList"></datalist>
       <datalist id="namesDirectoryList"></datalist>
+      <p id="assignWarning" class="hint" style="display:none;color:var(--brick);"></p>
       <div class="save-row">
         <button class="primary" type="button" onclick="saveVenue()">Save venue</button>
         <button class="secondary" type="button" id="cancelEditBtn" onclick="resetForm()" style="display:none;">Cancel edit</button>
@@ -198,6 +199,7 @@ updateThemeToggleIcon();
     </div>
 
     <p class="list-title">CURRENT VENUES</p>
+    <p id="needsHpBanner" class="hint" style="display:none;color:var(--brick);margin:0 0 10px;"></p>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
       <button class="secondary" type="button" onclick="exportVenuesCSV()">Export as CSV</button>
       <label style="display:inline-flex;align-items:center;padding:8px 14px;border:1px solid var(--line);border-radius:6px;font-size:13px;cursor:pointer;color:var(--navy);background:none;">
@@ -302,13 +304,69 @@ async function loadVenues(){
     const data = await res.json();
     VENUES = (Array.isArray(data) ? data : []).map(v => ({
       id: v.id || '', name: String(v.name || '').trim(), address: v.address || '',
-      county: v.county || '', eventDate: v.eventDate || '', signInEnabled: !!v.signInEnabled
+      county: v.county || '', eventDate: v.eventDate || '', signInEnabled: !!v.signInEnabled,
+      assignedHp: v.assignedHp || '', callTime: v.callTime || ''
     })).filter(v => v.name);
   } catch(err){
     VENUES = [];
   }
   buildDatalist();
   renderVenueList();
+  updateNeedsHpBanner();
+}
+
+/* ---------------- Assignment warnings: double-booking + availability conflicts ---------------- */
+let AVAIL_UNAVAILABLE_BY_VENUE = {};
+
+async function loadAvailabilityOverview(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=availabilityOverview`, { cache: 'no-store' });
+    const data = await res.json();
+    AVAIL_UNAVAILABLE_BY_VENUE = (data && data.unavailableByVenue) || {};
+  } catch(err){ /* warnings just skip the availability check if this fails */ }
+}
+
+function updateNeedsHpBanner(){
+  const today = todayStr();
+  const needsHp = VENUES.filter(v => v.eventDate && v.eventDate >= today && !v.assignedHp).length;
+  const banner = $('needsHpBanner');
+  if(needsHp){
+    banner.textContent = `⚠ ${needsHp} upcoming show${needsHp === 1 ? '' : 's'} still need${needsHp === 1 ? 's' : ''} a Head Pyro assigned.`;
+    banner.style.display = '';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function checkAssignmentWarnings(){
+  const warnEl = $('assignWarning');
+  const name = $('vEditAssignedHp').value.trim();
+  const date = $('vEditDate').value.trim();
+  const messages = [];
+
+  if(name && date){
+    const doubleBooked = VENUES.find(v =>
+      v.id !== editingId && v.eventDate === date && keyOf(v.assignedHp) === keyOf(name)
+    );
+    if(doubleBooked){
+      messages.push(`${name} is already assigned to ${doubleBooked.name} on this date.`);
+    }
+  }
+
+  if(name && editingId){
+    const unavailable = AVAIL_UNAVAILABLE_BY_VENUE[editingId] || [];
+    if(unavailable.some(n => keyOf(n) === keyOf(name))){
+      messages.push(`${name} marked themselves unavailable for this show.`);
+    }
+  }
+
+  if(messages.length){
+    warnEl.textContent = '⚠ ' + messages.join(' ');
+    warnEl.style.display = '';
+  } else {
+    warnEl.style.display = 'none';
+  }
+  return messages;
 }
 
 function buildDatalist(){
@@ -336,6 +394,7 @@ function resetForm(){
   $('vEditCallTime').value = '';
   $('formTitle').textContent = 'ADD VENUE';
   $('cancelEditBtn').style.display = 'none';
+  $('assignWarning').style.display = 'none';
 }
 
 function editVenue(id){
@@ -351,6 +410,7 @@ function editVenue(id){
   $('formTitle').textContent = 'EDITING: ' + v.name + (v.eventDate ? ' — ' + formatDateDisplay(v.eventDate) : '');
   $('cancelEditBtn').style.display = '';
   setStatus($('venueSaveStatus'), '');
+  checkAssignmentWarnings();
   $('vEditName').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
@@ -366,6 +426,7 @@ function addAnotherDate(name){
   $('formTitle').textContent = 'ADD VENUE';
   $('cancelEditBtn').style.display = 'none';
   setStatus($('venueSaveStatus'), '');
+  $('assignWarning').style.display = 'none';
   $('vEditDate').scrollIntoView({behavior:'smooth', block:'center'});
   $('vEditDate').focus();
 }
@@ -384,6 +445,11 @@ async function saveVenue(){
     return;
   }
 
+  const warnings = checkAssignmentWarnings();
+  if(warnings.length && !confirm(warnings.join(' ') + '\n\nSave anyway?')){
+    return;
+  }
+
   setStatus(statusEl, 'Saving…');
   const payload = { recordType: 'venue', name, address, county, eventDate, assignedHp, callTime };
   if(editingId) payload.id = editingId;
@@ -398,6 +464,7 @@ async function saveVenue(){
     }
     buildDatalist();
     renderVenueList();
+    updateNeedsHpBanner();
     setStatus(statusEl, 'Saved ✓', 'ok');
     resetForm();
   } catch(err){
@@ -663,6 +730,7 @@ async function loadNamesDirectory(){
 loadVenues();
 loadNamesDirectory();
 loadScheduleStatus();
+loadAvailabilityOverview();
 </script>
 
 <script>

@@ -106,6 +106,24 @@ updateThemeToggleIcon();
   #disabledNotice{text-align:center;padding:24px 12px;color:var(--ink-soft);}
   #disabledNotice .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
   #disabledNotice p{margin:0;font-size:13px;}
+  .filter-row{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .filter-row label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  .filter-row input[type=text]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  .filter-row input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  @media (max-width:600px){ input[type=text]{font-size:16px !important;} }
+  .sched-row.is-today{border-left:3px solid #ff8c00;background:rgba(255,140,0,0.08);}
+  .sched-row.is-soon{border-left:3px solid #5a9de0;}
+  .sched-when-flag{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-top:3px;}
+  .sched-when-flag.today{color:#ff8c00;}
+  .sched-when-flag.soon{color:#5a9de0;}
+  .sched-hp a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--ink-soft);}
+  .sched-hp a:hover{color:var(--navy);}
+  .sched-ics{font-size:11px;color:var(--navy);text-decoration:none;display:inline-block;margin-top:4px;}
+  .sched-ics:hover{text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -126,6 +144,11 @@ updateThemeToggleIcon();
     <p class="desc">Every show on the venue list — the date, venue, who's assigned as Head Pyro, and call time. This is read-only; an admin assigns the Head Pyro and sets the call time from Manage &rarr; Venues.</p>
     <div id="disabledNotice" style="display:none;"><div class="icon">🚧</div><p>The schedule page is turned off right now. Check with your Head Pyro for show details.</p></div>
     <div id="scheduleBody">
+      <div class="filter-row">
+        <label for="myShowsInput">Filter to just my shows (optional)</label>
+        <input type="text" id="myShowsInput" list="namesList" placeholder="Start typing your name…" autocomplete="off" oninput="render()">
+        <datalist id="namesList"></datalist>
+      </div>
       <div id="countLine" class="count-line"></div>
       <div id="listWrap"><div class="empty-state"><div class="icon">📅</div><p class="loading-pulse">Loading the schedule…</p></div></div>
     </div>
@@ -156,6 +179,60 @@ function formatTimeDisplay(timeStr){
   return `${h}:${m} ${suffix}`;
 }
 function todayIso(){ return new Date().toISOString().slice(0,10); }
+function daysBetween(fromIso, toIso){
+  const a = new Date(fromIso + 'T00:00:00');
+  const b = new Date(toIso + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
+function keyOf(s){ return String(s || '').trim().toLowerCase(); }
+
+let ROWS = [];
+let PHONE_BY_NAME = {};
+
+async function loadNamesAndPhones(){
+  try{
+    const [namesRes, dirRes] = await Promise.all([
+      fetch(`${CHECKIN_API_URL}?type=names`, { cache: 'no-store' }),
+      fetch(`${CHECKIN_API_URL}?type=pyroDirectory`, { cache: 'no-store' })
+    ]);
+    const names = await namesRes.json();
+    if(Array.isArray(names)){
+      $('namesList').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+    }
+    const directory = await dirRes.json();
+    PHONE_BY_NAME = {};
+    if(Array.isArray(directory)){
+      directory.forEach(c => { if(c.name && c.phone) PHONE_BY_NAME[keyOf(c.name)] = c.phone; });
+    }
+  } catch(err){ /* the filter box and tap-to-call just skip their suggestions if this fails */ }
+}
+
+function icsDataUri(v){
+  const d = v.eventDate.slice(0,10).replace(/-/g, '');
+  let startStr, endStr;
+  if(v.callTime){
+    const [hh, mm] = v.callTime.split(':');
+    startStr = `${d}T${hh.padStart(2,'0')}${mm.padStart(2,'0')}00`;
+    const endDate = new Date(Number(d.slice(0,4)), Number(d.slice(4,6))-1, Number(d.slice(6,8)), Number(hh), Number(mm));
+    endDate.setHours(endDate.getHours() + 2);
+    endStr = endDate.getFullYear() + String(endDate.getMonth()+1).padStart(2,'0') + String(endDate.getDate()).padStart(2,'0')
+      + 'T' + String(endDate.getHours()).padStart(2,'0') + String(endDate.getMinutes()).padStart(2,'0') + '00';
+  } else {
+    startStr = d;
+    endStr = d;
+  }
+  const allDay = !v.callTime;
+  const lines = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Vortex Fireworks//Show Schedule//EN', 'BEGIN:VEVENT',
+    allDay ? `DTSTART;VALUE=DATE:${startStr}` : `DTSTART:${startStr}`,
+    allDay ? `DTEND;VALUE=DATE:${endStr}` : `DTEND:${endStr}`,
+    `SUMMARY:${(v.name || 'Show').replace(/[\r\n]/g, ' ')}${v.assignedHp ? ' (HP: ' + v.assignedHp.replace(/[\r\n]/g,' ') + ')' : ''}`,
+    v.address ? `LOCATION:${v.address.replace(/[\r\n]/g, ' ')}` : '',
+    `UID:${v.id || Math.random().toString(36).slice(2)}@vortex-schedule`,
+    'END:VEVENT', 'END:VCALENDAR'
+  ].filter(Boolean).join('\r\n');
+  return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(lines);
+}
 
 async function checkScheduleStatus(){
   try{
@@ -180,28 +257,52 @@ async function loadSchedule(){
     wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the schedule — check your connection and try again.</p>';
     return;
   }
-  const today = todayIso();
-  const rows = (Array.isArray(venues) ? venues : [])
+  ROWS = (Array.isArray(venues) ? venues : [])
     .filter(v => v.eventDate)
     .sort((a, b) => (a.eventDate || '').localeCompare(b.eventDate || ''));
+  await loadNamesAndPhones();
+  render();
+}
 
-  $('countLine').textContent = rows.length ? `${rows.length} show${rows.length === 1 ? '' : 's'} on the schedule` : '';
+function render(){
+  const wrap = $('listWrap');
+  const filterName = keyOf($('myShowsInput').value);
+  const today = todayIso();
+  const rows = filterName ? ROWS.filter(v => keyOf(v.assignedHp) === filterName) : ROWS;
+
+  $('countLine').textContent = rows.length
+    ? `${rows.length} show${rows.length === 1 ? '' : 's'}${filterName ? ' assigned to you' : ' on the schedule'}`
+    : '';
   if(!rows.length){
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>No shows on the venue list yet.</p></div>';
+    wrap.innerHTML = filterName
+      ? '<div class="empty-state"><div class="icon">📅</div><p>No shows assigned to that name yet.</p></div>'
+      : '<div class="empty-state"><div class="icon">📅</div><p>No shows on the venue list yet.</p></div>';
     return;
   }
 
   wrap.innerHTML = '<div class="show-list">' + rows.map(v => {
-    const isPast = v.eventDate.slice(0,10) < today;
-    const hpLabel = v.assignedHp ? esc(v.assignedHp) : 'Unassigned';
+    const dateOnly = v.eventDate.slice(0,10);
+    const isPast = dateOnly < today;
+    const daysOut = daysBetween(today, dateOnly);
+    const isToday = daysOut === 0;
+    const isSoon = !isPast && !isToday && daysOut > 0 && daysOut <= 7;
+    const rowClass = isPast ? 'past' : (isToday ? 'is-today' : (isSoon ? 'is-soon' : ''));
+    const whenFlag = isToday ? '<div class="sched-when-flag today">Today</div>'
+      : (isSoon ? `<div class="sched-when-flag soon">In ${daysOut} day${daysOut === 1 ? '' : 's'}</div>` : '');
+    const phone = v.assignedHp ? PHONE_BY_NAME[keyOf(v.assignedHp)] : '';
+    const hpLabel = v.assignedHp
+      ? (phone ? `<a href="tel:${esc(phone.replace(/[^\d+]/g,''))}">${esc(v.assignedHp)}</a>` : esc(v.assignedHp))
+      : 'Unassigned';
     const hpClass = v.assignedHp ? '' : 'unassigned';
     const callLabel = v.callTime ? esc(formatTimeDisplay(v.callTime)) : 'No call time set';
     return `
-      <div class="sched-row ${isPast ? 'past' : ''}">
+      <div class="sched-row ${rowClass}">
         <div>
           <div class="sched-venue">${esc(v.name)}</div>
           <div class="sched-date">${esc(formatEventDate(v.eventDate))}</div>
           ${v.address ? `<div class="sched-addr">${esc(v.address)}${v.county ? ' · ' + esc(v.county) : ''}</div>` : ''}
+          ${whenFlag}
+          <a class="sched-ics" download="${esc(v.name || 'show')}.ics" href="${icsDataUri(v)}">+ Add to calendar</a>
         </div>
         <div class="sched-right">
           <div class="sched-hp ${hpClass}">${hpLabel}</div>

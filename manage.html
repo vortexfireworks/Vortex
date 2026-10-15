@@ -118,6 +118,10 @@ updateThemeToggleIcon();
   .icon-circle svg{width:21px;height:21px;}
   .card h2{margin:0 0 4px;font-size:16px;color:var(--ink);}
   .card p{margin:0;font-size:13.5px;color:var(--ink-soft);line-height:1.5;}
+  .card .badge{
+    display:inline-block;margin-left:6px;padding:1px 7px;border-radius:9px;
+    background:#ff6a5a;color:#fff;font-size:11px;font-weight:700;vertical-align:middle;
+  }
   .c1{--grad:linear-gradient(135deg,#d92b2b,#ff8c00); --glow:rgba(255,140,0,0.4);}
   .c2{--grad:linear-gradient(135deg,#2f7ec9,#123a63); --glow:rgba(47,126,201,0.4);}
   .c3{--grad:linear-gradient(135deg,#ff8c00,#ffd23f); --glow:rgba(255,210,63,0.4);}
@@ -220,7 +224,7 @@ updateThemeToggleIcon();
         </svg>
     </div>
     <div>
-      <h2>Manage Venues</h2>
+      <h2>Manage Venues<span class="badge" id="venuesNeedHpBadge" style="display:none;"></span></h2>
       <p>Add venues and their dates, edit or delete them, or add another date for a venue you already have — changes show up in the venue lists everywhere.</p>
     </div>
   </a>
@@ -418,6 +422,24 @@ if(Auth.has('admin')){
 } else if(Auth.expiredNotice()){
   document.querySelector('#lockScreen p').textContent = 'Your sign-in ended. Enter the password to continue.';
 }
+
+// Flags, on the Venues card, how many upcoming shows still have no Assigned Head Pyro.
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+(async function loadNeedsHpBadge(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
+    const venues = await res.json();
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+    const needsHp = (Array.isArray(venues) ? venues : []).filter(v => v.eventDate && v.eventDate >= todayStr && !v.assignedHp).length;
+    if(needsHp){
+      const badge = document.getElementById('venuesNeedHpBadge');
+      badge.textContent = needsHp;
+      badge.title = `${needsHp} upcoming show${needsHp === 1 ? '' : 's'} need${needsHp === 1 ? 's' : ''} a Head Pyro assigned`;
+      badge.style.display = '';
+    }
+  } catch(err){ /* the card just shows no badge if this fails */ }
+})();
 </script>
 </body>
 </html>

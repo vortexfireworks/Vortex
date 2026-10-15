@@ -233,13 +233,30 @@ async function postJson(payload){
 }
 
 let REPORTS = [];
+let ASSIGNED_HP_BY_VENUE_DATE = {};
+
+async function loadAssignedHpLookup(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
+    const venues = await res.json();
+    ASSIGNED_HP_BY_VENUE_DATE = {};
+    (Array.isArray(venues) ? venues : []).forEach(v => {
+      if(v.assignedHp && v.eventDate){
+        ASSIGNED_HP_BY_VENUE_DATE[keyOf(v.name) + '|' + v.eventDate.slice(0,10)] = v.assignedHp;
+      }
+    });
+  } catch(err){ /* the mismatch flag just stays off if this fails */ }
+}
 
 async function loadReports(){
   const wrap = $('reportList');
   try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=aarReports`, { cache: 'no-store' });
-    if(!res.ok) throw new Error('Request failed');
-    const data = await res.json();
+    const [reportsRes] = await Promise.all([
+      fetch(`${CHECKIN_API_URL}?type=aarReports`, { cache: 'no-store' }),
+      loadAssignedHpLookup()
+    ]);
+    if(!reportsRes.ok) throw new Error('Request failed');
+    const data = await reportsRes.json();
     REPORTS = Array.isArray(data.reports) ? data.reports : [];
   } catch(err){
     wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the saved reports \u2014 check your connection and try again.</p>';
@@ -249,6 +266,14 @@ async function loadReports(){
   const years = [...new Set(REPORTS.map(r => (r.eventDate || '').slice(0,4)).filter(Boolean))].sort().reverse();
   $('yearSelect').innerHTML = '<option value="">All years</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
   renderReports();
+}
+
+function hpMismatchNote(r){
+  if(!r.venue || !r.eventDate) return '';
+  const assignedHp = ASSIGNED_HP_BY_VENUE_DATE[keyOf(r.venue) + '|' + r.eventDate.slice(0,10)];
+  if(!assignedHp || !r.operator) return '';
+  if(keyOf(assignedHp) === keyOf(r.operator)) return '';
+  return `<div class="report-flags">⚠ Venue schedule shows ${esc(assignedHp)} as Assigned Head Pyro for this show</div>`;
 }
 
 function renderReports(){
@@ -285,6 +310,7 @@ function renderReports(){
         </div>
         <div class="report-venue">${esc(r.venue || '(no venue entered)')}</div>
         <div class="report-meta">${esc(r.operator || '(no operator)')}${r.license ? ' \u00b7 License ' + esc(r.license) : ''}</div>
+        ${hpMismatchNote(r)}
         ${r.incidents ? `<div class="report-flags">Reported: ${esc(r.incidents)}</div>` : ''}
       </div>
       <div class="report-note" style="display:none;"></div>
