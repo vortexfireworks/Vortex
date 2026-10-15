@@ -152,6 +152,17 @@ updateThemeToggleIcon();
   }
   .venue-group-foot button:hover{text-decoration:underline;}
   .settings-row{display:flex;align-items:center;gap:8px;margin:0 0 18px;}
+  .roster-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 6px;}
+  .roster-chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .roster-chip{
+    display:inline-flex;align-items:center;gap:6px;background:var(--surface-5);
+    border:1px solid var(--line);border-radius:14px;padding:4px 6px 4px 11px;font-size:12.5px;color:var(--ink);
+  }
+  .roster-chip button{
+    background:none;border:none;color:var(--brick);font-size:14px;line-height:1;cursor:pointer;
+    padding:2px 5px;border-radius:50%;
+  }
+  .roster-chip button:hover{background:rgba(255,106,90,0.15);}
 </style>
 </head>
 <body>
@@ -187,10 +198,12 @@ updateThemeToggleIcon();
         <div class="field"><label for="vEditDate">Event date</label><input type="date" id="vEditDate" onchange="checkAssignmentWarnings()"></div>
         <div class="field"><label for="vEditAssignedHp">Assigned Head Pyro</label><input type="text" id="vEditAssignedHp" list="namesDirectoryList" placeholder="Leave blank if not assigned yet" autocomplete="off" oninput="checkAssignmentWarnings()"></div>
         <div class="field"><label for="vEditCallTime">Call time</label><input type="time" id="vEditCallTime"></div>
+        <div class="field"><label for="vEditSignupLimit">Crew sign-up limit</label><input type="number" id="vEditSignupLimit" min="0" step="1" placeholder="Leave blank to turn off sign-ups"></div>
       </div>
       <datalist id="venueDirectoryList"></datalist>
       <datalist id="namesDirectoryList"></datalist>
       <p id="assignWarning" class="hint" style="display:none;color:var(--brick);"></p>
+      <div id="signupRosterWrap" style="display:none;margin-bottom:12px;"></div>
       <div class="save-row">
         <button class="primary" type="button" onclick="saveVenue()">Save venue</button>
         <button class="secondary" type="button" id="cancelEditBtn" onclick="resetForm()" style="display:none;">Cancel edit</button>
@@ -305,7 +318,7 @@ async function loadVenues(){
     VENUES = (Array.isArray(data) ? data : []).map(v => ({
       id: v.id || '', name: String(v.name || '').trim(), address: v.address || '',
       county: v.county || '', eventDate: v.eventDate || '', signInEnabled: !!v.signInEnabled,
-      assignedHp: v.assignedHp || '', callTime: v.callTime || ''
+      assignedHp: v.assignedHp || '', callTime: v.callTime || '', signupLimit: Number(v.signupLimit) || 0
     })).filter(v => v.name);
   } catch(err){
     VENUES = [];
@@ -317,6 +330,7 @@ async function loadVenues(){
 
 /* ---------------- Assignment warnings: double-booking + availability conflicts ---------------- */
 let AVAIL_UNAVAILABLE_BY_VENUE = {};
+let SIGNUPS_BY_VENUE = {};
 
 async function loadAvailabilityOverview(){
   try{
@@ -324,6 +338,42 @@ async function loadAvailabilityOverview(){
     const data = await res.json();
     AVAIL_UNAVAILABLE_BY_VENUE = (data && data.unavailableByVenue) || {};
   } catch(err){ /* warnings just skip the availability check if this fails */ }
+}
+
+async function loadShowSignups(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=showSignups`, { cache: 'no-store' });
+    const data = await res.json();
+    SIGNUPS_BY_VENUE = (data && data.byVenue) || {};
+  } catch(err){ /* roster just stays empty if this fails */ }
+  renderVenueList();
+  if(editingId) renderSignupRoster(editingId);
+}
+
+function renderSignupRoster(venueId){
+  const wrap = $('signupRosterWrap');
+  const names = SIGNUPS_BY_VENUE[venueId] || [];
+  if(!names.length){
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    return;
+  }
+  wrap.style.display = '';
+  wrap.innerHTML = `<p class="roster-title">SIGNED UP (${names.length})</p>` +
+    `<div class="roster-chips">${names.map(n => `
+      <span class="roster-chip">${esc(n)}<button type="button" title="Remove" onclick="adminRemoveSignup('${esc(venueId)}','${esc(n).replace(/'/g,"\\'")}')">&times;</button></span>
+    `).join('')}</div>`;
+}
+
+async function adminRemoveSignup(venueId, name){
+  if(!confirm(`Remove ${name} from the sign-up list for this show?`)) return;
+  try{
+    await postJson({ recordType: 'removeShowSignup', venueId, name });
+    SIGNUPS_BY_VENUE[venueId] = (SIGNUPS_BY_VENUE[venueId] || []).filter(n => keyOf(n) !== keyOf(name));
+    renderSignupRoster(venueId);
+  } catch(err){
+    alert("Couldn't remove that signup — check your connection and try again.");
+  }
 }
 
 function updateNeedsHpBanner(){
@@ -392,9 +442,11 @@ function resetForm(){
   $('vEditDate').value = '';
   $('vEditAssignedHp').value = '';
   $('vEditCallTime').value = '';
+  $('vEditSignupLimit').value = '';
   $('formTitle').textContent = 'ADD VENUE';
   $('cancelEditBtn').style.display = 'none';
   $('assignWarning').style.display = 'none';
+  $('signupRosterWrap').style.display = 'none';
 }
 
 function editVenue(id){
@@ -407,10 +459,12 @@ function editVenue(id){
   $('vEditDate').value = v.eventDate || '';
   $('vEditAssignedHp').value = v.assignedHp || '';
   $('vEditCallTime').value = v.callTime || '';
+  $('vEditSignupLimit').value = v.signupLimit || '';
   $('formTitle').textContent = 'EDITING: ' + v.name + (v.eventDate ? ' — ' + formatDateDisplay(v.eventDate) : '');
   $('cancelEditBtn').style.display = '';
   setStatus($('venueSaveStatus'), '');
   checkAssignmentWarnings();
+  renderSignupRoster(id);
   $('vEditName').scrollIntoView({behavior:'smooth', block:'center'});
 }
 
@@ -423,10 +477,12 @@ function addAnotherDate(name){
   $('vEditDate').value = '';
   $('vEditAssignedHp').value = '';
   $('vEditCallTime').value = '';
+  $('vEditSignupLimit').value = '';
   $('formTitle').textContent = 'ADD VENUE';
   $('cancelEditBtn').style.display = 'none';
   setStatus($('venueSaveStatus'), '');
   $('assignWarning').style.display = 'none';
+  $('signupRosterWrap').style.display = 'none';
   $('vEditDate').scrollIntoView({behavior:'smooth', block:'center'});
   $('vEditDate').focus();
 }
@@ -439,6 +495,7 @@ async function saveVenue(){
   const eventDate = $('vEditDate').value.trim();
   const assignedHp = $('vEditAssignedHp').value.trim();
   const callTime = $('vEditCallTime').value.trim();
+  const signupLimit = Number($('vEditSignupLimit').value) || 0;
 
   if(!name){
     setStatus(statusEl, 'Enter a venue name first.', 'err');
@@ -446,21 +503,25 @@ async function saveVenue(){
   }
 
   const warnings = checkAssignmentWarnings();
+  const currentSignups = editingId ? (SIGNUPS_BY_VENUE[editingId] || []).length : 0;
+  if(signupLimit && currentSignups > signupLimit){
+    warnings.push(`${currentSignups} people are already signed up, which is more than the new limit of ${signupLimit}.`);
+  }
   if(warnings.length && !confirm(warnings.join(' ') + '\n\nSave anyway?')){
     return;
   }
 
   setStatus(statusEl, 'Saving…');
-  const payload = { recordType: 'venue', name, address, county, eventDate, assignedHp, callTime };
+  const payload = { recordType: 'venue', name, address, county, eventDate, assignedHp, callTime, signupLimit };
   if(editingId) payload.id = editingId;
 
   try{
     const result = await postJson(payload);
     if(editingId){
       const v = VENUES.find(x => x.id === editingId);
-      if(v) Object.assign(v, { name, address, county, eventDate, assignedHp, callTime });
+      if(v) Object.assign(v, { name, address, county, eventDate, assignedHp, callTime, signupLimit });
     } else {
-      VENUES.push({ id: result.id || '', name, address, county, eventDate, assignedHp, callTime, signInEnabled: false });
+      VENUES.push({ id: result.id || '', name, address, county, eventDate, assignedHp, callTime, signupLimit, signInEnabled: false });
     }
     buildDatalist();
     renderVenueList();
@@ -542,6 +603,7 @@ function renderVenueList(){
           const assignBits = [];
           if(v.assignedHp) assignBits.push(`HP: ${esc(v.assignedHp)}`);
           if(v.callTime) assignBits.push(`Call: ${esc(formatTimeDisplay(v.callTime))}`);
+          if(v.signupLimit) assignBits.push(`Crew: ${(SIGNUPS_BY_VENUE[v.id] || []).length}/${v.signupLimit}`);
           const assignLabel = assignBits.length ? assignBits.join(' · ') : 'Unassigned';
           return `
           <div class="venue-date-row">
@@ -731,6 +793,7 @@ loadVenues();
 loadNamesDirectory();
 loadScheduleStatus();
 loadAvailabilityOverview();
+loadShowSignups();
 </script>
 
 <script>

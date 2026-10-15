@@ -76,7 +76,7 @@ function getOrCreateContactsSheet(ss) {
 }
 
 function getOrCreateVenuesSheet(ss) {
-  const requiredHeaders = ['Name', 'Address', 'County', 'EventDate', 'SignInEnabled', 'Id', 'AssignedHp', 'CallTime'];
+  const requiredHeaders = ['Name', 'Address', 'County', 'EventDate', 'SignInEnabled', 'Id', 'AssignedHp', 'CallTime', 'SignupLimit'];
   let sheet = ss.getSheetByName('Venues');
   if (!sheet) {
     sheet = ss.insertSheet('Venues');
@@ -396,6 +396,73 @@ function setAvailability(ss, nameKey, name, venueId, unavailable) {
   }
   if (unavailable) {
     sheet.appendRow([nameKey, name, venueId, new Date()]);
+  }
+}
+
+// Crew self-sign-up for a show, capped at the venue's SignupLimit. Separate from AssignedHp
+// (the lead, set by an admin) — this is a roster of crew who volunteered, up to the headcount
+// the admin asked for. Low-stakes self-reported data, same shared-password trust level as
+// Availability: anyone signed in at the Head Pyro level can sign up or remove any name, since
+// there's no individual login to tell people apart.
+function getOrCreateShowSignupsSheet(ss) {
+  let sheet = ss.getSheetByName('ShowSignups');
+  if (!sheet) {
+    sheet = ss.insertSheet('ShowSignups');
+    sheet.appendRow(['VenueId', 'Name', 'SignedUpAt']);
+  }
+  return sheet;
+}
+// Map of venueId -> signed-up names, for every venue that has at least one.
+function getShowSignupsByVenue(ss) {
+  const sheet = getOrCreateShowSignupsSheet(ss);
+  const map = {};
+  if (sheet.getLastRow() <= 1) return map;
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const venueId = String(rows[i][0] || '');
+    const name = String(rows[i][1] || '').trim();
+    if (!venueId || !name) continue;
+    if (!map[venueId]) map[venueId] = [];
+    map[venueId].push(name);
+  }
+  return map;
+}
+function addShowSignup(ss, venueId, name) {
+  const venuesSheet = getOrCreateVenuesSheet(ss);
+  const vMap = headerMap(venuesSheet);
+  const vRows = venuesSheet.getDataRange().getValues();
+  let limit = 0;
+  for (let i = 1; i < vRows.length; i++) {
+    if (String(vRows[i][vMap['Id']]) === venueId) { limit = Number(vRows[i][vMap['SignupLimit']]) || 0; break; }
+  }
+  if (!limit) return {status: 'error', message: "Sign-up isn't open for this show."};
+
+  const sheet = getOrCreateShowSignupsSheet(ss);
+  const rows = sheet.getDataRange().getValues();
+  const nameLower = name.toLowerCase();
+  let count = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || '') !== venueId) continue;
+    count++;
+    if (String(rows[i][1] || '').trim().toLowerCase() === nameLower) {
+      return {status: 'error', message: "You're already signed up for this show."};
+    }
+  }
+  if (count >= limit) {
+    return {status: 'error', message: 'This show is full.'};
+  }
+  sheet.appendRow([venueId, name, new Date()]);
+  return {status: 'ok'};
+}
+function removeShowSignup(ss, venueId, name) {
+  const sheet = getOrCreateShowSignupsSheet(ss);
+  const rows = sheet.getDataRange().getValues();
+  const nameLower = name.toLowerCase();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || '') === venueId && String(rows[i][1] || '').trim().toLowerCase() === nameLower) {
+      sheet.deleteRow(i + 1);
+      return;
+    }
   }
 }
 
@@ -909,13 +976,14 @@ const GET_LEVELS = {
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
   payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp', scheduleStatus: 'hp',
-  myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin'
+  myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'hp'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
   aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp', setAvailability: 'hp',
+  showSignup: 'hp', removeShowSignup: 'hp',
   deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
@@ -1463,6 +1531,24 @@ function doPostInner(e) {
     if (!name) return jsonOut({status: 'error', message: 'Enter your name.'});
     if (!venueId) return jsonOut({status: 'error', message: 'Missing which show.'});
     setAvailability(ss, name.toLowerCase(), name, venueId, !!data.unavailable);
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'showSignup') {
+    const name = String(data.name || '').trim();
+    const venueId = String(data.venueId || '').trim();
+    if (!name) return jsonOut({status: 'error', message: 'Enter your name.'});
+    if (!venueId) return jsonOut({status: 'error', message: 'Missing which show.'});
+    const result = addShowSignup(ss, venueId, name);
+    return jsonOut(result);
+  }
+
+  if (data.recordType === 'removeShowSignup') {
+    const name = String(data.name || '').trim();
+    const venueId = String(data.venueId || '').trim();
+    if (!name) return jsonOut({status: 'error', message: 'Missing name.'});
+    if (!venueId) return jsonOut({status: 'error', message: 'Missing which show.'});
+    removeShowSignup(ss, venueId, name);
     return jsonOut({status: 'ok'});
   }
 
@@ -2052,6 +2138,7 @@ function doPostInner(e) {
     const existingId = rowIndex > 0 ? String(rows[rowIndex - 1][map['Id']] || '') : '';
     const existingAssignedHp = rowIndex > 0 ? rows[rowIndex - 1][map['AssignedHp']] : '';
     const existingCallTime = rowIndex > 0 ? rows[rowIndex - 1][map['CallTime']] : '';
+    const existingSignupLimit = rowIndex > 0 ? rows[rowIndex - 1][map['SignupLimit']] : '';
 
     const newRow = [];
     newRow[map['Name']] = data.name;
@@ -2065,6 +2152,7 @@ function doPostInner(e) {
     // than falling back to the preserved existing value.
     newRow[map['AssignedHp']] = Object.prototype.hasOwnProperty.call(data, 'assignedHp') ? (data.assignedHp || '') : (existingAssignedHp || '');
     newRow[map['CallTime']] = Object.prototype.hasOwnProperty.call(data, 'callTime') ? (data.callTime || '') : (existingCallTime || '');
+    newRow[map['SignupLimit']] = Object.prototype.hasOwnProperty.call(data, 'signupLimit') ? (Number(data.signupLimit) || 0) : (existingSignupLimit || '');
 
     if (rowIndex > 0) {
       sheet.getRange(rowIndex, 1, 1, newRow.length).setValues([newRow]);
@@ -2427,6 +2515,10 @@ function doGetInner(e) {
     // Everyone's conflicts, by show — this is what turns individual check-boxes into a shared
     // staffing view for Head Pyros, without needing a separate sign-up/assignment system.
     return jsonOut({unavailableByVenue: getUnavailableNamesByVenue(ss)});
+  }
+
+  if (e.parameter.type === 'showSignups') {
+    return jsonOut({byVenue: getShowSignupsByVenue(ss)});
   }
 
   if (e.parameter.type === 'payrollRecordsForName') {
@@ -2809,7 +2901,8 @@ function doGetInner(e) {
         eventDate: normalizeDateValue(row[idx['EventDate']]),
         signInEnabled: row[idx['SignInEnabled']] === 'Yes',
         assignedHp: row[idx['AssignedHp']] || '',
-        callTime: row[idx['CallTime']] || ''
+        callTime: row[idx['CallTime']] || '',
+        signupLimit: Number(row[idx['SignupLimit']]) || 0
       }));
     const json = JSON.stringify(results);
     try {

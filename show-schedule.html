@@ -124,6 +124,25 @@ updateThemeToggleIcon();
   .sched-hp a:hover{color:var(--navy);}
   .sched-ics{font-size:11px;color:var(--navy);text-decoration:none;display:inline-block;margin-top:4px;}
   .sched-ics:hover{text-decoration:underline;}
+  .signup-box{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);width:100%;}
+  .signup-count{font-size:11px;color:var(--ink-soft);font-weight:600;margin-bottom:6px;}
+  .signup-count.full{color:var(--brick-light);}
+  .roster-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+  .roster-chip{
+    display:inline-flex;align-items:center;gap:5px;background:var(--surface-5);
+    border:1px solid var(--line);border-radius:14px;padding:3px 6px 3px 10px;font-size:12px;color:var(--ink);
+  }
+  .roster-chip button{
+    background:none;border:none;color:var(--brick);font-size:14px;line-height:1;cursor:pointer;
+    padding:2px 5px;border-radius:50%;
+  }
+  .roster-chip button:hover{background:rgba(255,106,90,0.15);}
+  .signup-btn{
+    background:none;border:1px solid var(--navy);color:var(--navy);
+    font-size:11.5px;padding:4px 10px;border-radius:12px;cursor:pointer;
+  }
+  .signup-btn:hover{background:rgba(255,185,142,0.12);}
+  .signup-btn:disabled{opacity:0.5;cursor:default;}
 </style>
 </head>
 <body>
@@ -141,13 +160,14 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
-    <p class="desc">Every show on the venue list — the date, venue, who's assigned as Head Pyro, and call time. This is read-only; an admin assigns the Head Pyro and sets the call time from Manage &rarr; Venues.</p>
+    <p class="desc">Every show on the venue list — the date, venue, who's assigned as Head Pyro, and call time. An admin assigns the Head Pyro and sets the call time from Manage &rarr; Venues. Some shows also have crew sign-up slots — enter your name above to sign up or remove yourself.</p>
     <div id="disabledNotice" style="display:none;"><div class="icon">🚧</div><p>The schedule page is turned off right now. Check with your Head Pyro for show details.</p></div>
     <div id="scheduleBody">
       <div class="filter-row">
-        <label for="myShowsInput">Filter to just my shows (optional)</label>
+        <label for="myShowsInput">Your name (lets you sign up for crew sign-up slots, and can filter the list below)</label>
         <input type="text" id="myShowsInput" list="namesList" placeholder="Start typing your name…" autocomplete="off" oninput="render()">
         <datalist id="namesList"></datalist>
+        <label style="font-weight:500;"><input type="checkbox" id="myShowsOnly" onchange="render()" style="width:auto;vertical-align:middle;"> Show only my shows</label>
       </div>
       <div id="countLine" class="count-line"></div>
       <div id="listWrap"><div class="empty-state"><div class="icon">📅</div><p class="loading-pulse">Loading the schedule…</p></div></div>
@@ -188,6 +208,79 @@ function keyOf(s){ return String(s || '').trim().toLowerCase(); }
 
 let ROWS = [];
 let PHONE_BY_NAME = {};
+let SIGNUPS_BY_VENUE = {};
+
+async function loadShowSignups(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=showSignups`, { cache: 'no-store' });
+    const data = await res.json();
+    SIGNUPS_BY_VENUE = (data && data.byVenue) || {};
+  } catch(err){ /* sign-up rosters just stay empty if this fails */ }
+}
+
+async function signUpForShow(venueId){
+  const name = $('myShowsInput').value.trim();
+  if(!name){
+    alert('Enter your name first.');
+    $('myShowsInput').focus();
+    return;
+  }
+  try{
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'showSignup', venueId, name })
+    });
+    const data = await res.json();
+    if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+    if(!SIGNUPS_BY_VENUE[venueId]) SIGNUPS_BY_VENUE[venueId] = [];
+    SIGNUPS_BY_VENUE[venueId].push(name);
+    render();
+  } catch(err){
+    alert(err.message || "Couldn't sign up — check your connection and try again.");
+  }
+}
+
+async function removeMySignup(venueId, name){
+  if(!confirm(`Remove ${name} from this show's sign-up list?`)) return;
+  try{
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'removeShowSignup', venueId, name })
+    });
+    const data = await res.json();
+    if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+    SIGNUPS_BY_VENUE[venueId] = (SIGNUPS_BY_VENUE[venueId] || []).filter(n => keyOf(n) !== keyOf(name));
+    render();
+  } catch(err){
+    alert(err.message || "Couldn't remove that — check your connection and try again.");
+  }
+}
+
+function signupBoxHtml(v){
+  if(!v.signupLimit) return '';
+  const names = SIGNUPS_BY_VENUE[v.id] || [];
+  const myName = $('myShowsInput').value.trim();
+  const isAdmin = window.Auth && Auth.has('admin');
+  const full = names.length >= v.signupLimit;
+  const alreadyIn = myName && names.some(n => keyOf(n) === keyOf(myName));
+  const chips = names.map(n => {
+    const canRemove = isAdmin || (myName && keyOf(n) === keyOf(myName));
+    return `<span class="roster-chip">${esc(n)}${canRemove ? `<button type="button" title="Remove" onclick="removeMySignup('${esc(v.id)}','${esc(n).replace(/'/g,"\\'")}')">&times;</button>` : ''}</span>`;
+  }).join('');
+  let actionHtml = '';
+  if(alreadyIn){
+    actionHtml = '';
+  } else if(full){
+    actionHtml = '<button type="button" class="signup-btn" disabled>Full</button>';
+  } else {
+    actionHtml = `<button type="button" class="signup-btn" onclick="signUpForShow('${esc(v.id)}')">+ Sign up</button>`;
+  }
+  return `
+    <div class="signup-box">
+      <div class="signup-count ${full ? 'full' : ''}">Crew sign-up: ${names.length}/${v.signupLimit} ${full ? '(full)' : ''}</div>
+      <div class="roster-chips">${chips}${actionHtml}</div>
+    </div>`;
+}
 
 async function loadNamesAndPhones(){
   try{
@@ -260,22 +353,25 @@ async function loadSchedule(){
   ROWS = (Array.isArray(venues) ? venues : [])
     .filter(v => v.eventDate)
     .sort((a, b) => (a.eventDate || '').localeCompare(b.eventDate || ''));
-  await loadNamesAndPhones();
+  await Promise.all([loadNamesAndPhones(), loadShowSignups()]);
   render();
 }
 
 function render(){
   const wrap = $('listWrap');
   const filterName = keyOf($('myShowsInput').value);
+  const onlyMine = $('myShowsOnly').checked && filterName;
   const today = todayIso();
-  const rows = filterName ? ROWS.filter(v => keyOf(v.assignedHp) === filterName) : ROWS;
+  const rows = onlyMine
+    ? ROWS.filter(v => keyOf(v.assignedHp) === filterName || (SIGNUPS_BY_VENUE[v.id] || []).some(n => keyOf(n) === filterName))
+    : ROWS;
 
   $('countLine').textContent = rows.length
-    ? `${rows.length} show${rows.length === 1 ? '' : 's'}${filterName ? ' assigned to you' : ' on the schedule'}`
+    ? `${rows.length} show${rows.length === 1 ? '' : 's'}${onlyMine ? ' involving you' : ' on the schedule'}`
     : '';
   if(!rows.length){
-    wrap.innerHTML = filterName
-      ? '<div class="empty-state"><div class="icon">📅</div><p>No shows assigned to that name yet.</p></div>'
+    wrap.innerHTML = onlyMine
+      ? '<div class="empty-state"><div class="icon">📅</div><p>No shows involving that name yet.</p></div>'
       : '<div class="empty-state"><div class="icon">📅</div><p>No shows on the venue list yet.</p></div>';
     return;
   }
@@ -303,6 +399,7 @@ function render(){
           ${v.address ? `<div class="sched-addr">${esc(v.address)}${v.county ? ' · ' + esc(v.county) : ''}</div>` : ''}
           ${whenFlag}
           <a class="sched-ics" download="${esc(v.name || 'show')}.ics" href="${icsDataUri(v)}">+ Add to calendar</a>
+          ${signupBoxHtml(v)}
         </div>
         <div class="sched-right">
           <div class="sched-hp ${hpClass}">${hpLabel}</div>
