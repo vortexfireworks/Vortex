@@ -120,8 +120,6 @@ updateThemeToggleIcon();
   .sched-when-flag.soon{color:#5a9de0;}
   .sched-hp a{color:inherit;text-decoration:none;border-bottom:1px dotted var(--ink-soft);}
   .sched-hp a:hover{color:var(--navy);}
-  .sched-ics{font-size:11px;color:var(--navy);text-decoration:none;display:inline-block;margin-top:4px;}
-  .sched-ics:hover{text-decoration:underline;}
   .signup-box{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);width:100%;}
   .signup-count{font-size:11px;color:var(--ink-soft);font-weight:600;margin-bottom:6px;}
   .signup-count.full{color:var(--brick-light);}
@@ -141,6 +139,25 @@ updateThemeToggleIcon();
   }
   .signup-btn:hover{background:rgba(255,185,142,0.12);}
   .signup-btn:disabled{opacity:0.5;cursor:default;}
+  .top-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+  .top-actions a, .top-actions button{
+    font-size:12px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);
+    background:none;color:var(--navy);cursor:pointer;text-decoration:none;font-family:inherit;
+  }
+  .top-actions a:hover, .top-actions button:hover{border-color:var(--navy);}
+  .top-actions button:disabled{opacity:0.5;cursor:default;}
+  .sched-directions{font-size:11px;color:var(--navy);text-decoration:none;margin-left:6px;}
+  .sched-directions:hover{text-decoration:underline;}
+  .sched-hp-row{display:flex;align-items:center;gap:6px;justify-content:flex-end;}
+  .sched-avatar{width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+  .waitlist-title{font-size:10.5px;color:var(--ink-soft);font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin:8px 0 4px;}
+  .roster-chip.waitlisted{opacity:0.75;}
+  .roster-chip .wl-pos{font-size:10px;color:var(--ink-soft);}
+  .month-head{
+    font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);
+    background:var(--surface-5);padding:7px 14px;border-top:1px solid var(--line);
+  }
+  .show-list .month-head:first-child{border-top:none;}
 </style>
 </head>
 <body>
@@ -161,9 +178,13 @@ updateThemeToggleIcon();
     <p class="desc">Every upcoming show on the venue list — the date, venue, who's assigned as Head Pyro, and call time. Past shows drop off this list automatically. An admin assigns the Head Pyro and sets the call time from Manage &rarr; Venues. Some shows also have crew sign-up slots — enter your name above to sign up or remove yourself.</p>
     <div id="disabledNotice" style="display:none;"><div class="icon">🚧</div><p>The schedule page is turned off right now. Check with your Head Pyro for show details.</p></div>
     <div id="scheduleBody">
+      <div class="top-actions">
+        <button type="button" id="refreshBtn" onclick="refreshSchedule()">&#8635; Refresh</button>
+        <a id="subscribeLink" href="#" target="_blank" rel="noopener">&#128197; Subscribe to this schedule</a>
+      </div>
       <div class="filter-row">
         <label for="myShowsInput">Your name (lets you sign up for crew sign-up slots, and can filter the list below)</label>
-        <input type="text" id="myShowsInput" list="namesList" placeholder="Start typing your name…" autocomplete="off" oninput="render()">
+        <input type="text" id="myShowsInput" list="namesList" placeholder="Start typing your name…" autocomplete="off" oninput="onNameTyped()">
         <datalist id="namesList"></datalist>
         <label style="font-weight:500;"><input type="checkbox" id="myShowsOnly" onchange="render()" style="width:auto;vertical-align:middle;"> Show only my shows</label>
       </div>
@@ -203,9 +224,35 @@ function daysBetween(fromIso, toIso){
   return Math.round((b - a) / 86400000);
 }
 function keyOf(s){ return String(s || '').trim().toLowerCase(); }
+function directionsUrl(address){
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(address);
+}
+
+const SAVED_NAME_KEY = 'showScheduleName';
+function loadSavedName(){
+  try{ return localStorage.getItem(SAVED_NAME_KEY) || ''; } catch(e){ return ''; }
+}
+function saveName(name){
+  try{ localStorage.setItem(SAVED_NAME_KEY, name); } catch(e){ /* per-device convenience only, fine if it can't persist */ }
+}
+function onNameTyped(){
+  saveName($('myShowsInput').value.trim());
+  render();
+}
+
+function refreshSchedule(){
+  const btn = $('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = 'Refreshing…';
+  checkScheduleStatus().finally(() => {
+    btn.disabled = false;
+    btn.innerHTML = '&#8635; Refresh';
+  });
+}
 
 let ROWS = [];
 let PHONE_BY_NAME = {};
+let PHOTO_BY_NAME = {};
 let SIGNUPS_BY_VENUE = {};
 
 async function loadShowSignups(){
@@ -216,11 +263,30 @@ async function loadShowSignups(){
   } catch(err){ /* sign-up rosters just stay empty if this fails */ }
 }
 
+function signupConflicts(venueId, name){
+  const v = ROWS.find(r => r.id === venueId);
+  if(!v || !v.eventDate) return [];
+  const messages = [];
+  ROWS.forEach(other => {
+    if(other.id === venueId || other.eventDate !== v.eventDate) return;
+    if(keyOf(other.assignedHp) === keyOf(name)){
+      messages.push(`You're already assigned as Head Pyro for ${other.name} on this date.`);
+    } else if((SIGNUPS_BY_VENUE[other.id] || []).some(n => keyOf(n) === keyOf(name))){
+      messages.push(`You're already signed up for ${other.name} on this date.`);
+    }
+  });
+  return messages;
+}
+
 async function signUpForShow(venueId){
   const name = $('myShowsInput').value.trim();
   if(!name){
     alert('Enter your name first.');
     $('myShowsInput').focus();
+    return;
+  }
+  const conflicts = signupConflicts(venueId, name);
+  if(conflicts.length && !confirm(conflicts.join(' ') + '\n\nSign up anyway?')){
     return;
   }
   try{
@@ -233,6 +299,10 @@ async function signUpForShow(venueId){
     if(!SIGNUPS_BY_VENUE[venueId]) SIGNUPS_BY_VENUE[venueId] = [];
     SIGNUPS_BY_VENUE[venueId].push(name);
     render();
+    if(data.waitlisted){
+      const position = SIGNUPS_BY_VENUE[venueId].length - (ROWS.find(r => r.id === venueId).signupLimit || 0);
+      alert(`This show is full — you're on the waitlist (position ${position}). You'll move up automatically if a spot opens.`);
+    }
   } catch(err){
     alert(err.message || "Couldn't sign up — check your connection and try again.");
   }
@@ -259,24 +329,33 @@ function signupBoxHtml(v){
   const names = SIGNUPS_BY_VENUE[v.id] || [];
   const myName = $('myShowsInput').value.trim();
   const isAdmin = window.Auth && Auth.has('admin');
+  const confirmed = names.slice(0, v.signupLimit);
+  const waitlisted = names.slice(v.signupLimit);
   const full = names.length >= v.signupLimit;
   const alreadyIn = myName && names.some(n => keyOf(n) === keyOf(myName));
-  const chips = names.map(n => {
+  const chip = n => {
     const canRemove = isAdmin || (myName && keyOf(n) === keyOf(myName));
     return `<span class="roster-chip">${esc(n)}${canRemove ? `<button type="button" title="Remove" onclick="removeMySignup('${esc(v.id)}','${esc(n).replace(/'/g,"\\'")}')">&times;</button>` : ''}</span>`;
-  }).join('');
+  };
+  const waitlistChip = (n, i) => {
+    const canRemove = isAdmin || (myName && keyOf(n) === keyOf(myName));
+    return `<span class="roster-chip waitlisted">${esc(n)} <span class="wl-pos">#${i + 1}</span>${canRemove ? `<button type="button" title="Remove" onclick="removeMySignup('${esc(v.id)}','${esc(n).replace(/'/g,"\\'")}')">&times;</button>` : ''}</span>`;
+  };
+  const confirmedChips = confirmed.map(chip).join('');
+  const waitlistChips = waitlisted.map(waitlistChip).join('');
   let actionHtml = '';
   if(alreadyIn){
     actionHtml = '';
   } else if(full){
-    actionHtml = '<button type="button" class="signup-btn" disabled>Full</button>';
+    actionHtml = `<button type="button" class="signup-btn" onclick="signUpForShow('${esc(v.id)}')">+ Join waitlist</button>`;
   } else {
     actionHtml = `<button type="button" class="signup-btn" onclick="signUpForShow('${esc(v.id)}')">+ Sign up</button>`;
   }
   return `
     <div class="signup-box">
-      <div class="signup-count ${full ? 'full' : ''}">Crew sign-up: ${names.length}/${v.signupLimit} ${full ? '(full)' : ''}</div>
-      <div class="roster-chips">${chips}${actionHtml}</div>
+      <div class="signup-count ${full ? 'full' : ''}">Crew sign-up: ${confirmed.length}/${v.signupLimit} ${full ? '(full)' : ''}</div>
+      <div class="roster-chips">${confirmedChips}${alreadyIn ? '' : actionHtml}</div>
+      ${waitlisted.length ? `<div class="waitlist-title">Waitlist</div><div class="roster-chips">${waitlistChips}</div>` : ''}
     </div>`;
 }
 
@@ -292,37 +371,21 @@ async function loadNamesAndPhones(){
     }
     const directory = await dirRes.json();
     PHONE_BY_NAME = {};
+    PHOTO_BY_NAME = {};
     if(Array.isArray(directory)){
-      directory.forEach(c => { if(c.name && c.phone) PHONE_BY_NAME[keyOf(c.name)] = c.phone; });
+      directory.forEach(c => {
+        if(!c.name) return;
+        if(c.phone) PHONE_BY_NAME[keyOf(c.name)] = c.phone;
+        if(c.photoUrl) PHOTO_BY_NAME[keyOf(c.name)] = c.photoUrl;
+      });
     }
-  } catch(err){ /* the filter box and tap-to-call just skip their suggestions if this fails */ }
+  } catch(err){ /* the filter box, tap-to-call and avatars just skip their suggestions if this fails */ }
 }
 
-function icsDataUri(v){
-  const d = v.eventDate.slice(0,10).replace(/-/g, '');
-  let startStr, endStr;
-  if(v.callTime){
-    const [hh, mm] = v.callTime.split(':');
-    startStr = `${d}T${hh.padStart(2,'0')}${mm.padStart(2,'0')}00`;
-    const endDate = new Date(Number(d.slice(0,4)), Number(d.slice(4,6))-1, Number(d.slice(6,8)), Number(hh), Number(mm));
-    endDate.setHours(endDate.getHours() + 2);
-    endStr = endDate.getFullYear() + String(endDate.getMonth()+1).padStart(2,'0') + String(endDate.getDate()).padStart(2,'0')
-      + 'T' + String(endDate.getHours()).padStart(2,'0') + String(endDate.getMinutes()).padStart(2,'0') + '00';
-  } else {
-    startStr = d;
-    endStr = d;
-  }
-  const allDay = !v.callTime;
-  const lines = [
-    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Vortex Fireworks//Show Schedule//EN', 'BEGIN:VEVENT',
-    allDay ? `DTSTART;VALUE=DATE:${startStr}` : `DTSTART:${startStr}`,
-    allDay ? `DTEND;VALUE=DATE:${endStr}` : `DTEND:${endStr}`,
-    `SUMMARY:${(v.name || 'Show').replace(/[\r\n]/g, ' ')}${v.assignedHp ? ' (HP: ' + v.assignedHp.replace(/[\r\n]/g,' ') + ')' : ''}`,
-    v.address ? `LOCATION:${v.address.replace(/[\r\n]/g, ' ')}` : '',
-    `UID:${v.id || Math.random().toString(36).slice(2)}@vortex-schedule`,
-    'END:VEVENT', 'END:VCALENDAR'
-  ].filter(Boolean).join('\r\n');
-  return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(lines);
+function setSubscribeLink(){
+  const url = `${CHECKIN_API_URL}?type=scheduleFeed`;
+  const webcalUrl = url.replace(/^https?:/, 'webcal:');
+  $('subscribeLink').href = webcalUrl;
 }
 
 async function checkScheduleStatus(){
@@ -353,7 +416,15 @@ async function loadSchedule(){
     .filter(v => v.eventDate && v.eventDate.slice(0,10) >= today)
     .sort((a, b) => (a.eventDate || '').localeCompare(b.eventDate || ''));
   await Promise.all([loadNamesAndPhones(), loadShowSignups()]);
+  setSubscribeLink();
   render();
+}
+
+const MONTH_LABELS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function monthKeyOf(dateOnly){ return dateOnly.slice(0,7); } // YYYY-MM
+function monthLabelOf(dateOnly){
+  const parts = dateOnly.split('-');
+  return `${MONTH_LABELS[Number(parts[1]) - 1]} ${parts[0]}`;
 }
 
 function render(){
@@ -375,7 +446,8 @@ function render(){
     return;
   }
 
-  wrap.innerHTML = '<div class="show-list">' + rows.map(v => {
+  let lastMonth = null;
+  const html = rows.map(v => {
     const dateOnly = v.eventDate.slice(0,10);
     const daysOut = daysBetween(today, dateOnly);
     const isToday = daysOut === 0;
@@ -384,19 +456,30 @@ function render(){
     const whenFlag = isToday ? '<div class="sched-when-flag today">Today</div>'
       : (isSoon ? `<div class="sched-when-flag soon">In ${daysOut} day${daysOut === 1 ? '' : 's'}</div>` : '');
     const phone = v.assignedHp ? PHONE_BY_NAME[keyOf(v.assignedHp)] : '';
-    const hpLabel = v.assignedHp
+    const photo = v.assignedHp ? PHOTO_BY_NAME[keyOf(v.assignedHp)] : '';
+    const hpName = v.assignedHp
       ? (phone ? `<a href="tel:${esc(phone.replace(/[^\d+]/g,''))}">${esc(v.assignedHp)}</a>` : esc(v.assignedHp))
       : 'Unassigned';
+    const hpLabel = v.assignedHp && photo
+      ? `<div class="sched-hp-row"><img class="sched-avatar" src="${esc(photo)}" alt="">${hpName}</div>`
+      : hpName;
     const hpClass = v.assignedHp ? '' : 'unassigned';
     const callLabel = v.callTime ? esc(formatTimeDisplay(v.callTime)) : 'No call time set';
-    return `
+
+    const monthKey = monthKeyOf(dateOnly);
+    let monthHead = '';
+    if(monthKey !== lastMonth){
+      monthHead = `<div class="month-head">${esc(monthLabelOf(dateOnly))}</div>`;
+      lastMonth = monthKey;
+    }
+
+    return monthHead + `
       <div class="sched-row ${rowClass}">
         <div>
           <div class="sched-venue">${esc(v.name)}</div>
           <div class="sched-date">${esc(formatEventDate(v.eventDate))}</div>
-          ${v.address ? `<div class="sched-addr">${esc(v.address)}${v.county ? ' · ' + esc(v.county) : ''}</div>` : ''}
+          ${v.address ? `<div class="sched-addr">${esc(v.address)}${v.county ? ' · ' + esc(v.county) : ''} <a class="sched-directions" href="${directionsUrl(v.address)}" target="_blank" rel="noopener">Directions</a></div>` : ''}
           ${whenFlag}
-          <a class="sched-ics" download="${esc(v.name || 'show')}.ics" href="${icsDataUri(v)}">+ Add to calendar</a>
           ${signupBoxHtml(v)}
         </div>
         <div class="sched-right">
@@ -404,9 +487,11 @@ function render(){
           <div class="sched-call">${callLabel}</div>
         </div>
       </div>`;
-  }).join('') + '</div>';
+  }).join('');
+  wrap.innerHTML = '<div class="show-list">' + html + '</div>';
 }
 
+$('myShowsInput').value = loadSavedName();
 checkScheduleStatus();
 </script>
 

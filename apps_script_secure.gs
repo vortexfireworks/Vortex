@@ -448,12 +448,41 @@ function addShowSignup(ss, venueId, name) {
       return {status: 'error', message: "You're already signed up for this show."};
     }
   }
-  if (count >= limit) {
-    return {status: 'error', message: 'This show is full.'};
-  }
+  // No capacity check here on purpose: past the limit, a sign-up still goes on the list, just
+  // as a waitlist entry. Position (and so confirmed-vs-waitlisted) is derived from sign-up order
+  // every time the list is read, so someone removing themselves automatically promotes the next
+  // person in line without any extra bookkeeping here.
   sheet.appendRow([venueId, name, new Date()]);
-  return {status: 'ok'};
+  return {status: 'ok', waitlisted: count >= limit};
 }
+// Builds the full .ics text for the Schedule subscription feed (one VEVENT per upcoming show).
+function buildScheduleIcs(shows) {
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Vortex Fireworks//Show Schedule//EN', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:Vortex Show Schedule'];
+  shows.forEach(v => {
+    const d = v.eventDate.replace(/-/g, '');
+    const summary = (v.name || 'Show').replace(/[\r\n]/g, ' ') + (v.assignedHp ? ' (HP: ' + v.assignedHp.replace(/[\r\n]/g, ' ') + ')' : '');
+    lines.push('BEGIN:VEVENT');
+    if (v.callTime) {
+      const parts = v.callTime.split(':');
+      const hh = String(parts[0] || '0').padStart(2, '0');
+      const mm = String(parts[1] || '0').padStart(2, '0');
+      const start = `${d}T${hh}${mm}00`;
+      const endDate = new Date(Number(d.slice(0,4)), Number(d.slice(4,6)) - 1, Number(d.slice(6,8)), Number(hh), Number(mm));
+      endDate.setHours(endDate.getHours() + 2);
+      const end = endDate.getFullYear() + String(endDate.getMonth()+1).padStart(2,'0') + String(endDate.getDate()).padStart(2,'0')
+        + 'T' + String(endDate.getHours()).padStart(2,'0') + String(endDate.getMinutes()).padStart(2,'0') + '00';
+      lines.push(`DTSTART:${start}`, `DTEND:${end}`);
+    } else {
+      lines.push(`DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${d}`);
+    }
+    lines.push(`SUMMARY:${summary}`);
+    if (v.address) lines.push(`LOCATION:${v.address.replace(/[\r\n]/g, ' ')}`);
+    lines.push(`UID:${v.id || Utilities.getUuid()}@vortex-schedule`, 'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
 function removeShowSignup(ss, venueId, name) {
   const sheet = getOrCreateShowSignupsSheet(ss);
   const rows = sheet.getDataRange().getValues();
@@ -975,7 +1004,7 @@ const GET_LEVELS = {
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
-  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp', scheduleStatus: 'public',
+  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp', scheduleStatus: 'public', scheduleFeed: 'public',
   myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'public'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
@@ -2496,6 +2525,36 @@ function doGetInner(e) {
     // Lets both the Venues page (to show the toggle's current state) and the crew-facing
     // show-schedule.html (to check the kill switch before showing the list) read this.
     return jsonOut({disabled: scheduleDisabled()});
+  }
+
+  if (e.parameter.type === 'scheduleFeed') {
+    // A live calendar subscription (webcal://) for the Schedule page: every upcoming show, one
+    // VEVENT each. Whoever subscribes gets this re-fetched by their calendar app on its own
+    // schedule, so it stays current without anyone re-downloading a .ics file by hand.
+    if (scheduleDisabled()) {
+      return ContentService.createTextOutput(buildScheduleIcs([]))
+        .setMimeType(ContentService.MimeType.ICAL);
+    }
+    const sheet = getOrCreateVenuesSheet(ss);
+    const values = sheet.getDataRange().getValues();
+    const headers = values[0] || [];
+    const idx = {};
+    headers.forEach((h, i) => { idx[h] = i; });
+    const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Denver', 'yyyy-MM-dd');
+    const shows = values.slice(1)
+      .filter(row => row[idx['Name']] && row[idx['EventDate']])
+      .map(row => ({
+        id: String(row[idx['Id']] || ''),
+        name: String(row[idx['Name']] || ''),
+        address: String(row[idx['Address']] || ''),
+        eventDate: normalizeDateValue(row[idx['EventDate']]),
+        assignedHp: String(row[idx['AssignedHp']] || ''),
+        callTime: String(row[idx['CallTime']] || '')
+      }))
+      .filter(v => v.eventDate && v.eventDate >= today)
+      .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+    return ContentService.createTextOutput(buildScheduleIcs(shows))
+      .setMimeType(ContentService.MimeType.ICAL);
   }
 
   if (e.parameter.type === 'payrollPinStatus') {
