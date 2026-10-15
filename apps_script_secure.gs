@@ -307,6 +307,12 @@ function myPayDisabled() {
   return PropertiesService.getScriptProperties().getProperty('MY_PAY_DISABLED') === 'true';
 }
 
+// Admin-wide kill switch for the crew-facing read-only show schedule page, changed from the
+// Venues page. Venue data and editing are unaffected either way — this only hides the display.
+function scheduleDisabled() {
+  return PropertiesService.getScriptProperties().getProperty('SCHEDULE_DISABLED') === 'true';
+}
+
 // PINs crew members set up for themselves on "My Pay" — an optional, faster alternative to
 // re-entering the phone number every time. Keyed by lowercased name, same as the phone check.
 function getOrCreatePayrollPinsSheet(ss) {
@@ -902,7 +908,7 @@ const GET_LEVELS = {
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
-  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp',
+  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp', scheduleStatus: 'hp',
   myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
@@ -916,7 +922,8 @@ const POST_LEVELS = {
   product: 'admin', productsImport: 'admin', deleteProduct: 'admin',
   fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
   inventoryContainer: 'admin', deleteInventoryContainer: 'admin', inventoryTransfer: 'admin',
-  deleteAarReport: 'admin', deletePayrollLine: 'admin', deletePayrollShow: 'admin', backupNow: 'admin'
+  deleteAarReport: 'admin', deletePayrollLine: 'admin', deletePayrollShow: 'admin', backupNow: 'admin',
+  scheduleSettings: 'admin'
 };
 
 function bytesToHex(bytes) {
@@ -1538,6 +1545,13 @@ function doPostInner(e) {
     }
     if (Object.prototype.hasOwnProperty.call(data, 'myPayDisabled')) {
       props.setProperty('MY_PAY_DISABLED', data.myPayDisabled ? 'true' : 'false');
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'scheduleSettings') {
+    if (Object.prototype.hasOwnProperty.call(data, 'scheduleDisabled')) {
+      PropertiesService.getScriptProperties().setProperty('SCHEDULE_DISABLED', data.scheduleDisabled ? 'true' : 'false');
     }
     return jsonOut({status: 'ok'});
   }
@@ -2387,6 +2401,12 @@ function doGetInner(e) {
   if (e.parameter.type === 'myPayStatus') {
     // Lets the My Pay page itself check the admin's kill switch before showing the lookup form.
     return jsonOut({disabled: myPayDisabled()});
+  }
+
+  if (e.parameter.type === 'scheduleStatus') {
+    // Lets both the Venues page (to show the toggle's current state) and the crew-facing
+    // show-schedule.html (to check the kill switch before showing the list) read this.
+    return jsonOut({disabled: scheduleDisabled()});
   }
 
   if (e.parameter.type === 'payrollPinStatus') {

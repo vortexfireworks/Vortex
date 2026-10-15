@@ -151,6 +151,7 @@ updateThemeToggleIcon();
     background:none;border:none;color:var(--navy);font-size:12px;cursor:pointer;padding:2px 0;
   }
   .venue-group-foot button:hover{text-decoration:underline;}
+  .settings-row{display:flex;align-items:center;gap:8px;margin:0 0 18px;}
 </style>
 </head>
 <body>
@@ -169,6 +170,10 @@ updateThemeToggleIcon();
 <div class="sheet">
   <div class="section">
     <p class="desc">Add a new venue or edit an existing one. The same venue can have more than one date — use "+ Add another date" on an existing venue instead of retyping its address. Changes show up in the venue list on the After-Action Report, Check-In, Payroll, and QR code pages right away.</p>
+
+    <div class="settings-row">
+      <label><input type="checkbox" id="scheduleDisabledToggle" onchange="onScheduleDisabledToggle()"> Turn off the crew-facing Schedule page for everyone</label>
+    </div>
 
     <div class="editor-box">
       <p class="label-title" id="formTitle">ADD VENUE</p>
@@ -268,6 +273,27 @@ async function postJson(payload){
 /* ---------------- State: a flat list of venues, never deduped by name ---------------- */
 let VENUES = [];
 let editingId = null;
+
+async function loadScheduleStatus(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=scheduleStatus`, { cache: 'no-store' });
+    const data = await res.json();
+    $('scheduleDisabledToggle').checked = !!(data && data.disabled);
+  } catch(err){ /* toggle just starts unchecked if this fails */ }
+}
+
+async function onScheduleDisabledToggle(){
+  const checkbox = $('scheduleDisabledToggle');
+  const wanted = checkbox.checked;
+  checkbox.disabled = true;
+  try{
+    await postJson({ recordType: 'scheduleSettings', scheduleDisabled: wanted });
+  } catch(err){
+    checkbox.checked = !wanted;
+    alert("Couldn't save that setting — check your connection and try again.");
+  }
+  checkbox.disabled = false;
+}
 
 async function loadVenues(){
   try{
@@ -636,6 +662,7 @@ async function loadNamesDirectory(){
 
 loadVenues();
 loadNamesDirectory();
+loadScheduleStatus();
 </script>
 
 <script>

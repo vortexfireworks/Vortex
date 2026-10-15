@@ -103,6 +103,9 @@ updateThemeToggleIcon();
   .sched-hp{font-size:13px;font-weight:600;color:var(--ink);}
   .sched-hp.unassigned{color:var(--brick-light);font-weight:500;font-style:italic;}
   .sched-call{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  #disabledNotice{text-align:center;padding:24px 12px;color:var(--ink-soft);}
+  #disabledNotice .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  #disabledNotice p{margin:0;font-size:13px;}
 </style>
 </head>
 <body>
@@ -121,8 +124,11 @@ updateThemeToggleIcon();
 <div class="sheet">
   <div class="section">
     <p class="desc">Every show on the venue list — the date, venue, who's assigned as Head Pyro, and call time. This is read-only; an admin assigns the Head Pyro and sets the call time from Manage &rarr; Venues.</p>
-    <div id="countLine" class="count-line"></div>
-    <div id="listWrap"><div class="empty-state"><div class="icon">📅</div><p class="loading-pulse">Loading the schedule…</p></div></div>
+    <div id="disabledNotice" style="display:none;"><div class="icon">🚧</div><p>The schedule page is turned off right now. Check with your Head Pyro for show details.</p></div>
+    <div id="scheduleBody">
+      <div id="countLine" class="count-line"></div>
+      <div id="listWrap"><div class="empty-state"><div class="icon">📅</div><p class="loading-pulse">Loading the schedule…</p></div></div>
+    </div>
   </div>
 </div>
 
@@ -150,6 +156,19 @@ function formatTimeDisplay(timeStr){
   return `${h}:${m} ${suffix}`;
 }
 function todayIso(){ return new Date().toISOString().slice(0,10); }
+
+async function checkScheduleStatus(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=scheduleStatus`, { cache: 'no-store' });
+    const data = await res.json();
+    if(data && data.disabled){
+      $('disabledNotice').style.display = '';
+      $('scheduleBody').style.display = 'none';
+      return;
+    }
+  } catch(err){ /* if the check itself fails, fall through and try loading the schedule anyway */ }
+  loadSchedule();
+}
 
 async function loadSchedule(){
   const wrap = $('listWrap');
@@ -192,7 +211,7 @@ async function loadSchedule(){
   }).join('') + '</div>';
 }
 
-loadSchedule();
+checkScheduleStatus();
 </script>
 
 <script>
