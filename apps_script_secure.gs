@@ -76,7 +76,7 @@ function getOrCreateContactsSheet(ss) {
 }
 
 function getOrCreateVenuesSheet(ss) {
-  const requiredHeaders = ['Name', 'Address', 'County', 'EventDate', 'SignInEnabled', 'Id'];
+  const requiredHeaders = ['Name', 'Address', 'County', 'EventDate', 'SignInEnabled', 'Id', 'AssignedHp', 'CallTime'];
   let sheet = ss.getSheetByName('Venues');
   if (!sheet) {
     sheet = ss.insertSheet('Venues');
@@ -2036,6 +2036,8 @@ function doPostInner(e) {
 
     const existingSignIn = rowIndex > 0 ? rows[rowIndex - 1][map['SignInEnabled']] : '';
     const existingId = rowIndex > 0 ? String(rows[rowIndex - 1][map['Id']] || '') : '';
+    const existingAssignedHp = rowIndex > 0 ? rows[rowIndex - 1][map['AssignedHp']] : '';
+    const existingCallTime = rowIndex > 0 ? rows[rowIndex - 1][map['CallTime']] : '';
 
     const newRow = [];
     newRow[map['Name']] = data.name;
@@ -2044,6 +2046,11 @@ function doPostInner(e) {
     newRow[map['EventDate']] = data.eventDate || '';
     newRow[map['SignInEnabled']] = existingSignIn || '';
     newRow[map['Id']] = existingId || Utilities.getUuid();
+    // assignedHp/callTime are only sent as explicit fields from venues.html's editor, but
+    // use hasOwnProperty so a value of '' (admin clearing the field) still gets saved rather
+    // than falling back to the preserved existing value.
+    newRow[map['AssignedHp']] = Object.prototype.hasOwnProperty.call(data, 'assignedHp') ? (data.assignedHp || '') : (existingAssignedHp || '');
+    newRow[map['CallTime']] = Object.prototype.hasOwnProperty.call(data, 'callTime') ? (data.callTime || '') : (existingCallTime || '');
 
     if (rowIndex > 0) {
       sheet.getRange(rowIndex, 1, 1, newRow.length).setValues([newRow]);
@@ -2780,7 +2787,9 @@ function doGetInner(e) {
         address: row[idx['Address']],
         county: row[idx['County']] || '',
         eventDate: normalizeDateValue(row[idx['EventDate']]),
-        signInEnabled: row[idx['SignInEnabled']] === 'Yes'
+        signInEnabled: row[idx['SignInEnabled']] === 'Yes',
+        assignedHp: row[idx['AssignedHp']] || '',
+        callTime: row[idx['CallTime']] || ''
       }));
     const json = JSON.stringify(results);
     try {

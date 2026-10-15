@@ -136,6 +136,8 @@ updateThemeToggleIcon();
   .venue-date-row .vd-date{font-weight:600;color:var(--ink);}
   .venue-date-row .vd-date.no-date{font-weight:400;color:var(--ink-soft);font-style:italic;}
   .venue-date-row .vd-date.past{color:var(--ink-soft);font-weight:400;}
+  .venue-date-row .vd-assign{color:var(--ink-soft);font-size:12px;flex:1;text-align:left;}
+  .venue-date-row .vd-assign.no-date{font-style:italic;}
   .venue-date-row .vd-actions{display:flex;gap:6px;flex-shrink:0;}
   .venue-date-row .vd-actions button{
     background:none;border:1px solid var(--line);color:var(--navy);
@@ -178,8 +180,11 @@ updateThemeToggleIcon();
         <div class="field full"><label for="vEditAddress">Address</label><input type="text" id="vEditAddress" onblur="this.value = toTitleCase(this.value)" autocomplete="off"></div>
         <div class="field"><label for="vEditCounty">County</label><input type="text" id="vEditCounty" autocomplete="off"></div>
         <div class="field"><label for="vEditDate">Event date</label><input type="date" id="vEditDate"></div>
+        <div class="field"><label for="vEditAssignedHp">Assigned Head Pyro</label><input type="text" id="vEditAssignedHp" list="namesDirectoryList" placeholder="Leave blank if not assigned yet" autocomplete="off"></div>
+        <div class="field"><label for="vEditCallTime">Call time</label><input type="time" id="vEditCallTime"></div>
       </div>
       <datalist id="venueDirectoryList"></datalist>
+      <datalist id="namesDirectoryList"></datalist>
       <div class="save-row">
         <button class="primary" type="button" onclick="saveVenue()">Save venue</button>
         <button class="secondary" type="button" id="cancelEditBtn" onclick="resetForm()" style="display:none;">Cancel edit</button>
@@ -234,6 +239,16 @@ function formatDateDisplay(dateStr){
   if(parts.length !== 3) return dateStr;
   const d = new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]));
   return d.toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+}
+function formatTimeDisplay(timeStr){
+  if(!timeStr) return '';
+  const parts = timeStr.split(':');
+  if(parts.length < 2) return timeStr;
+  let h = Number(parts[0]);
+  const m = parts[1];
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if(h === 0) h = 12;
+  return `${h}:${m} ${suffix}`;
 }
 
 async function postJson(payload){
@@ -291,6 +306,8 @@ function resetForm(){
   $('vEditAddress').value = '';
   $('vEditCounty').value = '';
   $('vEditDate').value = '';
+  $('vEditAssignedHp').value = '';
+  $('vEditCallTime').value = '';
   $('formTitle').textContent = 'ADD VENUE';
   $('cancelEditBtn').style.display = 'none';
 }
@@ -303,6 +320,8 @@ function editVenue(id){
   $('vEditAddress').value = v.address || '';
   $('vEditCounty').value = v.county || '';
   $('vEditDate').value = v.eventDate || '';
+  $('vEditAssignedHp').value = v.assignedHp || '';
+  $('vEditCallTime').value = v.callTime || '';
   $('formTitle').textContent = 'EDITING: ' + v.name + (v.eventDate ? ' — ' + formatDateDisplay(v.eventDate) : '');
   $('cancelEditBtn').style.display = '';
   setStatus($('venueSaveStatus'), '');
@@ -316,6 +335,8 @@ function addAnotherDate(name){
   $('vEditAddress').value = match ? (match.address || '') : '';
   $('vEditCounty').value = match ? (match.county || '') : '';
   $('vEditDate').value = '';
+  $('vEditAssignedHp').value = '';
+  $('vEditCallTime').value = '';
   $('formTitle').textContent = 'ADD VENUE';
   $('cancelEditBtn').style.display = 'none';
   setStatus($('venueSaveStatus'), '');
@@ -329,6 +350,8 @@ async function saveVenue(){
   const address = $('vEditAddress').value.trim();
   const county = $('vEditCounty').value.trim();
   const eventDate = $('vEditDate').value.trim();
+  const assignedHp = $('vEditAssignedHp').value.trim();
+  const callTime = $('vEditCallTime').value.trim();
 
   if(!name){
     setStatus(statusEl, 'Enter a venue name first.', 'err');
@@ -336,16 +359,16 @@ async function saveVenue(){
   }
 
   setStatus(statusEl, 'Saving…');
-  const payload = { recordType: 'venue', name, address, county, eventDate };
+  const payload = { recordType: 'venue', name, address, county, eventDate, assignedHp, callTime };
   if(editingId) payload.id = editingId;
 
   try{
     const result = await postJson(payload);
     if(editingId){
       const v = VENUES.find(x => x.id === editingId);
-      if(v) Object.assign(v, { name, address, county, eventDate });
+      if(v) Object.assign(v, { name, address, county, eventDate, assignedHp, callTime });
     } else {
-      VENUES.push({ id: result.id || '', name, address, county, eventDate, signInEnabled: false });
+      VENUES.push({ id: result.id || '', name, address, county, eventDate, assignedHp, callTime, signInEnabled: false });
     }
     buildDatalist();
     renderVenueList();
@@ -423,9 +446,14 @@ function renderVenueList(){
           const isPast = v.eventDate && v.eventDate < today;
           const dateLabel = v.eventDate ? formatDateDisplay(v.eventDate) : 'No date set';
           const dateClass = !v.eventDate ? 'no-date' : (isPast ? 'past' : '');
+          const assignBits = [];
+          if(v.assignedHp) assignBits.push(`HP: ${esc(v.assignedHp)}`);
+          if(v.callTime) assignBits.push(`Call: ${esc(formatTimeDisplay(v.callTime))}`);
+          const assignLabel = assignBits.length ? assignBits.join(' · ') : 'Unassigned';
           return `
           <div class="venue-date-row">
             <span class="vd-date ${dateClass}">${esc(dateLabel)}</span>
+            <span class="vd-assign ${assignBits.length ? '' : 'no-date'}">${assignLabel}</span>
             <div class="vd-actions">
               <button type="button" onclick="editVenue('${v.id}')">Edit</button>
               <button type="button" class="danger" onclick="deleteVenue('${v.id}')">Delete</button>
@@ -596,7 +624,18 @@ async function handleCsvImport(event){
   }
 }
 
+async function loadNamesDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=names`, { cache: 'no-store' });
+    const names = await res.json();
+    if(Array.isArray(names)){
+      $('namesDirectoryList').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+    }
+  } catch(err){ /* the text input still works without the suggestion list */ }
+}
+
 loadVenues();
+loadNamesDirectory();
 </script>
 
 <script>
