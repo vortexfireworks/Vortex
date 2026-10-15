@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuesheet-v4';
+const CACHE_NAME = 'cuesheet-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -62,8 +62,12 @@ self.addEventListener('fetch', event => {
   // untouched — caching or retrying a live API call here would risk silently
   // serving stale or empty data if the pass-through fetch below ever hiccups.
   if (new URL(event.request.url).origin !== self.location.origin) return;
+  // {cache: 'no-store'} skips the browser's own disk cache for this fetch (iOS Safari in
+  // particular can otherwise keep serving an old copy of a page even once this worker is
+  // trying to fetch a fresh one), so what we cache and serve below is always what the
+  // server has right now, with the cache here used only as an offline fallback.
   event.respondWith(
-    fetch(event.request).then(response => {
+    fetch(event.request, { cache: 'no-store' }).then(response => {
       const copy = response.clone();
       caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
       return response;
