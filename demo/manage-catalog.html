@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
+<title>Manage Catalog — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0F172A">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#A5B4FC; --surface-4:rgba(15,23,42,0.4); --surface-5:rgba(15,23,42,0.5); --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --navy:#A5B4FC; --brick:#6366F1; --brick-light:#818CF8;
+    --paper:#1E293B; --card:rgba(30,41,59,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --ok:#22C55E;
+    --accent1:#4F46E5; --accent2:#8B5CF6;
+  }
+  :root[data-theme="light"]{
+    --kicker:#4F46E5; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12); --paper:#F8FAFC; --navy:#4F46E5;
+    --logo-ring-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);margin:0 auto 16px;box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);border-radius:2px;box-shadow:0 0 12px rgba(139,92,246,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .full{grid-column:1/-1;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=file], select, textarea{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  textarea{resize:vertical;min-height:60px;}
+  input:focus, select:focus, textarea:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#F8FAFC; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(139,92,246,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary.danger{color:var(--brick);}
+  button.secondary.danger:hover{border-color:var(--brick);}
+  .editor-box{
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .search-box{margin-bottom:14px;}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media(max-width:480px){ .grid2{grid-template-columns:1fr;} }
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .cat-group{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;overflow:hidden;}
+  .cat-group-head{background:var(--surface-5);padding:10px 14px;font-size:11.5px;font-weight:700;color:var(--kicker);display:flex;justify-content:space-between;gap:8px;}
+  .prod-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:9px 14px;border-top:1px solid var(--line);font-size:13px;
+  }
+  .prod-row .pr-main{flex:1 1 auto;min-width:0;}
+  .prod-row .pr-title{font-weight:700;color:var(--ink);}
+  .prod-row .pr-sub{color:var(--ink-soft);font-size:11.5px;margin-top:2px;}
+  .ka-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:16px;height:16px;border-radius:50%;background:var(--ok);color:#fff;
+    font-size:10px;vertical-align:middle;margin-left:2px;
+  }
+  .prod-row .pr-actions{display:flex;gap:6px;flex-shrink:0;}
+  .prod-row .pr-actions button{
+    background:none;border:1px solid var(--line);color:var(--navy);
+    font-size:11.5px;padding:5px 9px;border-radius:6px;cursor:pointer;
+  }
+  .prod-row .pr-actions button:hover{border-color:var(--navy);}
+  .prod-row .pr-actions button.danger{color:var(--brick);}
+  .prod-row .pr-actions button.danger:hover{border-color:var(--brick);}
+
+  .tool-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+  .tool-row label.file-btn{
+    display:inline-flex;align-items:center;padding:8px 14px;border:1px solid var(--line);
+    border-radius:6px;font-size:13px;cursor:pointer;color:var(--navy);background:none;
+  }
+  .dup-group{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.3);border-radius:10px;padding:14px;margin-bottom:12px;}
+  .dup-item{background:var(--surface-4);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;}
+</style>
+<script src="theme-picker.js" defer></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
+  <h1>Manage Catalog</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Add or edit catalog items one at a time, bring in a whole price list from a CSV, or clean up anything that got imported twice. Changes show up in the Catalog page (under Head Pyro Tools → Plan a Firework Show) right away.</p>
+
+    <div class="editor-box">
+      <p class="label-title" id="formTitle">ADD PRODUCT</p>
+      <div class="grid2" style="margin-bottom:10px;">
+        <div class="field">
+          <label for="pEditClass">Class</label>
+          <select id="pEditClass">
+            <option value="">—</option>
+            <option value="1.3">1.3G (Display/Professional)</option>
+            <option value="1.4">1.4G (Consumer)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="pEditCategory">Category</label>
+          <input type="text" id="pEditCategory" list="categoryDirectoryList" placeholder="Cakes, Shells 3in, Fountains…" autocomplete="off">
+        </div>
+        <div class="field full">
+          <label for="pEditName">Product name</label>
+          <input type="text" id="pEditName" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="pEditBrand">Brand / Manufacturer</label>
+          <input type="text" id="pEditBrand" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="pEditColor">Color</label>
+          <input type="text" id="pEditColor" list="colorDirectoryList" placeholder="Red, Green/Blue, Multi…" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="pEditEffect">Effect</label>
+          <input type="text" id="pEditEffect" list="effectDirectoryList" placeholder="Comet, Crackle, Strobe, Glitter…" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="pEditDuration">Duration</label>
+          <input type="text" id="pEditDuration" placeholder="45 seconds, 1:30…" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="pEditPrice">Price</label>
+          <input type="text" id="pEditPrice" inputmode="decimal" placeholder="12.50" autocomplete="off">
+        </div>
+        <div class="field full">
+          <label for="pEditUrl">Product URL</label>
+          <input type="text" id="pEditUrl" placeholder="https://…" autocomplete="off">
+        </div>
+        <div class="field full">
+          <label for="pEditDesc">Description</label>
+          <textarea id="pEditDesc"></textarea>
+        </div>
+        <div class="field full" style="flex-direction:row;align-items:center;gap:8px;">
+          <input type="checkbox" id="pEditApproved" style="width:auto;flex:0 0 auto;margin:0;">
+          <label for="pEditApproved" style="margin:0;">Staff Approved</label>
+        </div>
+      </div>
+      <datalist id="categoryDirectoryList"></datalist>
+      <datalist id="colorDirectoryList"></datalist>
+      <datalist id="effectDirectoryList"></datalist>
+      <div class="save-row">
+        <button class="primary" type="button" onclick="saveProduct()">Save product</button>
+        <button class="secondary" type="button" id="cancelEditBtn" onclick="resetForm()" style="display:none;">Cancel edit</button>
+        <span id="productSaveStatus" class="hint"></span>
+      </div>
+    </div>
+
+    <p class="list-title">IMPORT / CLEAN UP</p>
+    <div class="tool-row">
+      <label class="file-btn">
+        Import from CSV
+        <input type="file" id="productsCsvFile" accept=".csv,text/csv" style="display:none;" onchange="handleProductsCsv(event)">
+      </label>
+      <button class="secondary" type="button" onclick="exportProductsCsv()">⬇ Export catalog to CSV</button>
+      <button class="secondary" type="button" onclick="downloadTemplate()">⬇ Download blank template</button>
+      <button class="secondary" type="button" onclick="findDuplicateProducts()">Find duplicates</button>
+    </div>
+    <p class="hint">CSV columns: Id, Class, Category, Product Name, Brand, Color, Effect, Duration, Price, Description, Product URL, Staff Approved (every column but Product Name and Category is optional). "Export catalog to CSV" downloads everything currently in the catalog — edit it and re-import the same file to update those rows in place (matched by the Id column) instead of creating duplicates. Rows with no Id, or an Id that isn't found, are added as new products.</p>
+    <p id="csvImportStatus" class="hint"></p>
+    <div id="duplicatesWrap" style="margin:10px 0 16px;"></div>
+
+    <p class="list-title">CURRENT PRODUCTS</p>
+    <div class="grid2" style="margin-bottom:14px;">
+      <div class="field full search-box" style="margin-bottom:0;">
+        <input type="text" id="productSearch" placeholder="Search name, brand, category, effect, description…" oninput="renderProductList()">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <select id="categoryFilter" onchange="renderProductList()"><option value="">All categories</option></select>
+      </div>
+      <div class="field full" style="margin-bottom:0;">
+        <label for="sortSelect">Sort by</label>
+        <select id="sortSelect" onchange="renderProductList()">
+          <option value="name-asc">Name (A–Z)</option>
+          <option value="name-desc">Name (Z–A)</option>
+          <option value="brand-asc">Manufacturer (A–Z)</option>
+          <option value="color-asc">Color (A–Z)</option>
+          <option value="effect-asc">Effect (A–Z)</option>
+          <option value="duration-asc">Duration (Shortest to Longest)</option>
+          <option value="duration-desc">Duration (Longest to Shortest)</option>
+          <option value="price-asc">Price (Low to High)</option>
+          <option value="price-desc">Price (High to Low)</option>
+        </select>
+      </div>
+    </div>
+    <div id="productListWrap">
+      <p class="loading-pulse">Loading…</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec";
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function keyOf(s){ return String(s || '').trim().toLowerCase(); }
+function setStatus(el, msg, kind){
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
+}
+function classLabel(c){
+  c = String(c || '').trim();
+  if(c === '1.3') return '1.3G';
+  if(c === '1.4') return '1.4G';
+  return c;
+}
+function formatPrice(v){
+  const n = Number(v);
+  return isFinite(n) && v !== '' ? '$' + n.toFixed(2) : '';
+}
+function normalizePrice(v){
+  const n = Number(String(v || '').replace(/[^0-9.\-]/g, ''));
+  return isFinite(n) ? String(n) : '';
+}
+// Reads a Duration field as seconds, whether it was typed "45", "45 seconds", or "1:30"
+// (mm:ss) — returns null when nothing numeric can be found, so it sorts to the end.
+function durationSeconds(v){
+  const s = String(v || '').trim();
+  if(!s) return null;
+  const mmss = s.match(/^(\d+):(\d{1,2})$/);
+  if(mmss) return Number(mmss[1]) * 60 + Number(mmss[2]);
+  const n = Number(s.replace(/[^0-9.]/g, ''));
+  return isFinite(n) && /\d/.test(s) ? n : null;
+}
+// Blank values always sort to the end, whichever direction and field is chosen, so
+// un-filled items don't scatter to the top of a price or color sort.
+function productComparator(sortBy){
+  const priceOf = p => { const n = Number(p.price); return isFinite(n) ? n : null; };
+  return (a, b) => {
+    switch(sortBy){
+      case 'name-desc': return b.name.localeCompare(a.name);
+      case 'brand-asc': {
+        const ab = !!a.brand, bb = !!b.brand;
+        if(ab !== bb) return ab ? -1 : 1;
+        return keyOf(a.brand).localeCompare(keyOf(b.brand)) || a.name.localeCompare(b.name);
+      }
+      case 'color-asc': {
+        const ac = !!a.color, bc = !!b.color;
+        if(ac !== bc) return ac ? -1 : 1;
+        return keyOf(a.color).localeCompare(keyOf(b.color)) || a.name.localeCompare(b.name);
+      }
+      case 'effect-asc': {
+        const ae = !!a.effect, be = !!b.effect;
+        if(ae !== be) return ae ? -1 : 1;
+        return keyOf(a.effect).localeCompare(keyOf(b.effect)) || a.name.localeCompare(b.name);
+      }
+      case 'price-asc': case 'price-desc': {
+        const ap = priceOf(a), bp = priceOf(b);
+        if(ap === null || bp === null){
+          if(ap === null && bp === null) return a.name.localeCompare(b.name);
+          return ap === null ? 1 : -1;
+        }
+        return sortBy === 'price-asc' ? (ap - bp || a.name.localeCompare(b.name)) : (bp - ap || a.name.localeCompare(b.name));
+      }
+      case 'duration-asc': case 'duration-desc': {
+        const ad = durationSeconds(a.duration), bd = durationSeconds(b.duration);
+        if(ad === null || bd === null){
+          if(ad === null && bd === null) return a.name.localeCompare(b.name);
+          return ad === null ? 1 : -1;
+        }
+        return sortBy === 'duration-asc' ? (ad - bd || a.name.localeCompare(b.name)) : (bd - ad || a.name.localeCompare(b.name));
+      }
+      case 'name-asc': default: return a.name.localeCompare(b.name);
+    }
+  };
+}
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error'){
+    throw new Error((data && data.message) || 'Request failed');
+  }
+  return data;
+}
+
+/* ---------------- State: a flat list of products ---------------- */
+let PRODUCTS = [];
+let editingId = null;
+
+async function loadProducts(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=products`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    const json = await res.json();
+    PRODUCTS = (json.products || []).map(p => ({
+      id: p.id || '', class: p.class || '', category: p.category || '', name: String(p.name || '').trim(),
+      brand: p.brand || '', color: p.color || '', effect: p.effect || '', duration: p.duration || '', price: p.price || '', description: p.description || '', url: p.url || '',
+      staffApproved: !!p.staffApproved
+    }));
+  } catch(err){
+    PRODUCTS = [];
+  }
+  buildCategoryOptions();
+  renderProductList();
+}
+
+function buildCategoryOptions(){
+  const categories = [...new Set(PRODUCTS.map(p => p.category).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  $('categoryDirectoryList').innerHTML = categories.map(c => `<option value="${esc(c)}">`).join('');
+  const sel = $('categoryFilter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All categories</option>' + categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(current && categories.includes(current)) sel.value = current;
+
+  const colors = [...new Set(PRODUCTS.map(p => p.color).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  $('colorDirectoryList').innerHTML = colors.map(c => `<option value="${esc(c)}">`).join('');
+
+  const effects = [...new Set(PRODUCTS.map(p => p.effect).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+  $('effectDirectoryList').innerHTML = effects.map(c => `<option value="${esc(c)}">`).join('');
+}
+
+/* ---------------- Add / Edit form ---------------- */
+function resetForm(){
+  editingId = null;
+  $('pEditClass').value = '';
+  $('pEditCategory').value = '';
+  $('pEditName').value = '';
+  $('pEditBrand').value = '';
+  $('pEditColor').value = '';
+  $('pEditEffect').value = '';
+  $('pEditDuration').value = '';
+  $('pEditPrice').value = '';
+  $('pEditUrl').value = '';
+  $('pEditDesc').value = '';
+  $('pEditApproved').checked = false;
+  $('formTitle').textContent = 'ADD PRODUCT';
+  $('cancelEditBtn').style.display = 'none';
+}
+
+function editProduct(id){
+  const p = PRODUCTS.find(x => x.id === id);
+  if(!p) return;
+  editingId = id;
+  $('pEditClass').value = p.class || '';
+  $('pEditCategory').value = p.category || '';
+  $('pEditName').value = p.name || '';
+  $('pEditBrand').value = p.brand || '';
+  $('pEditColor').value = p.color || '';
+  $('pEditEffect').value = p.effect || '';
+  $('pEditDuration').value = p.duration || '';
+  $('pEditPrice').value = p.price || '';
+  $('pEditUrl').value = p.url || '';
+  $('pEditDesc').value = p.description || '';
+  $('pEditApproved').checked = !!p.staffApproved;
+  $('formTitle').textContent = 'EDITING: ' + (p.name || '(unnamed product)');
+  $('cancelEditBtn').style.display = '';
+  setStatus($('productSaveStatus'), '');
+  $('pEditName').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+async function saveProduct(){
+  const statusEl = $('productSaveStatus');
+  const payload = {
+    recordType: 'product',
+    class: $('pEditClass').value.trim(),
+    category: $('pEditCategory').value.trim(),
+    name: $('pEditName').value.trim(),
+    brand: $('pEditBrand').value.trim(),
+    color: $('pEditColor').value.trim(),
+    effect: $('pEditEffect').value.trim(),
+    duration: $('pEditDuration').value.trim(),
+    price: normalizePrice($('pEditPrice').value),
+    description: $('pEditDesc').value.trim(),
+    url: $('pEditUrl').value.trim(),
+    staffApproved: $('pEditApproved').checked
+  };
+  if(!payload.name){
+    setStatus(statusEl, 'Enter a product name first.', 'err');
+    return;
+  }
+  if(editingId) payload.id = editingId;
+
+  setStatus(statusEl, 'Saving…');
+  try{
+    const result = await postJson(payload);
+    if(editingId){
+      const p = PRODUCTS.find(x => x.id === editingId);
+      if(p) Object.assign(p, payload);
+    } else {
+      PRODUCTS.push(Object.assign({ id: result.id || '' }, payload));
+    }
+    buildCategoryOptions();
+    renderProductList();
+    setStatus(statusEl, 'Saved ✓', 'ok');
+    resetForm();
+  } catch(err){
+    setStatus(statusEl, 'Could not save — check your connection and try again.', 'err');
+  }
+}
+
+async function deleteProduct(id){
+  const p = PRODUCTS.find(x => x.id === id);
+  if(!p) return;
+  if(!confirm(`Delete "${p.name || '(unnamed product)'}"? This can't be undone.`)) return;
+  try{
+    await postJson({ recordType: 'deleteProduct', id });
+    PRODUCTS = PRODUCTS.filter(x => x.id !== id);
+    buildCategoryOptions();
+    renderProductList();
+    if(editingId === id) resetForm();
+  } catch(err){
+    alert('Could not delete — check your connection and try again.');
+  }
+}
+
+/* ---------------- List: grouped by category ---------------- */
+function matchesSearch(hay, term){ return hay.some(v => keyOf(v).includes(term)); }
+
+function renderProductList(){
+  const wrap = $('productListWrap');
+  const term = keyOf($('productSearch').value);
+  const category = $('categoryFilter').value;
+
+  let items = PRODUCTS;
+  if(category) items = items.filter(p => p.category === category);
+  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.effect, p.duration, p.description], term));
+
+  if(!items.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No products found. Try a different search, or add one above.</p></div>';
+    return;
+  }
+
+  const sortBy = $('sortSelect').value;
+  const groups = {};
+  items.forEach(p => { (groups[p.category || '(Uncategorized)'] = groups[p.category || '(Uncategorized)'] || []).push(p); });
+  const catNames = Object.keys(groups).sort((a,b) => a.localeCompare(b));
+
+  wrap.innerHTML = catNames.map(cat => `
+    <div class="cat-group">
+      <div class="cat-group-head"><span>${esc(cat)}</span><span>${groups[cat].length}</span></div>
+      ${groups[cat].sort(productComparator(sortBy)).map(p => {
+        const bits = [p.brand, p.color, p.effect, p.duration, classLabel(p.class), formatPrice(p.price)].filter(Boolean);
+        return `
+        <div class="prod-row">
+          <div class="pr-main">
+            <div class="pr-title">${esc(p.name || '(unnamed product)')}${p.staffApproved ? ' <span class="ka-badge" title="Staff Approved">&#10003;</span>' : ''}</div>
+            ${bits.length ? `<div class="pr-sub">${esc(bits.join(' · '))}</div>` : ''}
+          </div>
+          <div class="pr-actions">
+            <button type="button" onclick="editProduct('${p.id}')">Edit</button>
+            <button type="button" class="danger" onclick="deleteProduct('${p.id}')">Delete</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+}
+
+/* ---------------- Find duplicates (same name + brand + category) ---------------- */
+async function findDuplicateProducts(){
+  const wrap = $('duplicatesWrap');
+  wrap.innerHTML = '<p class="loading-pulse">Checking for duplicates…</p>';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=findDuplicateProducts`);
+    if(!res.ok) throw new Error('Request failed');
+    const groups = await res.json();
+    renderDuplicateProducts(groups);
+  } catch(err){
+    wrap.innerHTML = '<p style="color:var(--brick);font-size:13px;">Could not check for duplicates — check your connection and try again.</p>';
+  }
+}
+
+function renderDuplicateProducts(groups){
+  const wrap = $('duplicatesWrap');
+  window._duplicateProductGroups = groups || [];
+  if(!groups || groups.length === 0){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--ok);">No duplicates found — every name+brand+category combination appears only once.</p>';
+    return;
+  }
+  wrap.innerHTML = `<p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;" id="dupCountLabel">${groups.length} DUPLICATE${groups.length > 1 ? 'S' : ''} FOUND (same name, brand &amp; category)</p>` +
+    `<div id="dupGroupsList">${groups.map((g, gi) => renderDupGroupHtml(g, gi)).join('')}</div>`;
+}
+
+function renderDupGroupHtml(g, gi){
+  return `
+      <div class="dup-group" id="dupGroup-${gi}">
+        <p style="font-weight:700;margin:0 0 10px;">${esc(g.items[0].name)}${g.items[0].brand ? ' — ' + esc(g.items[0].brand) : ''}</p>
+        ${g.items.map((it, ii) => `
+          <div class="dup-item">
+            <div style="color:var(--ink-soft);line-height:1.6;">
+              Category: ${esc(it.category) || '—'}<br>
+              Color: ${esc(it.color) || '—'}<br>
+              Effect: ${esc(it.effect) || '—'}<br>
+              Duration: ${esc(it.duration) || '—'}<br>
+              Price: ${esc(formatPrice(it.price)) || '—'}<br>
+              ${it.url ? `URL: ${esc(it.url)}` : ''}
+            </div>
+            <div id="dupAction-${gi}-${ii}">
+              <button type="button" style="margin-top:8px;background:none;border:1px solid var(--line);color:var(--navy);font-size:12px;padding:6px 10px;border-radius:6px;cursor:pointer;" onclick="confirmKeepDuplicateProductRow(${gi}, ${ii})">Keep this one, delete the other${g.items.length > 2 ? 's' : ''}</button>
+            </div>
+          </div>
+        `).join('')}
+        <p id="dupGroupStatus-${gi}" style="font-size:12px;margin:6px 0 0;"></p>
+      </div>`;
+}
+
+function confirmKeepDuplicateProductRow(groupIndex, keepIndex){
+  const group = window._duplicateProductGroups[groupIndex];
+  if(!group) return;
+  const toDeleteCount = group.items.length - 1;
+  // Collapse every row's action area in this group into a single inline confirm bar.
+  group.items.forEach((it, ii) => {
+    const actionEl = document.getElementById(`dupAction-${groupIndex}-${ii}`);
+    if(actionEl) actionEl.innerHTML = ii === keepIndex
+      ? '<span style="font-size:12px;color:var(--ink-soft);">Keeping this one…</span>'
+      : '<span style="font-size:12px;color:var(--brick);">Will be deleted</span>';
+  });
+  const statusEl = document.getElementById(`dupGroupStatus-${groupIndex}`);
+  if(statusEl){
+    statusEl.innerHTML = `Delete the other ${toDeleteCount} entr${toDeleteCount === 1 ? 'y' : 'ies'}? This can't be undone. ` +
+      `<button type="button" style="margin-left:6px;background:var(--brick);color:#fff;border:none;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;" onclick="keepDuplicateProductRow(${groupIndex}, ${keepIndex})">Yes, delete</button> ` +
+      `<button type="button" style="margin-left:4px;background:none;border:1px solid var(--line);color:var(--navy);font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;" onclick="renderDupGroupInPlace(${groupIndex})">Cancel</button>`;
+  }
+}
+
+function renderDupGroupInPlace(groupIndex){
+  const group = window._duplicateProductGroups[groupIndex];
+  const el = document.getElementById(`dupGroup-${groupIndex}`);
+  if(!el || !group) return;
+  el.outerHTML = renderDupGroupHtml(group, groupIndex);
+}
+
+async function keepDuplicateProductRow(groupIndex, keepIndex){
+  const group = window._duplicateProductGroups[groupIndex];
+  if(!group) return;
+  const keepItem = group.items[keepIndex];
+  const toDelete = group.items.filter((it, i) => i !== keepIndex);
+  const statusEl = document.getElementById(`dupGroupStatus-${groupIndex}`);
+  if(statusEl) statusEl.innerHTML = '<span class="loading-pulse">Deleting…</span>';
+
+  for(const item of toDelete){
+    try{ await postJson({ recordType: 'deleteProduct', id: item.id }); } catch(err){}
+  }
+  loadProducts(); // refresh the catalog list in the background; doesn't touch the duplicates panel
+
+  // Mark this group resolved WITHOUT re-indexing the array — every other group's DOM element
+  // still references its original index in its onclick handlers, so the array positions must stay put.
+  window._duplicateProductGroups[groupIndex] = null;
+  const remainingCount = window._duplicateProductGroups.filter(Boolean).length;
+  const countEl = document.getElementById('dupCountLabel');
+  const groupEl = document.getElementById(`dupGroup-${groupIndex}`);
+  if(groupEl) groupEl.remove();
+  if(remainingCount === 0){
+    $('duplicatesWrap').innerHTML = '<p style="font-size:13px;color:var(--ok);">All duplicates resolved — kept one entry for ' + esc(keepItem.name) + ', nothing left to review.</p>';
+  } else if(countEl){
+    countEl.textContent = `${remainingCount} DUPLICATE${remainingCount > 1 ? 'S' : ''} FOUND (same name, brand & category)`;
+  }
+}
+
+/* ---------------- CSV template + import (bulk, via productsImport) ---------------- */
+function csvField(v){
+  v = String(v == null ? '' : v);
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+function downloadCsv(filename, rows){
+  const text = rows.map(r => r.map(csvField).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const PRODUCT_CSV_HEADER = ['Id', 'Class', 'Category', 'Product Name', 'Brand', 'Color', 'Effect', 'Duration', 'Price', 'Description', 'Product URL', 'Staff Approved'];
+function productToCsvRow(p){
+  return [p.id || '', p.class || '', p.category || '', p.name || '', p.brand || '', p.color || '', p.effect || '', p.duration || '', p.price || '', p.description || '', p.url || '', p.staffApproved ? 'Yes' : ''];
+}
+function downloadTemplate(){
+  downloadCsv('products-template.csv', [
+    PRODUCT_CSV_HEADER,
+    ['', '1.3', 'Cakes', 'Cake - 100 Shot Red Peony to Blue Strobe', 'Dancing 1.3G Fireworks', 'Red/Blue', 'Peony', '45 seconds', '117.25', 'This is a 100 Shot 1.3g Cake.', 'https://example.com/product', ''],
+    ['', '1.4', 'Fountains', 'Gold Fountain', 'Brand Name', 'Gold', 'Crackle', '30 seconds', '12.50', 'A short description.', '', '']
+  ]);
+}
+function exportProductsCsv(){
+  if(!PRODUCTS.length){ setStatus($('csvImportStatus'), 'Nothing to export yet — the catalog is empty.', 'err'); return; }
+  downloadCsv('products-export.csv', [PRODUCT_CSV_HEADER, ...PRODUCTS.map(productToCsvRow)]);
+}
+
+function parseCSV(text){
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  while(i < text.length){
+    const char = text[i];
+    if(inQuotes){
+      if(char === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += char;
+      }
+    } else {
+      if(char === '"'){
+        inQuotes = true;
+      } else if(char === ','){
+        row.push(field); field = '';
+      } else if(char === '\n' || char === '\r'){
+        if(char === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field = '';
+        if(row.some(c => c !== '')) rows.push(row);
+        row = [];
+      } else {
+        field += char;
+      }
+    }
+    i++;
+  }
+  if(field.length || row.length){
+    row.push(field);
+    if(row.some(c => c !== '')) rows.push(row);
+  }
+  return rows;
+}
+function normalizeHeader(h){ return String(h || '').trim().toLowerCase().replace(/[^a-z0-9]/g, ''); }
+function buildHeaderIndex(headerRow, aliasMap){
+  const normalized = headerRow.map(normalizeHeader);
+  const idx = {};
+  Object.keys(aliasMap).forEach(field => {
+    const pos = normalized.findIndex(h => aliasMap[field].includes(h));
+    idx[field] = pos;
+  });
+  return idx;
+}
+function rowsToObjects(rows, idx){
+  return rows.slice(1).map(r => {
+    const obj = {};
+    Object.keys(idx).forEach(field => { obj[field] = idx[field] > -1 ? (r[idx[field]] || '').trim() : ''; });
+    return obj;
+  }).filter(obj => Object.values(obj).some(v => v !== ''));
+}
+const PRODUCT_ALIASES = {
+  id: ['id'],
+  productClass: ['class'],
+  category: ['category'],
+  name: ['productname','name'],
+  brand: ['brand','manufacturer'],
+  color: ['color','colour'],
+  effect: ['effect'],
+  duration: ['duration'],
+  price: ['price'],
+  description: ['description','desc'],
+  url: ['producturl','url','link'],
+  staffApproved: ['staffapproved','approved']
+};
+function truthyCell(v){ return /^(yes|y|true|1)$/i.test(String(v || '').trim()); }
+
+async function handleProductsCsv(event){
+  const file = event.target.files[0];
+  const st = $('csvImportStatus');
+  if(!file) return;
+  setStatus(st, 'Reading file…');
+  try{
+    const text = await file.text();
+    const rows = parseCSV(text);
+    if(rows.length < 2){ setStatus(st, 'That file has no data rows.', 'err'); return; }
+    const idx = buildHeaderIndex(rows[0], PRODUCT_ALIASES);
+    if(idx.name === -1 && idx.category === -1){ setStatus(st, 'Could not find expected columns — check the header row.', 'err'); return; }
+    const objs = rowsToObjects(rows, idx).map(o => ({
+      id: o.id,
+      class: o.productClass,
+      category: o.category,
+      name: o.name,
+      brand: o.brand,
+      color: o.color,
+      effect: o.effect,
+      duration: o.duration,
+      price: normalizePrice(o.price),
+      description: o.description,
+      url: o.url,
+      staffApproved: truthyCell(o.staffApproved)
+    })).filter(o => o.name || o.category);
+    if(!objs.length){ setStatus(st, 'No usable rows found in that file.', 'err'); return; }
+    setStatus(st, `Importing ${objs.length} rows…`);
+    const result = await postJson({ recordType: 'productsImport', rows: objs });
+    const created = result.imported || 0;
+    const updated = result.updated || 0;
+    const summary = updated
+      ? `Imported ${created} new and updated ${updated} existing product${(created + updated) === 1 ? '' : 's'} from ${file.name} ✓`
+      : `Imported ${created} product${created === 1 ? '' : 's'} from ${file.name} ✓`;
+    setStatus(st, summary, 'ok');
+    await loadProducts();
+  } catch(err){
+    setStatus(st, 'Could not import — check your connection and the file, then try again.', 'err');
+  } finally {
+    event.target.value = '';
+  }
+}
+
+loadProducts();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Check-In — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0F172A">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#A5B4FC; --surface-6:rgba(15,23,42,0.6); --surface-5:rgba(15,23,42,0.5); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --accent1:#4F46E5; --accent2:#8B5CF6; --accent3:#22D3EE; --accent4:#3B82F6; --accent5:#312E81;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --line:rgba(255,255,255,0.1);
+    --card:rgba(30,41,59,0.75); --ok:#22C55E; --err:#6366F1;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#4F46E5; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --logo-ring-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:32px 16px;
+  }
+  .card{
+    max-width:440px; width:100%;
+    background:var(--card); border:1px solid var(--line);
+    border-radius:14px; overflow:hidden;
+    backdrop-filter:blur(6px);
+  }
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
+  }
+  .body{padding:24px;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text],input[type=tel],input[type=number],input[type=date],input[type=time],select{
+    font-size:15px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-6);color:var(--ink);
+  }
+  input:focus,select:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
+  input[readonly]{background:rgba(255,255,255,0.04);color:var(--ink-soft);}
+  button.primary{
+    width:100%; color:#F8FAFC; border:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 18px rgba(139,92,246,0.3);
+  }
+  button.primary:disabled{opacity:.6;cursor:default;box-shadow:none;}
+  button.primary:hover:not(:disabled){filter:brightness(1.1);}
+  .link-btn, .welcome-back a{color:#A5B4FC;text-decoration:underline;background:none;border:none;padding:0;font:inherit;font-size:12.5px;cursor:pointer;}
+  :root[data-theme="light"] .link-btn, :root[data-theme="light"] .welcome-back a{color:#4F46E5;}
+  .welcome-back{font-size:13px;color:var(--ink-soft);margin:0 0 16px;}
+  .welcome-back strong{color:var(--ink);}
+  .verified-card{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.4);border-radius:10px;padding:11px 14px;margin:0 0 16px;font-size:13px;color:var(--ink);}
+  .verified-card .vc-text{flex:1 1 200px;line-height:1.4;}
+  .when-line{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;}
+  .when-line strong{color:var(--ink);font-weight:600;}
+  .remember-row{display:flex;align-items:center;gap:8px;margin:0 0 14px;font-size:12.5px;color:var(--ink-soft);font-weight:400;}
+  .remember-row input{width:auto;}
+  .remember-note{margin-top:14px !important;font-size:12.5px !important;}
+  .msg{font-size:13px;margin-top:14px;text-align:center;}
+  .msg.ok{color:var(--ok);}
+  .msg.err{color:var(--err);}
+  .field-err{font-size:11.5px;color:var(--err);margin:4px 0 0;}
+  input.invalid{border-color:var(--err) !important;}
+  .success{
+    padding:40px 24px;text-align:center;
+  }
+  .success .check{
+    width:56px;height:56px;border-radius:50%;
+    background:linear-gradient(135deg,var(--ok),#3B82F6);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:28px;margin:0 auto 16px;
+    box-shadow:0 0 20px rgba(34,197,94,0.4);
+    animation:checkPop 0.45s cubic-bezier(0.34,1.56,0.64,1) both;
+  }
+  @keyframes checkPop{
+    0%{transform:scale(0); opacity:0;}
+    60%{transform:scale(1.15); opacity:1;}
+    100%{transform:scale(1);}
+  }
+  .success h2{margin:0 0 6px;font-size:18px;color:var(--ink);}
+  .success p{margin:0;color:var(--ink-soft);font-size:13.5px;}
+  .back-link{
+    display:block; max-width:440px; margin:0 auto 12px; padding:0 4px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:#A5B4FC;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+
+<script src="theme-picker.js" defer></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<div id="newHirePopup" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:center;justify-content:center;padding:20px;">
+  <div style="max-width:340px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px 22px;text-align:center;backdrop-filter:blur(6px);">
+    <div style="font-size:28px;margin-bottom:10px;">👋</div>
+    <h2 style="font-size:16px;margin:0 0 8px;color:var(--ink);">First time checking in?</h2>
+    <p style="font-size:13px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;">
+      We couldn't find that name and phone number on file. If you're already on the crew, close this and
+      double-check the number you typed. If you're new, please fill out New Hire Documents before you
+      check in — it only takes a minute.
+    </p>
+    <a href="new-hire.html" style="display:block;text-decoration:none;background:linear-gradient(135deg,#4F46E5,#8B5CF6);color:#F8FAFC;font-weight:700;font-size:14px;padding:11px 16px;border-radius:8px;margin-bottom:10px;">Go to New Hire Documents</a>
+    <button type="button" onclick="dismissNewHirePopup()" style="background:none;border:1px solid var(--line);color:var(--ink-soft);font-size:13px;padding:9px 16px;border-radius:8px;cursor:pointer;width:100%;">I'm already on the crew, continue</button>
+  </div>
+</div>
+
+<div style="max-width:440px;width:100%;">
+<div id="queueBanner" style="display:none;margin:0 0 12px;background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.35);border-radius:10px;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:#F1F5F9;">
+  <span id="queueBannerMsg">Waiting to send…</span>
+  <button type="button" onclick="flushQueue()" style="background:none;border:1px solid rgba(255,255,255,0.2);color:#F1F5F9;font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;">Retry now</button>
+</div>
+<a class="back-link" href="index.html">&larr; Back to main menu</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
+  <h1 id="eventTitle">Event Check-In</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="card">
+  <div class="body" id="formBody">
+    <p class="welcome-back" id="welcomeBack" style="display:none;">Welcome back, <strong id="welcomeName"></strong>. <a href="#" onclick="forgetMe();return false;">Not you?</a></p>
+    <div class="field">
+      <label for="eventName">Event / venue</label>
+      <select id="eventName">
+        <option value="" disabled selected>Select a venue…</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="personName">Your name</label>
+      <input type="text" id="personName" list="contactsList" oninput="autofill(this)" onblur="this.value = toTitleCase(this.value)" autocomplete="off">
+      <datalist id="contactsList"></datalist>
+    </div>
+    <div class="field">
+      <label for="personPhone">Phone number</label>
+      <input type="tel" id="personPhone" inputmode="tel" autocomplete="tel" oninput="checkPhoneMatch()">
+      <p id="phoneHint" style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;">If your name and phone number match what's on file, your license and address will fill in automatically.</p>
+      <p id="phoneCheckStatus" style="font-size:11px;color:var(--ink-soft);margin:4px 0 0;min-height:14px;"></p>
+    </div>
+
+    <div class="verified-card" id="verifiedCard" style="display:none;">
+      <span class="vc-text">&#10003; Found you &mdash; your license, address and age are filled in from your file.</span>
+      <button type="button" class="link-btn" id="toggleDetailsBtn" onclick="toggleDetails()">Review or edit</button>
+    </div>
+
+    <div id="detailsBlock">
+      <div class="field">
+        <label for="personDisplayLicense">Display Operator (D)</label>
+        <input type="text" id="personDisplayLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+        <p class="field-err" id="personDisplayLicenseErr" style="display:none;"></p>
+      </div>
+      <div class="field">
+        <label for="personSFXLicense">Special Effects Operator (P)</label>
+        <input type="text" id="personSFXLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+        <p class="field-err" id="personSFXLicenseErr" style="display:none;"></p>
+      </div>
+      <div class="field">
+        <label for="personFlameLicense">Flame Effects Operator (F)</label>
+        <input type="text" id="personFlameLicense" oninput="validateLicenseField(this)" onblur="validateLicenseField(this)">
+        <p class="field-err" id="personFlameLicenseErr" style="display:none;"></p>
+      </div>
+      <div class="field">
+        <label for="personAddress">Address</label>
+        <input type="text" id="personAddress" onblur="this.value = toTitleCase(this.value)">
+      </div>
+      <div class="field">
+        <label for="personAge">Age</label>
+        <input type="text" id="personAge">
+      </div>
+    </div>
+
+    <p class="when-line">Checking in <strong id="whenText">now</strong> &middot; <button type="button" class="link-btn" onclick="toggleWhenEditor()">Change</button></p>
+    <div id="whenEditor" style="display:none;">
+      <div class="field">
+        <label for="eventDate">Date of Check-In</label>
+        <input type="date" id="eventDate">
+      </div>
+      <div class="field">
+        <label for="checkInTime">Time</label>
+        <input type="time" id="checkInTime">
+      </div>
+    </div>
+
+    <div class="field" style="flex-direction:row;align-items:center;gap:8px;">
+      <input type="checkbox" id="isHeadPyro" style="width:auto;" disabled>
+      <label for="isHeadPyro" id="isHeadPyroLabel" style="font-weight:400;color:var(--ink-soft);">Head Pyro for this event (verify your phone number first)</label>
+    </div>
+    <label class="remember-row"><input type="checkbox" id="rememberMe" checked> Remember me on this phone</label>
+    <button class="primary" id="submitBtn" onclick="checkIn()">Check in</button>
+    <p class="msg" id="msg"></p>
+  </div>
+</div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec";
+
+// Only names are ever kept in the browser — license/address/age/phone are
+// looked up on the server, and only released after a matching phone number
+// is entered for that exact name. See checkPhoneMatch().
+async function fetchNameList(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=names`);
+    if(!res.ok) throw new Error('Request failed');
+    const names = await res.json();
+    if(Array.isArray(names)){
+      document.getElementById('contactsList').innerHTML =
+        names.map(n => `<option value="${String(n).replace(/"/g,'&quot;')}">`).join('');
+    }
+  } catch(err){
+    // fall back silently — manual entry still works even if this fails
+  }
+}
+fetchNameList();
+
+const VENUE_DIRECTORY = {};
+[
+  "Real Salt Lake","University of Utah","Salt Lake Bees","Trailer Loading","Shop Time","Bunker Time",
+  "Hillcrest High School","Jordan High School","Copper Hills High School","Herriman High School",
+  "North Ridge High School","Bee's - Class \"C\" Show","West Jordan High School","American Heritage High School",
+  "Sleepy Ridge","Mountain Ridge High School","Stansbury High School","Bingham High School","Bluffdale City",
+  "Midvale City","Utah Valley University","Southeast Township Days","Magna - Day 1","Magna - Day 2",
+  "Murray City","Ogden Raptors","Farr West","West Point","Moab - 4th of July","Dutch John",
+  "Weber State University","Draper City","Bountiful City","American Fork City","Lehi City","Springville City",
+  "West Valley City (West Fest)","Clinton City","Thanksgiving Point Waterfall Concert","Dugway City",
+  "Taylorsville - Thursday","Taylorsville - Friday","Taylorsville - Saturday","Olympus High School","Moab - Music Festival"
+].forEach(name => { VENUE_DIRECTORY[name.toLowerCase()] = { name: name, eventDate: '', signInEnabled: false }; });
+
+function venueKey(name, eventDate){
+  const base = String(name || '').trim().toLowerCase();
+  return eventDate ? base + '|||' + eventDate : base;
+}
+
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = dateStr.slice(0, 10); // handles plain "YYYY-MM-DD" or a full ISO timestamp
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
+  return `${Number(m)}/${Number(d)}`;
+}
+
+const ALWAYS_AVAILABLE_NO_DATE = ['shop time', 'trailer loading', 'bunker time'];
+
+function isSignInEffectivelyEnabled(v){
+  if(!v.eventDate) return false;
+  if(!v.signInEnabled) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const eventDay = new Date(v.eventDate.slice(0, 10) + 'T00:00:00');
+  const expiresAt = new Date(eventDay); expiresAt.setDate(expiresAt.getDate() + 3);
+  return today <= expiresAt;
+}
+
+function populateVenueSelect(){
+  const select = document.getElementById('eventName');
+  const currentValue = select.value;
+  const currentKey = select.selectedOptions[0] ? (select.selectedOptions[0].dataset.key || '') : '';
+  const sorted = Object.values(VENUE_DIRECTORY)
+    .filter(v => ALWAYS_AVAILABLE_NO_DATE.includes(v.name.trim().toLowerCase()) || isSignInEffectivelyEnabled(v))
+    .sort((a, b) => {
+      if(a.eventDate && b.eventDate) return a.eventDate.localeCompare(b.eventDate);
+      if(a.eventDate && !b.eventDate) return -1;
+      if(!a.eventDate && b.eventDate) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  select.innerHTML = '<option value="" disabled>Select a venue…</option>' +
+    sorted.map(v => {
+      const label = v.eventDate ? `${formatDateForOption(v.eventDate)} — ${v.name}` : v.name;
+      return `<option value="${v.name.replace(/"/g,'&quot;')}" data-key="${venueKey(v.name, v.eventDate).replace(/"/g,'&quot;')}">${label.replace(/</g,'&lt;')}</option>`;
+    }).join('');
+  if(currentValue){
+    // keep the same DATED entry selected, not just the first one that shares the name
+    const exact = currentKey && Array.from(select.options).find(o => o.dataset.key === currentKey);
+    if(exact) exact.selected = true; else select.value = currentValue;
+  } else {
+    select.selectedIndex = 0;
+  }
+}
+populateVenueSelect();
+
+function applyEventFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  const eventFromUrl = params.get('event') || '';
+  if(!eventFromUrl) return;
+  const eventSelect = document.getElementById('eventName');
+  const match = Array.from(eventSelect.options).find(
+    opt => opt.value.toLowerCase() === eventFromUrl.toLowerCase()
+  );
+  if(match){
+    eventSelect.value = match.value;
+    document.getElementById('eventTitle').textContent = match.value;
+  } else {
+    document.getElementById('eventTitle').textContent = eventFromUrl;
+  }
+}
+applyEventFromUrl();
+
+async function fetchVenueDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`);
+    if(!res.ok) throw new Error('Request failed');
+    const sheetVenues = await res.json();
+    if(Array.isArray(sheetVenues)){
+      sheetVenues.forEach(v => {
+        if(!v.name) return;
+        // Keyed by name+date, not name alone — the same venue can legitimately have
+        // more than one entry (different dates), and each needs its own dropdown row.
+        // Dateless entries (Shop Time, Trailer Loading, Bunker Time) keep the plain-name key so they
+        // replace the built-in copy instead of appearing twice.
+        const key = venueKey(v.name, v.eventDate);
+        VENUE_DIRECTORY[key] = { name: v.name.trim(), eventDate: v.eventDate || '', signInEnabled: !!v.signInEnabled };
+      });
+      populateVenueSelect();
+      applyEventFromUrl();
+    }
+  } catch(err){
+    // fall back silently to the built-in venue list
+  }
+}
+fetchVenueDirectory();
+
+const todayStr = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+document.getElementById('eventDate').value = todayStr;
+
+const nowTimeStr = new Date().toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'}); // HH:MM 24hr for <input type=time>
+document.getElementById('checkInTime').value = nowTimeStr;
+
+function autofill(nameInput){
+  // Don't reveal license/address/age just from typing a name.
+  // Those only unlock once the correct phone number is entered below.
+  document.getElementById('personDisplayLicense').value = '';
+  document.getElementById('personSFXLicense').value = '';
+  document.getElementById('personFlameLicense').value = '';
+  document.getElementById('personAddress').value = '';
+  document.getElementById('personAge').value = '';
+  checkPhoneMatch();
+}
+
+function normalizePhoneDigits(str){
+  return (str || '').replace(/\D/g, '');
+}
+
+/* ---------- Keep the screen short for people we already know ---------- */
+let verifyState = 'idle';          // idle | verified | notfound | error
+let detailsOpen = false;           // the person tapped "Review or edit"
+let holdDetailsClosed = false;     // a remembered person is being checked: don't flash the long form meanwhile
+let whenTouched = false;           // the person set their own date or time
+
+function renderVerifyUI(){
+  const verified = verifyState === 'verified';
+  document.getElementById('verifiedCard').style.display = verified ? 'flex' : 'none';
+  document.getElementById('phoneHint').style.display = verified ? 'none' : '';
+  document.getElementById('phoneCheckStatus').style.display = verified ? 'none' : '';
+  const hide = holdDetailsClosed || (verified && !detailsOpen);
+  document.getElementById('detailsBlock').style.display = hide ? 'none' : '';
+  document.getElementById('toggleDetailsBtn').textContent = detailsOpen ? 'Hide details' : 'Review or edit';
+}
+function setVerifyState(state){
+  verifyState = state;
+  if(state !== 'verified') detailsOpen = false;
+  renderVerifyUI();
+}
+function toggleDetails(){ detailsOpen = !detailsOpen; renderVerifyUI(); }
+
+function escHtml(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* Date and time stay out of the way unless changed. "now" is worked out when Check in is tapped. */
+function updateWhenText(){
+  let text = 'now';
+  if(whenTouched){
+    const d = document.getElementById('eventDate').value, t = document.getElementById('checkInTime').value;
+    const dt = d && t ? new Date(d + 'T' + t) : null;
+    if(dt && !isNaN(dt.getTime())){
+      const time = dt.toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+      text = (d === new Date().toLocaleDateString('en-CA') ? 'today' : dt.toLocaleDateString([], { month:'short', day:'numeric' })) + ' at ' + time;
+    }
+  }
+  document.getElementById('whenText').textContent = text;
+}
+function toggleWhenEditor(){
+  const ed = document.getElementById('whenEditor');
+  ed.style.display = ed.style.display === 'none' ? '' : 'none';
+}
+function refreshCheckInMoment(){
+  if(whenTouched) return;
+  const now = new Date();
+  document.getElementById('eventDate').value = now.toLocaleDateString('en-CA');
+  document.getElementById('checkInTime').value = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+}
+['eventDate','checkInTime'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => { whenTouched = true; updateWhenText(); });
+});
+
+/* ---------- Remember me on this phone (name and number only; details are always re-checked against the file) ---------- */
+const REMEMBER_KEY = 'checkinRememberMe_v1';
+function readRemembered(){
+  try{
+    const r = JSON.parse(localStorage.getItem(REMEMBER_KEY) || 'null');
+    return r && r.name && r.phone ? r : null;
+  } catch(e){ return null; }
+}
+function saveRemembered(name, phone){ try{ localStorage.setItem(REMEMBER_KEY, JSON.stringify({ name, phone })); } catch(e){} }
+function clearRemembered(){ try{ localStorage.removeItem(REMEMBER_KEY); } catch(e){} }
+
+function restoreRemembered(){
+  const r = readRemembered();
+  if(!r) return;
+  document.getElementById('personName').value = r.name;
+  document.getElementById('personPhone').value = r.phone;
+  document.getElementById('welcomeName').textContent = r.name.split(' ')[0];
+  document.getElementById('welcomeBack').style.display = '';
+  checkPhoneMatch({ restoring: true });
+  holdDetailsClosed = true;
+  renderVerifyUI();
+}
+function forgetMe(){
+  clearRemembered();
+  document.getElementById('personName').value = '';
+  document.getElementById('personPhone').value = '';
+  document.getElementById('welcomeBack').style.display = 'none';
+  checkPhoneMatch();
+  document.getElementById('personName').focus();
+}
+
+let phoneCheckTimer = null;
+let phoneCheckToken = 0;
+let hasShownNewHirePopup = false;
+
+function dismissNewHirePopup(){
+  document.getElementById('newHirePopup').style.display = 'none';
+}
+
+function setHeadPyroLock(enabled, message){
+  const checkbox = document.getElementById('isHeadPyro');
+  const label = document.getElementById('isHeadPyroLabel');
+  checkbox.disabled = !enabled;
+  if(!enabled) checkbox.checked = false;
+  label.style.color = enabled ? 'var(--ink)' : 'var(--ink-soft)';
+  label.textContent = enabled
+    ? 'Head Pyro for this event'
+    : `Head Pyro for this event (${message})`;
+}
+
+function checkPhoneMatch(opts){
+  if(!(opts && opts.restoring)) holdDetailsClosed = false;
+  clearTimeout(phoneCheckTimer);
+  setVerifyState('idle');
+  const statusEl = document.getElementById('phoneCheckStatus');
+  const enteredPhone = normalizePhoneDigits(document.getElementById('personPhone').value);
+  if(enteredPhone.length < 7){
+    document.getElementById('personDisplayLicense').value = '';
+    document.getElementById('personSFXLicense').value = '';
+    document.getElementById('personFlameLicense').value = '';
+    document.getElementById('personAddress').value = '';
+    document.getElementById('personAge').value = '';
+    setHeadPyroLock(false, 'verify your phone number first');
+    statusEl.textContent = '';
+    return;
+  }
+  statusEl.textContent = 'Checking…';
+  phoneCheckTimer = setTimeout(verifyPhoneWithServer, 450);
+}
+
+async function verifyPhoneWithServer(){
+  const statusEl = document.getElementById('phoneCheckStatus');
+  const name = document.getElementById('personName').value.trim();
+  const phone = document.getElementById('personPhone').value.trim();
+  if(!name || !phone){
+    statusEl.textContent = '';
+    holdDetailsClosed = false;
+    setVerifyState('idle');
+    return;
+  }
+  const myToken = ++phoneCheckToken;
+  try{
+    const url = `${CHECKIN_API_URL}?type=verifyPerson&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`;
+    const res = await fetch(url);
+    if(!res.ok){
+      if(myToken === phoneCheckToken){ statusEl.textContent = ''; holdDetailsClosed = false; setVerifyState('error'); }
+      return;
+    }
+    const data = await res.json();
+    if(myToken !== phoneCheckToken) return; // a newer keystroke already superseded this check
+    if(data && data.verified){
+      document.getElementById('personDisplayLicense').value = data.displayLicense || '';
+      document.getElementById('personSFXLicense').value = data.specialEffectsLicense || '';
+      document.getElementById('personFlameLicense').value = data.flameLicense || '';
+      document.getElementById('personAddress').value = data.address || '';
+      document.getElementById('personAge').value = data.age || '';
+      const hasLicense = !!(data.displayLicense || data.specialEffectsLicense || data.flameLicense);
+      setHeadPyroLock(hasLicense, hasLicense ? '' : 'no license on file');
+      hasShownNewHirePopup = false;
+      holdDetailsClosed = false;
+      setVerifyState('verified');
+    } else {
+      document.getElementById('personDisplayLicense').value = '';
+      document.getElementById('personSFXLicense').value = '';
+      document.getElementById('personFlameLicense').value = '';
+      document.getElementById('personAddress').value = '';
+      document.getElementById('personAge').value = '';
+      setHeadPyroLock(false, 'verify your phone number first');
+      holdDetailsClosed = false;
+      setVerifyState('notfound');
+      if(!hasShownNewHirePopup){
+        document.getElementById('newHirePopup').style.display = 'flex';
+        hasShownNewHirePopup = true;
+      }
+    }
+    statusEl.textContent = '';
+  } catch(err){
+    // silent fail — the person can still fill everything in manually
+    if(myToken === phoneCheckToken){ statusEl.textContent = ''; holdDetailsClosed = false; setVerifyState('error'); }
+  }
+}
+
+// The "Russ Check" — rejects license numbers that don't start with "FE"
+// followed by digits, to stop joke/garbage entries in the license fields.
+const LICENSE_FORMAT = /^FE\d+$/i;
+
+function toTitleCase(str){
+  if(!str) return str;
+  return str.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function validateLicenseField(input){
+  const errEl = document.getElementById(input.id + 'Err');
+  const value = input.value.trim();
+  if(!value){
+    input.classList.remove('invalid');
+    errEl.style.display = 'none';
+    return true;
+  }
+  if(LICENSE_FORMAT.test(value)){
+    input.classList.remove('invalid');
+    errEl.style.display = 'none';
+    return true;
+  }
+  input.classList.add('invalid');
+  errEl.textContent = 'Doesn\'t pass the Russ Check parameters — license numbers start with "FE" followed by numbers (example: FE123456).';
+  errEl.style.display = 'block';
+  return false;
+}
+
+function allLicenseFieldsValid(){
+  const ids = ['personDisplayLicense', 'personSFXLicense', 'personFlameLicense'];
+  let allValid = true;
+  ids.forEach(id => {
+    const valid = validateLicenseField(document.getElementById(id));
+    if(!valid) allValid = false;
+  });
+  return allValid;
+}
+
+function checkIn(){
+  const eventName = document.getElementById('eventName').value.trim();
+  const name = document.getElementById('personName').value.trim();
+  const msg = document.getElementById('msg');
+
+  if(!eventName || !name){
+    msg.textContent = 'Enter the event and your name before checking in.';
+    msg.className = 'msg err';
+    return;
+  }
+
+  if(!allLicenseFieldsValid()){
+    detailsOpen = true;            // the license fields may be tucked away: show them so the problem can be fixed
+    renderVerifyUI();
+    msg.textContent = 'One or more license numbers don\'t pass the Russ Check parameters — please fix the format before checking in.';
+    msg.className = 'msg err';
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Checking in…';
+  refreshCheckInMoment();
+
+  const displayLicense = document.getElementById('personDisplayLicense').value.trim();
+  const sfxLicense = document.getElementById('personSFXLicense').value.trim();
+  const flameLicense = document.getElementById('personFlameLicense').value.trim();
+  const licenseParts = [];
+  if(displayLicense) licenseParts.push('D: ' + displayLicense);
+  if(sfxLicense) licenseParts.push('P: ' + sfxLicense);
+  if(flameLicense) licenseParts.push('F: ' + flameLicense);
+
+  const payload = {
+    event: eventName,
+    eventDate: document.getElementById('eventDate').value,
+    checkInTime: document.getElementById('checkInTime').value,
+    name: name,
+    license: licenseParts.join(' · '),
+    phone: document.getElementById('personPhone').value.trim(),
+    address: document.getElementById('personAddress').value.trim(),
+    age: document.getElementById('personAge').value.trim(),
+    isHeadPyro: document.getElementById('isHeadPyro').checked
+  };
+
+  // Only a person we actually found on file is remembered, so a typo is never kept.
+  const wasRemembered = !!readRemembered();
+  let newlyRemembered = false;
+  if(!document.getElementById('rememberMe').checked){
+    clearRemembered();
+  } else if(verifyState === 'verified'){
+    saveRemembered(name, payload.phone);
+    newlyRemembered = !wasRemembered;
+  }
+  submitCheckIn(payload, name, eventName, newlyRemembered);
+}
+
+function submitCheckIn(payload, name, eventName, newlyRemembered){
+  const btn = document.getElementById('submitBtn');
+  const timeText = new Date(payload.eventDate + 'T' + payload.checkInTime).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+  const rememberNote = newlyRemembered
+    ? '<p class="remember-note">We\'ll remember you on this phone &mdash; next time, just tap Check in.</p>' : '';
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload)
+  }).then(() => {
+    document.getElementById('formBody').innerHTML = `
+      <div class="success">
+        <div class="check">&#10003;</div>
+        <h2>You're checked in</h2>
+        <p>${escHtml(name)} — ${escHtml(eventName)}<br>${escHtml(timeText)}</p>
+        ${rememberNote}
+      </div>`;
+  }).catch(() => {
+    queueCheckIn(payload);
+    document.getElementById('formBody').innerHTML = `
+      <div class="success">
+        <div class="check">&#10003;</div>
+        <h2>Saved — will send automatically</h2>
+        <p>${escHtml(name)} — ${escHtml(eventName)}<br>${escHtml(timeText)}<br>No connection right now, but this is saved on your device and will send the moment you're back online.</p>
+        ${rememberNote}
+      </div>`;
+  });
+}
+
+const CHECKIN_QUEUE_KEY = 'checkinQueue_v1';
+
+function getQueue(){
+  try{ return JSON.parse(localStorage.getItem(CHECKIN_QUEUE_KEY) || '[]'); } catch(e){ return []; }
+}
+
+function setQueue(q){
+  try{ localStorage.setItem(CHECKIN_QUEUE_KEY, JSON.stringify(q)); } catch(e){}
+}
+
+function queueCheckIn(payload){
+  const q = getQueue();
+  q.push(payload);
+  setQueue(q);
+  updateQueueBanner();
+}
+
+async function flushQueue(){
+  const q = getQueue();
+  if(q.length === 0) return;
+  const remaining = [];
+  for(let i = 0; i < q.length; i++){
+    try{
+      await fetch(CHECKIN_API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(q[i]) });
+    } catch(err){
+      // still offline — keep this one and everything after it queued, stop trying for now
+      remaining.push(...q.slice(i));
+      break;
+    }
+  }
+  setQueue(remaining);
+  updateQueueBanner();
+}
+
+function updateQueueBanner(){
+  const q = getQueue();
+  const banner = document.getElementById('queueBanner');
+  if(q.length > 0){
+    banner.style.display = 'flex';
+    document.getElementById('queueBannerMsg').textContent = `${q.length} check-in${q.length > 1 ? 's' : ''} waiting to send`;
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+window.addEventListener('online', flushQueue);
+window.addEventListener('load', flushQueue);
+updateQueueBanner();
+updateWhenText();
+restoreRemembered();
+</script>
+</body>
+</html>

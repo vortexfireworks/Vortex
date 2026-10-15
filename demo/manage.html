@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script src="reorder.js"></script>
+<script src="theme-picker.js" defer></script>
+<title>Manage/Edit — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0F172A">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --surface-6:rgba(15,23,42,0.6); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --card:rgba(30,41,59,0.7); --line:rgba(255,255,255,0.08);
+    --kicker:#A5B4FC; --logo-ring-bg:#0F172A;
+  }
+  :root[data-theme="light"]{
+    --surface-6:rgba(255,255,255,0.7); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0;
+    --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --kicker:#4F46E5; --logo-ring-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:40px 16px;
+  }
+  .wrap{max-width:480px; width:100%; margin:0 auto;}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
+  }
+  .card{
+    display:flex; align-items:flex-start; gap:14px;
+    background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:18px 20px; margin-bottom:14px;
+    text-decoration:none; color:inherit;
+    position:relative; overflow:hidden;
+    backdrop-filter:blur(6px);
+    transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  .card::before{
+    content:'';position:absolute;left:16px;right:16px;top:0;height:4px;border-radius:0 0 4px 4px;
+    background:var(--grad);
+  }
+  .card:hover{transform:translateY(-2px); border-color:rgba(255,255,255,0.16); box-shadow:0 8px 26px rgba(0,0,0,0.35);}
+  .icon-circle{
+    width:40px;height:40px;border-radius:50%;flex-shrink:0;margin-top:2px;
+    background:var(--grad);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 14px var(--glow);
+  }
+  .icon-circle svg{width:21px;height:21px;}
+  .card h2{margin:0 0 4px;font-size:16px;color:var(--ink);}
+  .card p{margin:0;font-size:13.5px;color:var(--ink-soft);line-height:1.5;}
+  .c1{--grad:linear-gradient(135deg,#4F46E5,#8B5CF6); --glow:rgba(139,92,246,0.4);}
+  .c2{--grad:linear-gradient(135deg,#3B82F6,#312E81); --glow:rgba(59,130,246,0.4);}
+  .c3{--grad:linear-gradient(135deg,#8B5CF6,#22D3EE); --glow:rgba(34,211,238,0.4);}
+  .back-link{
+    display:block; max-width:480px; margin:0 auto 18px; padding:0 4px;
+    font-size:12.5px;
+    color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--kicker);}
+  footer{margin-top:28px;font-size:11.5px;color:#6b7290;text-align:center;}
+  .section-label{
+    font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink-soft);font-weight:700;
+    margin:26px 4px 10px;
+  }
+  .section-label:first-of-type{margin-top:4px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="index.html">&larr; Back to main menu</a>
+
+<div id="lockScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="max-width:340px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:28px 24px;text-align:center;backdrop-filter:blur(6px);">
+    <img src="logo.jpg" alt="Apex Pyrotechnics logo" style="width:56px;height:56px;border-radius:8px;margin-bottom:14px;">
+    <h1 style="font-size:17px;margin:0 0 6px;color:var(--ink);">Manage/Edit</h1>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;">This page is password protected.</p>
+    <input type="password" id="lockPassword" placeholder="Password" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;margin-bottom:12px;box-sizing:border-box;background:var(--surface-6);color:var(--ink);" onkeydown="if(event.key==='Enter') checkPassword()">
+    <button type="button" style="width:100%;color:#F8FAFC;border:none;background:linear-gradient(135deg,#4F46E5,#8B5CF6);font-size:14px;font-weight:700;padding:11px 16px;border-radius:8px;cursor:pointer;" onclick="checkPassword()">Unlock</button>
+    <p id="lockError" style="font-size:12px;color:#6366F1;margin:12px 0 0;display:none;">Incorrect password.</p>
+  </div>
+</div>
+
+<div class="wrap" id="mainContent" style="display:none;">
+  <header>
+    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+    <p class="kicker">Apex Pyrotechnics Inc.</p>
+    <h1>Manage/Edit</h1>
+  </header>
+
+  <div class="divider"></div>
+
+  <p class="section-label">People &amp; Venues</p>
+  <div class="cards">
+
+  <a class="card c1" href="operators.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <path d="M 12 12 Q 16.10 14.24 20.50 12.00" stroke-width="1.5"/>
+          <path d="M 20.5 11.1 C 20.635 11.865, 21.265 11.865, 21.4 12.0 C 20.635 12.135, 20.635 12.135, 20.5 12.9 C 20.365 12.135, 19.735 12.135, 19.6 12.0 C 20.365 11.865, 20.365 11.865, 20.5 11.1 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 13.32 16.49 18.01 18.01" stroke-width="1.5"/>
+          <path d="M 18.010407640085653 17.110407640085654 C 18.145407640085654 17.87540764008565, 18.775407640085653 17.87540764008565, 18.91040764008565 18.010407640085653 C 18.145407640085654 18.145407640085654, 18.145407640085654 18.145407640085654, 18.010407640085653 18.91040764008565 C 17.87540764008565 18.145407640085654, 17.245407640085652 18.145407640085654, 17.110407640085654 18.010407640085653 C 17.87540764008565 17.87540764008565, 17.87540764008565 17.87540764008565, 18.010407640085653 17.110407640085654 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 9.76 16.10 12.00 20.50" stroke-width="1.5"/>
+          <path d="M 12.0 19.6 C 12.135 20.365, 12.765 20.365, 12.9 20.5 C 12.135 20.635, 12.135 20.635, 12.0 21.4 C 11.865 20.635, 11.235 20.635, 11.1 20.5 C 11.865 20.365, 11.865 20.365, 12.0 19.6 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 7.51 13.32 5.99 18.01" stroke-width="1.5"/>
+          <path d="M 5.989592359914346 17.110407640085654 C 6.124592359914346 17.87540764008565, 6.754592359914346 17.87540764008565, 6.889592359914347 18.010407640085653 C 6.124592359914346 18.145407640085654, 6.124592359914346 18.145407640085654, 5.989592359914346 18.91040764008565 C 5.854592359914347 18.145407640085654, 5.224592359914347 18.145407640085654, 5.089592359914346 18.010407640085653 C 5.854592359914347 17.87540764008565, 5.854592359914347 17.87540764008565, 5.989592359914346 17.110407640085654 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 7.90 9.76 3.50 12.00" stroke-width="1.5"/>
+          <path d="M 3.5 11.100000000000001 C 3.635 11.865000000000002, 4.265 11.865000000000002, 4.4 12.000000000000002 C 3.635 12.135000000000002, 3.635 12.135000000000002, 3.5 12.900000000000002 C 3.365 12.135000000000002, 2.735 12.135000000000002, 2.6 12.000000000000002 C 3.365 11.865000000000002, 3.365 11.865000000000002, 3.5 11.100000000000001 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 10.68 7.51 5.99 5.99" stroke-width="1.5"/>
+          <path d="M 5.989592359914345 5.089592359914346 C 6.124592359914344 5.854592359914347, 6.754592359914344 5.854592359914347, 6.889592359914345 5.989592359914346 C 6.124592359914344 6.124592359914346, 6.124592359914344 6.124592359914346, 5.989592359914345 6.889592359914347 C 5.854592359914345 6.124592359914346, 5.224592359914345 6.124592359914346, 5.089592359914344 5.989592359914346 C 5.854592359914345 5.854592359914347, 5.854592359914345 5.854592359914347, 5.989592359914345 5.089592359914346 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 14.24 7.90 12.00 3.50" stroke-width="1.5"/>
+          <path d="M 11.999999999999998 2.6 C 12.134999999999998 3.365, 12.764999999999999 3.365, 12.899999999999999 3.5 C 12.134999999999998 3.635, 12.134999999999998 3.635, 11.999999999999998 4.4 C 11.864999999999998 3.635, 11.234999999999998 3.635, 11.099999999999998 3.5 C 11.864999999999998 3.365, 11.864999999999998 3.365, 11.999999999999998 2.6 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 16.49 10.68 18.01 5.99" stroke-width="1.5"/>
+          <path d="M 18.010407640085653 5.089592359914344 C 18.145407640085654 5.854592359914345, 18.775407640085653 5.854592359914345, 18.91040764008565 5.989592359914345 C 18.145407640085654 6.124592359914344, 18.145407640085654 6.124592359914344, 18.010407640085653 6.889592359914345 C 17.87540764008565 6.124592359914344, 17.245407640085652 6.124592359914344, 17.110407640085654 5.989592359914345 C 17.87540764008565 5.854592359914345, 17.87540764008565 5.854592359914345, 18.010407640085653 5.089592359914344 Z" fill="#fff" stroke="none"/>
+        </svg>
+    </div>
+    <div>
+      <h2>Manage Operators</h2>
+      <p>Add a new operator or update an existing one's license, phone, address, age, or photo — changes show up for autofill everywhere.</p>
+    </div>
+  </a>
+
+  <a class="card c2" href="venues.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <path d="M 12 22 Q 6.0 16.0 5.0 15.0" stroke-width="1.5"/>
+          <path d="M 5 13.9 C 5.165 14.835, 5.9350000000000005 14.835, 6.1 15 C 5.165 15.165, 5.165 15.165, 5 16.1 C 4.835 15.165, 4.0649999999999995 15.165, 3.9 15 C 4.835 14.835, 4.835 14.835, 5 13.9 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 9.0 16.0 8.5 8.0" stroke-width="1.5"/>
+          <path d="M 8.5 6.7 C 8.695 7.805, 9.605 7.805, 9.8 8 C 8.695 8.195, 8.695 8.195, 8.5 9.3 C 8.305 8.195, 7.395 8.195, 7.2 8 C 8.305 7.805, 8.305 7.805, 8.5 6.7 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 12.0 16.0 12.0 4.0" stroke-width="1.5"/>
+          <path d="M 12 2.6 C 12.21 3.79, 13.19 3.79, 13.4 4 C 12.21 4.21, 12.21 4.21, 12 5.4 C 11.79 4.21, 10.81 4.21, 10.6 4 C 11.79 3.79, 11.79 3.79, 12 2.6 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 15.0 16.0 15.5 8.0" stroke-width="1.5"/>
+          <path d="M 15.5 6.8 C 15.68 7.82, 16.52 7.82, 16.7 8 C 15.68 8.18, 15.68 8.18, 15.5 9.2 C 15.32 8.18, 14.48 8.18, 14.3 8 C 15.32 7.82, 15.32 7.82, 15.5 6.8 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 22 Q 17.9 16.0 19.0 15.0" stroke-width="1.5"/>
+          <path d="M 19 14.0 C 19.15 14.85, 19.85 14.85, 20.0 15 C 19.15 15.15, 19.15 15.15, 19 16.0 C 18.85 15.15, 18.15 15.15, 18.0 15 C 18.85 14.85, 18.85 14.85, 19 14.0 Z" fill="#fff" stroke="none"/>
+        </svg>
+    </div>
+    <div>
+      <h2>Manage Venues</h2>
+      <p>Add venues and their dates, edit or delete them, or add another date for a venue you already have — changes show up in the venue lists everywhere.</p>
+    </div>
+  </a>
+
+    </div>
+
+  <p class="section-label">Show Prep</p>
+  <div class="cards">
+
+  <a class="card c3" href="manage-picklists.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <path d="M 12 12 Q 16.36 10.89 21.00 12.00" stroke-width="1.2"/>
+          <path d="M 12 12 Q 16.41 12.89 20.11 15.90" stroke-width="1.2"/>
+          <path d="M 12 12 Q 15.59 14.71 17.61 19.04" stroke-width="1.2"/>
+          <path d="M 12 12 Q 14.06 16.00 14.00 20.77" stroke-width="1.2"/>
+          <path d="M 12 12 Q 12.12 16.50 10.00 20.77" stroke-width="1.2"/>
+          <path d="M 12 12 Q 10.15 16.10 6.39 19.04" stroke-width="1.2"/>
+          <path d="M 12 12 Q 8.55 14.89 3.89 15.90" stroke-width="1.2"/>
+          <path d="M 12 12 Q 7.64 13.11 3.00 12.00" stroke-width="1.2"/>
+          <path d="M 12 12 Q 7.59 11.11 3.89 8.10" stroke-width="1.2"/>
+          <path d="M 12 12 Q 8.41 9.29 6.39 4.96" stroke-width="1.2"/>
+          <path d="M 12 12 Q 9.94 8.00 10.00 3.23" stroke-width="1.2"/>
+          <path d="M 12 12 Q 11.88 7.50 14.00 3.23" stroke-width="1.2"/>
+          <path d="M 12 12 Q 13.85 7.90 17.61 4.96" stroke-width="1.2"/>
+          <path d="M 12 12 Q 15.45 9.11 20.11 8.10" stroke-width="1.2"/>
+          <path d="M 18.546642919516703 19.309230565914312 C 18.681642919516705 20.07423056591431, 19.311642919516704 20.07423056591431, 19.4466429195167 20.20923056591431 C 18.681642919516705 20.344230565914312, 18.681642919516705 20.344230565914312, 18.546642919516703 21.10923056591431 C 18.4116429195167 20.344230565914312, 17.781642919516703 20.344230565914312, 17.646642919516704 20.20923056591431 C 18.4116429195167 20.07423056591431, 18.4116429195167 20.07423056591431, 18.546642919516703 19.309230565914312 Z" fill="#fff" stroke="none"/>
+          <path d="M 5.453357080483296 2.8907694340856875 C 5.588357080483296 3.6557694340856877, 6.218357080483296 3.6557694340856877, 6.353357080483296 3.7907694340856875 C 5.588357080483296 3.9257694340856872, 5.588357080483296 3.9257694340856872, 5.453357080483296 4.690769434085688 C 5.318357080483296 3.9257694340856872, 4.688357080483296 3.9257694340856872, 4.553357080483296 3.7907694340856875 C 5.318357080483296 3.6557694340856877, 5.318357080483296 3.6557694340856877, 5.453357080483296 2.8907694340856875 Z" fill="#fff" stroke="none"/>
+        </svg>
+    </div>
+    <div>
+      <h2>Manage Pick Lists</h2>
+      <p>Build the pick list for a show: shells, cakes, racks, setup items, and a site map. Crews see it under Pick Lists in Head Pyro Tools.</p>
+    </div>
+  </a>
+
+  <a class="card c1" href="manage-inventory.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+          <path d="M 12 12 Q 16.10 14.24 20.50 12.00" stroke-width="1.5"/>
+          <path d="M 20.5 11.1 C 20.635 11.865, 21.265 11.865, 21.4 12.0 C 20.635 12.135, 20.635 12.135, 20.5 12.9 C 20.365 12.135, 19.735 12.135, 19.6 12.0 C 20.365 11.865, 20.365 11.865, 20.5 11.1 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 13.32 16.49 18.01 18.01" stroke-width="1.5"/>
+          <path d="M 18.010407640085653 17.110407640085654 C 18.145407640085654 17.87540764008565, 18.775407640085653 17.87540764008565, 18.91040764008565 18.010407640085653 C 18.145407640085654 18.145407640085654, 18.145407640085654 18.145407640085654, 18.010407640085653 18.91040764008565 C 17.87540764008565 18.145407640085654, 17.245407640085652 18.145407640085654, 17.110407640085654 18.010407640085653 C 17.87540764008565 17.87540764008565, 17.87540764008565 17.87540764008565, 18.010407640085653 17.110407640085654 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 9.76 16.10 12.00 20.50" stroke-width="1.5"/>
+          <path d="M 12.0 19.6 C 12.135 20.365, 12.765 20.365, 12.9 20.5 C 12.135 20.635, 12.135 20.635, 12.0 21.4 C 11.865 20.635, 11.235 20.635, 11.1 20.5 C 11.865 20.365, 11.865 20.365, 12.0 19.6 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 7.51 13.32 5.99 18.01" stroke-width="1.5"/>
+          <path d="M 5.989592359914346 17.110407640085654 C 6.124592359914346 17.87540764008565, 6.754592359914346 17.87540764008565, 6.889592359914347 18.010407640085653 C 6.124592359914346 18.145407640085654, 6.124592359914346 18.145407640085654, 5.989592359914346 18.91040764008565 C 5.854592359914347 18.145407640085654, 5.224592359914347 18.145407640085654, 5.089592359914346 18.010407640085653 C 5.854592359914347 17.87540764008565, 5.854592359914347 17.87540764008565, 5.989592359914346 17.110407640085654 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 7.90 9.76 3.50 12.00" stroke-width="1.5"/>
+          <path d="M 3.5 11.100000000000001 C 3.635 11.865000000000002, 4.265 11.865000000000002, 4.4 12.000000000000002 C 3.635 12.135000000000002, 3.635 12.135000000000002, 3.5 12.900000000000002 C 3.365 12.135000000000002, 2.735 12.135000000000002, 2.6 12.000000000000002 C 3.365 11.865000000000002, 3.365 11.865000000000002, 3.5 11.100000000000001 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 10.68 7.51 5.99 5.99" stroke-width="1.5"/>
+          <path d="M 5.989592359914345 5.089592359914346 C 6.124592359914344 5.854592359914347, 6.754592359914344 5.854592359914347, 6.889592359914345 5.989592359914346 C 6.124592359914344 6.124592359914346, 6.124592359914344 6.124592359914346, 5.989592359914345 6.889592359914347 C 5.854592359914345 6.124592359914346, 5.224592359914345 6.124592359914346, 5.089592359914344 5.989592359914346 C 5.854592359914345 5.854592359914347, 5.854592359914345 5.854592359914347, 5.989592359914345 5.089592359914346 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 14.24 7.90 12.00 3.50" stroke-width="1.5"/>
+          <path d="M 11.999999999999998 2.6 C 12.134999999999998 3.365, 12.764999999999999 3.365, 12.899999999999999 3.5 C 12.134999999999998 3.635, 12.134999999999998 3.635, 11.999999999999998 4.4 C 11.864999999999998 3.635, 11.234999999999998 3.635, 11.099999999999998 3.5 C 11.864999999999998 3.365, 11.864999999999998 3.365, 11.999999999999998 2.6 Z" fill="#fff" stroke="none"/>
+          <path d="M 12 12 Q 16.49 10.68 18.01 5.99" stroke-width="1.5"/>
+          <path d="M 18.010407640085653 5.089592359914344 C 18.145407640085654 5.854592359914345, 18.775407640085653 5.854592359914345, 18.91040764008565 5.989592359914345 C 18.145407640085654 6.124592359914344, 18.145407640085654 6.124592359914344, 18.010407640085653 6.889592359914345 C 17.87540764008565 6.124592359914344, 17.245407640085652 6.124592359914344, 17.110407640085654 5.989592359914345 C 17.87540764008565 5.854592359914345, 17.87540764008565 5.854592359914345, 18.010407640085653 5.089592359914344 Z" fill="#fff" stroke="none"/>
+        </svg>
+    </div>
+    <div>
+      <h2>Manage Inventory</h2>
+      <p>Track what's on hand by container — shells, cakes, manufacturer, effects, and SKU. Scan SKUs with your camera and export a signed PDF anytime.</p>
+    </div>
+  </a>
+
+  <a class="card c2" href="manage-catalog.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round">
+        <path d="M12 4v11" stroke-width="1.6"/>
+        <path d="M8 11l4 4 4-4" stroke-width="1.6"/>
+        <path d="M5 17v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2" stroke-width="1.6"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Manage Catalog</h2>
+      <p>Add or edit products by hand, import a whole price list from a CSV, or find and remove duplicates.</p>
+    </div>
+  </a>
+
+    </div>
+
+  <p class="section-label">Reports</p>
+  <div class="cards">
+
+  <a class="card c3" href="aar-reports.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 3h8l4 4v14H6z" stroke-width="1.5"/>
+        <path d="M14 3v4h4" stroke-width="1.5"/>
+        <path d="M9 14l2.2 2.2L15.5 12" stroke-width="1.6"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Saved After Action Reports</h2>
+      <p>Look up every After-Action Report saved to Drive — search by operator, venue, date, or license, open the PDF, or flag the ones with incidents.</p>
+    </div>
+  </a>
+
+  <a class="card c1" href="payroll-reports.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="8" stroke-width="1.5"/>
+        <path d="M12 7v10M9.5 9.5a2.5 2.5 0 0 1 2.5-1h.3a2.2 2.2 0 0 1 0 4.4h-.6a2.2 2.2 0 0 0 0 4.4h.3a2.5 2.5 0 0 0 2.5-1" stroke-width="1.4"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Payroll Reports</h2>
+      <p>Who was paid what, for every show — compiled from payroll as it's emailed, with totals per person and export to CSV or PDF by date range.</p>
+    </div>
+  </a>
+
+    </div>
+
+  <p class="section-label">Admin</p>
+  <div class="cards">
+
+  <a class="card c2" href="announcements.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 10v4h3l7 4V6L7 10H4z" stroke-width="1.5"/>
+        <path d="M17 9.5a4 4 0 010 5" stroke-width="1.5"/>
+        <path d="M19.5 7a7.5 7.5 0 010 10" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Announcements</h2>
+      <p>Post a message that shows as a banner on the home screen, and remove old ones.</p>
+    </div>
+  </a>
+
+  <a class="card c3" href="backups.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+        <ellipse cx="12" cy="6.5" rx="7" ry="2.8" stroke-width="1.5"/>
+        <path d="M5 6.5v11c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8v-11" stroke-width="1.5"/>
+        <path d="M5 12c0 1.5 3.1 2.8 7 2.8s7-1.3 7-2.8" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Backups</h2>
+      <p>Keep dated copies of the whole spreadsheet in Drive, see when the last one ran, or take one now.</p>
+    </div>
+  </a>
+
+  </div>
+
+  <footer>Apex Pyrotechnics · demo@apexpyrotechnics.com<br><a href="#" onclick="lockThisPhone();return false;" style="color:inherit;opacity:.8;">&#0D9488; Lock this phone</a></footer>
+</div>
+
+<script>
+async function checkPassword(){
+  const input = document.getElementById('lockPassword');
+  const err = document.getElementById('lockError');
+  const btn = document.querySelector('#lockScreen button');
+  err.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Checking\u2026';
+  const result = await Auth.login('admin', input.value);
+  btn.disabled = false; btn.textContent = 'Unlock';
+  if(result.ok){
+    const next = Auth.nextPage();
+    if(next){ location.replace(next); return; }      // back to the page they were trying to open
+    unlockManage();
+  } else {
+    err.textContent = result.message;
+    err.style.display = 'block';
+    input.value = '';
+    input.focus();
+  }
+}
+
+function unlockManage(){
+  document.getElementById('lockScreen').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+}
+
+// Forget the sign-in and the crew list kept on this phone (for a shared phone).
+function lockThisPhone(){
+  Auth.lock();
+  location.replace(location.pathname.split('/').pop());
+}
+
+if(Auth.has('admin')){
+  unlockManage();
+} else if(Auth.expiredNotice()){
+  document.querySelector('#lockScreen p').textContent = 'Your sign-in ended. Enter the password to continue.';
+}
+</script>
+</body>
+</html>

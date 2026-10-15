@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Update My Info — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0F172A">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#A5B4FC; --surface-6:rgba(15,23,42,0.6); --surface-5:rgba(15,23,42,0.5); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --accent1:#4F46E5; --accent2:#8B5CF6; --accent3:#22D3EE; --accent4:#3B82F6; --accent5:#312E81;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --line:rgba(255,255,255,0.1);
+    --card:rgba(30,41,59,0.75); --ok:#22C55E; --err:#6366F1;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#4F46E5; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --logo-ring-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:32px 16px;
+  }
+  .wrap{max-width:440px;width:100%;}
+  .back-link{
+    display:block; margin:0 0 12px; padding:0 4px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:#A5B4FC;}
+  .card{
+    background:var(--card); border:1px solid var(--line);
+    border-radius:14px; overflow:hidden;
+    backdrop-filter:blur(6px);
+  }
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
+  }
+  .body{padding:24px;}
+  p.sub{color:var(--ink-soft);font-size:13px;margin:0 0 20px;line-height:1.5;}
+  .step-indicator{
+    display:flex; align-items:center; gap:8px;
+    padding:14px 24px 0;
+  }
+  .step-indicator .dot{
+    width:8px;height:8px;border-radius:50%;
+    background:rgba(255,255,255,0.15);
+    transition:background .2s ease, box-shadow .2s ease;
+  }
+  .step-indicator .dot.active{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    box-shadow:0 0 8px rgba(139,92,246,0.5);
+  }
+  .step-indicator .dot.done{background:var(--ok);}
+  .step-indicator .line{flex:1;font-size:11px;color:var(--ink-soft);text-align:right;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text]{
+    font-size:15px;padding:10px 12px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-6);color:var(--ink);
+  }
+  input:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
+  input[readonly]{background:rgba(255,255,255,0.04);color:var(--ink-soft);}
+  button.primary{
+    width:100%; color:#F8FAFC; border:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 18px rgba(139,92,246,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  .photo-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:none; border:1px solid var(--line); color:var(--ink);
+    font-size:13px; padding:9px 14px; border-radius:8px; cursor:pointer;
+  }
+  .photo-btn:hover{border-color:#A5B4FC;}
+  .msg{font-size:13px;margin-top:14px;text-align:center;}
+  .msg.ok{color:var(--ok);}
+  .msg.err{color:var(--err);}
+  .success{padding:36px 24px;text-align:center;}
+  .success .check{
+    width:56px;height:56px;border-radius:50%;
+    background:linear-gradient(135deg,var(--ok),#3B82F6);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    font-size:28px;margin:0 auto 16px;
+    box-shadow:0 0 20px rgba(34,197,94,0.4);
+  }
+  .success h2{margin:0 0 6px;font-size:18px;color:var(--ink);}
+  .success p{margin:0;color:var(--ink-soft);font-size:13.5px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+
+<script src="theme-picker.js" defer></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<div class="wrap">
+  <a class="back-link" href="index.html">&larr; Back to main menu</a>
+
+  <header>
+    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+    <p class="kicker">Apex Pyrotechnics Inc.</p>
+    <h1>Update My Info</h1>
+  </header>
+
+  <div class="divider"></div>
+
+  <div class="card">
+    <div class="step-indicator" id="stepIndicator">
+      <span class="dot active" id="stepDot1"></span>
+      <span class="dot" id="stepDot2"></span>
+      <span class="line" id="stepLabel">Step 1 of 2 — Verify</span>
+    </div>
+
+    <div class="body" id="verifyStep">
+      <p class="sub">Enter your name and the phone number already on file to pull up your info and make changes.</p>
+      <div class="field">
+        <label for="vName">Your name</label>
+        <input type="text" id="vName" list="namesList" autocomplete="off">
+        <datalist id="namesList"></datalist>
+      </div>
+      <div class="field">
+        <label for="vPhone">Phone number on file</label>
+        <input type="tel" id="vPhone">
+      </div>
+      <button class="primary" type="button" onclick="verifyIdentity()">Continue</button>
+      <p class="msg" id="verifyMsg"></p>
+    </div>
+
+    <div class="body" id="editStep" style="display:none;">
+      <p class="sub">Update anything below, then save.</p>
+      <div class="field">
+        <label for="eName">Name</label>
+        <input type="text" id="eName" readonly>
+      </div>
+      <div class="field">
+        <label for="ePhone">Phone number</label>
+        <input type="tel" id="ePhone">
+      </div>
+      <div class="field">
+        <label for="eEmail">Email</label>
+        <input type="email" id="eEmail">
+      </div>
+      <div class="field">
+        <label for="eAddress">Address</label>
+        <input type="text" id="eAddress">
+      </div>
+      <div class="field">
+        <label for="eAge">Age</label>
+        <input type="text" id="eAge">
+      </div>
+      <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">LICENSES</p>
+      <div class="field">
+        <label for="eDisplayLicense">Display Operator (D)</label>
+        <input type="text" id="eDisplayLicense">
+      </div>
+      <div class="field">
+        <label for="eSFXLicense">Special Effects Operator (P)</label>
+        <input type="text" id="eSFXLicense">
+      </div>
+      <div class="field">
+        <label for="eFlameLicense">Flame Effects Operator (F)</label>
+        <input type="text" id="eFlameLicense">
+      </div>
+      <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">EMERGENCY CONTACT</p>
+      <div class="field">
+        <label for="eEmergencyContact">Emergency contact name</label>
+        <input type="text" id="eEmergencyContact">
+      </div>
+      <div class="field">
+        <label for="eEmergencyContactPhone">Emergency contact phone number</label>
+        <input type="tel" id="eEmergencyContactPhone">
+      </div>
+      <div class="field">
+        <label>Photo</label>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <label class="photo-btn">
+            Take photo
+            <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoSelect(event)">
+          </label>
+          <label class="photo-btn">
+            Upload photo
+            <input type="file" accept="image/*" style="display:none;" onchange="handlePhotoSelect(event)">
+          </label>
+        </div>
+        <img id="photoPreview" style="display:none;width:100px;height:100px;object-fit:cover;border-radius:8px;margin-top:10px;border:1px solid var(--line);">
+      </div>
+      <button class="primary" type="button" onclick="saveChanges()">Save changes</button>
+      <p class="msg" id="saveMsg"></p>
+    </div>
+
+    <div class="success" id="successStep" style="display:none;">
+      <div class="check">&#10003;</div>
+      <h2>Info updated</h2>
+      <p id="successName"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec";
+
+let verifiedName = '';
+let verifiedPhone = '';
+let pendingPhotoBase64 = null;
+
+async function fetchNameList(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=names`);
+    if(!res.ok) throw new Error('Request failed');
+    const names = await res.json();
+    if(Array.isArray(names)){
+      document.getElementById('namesList').innerHTML =
+        names.map(n => `<option value="${String(n).replace(/"/g,'&quot;')}">`).join('');
+    }
+  } catch(err){
+    // fall back silently — the person can still type their name manually
+  }
+}
+fetchNameList();
+
+async function verifyIdentity(){
+  const msgEl = document.getElementById('verifyMsg');
+  const name = document.getElementById('vName').value.trim();
+  const phone = document.getElementById('vPhone').value.trim();
+  if(!name || !phone){
+    msgEl.textContent = 'Enter your name and phone number.';
+    msgEl.className = 'msg err';
+    return;
+  }
+  msgEl.textContent = 'Checking…';
+  msgEl.className = 'msg';
+  try{
+    const url = `${CHECKIN_API_URL}?type=verifyPerson&name=${encodeURIComponent(name)}&phone=${encodeURIComponent(phone)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if(data && data.verified){
+      verifiedName = name;
+      verifiedPhone = phone;
+      document.getElementById('eName').value = name;
+      document.getElementById('ePhone').value = data.phone || phone;
+      document.getElementById('eEmail').value = data.email || '';
+      document.getElementById('eDisplayLicense').value = data.displayLicense || '';
+      document.getElementById('eSFXLicense').value = data.specialEffectsLicense || '';
+      document.getElementById('eFlameLicense').value = data.flameLicense || '';
+      document.getElementById('eEmergencyContact').value = data.emergencyContact || '';
+      document.getElementById('eEmergencyContactPhone').value = data.emergencyContactPhone || '';
+      document.getElementById('eAddress').value = data.address || '';
+      document.getElementById('eAge').value = data.age || '';
+      if(data.photoUrl){
+        const preview = document.getElementById('photoPreview');
+        preview.src = data.photoUrl;
+        preview.style.display = 'block';
+      }
+      document.getElementById('verifyStep').style.display = 'none';
+      document.getElementById('editStep').style.display = 'block';
+      document.getElementById('stepDot1').className = 'dot done';
+      document.getElementById('stepDot2').className = 'dot active';
+      document.getElementById('stepLabel').textContent = 'Step 2 of 2 — Update';
+    } else {
+      msgEl.textContent = "That name and phone number don't match what's on file.";
+      msgEl.className = 'msg err';
+    }
+  } catch(err){
+    msgEl.textContent = 'Could not check right now — try again in a moment.';
+    msgEl.className = 'msg err';
+  }
+}
+
+function resizeImageToDataUrl(file, maxSize, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxSize){ h = Math.round(h * maxSize / w); w = maxSize; } }
+        else { if(h > maxSize){ w = Math.round(w * maxSize / h); h = maxSize; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePhotoSelect(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const dataUrl = await resizeImageToDataUrl(file, 400, 0.7);
+  pendingPhotoBase64 = dataUrl;
+  const preview = document.getElementById('photoPreview');
+  preview.src = dataUrl;
+  preview.style.display = 'block';
+}
+
+function saveChanges(){
+  const msgEl = document.getElementById('saveMsg');
+  const payload = {
+    recordType: 'contact',
+    name: verifiedName,
+    verifyPhone: verifiedPhone,
+    phone: document.getElementById('ePhone').value.trim(),
+    email: document.getElementById('eEmail').value.trim(),
+    displayLicense: document.getElementById('eDisplayLicense').value.trim(),
+    specialEffectsLicense: document.getElementById('eSFXLicense').value.trim(),
+    flameLicense: document.getElementById('eFlameLicense').value.trim(),
+    emergencyContact: document.getElementById('eEmergencyContact').value.trim(),
+    emergencyContactPhone: document.getElementById('eEmergencyContactPhone').value.trim(),
+    address: document.getElementById('eAddress').value.trim(),
+    age: document.getElementById('eAge').value.trim()
+  };
+  if(pendingPhotoBase64){
+    payload.photoBase64 = pendingPhotoBase64;
+  }
+
+  msgEl.textContent = pendingPhotoBase64 ? 'Saving (uploading photo)…' : 'Saving…';
+  msgEl.className = 'msg';
+
+  fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify(payload)
+  }).then(() => {
+    document.getElementById('editStep').style.display = 'none';
+    document.getElementById('successStep').style.display = 'block';
+    document.getElementById('stepIndicator').style.display = 'none';
+    document.getElementById('successName').textContent = `Thanks, ${verifiedName} — your info has been updated.`;
+  }).catch(() => {
+    msgEl.textContent = 'Could not save — check your connection and try again.';
+    msgEl.className = 'msg err';
+  });
+}
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

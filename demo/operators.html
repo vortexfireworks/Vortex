@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
+<title>Manage Operators — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0F172A">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#A5B4FC; --surface-4:rgba(15,23,42,0.4); --surface-5:rgba(15,23,42,0.5); --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --navy:#A5B4FC; --brick:#6366F1; --brick-light:#818CF8;
+    --paper:#1E293B; --card:rgba(30,41,59,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --ok:#22C55E;
+    --accent1:#4F46E5; --accent2:#8B5CF6;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#4F46E5; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12); --paper:#F8FAFC; --navy:#4F46E5;
+    --logo-ring-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
+  }
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .full{grid-column:1/-1;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=tel], input[type=email]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%;min-width:0;box-sizing:border-box;font-family:inherit;
+  }
+  button.secondary{background:none;border:1px solid var(--line);color:var(--navy);font-size:13px;padding:8px 14px;border-radius:6px;cursor:pointer;}
+  button.secondary:hover{border-color:var(--navy);}
+  input:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#F8FAFC; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(139,92,246,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  .editor-box{
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;}
+  #operatorSaveStatus{font-size:12.5px;}
+  .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .search-box{margin-bottom:10px;}
+  #operatorListWrap{
+    max-height:360px;overflow-y:auto;border:1px solid var(--line);
+    border-radius:8px;padding:6px 14px;font-size:13px;
+  }
+  .op-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:8px 0;border-bottom:1px solid var(--line);
+  }
+  .op-row:last-child{border-bottom:none;}
+  .op-row .op-name{font-weight:600;}
+  .op-row .op-detail{color:var(--ink-soft);font-size:12px;}
+  .op-row button{
+    background:none;border:1px solid var(--line);color:var(--navy);
+    font-size:12px;padding:5px 10px;border-radius:6px;cursor:pointer;flex-shrink:0;
+  }
+  .op-row button:hover{border-color:var(--navy);}
+  @media(max-width:480px){
+    .grid2{grid-template-columns:1fr;}
+  }
+  .back-link{
+    display:block; max-width:640px; margin:16px auto 0; padding:0 16px;
+    font-size:12.5px; color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{
+    color:var(--ink-soft); margin:4px 0;
+    animation:pulseFade 1.4s ease-in-out infinite;
+  }
+  @keyframes pulseFade{
+    0%,100%{opacity:0.4;} 50%{opacity:1;}
+  }
+  .empty-state{
+    text-align:center; padding:24px 12px; color:var(--ink-soft);
+  }
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  /* Phone layout: let the View / Edit / Delete buttons drop under the operator's details instead of squeezing them */
+  @media (max-width:600px){
+    #operatorListWrap .op-row{flex-wrap:wrap;}
+    #operatorListWrap .op-row > div:first-child{flex:1 1 100%;}
+    #operatorListWrap .op-row > div:last-child{margin-top:8px;padding-left:46px;}
+  }
+</style>
+
+<script src="theme-picker.js" defer></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
+  <h1>Manage Operators</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet" id="mainContent">
+  <div class="section">
+    <p class="desc">Add a new operator, or tap Edit on someone to change their details, photo or licenses. Every change saves the moment you press Save, and the page tells you whether it worked. Changes show up for autofill on the After-Action Report, Payroll, and Check-In.</p>
+
+    <div class="editor-box">
+      <p class="label-title" id="formTitle">ADD OPERATOR</p>
+      <div class="grid2" style="margin-bottom:10px;">
+        <div class="field">
+          <label for="opEditName">Name</label>
+          <input type="text" id="opEditName" list="operatorDirectoryList" oninput="prefillOperatorEdit(this)" onblur="this.value = toTitleCase(this.value)">
+        </div>
+        <div class="field"><label for="opEditPhone">Phone number</label><input type="tel" id="opEditPhone"></div>
+        <div class="field"><label for="opEditEmail">Email</label><input type="email" id="opEditEmail"></div>
+        <div class="field full"><label for="opEditAddress">Address</label><input type="text" id="opEditAddress" onblur="this.value = toTitleCase(this.value)"></div>
+        <div class="field"><label for="opEditAge">Age</label><input type="text" id="opEditAge"></div>
+      </div>
+      <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">LICENSES</p>
+      <div class="grid2" style="margin-bottom:10px;">
+        <div class="field"><label for="opEditDisplayLicense">Display Operator (D)</label><input type="text" id="opEditDisplayLicense"></div>
+        <div class="field"><label for="opEditSFXLicense">Special Effects Operator (P)</label><input type="text" id="opEditSFXLicense"></div>
+        <div class="field"><label for="opEditFlameLicense">Flame Effects Operator (F)</label><input type="text" id="opEditFlameLicense"></div>
+      </div>
+      <p style="font-size:11px;color:var(--ink-soft);font-weight:600;margin:0 0 8px;">EMERGENCY CONTACT</p>
+      <div class="grid2" style="margin-bottom:10px;">
+        <div class="field"><label for="opEditEmergencyContact">Emergency contact name</label><input type="text" id="opEditEmergencyContact"></div>
+        <div class="field"><label for="opEditEmergencyContactPhone">Emergency contact phone</label><input type="tel" id="opEditEmergencyContactPhone"></div>
+      </div>
+      <div class="field full" style="margin-bottom:10px;">
+        <label for="opEditPhotoFile">Photo</label>
+        <p style="font-size:11px;color:var(--ink-soft);margin:0 0 6px;">Typing an existing operator's name above will show their current photo here, if one is on file. Pick a new file only if you want to replace it.</p>
+        <input type="file" id="opEditPhotoFile" accept="image/*" onchange="handlePhotoSelect(event)">
+        <img id="opEditPhotoPreview" style="display:none;width:88px;height:88px;object-fit:cover;border-radius:6px;margin-top:8px;border:1px solid var(--line);">
+      </div>
+      <datalist id="operatorDirectoryList"></datalist>
+      <div class="save-row">
+        <button class="primary" type="button" id="saveOperatorBtn" onclick="saveOperator()">Save operator</button>
+        <button class="secondary" type="button" id="cancelEditBtn" onclick="cancelEdit()" style="display:none;">Cancel edit</button>
+        <span id="operatorSaveStatus" style="font-size:12.5px;"></span>
+      </div>
+    </div>
+
+    <p class="list-title">CURRENT OPERATORS</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+      <button class="secondary" type="button" onclick="exportContactsCSV()">Export as CSV</button>
+      <label style="display:inline-flex;align-items:center;padding:8px 14px;border:1px solid var(--line);border-radius:6px;font-size:13px;cursor:pointer;color:var(--navy);background:none;">
+        Import from CSV
+        <input type="file" accept=".csv" style="display:none;" onchange="handleContactsCsvImport(event)">
+      </label>
+      <button class="secondary" type="button" onclick="findDuplicateOperators()">Find duplicates</button>
+    </div>
+    <p id="csvImportStatus" style="font-size:12.5px;margin:0 0 12px;"></p>
+    <div id="duplicatesWrap" style="margin:0 0 16px;"></div>
+
+    <div class="field search-box">
+      <input type="text" id="operatorSearch" placeholder="Search by name, license, phone, or address…" oninput="renderOperatorList()">
+    </div>
+    <p class="list-title" id="operatorCount" style="margin:0 0 10px;"></p>
+    <div id="operatorListWrap">
+      <p class="loading-pulse">Loading…</p>
+    </div>
+  </div>
+</div>
+
+<div id="viewModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:50;align-items:center;justify-content:center;padding:20px;">
+  <div style="max-width:360px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;backdrop-filter:blur(10px);">
+    <div style="display:flex;justify-content:center;margin-bottom:16px;">
+      <img id="viewModalPhoto" src="" alt="" style="width:120px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:none;">
+      <div id="viewModalInitial" style="width:120px;height:120px;border-radius:10px;background:rgba(255,255,255,0.05);border:1px solid var(--line);display:none;align-items:center;justify-content:center;font-size:42px;color:var(--ink-soft);"></div>
+    </div>
+    <h2 id="viewModalName" style="margin:0 0 14px;font-size:18px;color:var(--ink);text-align:center;"></h2>
+    <div style="font-size:13.5px;color:var(--ink);line-height:1.9;">
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Display (D):</strong> <span id="viewModalDisplayLicense"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Special Effects (P):</strong> <span id="viewModalSFXLicense"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Flame Effects (F):</strong> <span id="viewModalFlameLicense"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Phone:</strong> <span id="viewModalPhone"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Email:</strong> <span id="viewModalEmail"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Address:</strong> <span id="viewModalAddress"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Age:</strong> <span id="viewModalAge"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Emergency contact:</strong> <span id="viewModalEmergencyContact"></span></div>
+      <div><strong style="color:var(--ink-soft);font-weight:600;">Emergency phone:</strong> <span id="viewModalEmergencyContactPhone"></span></div>
+    </div>
+    <button class="secondary" type="button" style="width:100%;margin-top:18px;" onclick="closeViewModal()">Close</button>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec";
+
+function $(id){ return document.getElementById(id); }
+function esc(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function setStatus(el, msg, kind){
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
+}
+
+// Reads the server's reply, so a refused or failed save is reported instead of showing "Saved".
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status !== 'ok') throw new Error((data && data.message) || 'Request failed');
+  return data;
+}
+
+function normalizeContact(c){
+  const s = v => (v == null ? '' : String(v));
+  return {
+    name: s(c.name).trim(), license: s(c.license), displayLicense: s(c.displayLicense), specialEffectsLicense: s(c.specialEffectsLicense),
+    flameLicense: s(c.flameLicense), phone: s(c.phone), email: s(c.email), address: s(c.address), age: s(c.age), photoUrl: s(c.photoUrl),
+    emergencyContact: s(c.emergencyContact), emergencyContactPhone: s(c.emergencyContactPhone)
+  };
+}
+
+// Start from the copy kept on this phone, then replace it with the sheet's list as soon as that loads.
+const CONTACTS_BY_NAME = {};
+Directory.cached().forEach(c => { if(c && c.name) CONTACTS_BY_NAME[c.name.trim().toLowerCase()] = normalizeContact(c); });
+let directoryLoaded = false;
+
+async function fetchOperatorDirectory(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=contacts`, { cache:'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    const list = await res.json();
+    if(!Array.isArray(list)) throw new Error('Unexpected reply');
+    Directory.save(list);
+    // The sheet decides who exists. Rebuilding from it means someone who was deleted can never linger or come back.
+    Object.keys(CONTACTS_BY_NAME).forEach(k => delete CONTACTS_BY_NAME[k]);
+    list.forEach(c => { if(c.name) CONTACTS_BY_NAME[c.name.trim().toLowerCase()] = normalizeContact(c); });
+    directoryLoaded = true;
+  } catch(err){
+    // keep what this phone already has
+  }
+  populateOperatorDatalist();
+  renderOperatorList();
+}
+
+function populateOperatorDatalist(){
+  $('operatorDirectoryList').innerHTML = Object.values(CONTACTS_BY_NAME).map(c => `<option value="${esc(c.name)}">`).join('');
+}
+
+let originalOperatorName = null;     // set while editing someone who is already on file
+let pendingPhotoBase64 = null;
+
+function resizeImageToDataUrl(file, maxSize, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxSize){ h = Math.round(h * maxSize / w); w = maxSize; } }
+        else { if(h > maxSize){ w = Math.round(w * maxSize / h); h = maxSize; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePhotoSelect(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  try{
+    pendingPhotoBase64 = await resizeImageToDataUrl(file, 400, 0.7);
+    const preview = $('opEditPhotoPreview');
+    preview.src = pendingPhotoBase64;
+    preview.style.display = 'block';
+  } catch(e){
+    setStatus($('operatorSaveStatus'), "Couldn't read that photo — try a different one.", 'err');
+  }
+}
+
+function showExistingPhoto(photoUrl){
+  $('opEditPhotoFile').value = '';
+  const preview = $('opEditPhotoPreview');
+  if(photoUrl){ preview.src = photoUrl; preview.style.display = 'block'; }
+  else { preview.style.display = 'none'; preview.src = ''; }
+}
+
+/* ---------------- the form: adding, or editing one person ---------------- */
+const FIELD = {
+  displayLicense: 'opEditDisplayLicense', specialEffectsLicense: 'opEditSFXLicense', flameLicense: 'opEditFlameLicense',
+  phone: 'opEditPhone', email: 'opEditEmail', address: 'opEditAddress', age: 'opEditAge',
+  emergencyContact: 'opEditEmergencyContact', emergencyContactPhone: 'opEditEmergencyContactPhone'
+};
+function fillFormFrom(c){
+  Object.keys(FIELD).forEach(k => { $(FIELD[k]).value = (c && c[k]) || ''; });
+}
+function readForm(){
+  const out = { name: $('opEditName').value.trim() };
+  Object.keys(FIELD).forEach(k => { out[k] = $(FIELD[k]).value.trim(); });
+  return out;
+}
+
+function updateFormTitle(){
+  const typed = $('opEditName').value.trim();
+  if(originalOperatorName){
+    const renaming = typed && typed.toLowerCase() !== originalOperatorName.toLowerCase();
+    $('formTitle').textContent = 'EDITING: ' + originalOperatorName + (renaming ? '  \u2192  will be renamed to ' + typed : '');
+    $('cancelEditBtn').style.display = '';
+    $('saveOperatorBtn').textContent = 'Save changes';
+  } else {
+    $('formTitle').textContent = 'ADD OPERATOR';
+    $('cancelEditBtn').style.display = 'none';
+    $('saveOperatorBtn').textContent = 'Save operator';
+  }
+}
+
+function clearForm(){
+  originalOperatorName = null;
+  pendingPhotoBase64 = null;
+  $('opEditName').value = '';
+  fillFormFrom(null);
+  showExistingPhoto('');
+  updateFormTitle();
+}
+function cancelEdit(){
+  clearForm();
+  setStatus($('operatorSaveStatus'), '');
+}
+
+// Typing the name of someone already on file switches to editing that person, with their details filled in.
+function prefillOperatorEdit(nameInput){
+  const typed = nameInput.value.trim();
+  if(!typed) originalOperatorName = null;
+  const match = CONTACTS_BY_NAME[typed.toLowerCase()];
+  const editingSomeoneElse = originalOperatorName && match && match.name.toLowerCase() !== originalOperatorName.toLowerCase();
+  if(match && !editingSomeoneElse){
+    originalOperatorName = match.name;
+    fillFormFrom(match);
+    if(!pendingPhotoBase64) showExistingPhoto(match.photoUrl);
+  }
+  updateFormTitle();
+}
+
+function loadOperatorIntoEditor(name){
+  const match = CONTACTS_BY_NAME[name.toLowerCase()];
+  if(!match) return;
+  originalOperatorName = match.name;
+  $('opEditName').value = match.name;
+  fillFormFrom(match);
+  pendingPhotoBase64 = null;
+  showExistingPhoto(match.photoUrl);
+  updateFormTitle();
+  setStatus($('operatorSaveStatus'), '');
+  $('opEditName').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+
+async function saveOperator(){
+  const st = $('operatorSaveStatus');
+  const btn = $('saveOperatorBtn');
+  const f = readForm();
+  if(!f.name){ setStatus(st, 'Enter a name first.', 'err'); return; }
+  // Renaming onto someone else who is already on file would leave two people with one name.
+  if(originalOperatorName && f.name.toLowerCase() !== originalOperatorName.toLowerCase() && CONTACTS_BY_NAME[f.name.toLowerCase()]){
+    setStatus(st, `${CONTACTS_BY_NAME[f.name.toLowerCase()].name} is already on file. Edit that person instead, or pick a different name.`, 'err');
+    return;
+  }
+  btn.disabled = true;
+  setStatus(st, pendingPhotoBase64 ? 'Saving (uploading photo)\u2026' : 'Saving\u2026');
+  const payload = Object.assign({ recordType: 'contact' }, f);
+  if(pendingPhotoBase64) payload.photoBase64 = pendingPhotoBase64;
+  if(originalOperatorName) payload.originalName = originalOperatorName;
+  try{
+    const result = await postJson(payload);
+    await fetchOperatorDirectory();                      // picks up the real photo address from Drive
+    clearForm();
+    if(result.photoError) setStatus(st, `Saved, but the photo did not upload (${result.photoError}).`, 'err');
+    else setStatus(st, 'Saved \u2713', 'ok');
+  } catch(err){
+    setStatus(st, "Couldn't save \u2014 " + (err.message && err.message !== 'Failed to fetch' && err.message !== 'Request failed' ? err.message : 'check your connection and try again.'), 'err');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function confirmDeleteOperator(name){
+  if(!confirm(`Delete ${name} from the operator directory? This can't be undone.`)) return;
+  const st = $('operatorSaveStatus');
+  setStatus(st, `Deleting ${name}\u2026`);
+  try{
+    await postJson({ recordType: 'deleteContact', name });
+    await fetchOperatorDirectory();
+    if(originalOperatorName && originalOperatorName.toLowerCase() === name.toLowerCase()) clearForm();
+    setStatus(st, `${name} deleted.`, 'ok');
+  } catch(err){
+    setStatus(st, "Couldn't delete \u2014 check your connection and try again.", 'err');
+  }
+}
+
+/* ---------------- the list ---------------- */
+function lastNameOf(fullName){
+  const cleaned = String(fullName || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const parts = cleaned.split(/\s+/);
+  return parts[parts.length - 1] || fullName;
+}
+
+function renderOperatorList(){
+  const wrap = $('operatorListWrap');
+  const search = $('operatorSearch').value.trim().toLowerCase();
+  let people = Object.values(CONTACTS_BY_NAME).sort((a,b) =>
+    lastNameOf(a.name).localeCompare(lastNameOf(b.name)) || a.name.localeCompare(b.name));
+  const total = people.length;
+  if(search){
+    people = people.filter(c => [c.name, c.license, c.displayLicense, c.specialEffectsLicense, c.flameLicense, c.phone, c.email, c.address]
+      .some(v => String(v || '').toLowerCase().includes(search)));
+  }
+  $('operatorCount').textContent = total ? (search ? `${people.length} OF ${total} OPERATORS` : `${total} OPERATOR${total === 1 ? '' : 'S'}`) : '';
+  if(!people.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">\ud83d\udd0d</div><p>' +
+      (total || directoryLoaded ? 'No operators found. Try a different search, or add one above.' : 'Could not load the operator list \u2014 check your connection and reload.') + '</p></div>';
+    return;
+  }
+  wrap.innerHTML = people.map(c => `
+    <div class="op-row" data-name="${esc(c.name)}">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+        ${c.photoUrl
+          ? `<img src="${esc(c.photoUrl)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" alt="">`
+          : `<div style="width:36px;height:36px;border-radius:50%;background:var(--paper);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink-soft);flex-shrink:0;">${esc(c.name.charAt(0))}</div>`}
+        <div style="min-width:0;">
+          <div class="op-name">${esc(c.name)}</div>
+          <div class="op-detail">${esc([c.license, c.phone, c.address, c.age ? 'Age ' + c.age : ''].filter(Boolean).join(' \u00b7 ') || 'No details on file')}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button type="button" data-action="view">View</button>
+        <button type="button" data-action="edit">Edit</button>
+        <button type="button" data-action="delete" style="color:var(--brick);border-color:var(--brick);">Delete</button>
+      </div>
+    </div>`).join('');
+}
+$('operatorListWrap').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const name = btn.closest('.op-row').dataset.name;
+  if(btn.dataset.action === 'view') openViewModal(name);
+  if(btn.dataset.action === 'edit') loadOperatorIntoEditor(name);
+  if(btn.dataset.action === 'delete') confirmDeleteOperator(name);
+});
+
+function toTitleCase(str){
+  if(!str) return str;
+  return str.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/* ---------------- duplicates ---------------- */
+async function findDuplicateOperators(){
+  const wrap = $('duplicatesWrap');
+  wrap.innerHTML = '<p class="loading-pulse">Checking for duplicates\u2026</p>';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=findDuplicateContacts`, { cache:'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    renderDuplicateOperators(await res.json());
+  } catch(err){
+    wrap.innerHTML = '<p style="color:var(--brick);font-size:13px;">Could not check for duplicates \u2014 check your connection and try again.</p>';
+  }
+}
+
+function renderDuplicateOperators(groups){
+  const wrap = $('duplicatesWrap');
+  if(!Array.isArray(groups) || groups.length === 0){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--ok);">No duplicates found \u2014 every name appears only once.</p>';
+    return;
+  }
+  wrap.innerHTML = `<p style="font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;">${groups.length} DUPLICATE NAME${groups.length > 1 ? 'S' : ''} FOUND</p>` +
+    groups.map((g, gi) => `
+      <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.3);border-radius:10px;padding:14px;margin-bottom:12px;">
+        <p style="font-weight:700;margin:0 0 10px;">${esc(g.rows[0].name)}</p>
+        ${g.rows.map((r, ri) => `
+          <div style="background:var(--surface-4);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12.5px;">
+            <div style="color:var(--ink-soft);line-height:1.6;">
+              License: ${esc([r.displayLicense, r.specialEffectsLicense, r.flameLicense].filter(Boolean).join(', ') || '\u2014')}<br>
+              Phone: ${esc(r.phone || '\u2014')}<br>
+              Address: ${esc(r.address || '\u2014')}<br>
+              Age: ${esc(r.age || '\u2014')}
+            </div>
+            <button type="button" style="margin-top:8px;" onclick="keepDuplicateRow(${gi}, ${ri})">Keep this one, delete the other${g.rows.length > 2 ? 's' : ''}</button>
+          </div>`).join('')}
+      </div>`).join('');
+  window._duplicateGroups = groups;
+}
+
+async function keepDuplicateRow(groupIndex, keepIndex){
+  const group = window._duplicateGroups[groupIndex];
+  const keepRow = group.rows[keepIndex];
+  const toDelete = group.rows.filter((r, i) => i !== keepIndex);
+  if(!confirm(`Keep this entry for ${keepRow.name} and delete the other ${toDelete.length}? This can't be undone.`)) return;
+  let failed = 0;
+  // delete from the bottom of the sheet up, so the row numbers still to be deleted do not shift
+  for(const row of toDelete.sort((a, b) => b.rowNumber - a.rowNumber)){
+    try{ await postJson({ recordType: 'deleteContactRow', rowNumber: row.rowNumber }); } catch(err){ failed++; }
+  }
+  await fetchOperatorDirectory();
+  $('duplicatesWrap').innerHTML = failed
+    ? `<p style="font-size:13px;color:var(--brick);">Could not remove ${failed} of the extra entries for ${esc(keepRow.name)} \u2014 try again.</p>`
+    : `<p style="font-size:13px;color:var(--ok);">Combined \u2014 kept one entry for ${esc(keepRow.name)}.</p>`;
+}
+
+/* ---------------- view card ---------------- */
+function openViewModal(name){
+  const match = CONTACTS_BY_NAME[name.toLowerCase()];
+  if(!match) return;
+  document.getElementById('viewModalName').textContent = match.name;
+  document.getElementById('viewModalDisplayLicense').textContent = match.displayLicense || '—';
+  document.getElementById('viewModalSFXLicense').textContent = match.specialEffectsLicense || '—';
+  document.getElementById('viewModalFlameLicense').textContent = match.flameLicense || '—';
+  document.getElementById('viewModalPhone').textContent = match.phone || '—';
+  document.getElementById('viewModalEmail').textContent = match.email || '—';
+  document.getElementById('viewModalAddress').textContent = match.address || '—';
+  document.getElementById('viewModalAge').textContent = match.age || '—';
+  document.getElementById('viewModalEmergencyContact').textContent = match.emergencyContact || '—';
+  document.getElementById('viewModalEmergencyContactPhone').textContent = match.emergencyContactPhone || '—';
+
+  const photo = document.getElementById('viewModalPhoto');
+  const initial = document.getElementById('viewModalInitial');
+  if(match.photoUrl){
+    photo.src = match.photoUrl;
+    photo.style.display = 'block';
+    initial.style.display = 'none';
+  } else {
+    photo.style.display = 'none';
+    initial.style.display = 'flex';
+    initial.textContent = match.name.charAt(0).toUpperCase();
+  }
+
+  document.getElementById('viewModalOverlay').style.display = 'flex';
+}
+
+function closeViewModal(){
+  document.getElementById('viewModalOverlay').style.display = 'none';
+}
+
+/* ---------------- CSV ---------------- */
+function csvEscape(val){
+  val = String(val == null ? '' : val);
+  if(val.includes(',') || val.includes('"') || val.includes('\n')){
+    return '"' + val.replace(/"/g, '""') + '"';
+  }
+  return val;
+}
+
+function exportContactsCSV(){
+  const people = Object.values(CONTACTS_BY_NAME).sort((a,b) => a.name.localeCompare(b.name));
+  const lines = ['Name,DisplayLicense,SpecialEffectsLicense,FlameLicense,Phone,Email,Address,Age,EmergencyContact,EmergencyContactPhone,PhotoURL'];
+  people.forEach(c => lines.push([c.name, c.displayLicense, c.specialEffectsLicense, c.flameLicense, c.phone, c.email, c.address, c.age, c.emergencyContact, c.emergencyContactPhone, c.photoUrl].map(csvEscape).join(',')));
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'operators.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function parseCSV(text){
+  const rows = [];
+  let i = 0, field = '', row = [], inQuotes = false;
+  while(i < text.length){
+    const char = text[i];
+    if(inQuotes){
+      if(char === '"'){
+        if(text[i+1] === '"'){ field += '"'; i++; }
+        else { inQuotes = false; }
+      } else {
+        field += char;
+      }
+    } else {
+      if(char === '"'){
+        inQuotes = true;
+      } else if(char === ','){
+        row.push(field); field = '';
+      } else if(char === '\n' || char === '\r'){
+        if(char === '\r' && text[i+1] === '\n') i++;
+        row.push(field); field = '';
+        if(row.some(c => c !== '')) rows.push(row);
+        row = [];
+      } else {
+        field += char;
+      }
+    }
+    i++;
+  }
+  if(field.length || row.length){
+    row.push(field);
+    if(row.some(c => c !== '')) rows.push(row);
+  }
+  return rows;
+}
+
+// Each row is saved on its own, and a person's other details are kept unless the CSV has that column.
+async function handleContactsCsvImport(event){
+  const file = event.target.files[0];
+  const st = $('csvImportStatus');
+  if(!file) return;
+  try{
+    const rows = parseCSV(await file.text());
+    if(rows.length < 2){ setStatus(st, 'That CSV looks empty \u2014 need a header row plus at least one operator.', 'err'); return; }
+    const headers = rows[0].map(h => h.trim().toLowerCase());
+    const col = n => headers.indexOf(n);
+    if(col('name') === -1){ setStatus(st, 'CSV needs a "Name" column header.', 'err'); return; }
+    const cols = { displayLicense:'displaylicense', specialEffectsLicense:'specialeffectslicense', flameLicense:'flamelicense', phone:'phone', email:'email', address:'address', age:'age', emergencyContact:'emergencycontact', emergencyContactPhone:'emergencycontactphone' };
+
+    const records = [];
+    for(let r = 1; r < rows.length; r++){
+      const name = (rows[r][col('name')] || '').trim();
+      if(!name) continue;
+      const existing = CONTACTS_BY_NAME[name.toLowerCase()];
+      const rec = { recordType: 'contact', name: existing ? existing.name : name, isNew: !existing };
+      Object.keys(cols).forEach(k => {
+        const idx = col(cols[k]);
+        rec[k] = idx > -1 ? (rows[r][idx] || '').trim() : (existing ? existing[k] : '');
+      });
+      records.push(rec);
+    }
+    if(!records.length){ setStatus(st, 'No operators found in that file.', 'err'); return; }
+    const added = records.filter(x => x.isNew).length, updated = records.length - added;
+    if(!confirm(`Import ${records.length} operator${records.length === 1 ? '' : 's'}: ${added} new, ${updated} updating someone already on file?\n\nEach one saves right away.`)) return;
+
+    let done = 0; const failed = [];
+    for(const rec of records){
+      setStatus(st, `Saving ${done + failed.length + 1} of ${records.length}: ${rec.name}\u2026`);
+      const payload = Object.assign({}, rec); delete payload.isNew;
+      try{ await postJson(payload); done++; } catch(err){ failed.push(rec.name); }
+    }
+    await fetchOperatorDirectory();
+    if(failed.length) setStatus(st, `Saved ${done} of ${records.length}. These did not save: ${failed.slice(0, 5).join(', ')}${failed.length > 5 ? ` and ${failed.length - 5} more` : ''}.`, 'err');
+    else setStatus(st, `Imported ${done} operator${done === 1 ? '' : 's'}: ${added} new, ${updated} updated.`, 'ok');
+  } catch(err){
+    setStatus(st, "Could not read that file \u2014 make sure it's a valid CSV.", 'err');
+  } finally {
+    event.target.value = '';
+  }
+}
+
+updateFormTitle();
+populateOperatorDatalist();
+renderOperatorList();
+fetchOperatorDirectory();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

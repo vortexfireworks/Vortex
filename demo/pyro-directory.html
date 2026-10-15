@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
+<title>Pyro Directory — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0F172A">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#A5B4FC; --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --accent1:#4F46E5; --accent2:#8B5CF6; --accent3:#22D3EE; --accent4:#3B82F6; --accent5:#312E81;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --line:rgba(255,255,255,0.1);
+    --card:rgba(30,41,59,0.75); --ok:#22C55E;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#4F46E5; --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --logo-ring-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 60px;
+  }
+  .wrap{max-width:640px; margin:0 auto;}
+  .back-link{
+    display:block; margin:0 0 18px; font-size:12.5px;
+    color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:#A5B4FC;}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
+  }
+  p.sub{font-size:12.5px;color:var(--ink-soft);margin:12px 0 18px;line-height:1.5;}
+  .search-box input{
+    width:100%; font-size:14px; padding:10px 12px; border:1px solid var(--line);
+    border-radius:8px; background:var(--surface-55); color:var(--ink); margin-bottom:16px;
+  }
+  .search-box input:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
+  .directory-list{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    backdrop-filter:blur(6px); overflow:hidden;
+  }
+  .directory-row{
+    display:flex; align-items:stretch;
+    padding:14px 18px; border-bottom:1px solid var(--line);
+  }
+  /* Photo on the left: same height as the info block beside it */
+  .directory-row .photo{
+    position:relative; flex:0 0 64px; width:64px; min-height:56px; margin-right:14px;
+    border-radius:10px; overflow:hidden;
+    background:var(--card); border:1px solid var(--line);
+  }
+  .directory-row .photo img{position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; display:block;}
+  .directory-row .photo .initials{
+    position:absolute; top:0; left:0; right:0; bottom:0;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:18px; letter-spacing:.02em; color:var(--ink-soft);
+  }
+  .directory-row .info{flex:1 1 auto; min-width:0; overflow-wrap:anywhere;}
+  .directory-row:last-child{border-bottom:none;}
+  .directory-row .name{font-weight:700;font-size:15px;margin-bottom:4px;}
+  .directory-row .detail{font-size:12.5px;color:var(--ink-soft);line-height:1.6;}
+  .directory-row .detail a{color:#818CF8;text-decoration:none;}
+  .directory-row .detail a:hover{text-decoration:underline;}
+  .status{font-size:13px;color:var(--ink-soft);text-align:center;padding:30px 16px;}
+  .status.err{color:#6366F1;}
+  .warning-banner{
+    background:rgba(139,92,246,0.12); border:1px solid rgba(139,92,246,0.35);
+    border-radius:10px; padding:10px 14px; margin-bottom:16px;
+    font-size:12px; font-weight:700; color:#A5B4FC; text-align:center;
+  }
+  .loading-pulse{animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  footer{margin-top:24px;font-size:11px;color:#6b7290;text-align:center;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+
+<script src="theme-picker.js" defer></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<div class="wrap">
+  <a class="back-link" href="hp-tools.html">&larr; Back to HP Tools</a>
+  <header>
+    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+    <p class="kicker">Apex Pyrotechnics Inc.</p>
+    <h1>Pyro Directory</h1>
+  </header>
+
+  <div class="divider"></div>
+
+  <p class="sub">Quick reference — name, license, phone, and email for everyone on file.</p>
+
+  <div class="warning-banner">⚠️ Use for official Apex Pyrotechnics purposes only.</div>
+
+  <div class="search-box">
+    <input type="text" id="directorySearch" placeholder="Search by name…" oninput="renderDirectory()">
+  </div>
+
+  <div id="directoryWrap">
+    <p class="status loading-pulse">Loading directory…</p>
+  </div>
+
+  <footer>Apex Pyrotechnics · demo@apexpyrotechnics.com</footer>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec";
+let DIRECTORY = [];
+
+async function loadDirectory(){
+  const wrap = document.getElementById('directoryWrap');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=pyroDirectory`);
+    if(!res.ok) throw new Error('Request failed');
+    DIRECTORY = await res.json();
+    renderDirectory();
+  } catch(err){
+    wrap.innerHTML = '<p class="status err">Could not load the directory — check your connection and try again.</p>';
+  }
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function escapeAttr(str){
+  return escapeHtml(String(str)).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function initialsOf(name){
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if(parts.length === 0) return '?';
+  const first = parts[0].charAt(0);
+  const last = parts.length > 1 ? parts[parts.length - 1].charAt(0) : '';
+  return (first + last).toUpperCase();
+}
+
+function photoHtml(p){
+  // Initials sit underneath; the photo covers them when it loads, and removes itself if it can't load.
+  const url = /^https:\/\//i.test(p.photoUrl || '') ? p.photoUrl : '';
+  return `<div class="photo"><span class="initials">${escapeHtml(initialsOf(p.name))}</span>${
+    url ? `<img src="${escapeAttr(url)}" alt="" loading="lazy" onerror="this.remove()">` : ''
+  }</div>`;
+}
+
+function renderDirectory(){
+  const wrap = document.getElementById('directoryWrap');
+  const search = document.getElementById('directorySearch').value.trim().toLowerCase();
+  let people = DIRECTORY;
+  if(search){
+    people = people.filter(p => p.name.toLowerCase().includes(search));
+  }
+  if(people.length === 0){
+    wrap.innerHTML = '<p class="status">No matches found.</p>';
+    return;
+  }
+  wrap.innerHTML = `<div class="directory-list">${people.map(p => `
+    <div class="directory-row">
+      ${photoHtml(p)}
+      <div class="info">
+        <div class="name">${escapeHtml(p.name)}</div>
+        <div class="detail">
+          ${p.license ? `License: ${escapeHtml(p.license)}<br>` : ''}
+          ${p.phone ? `Phone: <a href="tel:${escapeAttr(p.phone)}">${escapeHtml(p.phone)}</a><br>` : ''}
+          ${p.email ? `Email: <a href="mailto:${escapeAttr(p.email)}">${escapeHtml(p.email)}</a>` : ''}
+          ${!p.license && !p.phone && !p.email ? 'No details on file' : ''}
+        </div>
+      </div>
+    </div>
+  `).join('')}</div>`;
+}
+
+loadDirectory();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

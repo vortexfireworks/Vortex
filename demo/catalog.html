@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
+<title>Catalog — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0F172A">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#A5B4FC; --surface-4:rgba(15,23,42,0.4); --surface-5:rgba(15,23,42,0.5); --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --navy:#A5B4FC; --brick:#6366F1; --brick-light:#818CF8;
+    --paper:#1E293B; --card:rgba(30,41,59,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --ok:#22C55E;
+    --accent1:#4F46E5; --accent2:#8B5CF6;
+  }
+  :root[data-theme="light"]{
+    --kicker:#4F46E5; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12); --paper:#F8FAFC; --navy:#4F46E5;
+    --logo-ring-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);margin:0 auto 16px;box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);border-radius:2px;box-shadow:0 0 12px rgba(139,92,246,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], select{
+    font-size:14px; padding:9px 11px; border:1px solid var(--line);
+    border-radius:6px; background:var(--surface-55); color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus, select:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
+  button.secondary{background:none; border:1px solid var(--line); color:var(--navy);font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;}
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary:disabled{opacity:0.4;cursor:default;}
+  .editor-box{background:var(--surface-4);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:24px;}
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .theme-toggle{position:fixed; top:14px; right:14px; z-index:50;width:36px;height:36px;border-radius:50%;background:var(--card); border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:16px; cursor:pointer;transition:transform 0.15s ease;}
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tabs button{flex:1 1 0;background:var(--surface-5);border:1px solid var(--line);color:var(--ink-soft);font-size:13px;font-weight:700;padding:9px 10px;border-radius:7px;cursor:pointer;}
+  .tabs button.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#F8FAFC;border-color:transparent;}
+
+  .cat-group{border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden;}
+  .cat-group-head{background:var(--surface-5);padding:8px 12px;font-size:11.5px;font-weight:700;color:var(--kicker);display:flex;justify-content:space-between;gap:8px;}
+  .cat-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-top:1px solid var(--line);font-size:13px;cursor:pointer;}
+  .cat-row:hover{background:var(--surface-4);}
+  .cat-row:first-of-type{border-top:none;}
+  .cat-row .cr-thumb{flex:0 0 auto;width:40px;height:40px;border-radius:7px;overflow:hidden;background:var(--surface-4);position:relative;}
+  .cat-row .cr-thumb img{width:100%;height:100%;object-fit:cover;}
+  .cat-row .cr-thumb-video{display:flex;align-items:center;justify-content:center;}
+  .cat-row .cr-video-badge{
+    position:absolute;right:2px;bottom:2px;width:16px;height:16px;border-radius:50%;
+    background:rgba(0,0,0,0.65);color:#fff;font-size:8px;line-height:16px;text-align:center;
+  }
+  .cat-row .cr-thumb-video .cr-video-badge{position:static;width:20px;height:20px;font-size:10px;line-height:20px;}
+  .cat-row .cr-main{flex:1 1 auto;min-width:0;}
+  .cat-row .cr-title{font-weight:700;color:var(--ink);}
+  .cat-row .cr-sub{color:var(--ink-soft);font-size:11.5px;margin-top:2px;}
+  .ka-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:16px;height:16px;border-radius:50%;background:var(--ok);color:#fff;
+    font-size:10px;vertical-align:middle;margin-left:2px;flex-shrink:0;
+  }
+  .cat-row button{flex:0 0 auto;font-size:12px;padding:6px 10px;}
+  .cat-empty{font-size:12.5px;color:var(--ink-soft);padding:10px 0;}
+  .cr-addwrap{flex:0 0 auto;display:flex;align-items:center;gap:6px;}
+  .cr-qty{width:40px;flex:0 0 auto;font-size:12px;padding:6px 4px;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);color:var(--ink);}
+  .cr-qty::-webkit-outer-spin-button,.cr-qty::-webkit-inner-spin-button{opacity:1;}
+  .md-actions .mi-qtywrap{display:flex;align-items:center;gap:6px;}
+  .md-actions .mi-qty{width:52px;font-size:13px;padding:7px 6px;text-align:center;border:1px solid var(--line);border-radius:7px;background:var(--surface-2);color:var(--ink);}
+
+  /* ---- Item detail modal ---- */
+  .modal-backdrop{
+    display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;
+    align-items:center;justify-content:center;padding:20px;
+  }
+  .modal-box{
+    max-width:460px;width:100%;max-height:88vh;overflow-y:auto;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    backdrop-filter:blur(6px);position:relative;
+  }
+  .modal-close{
+    position:absolute;top:10px;right:10px;width:32px;height:32px;border-radius:50%;
+    background:var(--surface-5);border:1px solid var(--line);color:var(--ink);
+    font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;
+  }
+  .modal-image-wrap{
+    width:100%;aspect-ratio:4/3;background:var(--surface-4);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    border-radius:14px 14px 0 0;
+    position:relative;
+  }
+  .modal-image-wrap img{width:100%;height:100%;object-fit:contain;}
+  .modal-image-wrap iframe{width:100%;height:100%;border:0;}
+  .modal-image-wrap .mi-placeholder{font-size:12px;color:var(--ink-soft);text-align:center;padding:0 24px;}
+  .mi-photo-thumb{
+    position:absolute;right:10px;bottom:10px;width:64px;height:64px;border-radius:8px;
+    overflow:hidden;border:2px solid rgba(255,255,255,0.85);box-shadow:0 2px 10px rgba(0,0,0,0.45);
+    background:var(--surface-4);
+  }
+  .mi-photo-thumb img{width:100%;height:100%;object-fit:cover;}
+  .modal-body{padding:20px 22px 22px;}
+  .modal-body h3{margin:0 0 6px;font-size:17px;color:var(--ink);line-height:1.3;}
+  .ka-modal-badge{display:flex;align-items:center;gap:8px;margin:0 0 12px;}
+  .ka-modal-badge img{width:32px;height:32px;border-radius:50%;object-fit:cover;border:2px solid var(--ok);flex-shrink:0;}
+  .ka-modal-badge span{font-size:13px;font-weight:700;color:var(--ok);}
+  .modal-body .md-meta{font-size:12.5px;color:var(--ink-soft);margin:0 0 14px;}
+  .modal-body .md-meta b{color:var(--kicker);font-weight:700;}
+  .modal-body .md-desc{font-size:13px;color:var(--ink);line-height:1.55;margin:0 0 16px;}
+  .modal-body .md-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .modal-body a.md-link{
+    font-size:12.5px;font-weight:700;color:var(--navy);text-decoration:none;
+    border:1px solid var(--line);padding:8px 14px;border-radius:7px;
+  }
+  .modal-body a.md-link:hover{border-color:var(--navy);}
+</style>
+<script src="theme-picker.js" defer></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="plan-show.html">&larr; Back to Plan a Firework Show</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
+  <h1>Catalog</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Search every product you've imported, and add anything you need straight to your active show plan.</p>
+
+    <div class="editor-box">
+      <p class="label-title">ACTIVE PLAN</p>
+      <div class="field" style="margin-bottom:0;">
+        <label for="activePlanSelect">Adding items to</label>
+        <select id="activePlanSelect" onchange="onActivePlanChange()"><option value="">Loading plans…</option></select>
+      </div>
+      <p class="hint" id="activePlanHint">Choose a plan here (or create one in Plan a Show) before adding items below.</p>
+    </div>
+
+    <div class="editor-box" style="margin-bottom:0;">
+      <p class="label-title">CATALOG</p>
+      <div class="field" style="margin-bottom:12px;">
+        <input type="text" id="catalogSearch" placeholder="Search name, brand, category, description…" oninput="renderCatalog()">
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label for="categorySelect">Category</label>
+        <select id="categorySelect" onchange="renderCatalog()"><option value="">All categories</option></select>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label for="colorSelect">Color</label>
+        <select id="colorSelect" onchange="renderCatalog()"><option value="">All colors</option></select>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label for="effectSelect">Effect</label>
+        <select id="effectSelect" onchange="renderCatalog()"><option value="">All effects</option></select>
+      </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label for="sortSelect">Sort by</label>
+        <select id="sortSelect" onchange="renderCatalog()">
+          <option value="name-asc">Name (A–Z)</option>
+          <option value="name-desc">Name (Z–A)</option>
+          <option value="brand-asc">Manufacturer (A–Z)</option>
+          <option value="color-asc">Color (A–Z)</option>
+          <option value="effect-asc">Effect (A–Z)</option>
+          <option value="duration-asc">Duration (Shortest to Longest)</option>
+          <option value="duration-desc">Duration (Longest to Shortest)</option>
+          <option value="price-asc">Price (Low to High)</option>
+          <option value="price-desc">Price (High to Low)</option>
+        </select>
+      </div>
+      <div class="tabs">
+        <button type="button" id="tabAll" class="active" onclick="setClassTab('')">All</button>
+        <button type="button" id="tabDisplay" onclick="setClassTab('1.3')">1.3G Display</button>
+        <button type="button" id="tabConsumer" onclick="setClassTab('1.4')">1.4G Consumer</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <button type="button" class="secondary" id="backfillBtn" onclick="backfillImages()">Download photos for every item</button>
+        <span class="hint" id="backfillStatus" style="margin:0;"></span>
+      </div>
+      <div id="catalogList"><p class="hint" style="margin:0;">Loading…</p></div>
+      <p class="hint" id="addStatus"></p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="itemModal" onclick="if(event.target===this) closeItemModal();">
+  <div class="modal-box">
+    <button type="button" class="modal-close" onclick="closeItemModal()" aria-label="Close">&#10005;</button>
+    <div class="modal-image-wrap" id="miImageWrap"></div>
+    <div class="modal-body">
+      <h3 id="miTitle"></h3>
+      <div class="ka-modal-badge" id="miApproved" style="display:none;">
+        <img src="staff-approved.jpg" alt="">
+        <span>Staff Approved</span>
+      </div>
+      <p class="md-meta" id="miMeta"></p>
+      <p class="md-desc" id="miDesc"></p>
+      <div class="md-actions">
+        <a class="md-link" id="miLink" href="#" target="_blank" rel="noopener" style="display:none;">View on supplier site &#8599;</a>
+        <div class="mi-qtywrap">
+          <input type="number" class="mi-qty" id="miQty" min="1" step="1" value="1" inputmode="numeric" aria-label="Quantity">
+          <button type="button" class="secondary" id="miAddBtn" onclick="addProductToPlan(currentModalId, Number($('miQty').value)||1)">+ Add to plan</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec";
+const ACTIVE_PLAN_KEY = 'planShowActivePlan';
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function keyOf(s){ return String(s || '').trim().toLowerCase(); }
+function newId(){ return Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-2); }
+function setStatus(el, msg, kind){
+  el.textContent = msg || '';
+  el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)';
+}
+function classLabel(c){
+  c = String(c || '').trim();
+  if(c === '1.3') return '1.3G';
+  if(c === '1.4') return '1.4G';
+  return c;
+}
+function formatPrice(v){
+  const n = Number(v);
+  return isFinite(n) && v !== '' ? '$' + n.toFixed(2) : '';
+}
+// Most saved videos are a plain YouTube id, but some supplier sites only embed a
+// Wistia player — those are saved prefixed as "wistia:<id>" so the right embed URL
+// can be built for whichever kind this product has.
+function videoEmbedUrl(videoId){
+  const v = String(videoId || '');
+  if(v.indexOf('wistia:') === 0) return `https://fast.wistia.net/embed/iframe/${encodeURIComponent(v.slice(7))}`;
+  return `https://www.youtube.com/embed/${encodeURIComponent(v)}`;
+}
+// Categories sort in this order when they appear, then anything else falls in alphabetically after.
+const CATEGORY_ORDER = [
+  'Cakes', '500 Gram Cakes', '200 Gram Cakes', 'Compound Cakes', 'Shell Cakes',
+  'Shells', 'Shells 2.5in', 'Shells 3in', 'Shells 4in', 'Shells 5in', 'Shells 6in', 'Shells 8in', 'Shells 10-16in',
+  'Shell Assortment', 'Finale Chains', 'Time Chains', 'Comets', 'Mines', 'Comets/Mines',
+  'Fountains', 'Flames', 'Salutes', 'Slices', 'Smoke', 'Close Prox FX', 'Drone Pyro',
+  'Lance/Sticky Match', 'Regulated E-Match & Black Powder'
+];
+function categorySortIndex(c){
+  const i = CATEGORY_ORDER.indexOf(c);
+  return i === -1 ? CATEGORY_ORDER.length : i;
+}
+
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status === 'error'){
+    throw new Error((data && data.message) || 'Request failed');
+  }
+  return data;
+}
+
+/* ---------------- Active plan switcher (shared across pages via localStorage) ---------------- */
+let PLAN_NAMES = [];
+let activePlanName = null;
+
+async function loadPlanSwitcher(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=showPlans`, { cache: 'no-store' });
+    const json = await res.json();
+    PLAN_NAMES = (json.plans || []).map(p => p.name).sort((a,b) => a.localeCompare(b));
+  } catch(err){
+    PLAN_NAMES = [];
+  }
+  const sel = $('activePlanSelect');
+  sel.innerHTML = '<option value="">No plan selected…</option>' + PLAN_NAMES.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  let saved = null;
+  try{ saved = localStorage.getItem(ACTIVE_PLAN_KEY); } catch(e){}
+  if(saved && PLAN_NAMES.some(n => keyOf(n) === keyOf(saved))){
+    sel.value = PLAN_NAMES.find(n => keyOf(n) === keyOf(saved));
+    activePlanName = sel.value;
+  }
+  updateActivePlanHint();
+  renderCatalog();
+}
+function onActivePlanChange(){
+  activePlanName = $('activePlanSelect').value || null;
+  try{
+    if(activePlanName) localStorage.setItem(ACTIVE_PLAN_KEY, activePlanName);
+    else localStorage.removeItem(ACTIVE_PLAN_KEY);
+  } catch(e){}
+  updateActivePlanHint();
+  renderCatalog();
+}
+function updateActivePlanHint(){
+  const hint = $('activePlanHint');
+  if(activePlanName) hint.textContent = `Items you add below go straight into "${activePlanName}".`;
+  else hint.textContent = 'Choose a plan here (or create one in Plan a Show) before adding items below.';
+}
+
+/* ---------------- Catalog: load, search, render ---------------- */
+let PRODUCTS = [];
+let classFilter = '';
+
+async function loadCatalog(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=products`, { cache: 'no-store' });
+    const json = await res.json();
+    PRODUCTS = json.products || [];
+  } catch(err){
+    PRODUCTS = [];
+  }
+  buildCategoryOptions();
+  renderCatalog();
+}
+
+function buildCategoryOptions(){
+  const sel = $('categorySelect');
+  const current = sel.value;
+  const categories = Array.from(new Set(PRODUCTS.map(p => p.category).filter(Boolean)))
+    .sort((a, b) => categorySortIndex(a) - categorySortIndex(b) || a.localeCompare(b));
+  sel.innerHTML = '<option value="">All categories</option>' +
+    categories.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(current && categories.includes(current)) sel.value = current;
+
+  const colorSel = $('colorSelect');
+  const currentColor = colorSel.value;
+  const colors = Array.from(new Set(PRODUCTS.map(p => p.color).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  colorSel.innerHTML = '<option value="">All colors</option>' +
+    colors.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(currentColor && colors.includes(currentColor)) colorSel.value = currentColor;
+
+  const effectSel = $('effectSelect');
+  const currentEffect = effectSel.value;
+  const effects = Array.from(new Set(PRODUCTS.map(p => p.effect).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+  effectSel.innerHTML = '<option value="">All effects</option>' +
+    effects.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(currentEffect && effects.includes(currentEffect)) effectSel.value = currentEffect;
+}
+
+// Blank values always sort to the end, whichever direction and field is chosen, so
+// un-filled items don't scatter to the top of a price or color sort.
+function productComparator(sortBy){
+  const priceOf = p => { const n = Number(p.price); return isFinite(n) ? n : null; };
+  const durationOf = p => {
+    const s = String(p.duration || '').trim();
+    if(!s) return null;
+    const mmss = s.match(/^(\d+):(\d{1,2})$/);
+    if(mmss) return Number(mmss[1]) * 60 + Number(mmss[2]);
+    const n = Number(s.replace(/[^0-9.]/g, ''));
+    return isFinite(n) && /\d/.test(s) ? n : null;
+  };
+  return (a, b) => {
+    switch(sortBy){
+      case 'name-desc': return b.name.localeCompare(a.name);
+      case 'brand-asc': {
+        const ab = !!a.brand, bb = !!b.brand;
+        if(ab !== bb) return ab ? -1 : 1;
+        return keyOf(a.brand).localeCompare(keyOf(b.brand)) || a.name.localeCompare(b.name);
+      }
+      case 'color-asc': {
+        const ac = !!a.color, bc = !!b.color;
+        if(ac !== bc) return ac ? -1 : 1;
+        return keyOf(a.color).localeCompare(keyOf(b.color)) || a.name.localeCompare(b.name);
+      }
+      case 'effect-asc': {
+        const ae = !!a.effect, be = !!b.effect;
+        if(ae !== be) return ae ? -1 : 1;
+        return keyOf(a.effect).localeCompare(keyOf(b.effect)) || a.name.localeCompare(b.name);
+      }
+      case 'price-asc': case 'price-desc': {
+        const ap = priceOf(a), bp = priceOf(b);
+        if(ap === null || bp === null){
+          if(ap === null && bp === null) return a.name.localeCompare(b.name);
+          return ap === null ? 1 : -1;
+        }
+        return sortBy === 'price-asc' ? (ap - bp || a.name.localeCompare(b.name)) : (bp - ap || a.name.localeCompare(b.name));
+      }
+      case 'duration-asc': case 'duration-desc': {
+        const ad = durationOf(a), bd = durationOf(b);
+        if(ad === null || bd === null){
+          if(ad === null && bd === null) return a.name.localeCompare(b.name);
+          return ad === null ? 1 : -1;
+        }
+        return sortBy === 'duration-asc' ? (ad - bd || a.name.localeCompare(b.name)) : (bd - ad || a.name.localeCompare(b.name));
+      }
+      case 'name-asc': default: return a.name.localeCompare(b.name);
+    }
+  };
+}
+
+function setClassTab(cls){
+  classFilter = cls;
+  $('tabAll').classList.toggle('active', cls === '');
+  $('tabDisplay').classList.toggle('active', cls === '1.3');
+  $('tabConsumer').classList.toggle('active', cls === '1.4');
+  renderCatalog();
+}
+
+function matchesSearch(hay, term){ return hay.some(v => keyOf(v).includes(term)); }
+
+function renderCatalog(){
+  const term = keyOf($('catalogSearch').value);
+  const category = $('categorySelect').value;
+  const color = $('colorSelect').value;
+  const effect = $('effectSelect').value;
+  const sortBy = $('sortSelect').value;
+  const wrap = $('catalogList');
+  const addDisabled = activePlanName ? '' : 'disabled title="Choose an active plan above first"';
+
+  let items = PRODUCTS;
+  if(classFilter) items = items.filter(p => keyOf(p.class) === classFilter);
+  if(category) items = items.filter(p => p.category === category);
+  if(color) items = items.filter(p => p.color === color);
+  if(effect) items = items.filter(p => p.effect === effect);
+  if(term) items = items.filter(p => matchesSearch([p.name, p.brand, p.category, p.color, p.effect, p.duration, p.description], term));
+
+  if(!items.length){ wrap.innerHTML = '<p class="cat-empty">Nothing matches yet. Import a CSV, or adjust your search and filters.</p>'; return; }
+
+  if(category){
+    wrap.innerHTML = items
+      .sort(productComparator(sortBy))
+      .map(p => productRowHtml(p, addDisabled)).join('');
+    return;
+  }
+
+  // No single category chosen: group the results under a heading per category so a long,
+  // mixed-supplier catalog still reads as something browsable rather than one flat wall.
+  const groups = {};
+  items.forEach(p => { (groups[p.category || '(Uncategorized)'] = groups[p.category || '(Uncategorized)'] || []).push(p); });
+  const catNames = Object.keys(groups).sort((a, b) => categorySortIndex(a) - categorySortIndex(b) || a.localeCompare(b));
+  wrap.innerHTML = catNames.map(cat => `
+    <div class="cat-group">
+      <div class="cat-group-head"><span>${esc(cat)}</span><span>${groups[cat].length}</span></div>
+      ${groups[cat].sort(productComparator(sortBy)).map(p => productRowHtml(p, addDisabled)).join('')}
+    </div>`).join('');
+}
+
+function productRowHtml(p, addDisabled){
+  const bits = [];
+  if(p.brand) bits.push(esc(p.brand));
+  if(p.color) bits.push(esc(p.color));
+  if(p.effect) bits.push(esc(p.effect));
+  if(p.duration) bits.push(esc(p.duration));
+  if(p.class) bits.push(esc(classLabel(p.class)));
+  if(formatPrice(p.price)) bits.push(formatPrice(p.price));
+  const hasVideo = p.videoId && p.videoId !== 'NONE';
+  const videoBadge = hasVideo ? '<span class="cr-video-badge" title="Video available">&#9658;</span>' : '';
+  const thumb = (p.imageUrl && p.imageUrl !== 'NONE')
+    ? `<div class="cr-thumb"><img src="${esc(p.imageUrl)}" alt="" loading="lazy" onerror="this.closest('.cr-thumb').style.display='none'">${videoBadge}</div>`
+    : (hasVideo ? `<div class="cr-thumb cr-thumb-video">${videoBadge}</div>` : '');
+  return `
+    <div class="cat-row" onclick="openItemModal('${p.id}')">
+      ${thumb}
+      <div class="cr-main">
+        <div class="cr-title">${esc(p.name || '(unnamed product)')}${p.staffApproved ? ' <span class="ka-badge" title="Staff Approved">&#10003;</span>' : ''}</div>
+        ${bits.length ? `<div class="cr-sub">${bits.join(' · ')}</div>` : ''}
+      </div>
+      <div class="cr-addwrap" onclick="event.stopPropagation()">
+        <input type="number" class="cr-qty" id="qty-${esc(p.id)}" min="1" step="1" value="1" inputmode="numeric" aria-label="Quantity">
+        <button type="button" class="secondary" onclick="addProductToPlan('${p.id}', Number($('qty-${esc(p.id)}').value)||1)" ${addDisabled}>+ Add</button>
+      </div>
+    </div>`;
+}
+
+/* ---------------- Item detail modal, with a lazily-fetched-and-cached supplier picture ---------------- */
+let currentModalId = null;
+
+function openItemModal(productId){
+  const p = PRODUCTS.find(x => x.id === productId); if(!p) return;
+  currentModalId = productId;
+
+  $('miTitle').textContent = p.name || '(unnamed product)';
+  $('miApproved').style.display = p.staffApproved ? 'flex' : 'none';
+  const metaBits = [p.brand, p.color, p.effect, p.duration, classLabel(p.class), p.category, formatPrice(p.price)].filter(Boolean);
+  $('miMeta').innerHTML = metaBits.map(esc).join(' &middot; ');
+  $('miDesc').textContent = p.description || '';
+  $('miDesc').style.display = p.description ? '' : 'none';
+
+  const linkEl = $('miLink');
+  if(p.url){ linkEl.href = p.url; linkEl.style.display = ''; } else { linkEl.style.display = 'none'; }
+
+  $('miQty').value = 1;
+  $('miAddBtn').disabled = !activePlanName;
+  $('miAddBtn').title = activePlanName ? '' : 'Choose an active plan above first';
+
+  renderModalImage(p);
+  $('itemModal').style.display = 'flex';
+}
+function closeItemModal(){
+  $('itemModal').style.display = 'none';
+  // Closing just hides the modal — it doesn't remove the YouTube <iframe> from the
+  // page, so a playing video keeps playing (and keeps making sound) in the background
+  // unless we clear it out here.
+  $('miImageWrap').innerHTML = '';
+  currentModalId = null;
+}
+
+function renderModalImage(p){
+  const wrap = $('miImageWrap');
+  const hasVideo = p.videoId && p.videoId !== 'NONE';
+  const hasImage = p.imageUrl && p.imageUrl !== 'NONE';
+  // Both fields get looked up together (one visit to the supplier page covers both), so
+  // either being unset (never checked yet) means neither has been looked up.
+  const needsLookup = p.url && (!p.imageUrl || !p.videoId);
+
+  if(needsLookup){
+    wrap.innerHTML = '<p class="mi-placeholder">Looking for a photo or video on the supplier page&hellip;</p>';
+    fetch(`${CHECKIN_API_URL}?type=productImage&id=${encodeURIComponent(p.id)}`, { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        // cache on the in-memory product so reopening is instant
+        p.imageUrl = data.imageUrl || 'NONE';
+        p.videoId = data.videoId || 'NONE';
+        if(currentModalId === p.id) renderModalImage(p);
+      })
+      .catch(() => {
+        if(currentModalId === p.id) wrap.innerHTML = '<p class="mi-placeholder">Could not check for a photo or video — check your connection and try again.</p>';
+      });
+    return;
+  }
+  if(hasVideo){
+    // Show the video full-size, and — when there's also a still photo — layer it in as a
+    // small corner thumbnail rather than picking one or the other.
+    const photoThumb = hasImage
+      ? `<div class="mi-photo-thumb"><img src="${esc(p.imageUrl)}" alt="${esc(p.name || '')}" onerror="this.closest('.mi-photo-thumb').remove()"></div>`
+      : '';
+    wrap.innerHTML = `<iframe src="${esc(videoEmbedUrl(p.videoId))}" title="${esc(p.name || 'Product video')}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen onerror="this.closest('.modal-image-wrap').innerHTML='<p class=&quot;mi-placeholder&quot;>Video unavailable.</p>'"></iframe>${photoThumb}`;
+    return;
+  }
+  if(hasImage){
+    wrap.innerHTML = `<img src="${esc(p.imageUrl)}" alt="${esc(p.name || '')}" onerror="this.closest('.modal-image-wrap').innerHTML='<p class=&quot;mi-placeholder&quot;>No photo available.</p>'">`;
+    return;
+  }
+  if(!p.url){
+    wrap.innerHTML = '<p class="mi-placeholder">No supplier link saved for this item.</p>';
+    return;
+  }
+  wrap.innerHTML = '<p class="mi-placeholder">No photo or video found on the supplier page.</p>';
+}
+
+/* ---------------- Add to plan: always fetch the latest saved state first, then save immediately ---------------- */
+async function fetchPlanFresh(name){
+  const res = await fetch(`${CHECKIN_API_URL}?type=showPlans`, { cache: 'no-store' });
+  const json = await res.json();
+  const match = (json.plans || []).find(p => keyOf(p.name) === keyOf(name));
+  return match ? { name: match.name, items: match.items || [] } : { name, items: [] };
+}
+
+async function addProductToPlan(productId, qty){
+  if(!activePlanName || !productId) return;
+  const p = PRODUCTS.find(x => x.id === productId); if(!p) return;
+  qty = Math.max(1, Math.round(Number(qty)) || 1);
+  const st = $('addStatus');
+  const modalOpen = currentModalId === productId;
+  const addBtn = modalOpen ? $('miAddBtn') : null;
+  const rowQtyInput = $(`qty-${productId}`);
+  const addBtnOriginalText = addBtn ? addBtn.textContent : '';
+  setStatus(st, 'Adding…');
+  if(addBtn){ addBtn.disabled = true; addBtn.textContent = 'Adding…'; }
+  try{
+    const plan = await fetchPlanFresh(activePlanName);
+    // If this product is already a line in the plan, add to its quantity (like a
+    // shopping cart) instead of creating a second, duplicate line for the same item.
+    const existing = plan.items.find(it => it.refType === 'product' && it.productId === p.id);
+    if(existing){
+      existing.qty = (Number(existing.qty) || 0) + qty;
+    } else {
+      plan.items.push({
+        id: newId(), refType: 'product', qty, productId: p.id,
+        class: p.class, category: p.category, name: p.name, brand: p.brand, color: p.color, price: p.price
+      });
+    }
+    await postJson({ recordType: 'showPlan', name: plan.name, originalName: plan.name, items: plan.items });
+    setStatus(st, `Added ${qty > 1 ? qty + ' × ' : ''}${p.name || 'product'} to "${activePlanName}" ✓`, 'ok');
+    if(rowQtyInput) rowQtyInput.value = 1;
+    if(modalOpen) $('miQty').value = 1;
+    if(addBtn){ addBtn.textContent = 'Added ✓'; setTimeout(() => { addBtn.disabled = !activePlanName; addBtn.textContent = addBtnOriginalText; }, 1400); }
+  } catch(err){
+    setStatus(st, 'Could not add — check your connection and try again.', 'err');
+    if(addBtn){ addBtn.disabled = false; addBtn.textContent = addBtnOriginalText; }
+  }
+}
+
+/* ---------------- Bulk photo lookup: calls the backend in a loop, since it only
+   has time to get through so many supplier pages per request ---------------- */
+async function backfillImages(){
+  const btn = $('backfillBtn');
+  const st = $('backfillStatus');
+  btn.disabled = true;
+  let totalProcessed = 0;
+  try{
+    while(true){
+      st.textContent = totalProcessed ? `Checked ${totalProcessed} so far…` : 'Checking for links to look up…';
+      const data = await postJson({ recordType: 'productsImageBackfill' });
+      totalProcessed += data.processed || 0;
+      if(data.done){
+        st.textContent = totalProcessed ? `Done — checked ${totalProcessed} item${totalProcessed === 1 ? '' : 's'} ✓` : 'Nothing new to check — every linked item already has a photo on file.';
+        break;
+      }
+      if(!data.processed){
+        // Nothing got done this round (likely out of time immediately) — avoid looping forever.
+        st.textContent = 'Stopped — try again in a moment.';
+        break;
+      }
+    }
+    await loadCatalog();   // pick up the newly-cached photos
+  } catch(err){
+    st.textContent = 'Could not check for photos — ' + ((err && err.message) || 'check your connection and try again.');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+loadCatalog();
+loadPlanSwitcher();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

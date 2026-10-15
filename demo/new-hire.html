@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Hire Documents — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0F172A">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#A5B4FC; --surface-6:rgba(15,23,42,0.6); --surface-5:rgba(15,23,42,0.5); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --accent1:#4F46E5; --accent2:#8B5CF6; --accent3:#22D3EE; --accent4:#3B82F6; --accent5:#312E81;
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --line:rgba(255,255,255,0.1);
+    --card:rgba(30,41,59,0.7); --ok:#22C55E;
+  }
+
+  :root[data-theme="light"]{
+    --kicker:#4F46E5; --surface-6:rgba(255,255,255,0.7); --surface-5:rgba(255,255,255,0.6); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12);
+    --logo-ring-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+    color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+  .back-link{
+    display:block; margin:0 0 18px; font-size:12.5px;
+    color:var(--ink-soft); text-decoration:none;
+  }
+  .back-link:hover{color:#A5B4FC;}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{
+    width:92px;height:92px;border-radius:50%;
+    padding:3px;
+    background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);
+    margin:0 auto 16px;
+    box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);
+  }
+  .logo-ring-inner{
+    width:100%;height:100%;border-radius:50%;
+    background:var(--logo-ring-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--kicker);font-weight:700;margin-bottom:6px;
+  }
+  header h1{
+    margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;
+    background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    line-height:1.15;
+  }
+  .divider{
+    height:3px;width:64px;margin:20px auto 24px;
+    background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);
+    border-radius:2px;
+    box-shadow:0 0 12px rgba(139,92,246,0.4);
+  }
+  .section{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:22px 24px; margin-bottom:20px;
+    backdrop-filter:blur(6px);
+  }
+  .section h2{font-size:14px;font-weight:600;color:#A5B4FC;margin:0 0 6px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 16px;line-height:1.5;}
+  .doc-link{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    background:var(--surface-5); border:1px solid var(--line); border-radius:8px;
+    padding:14px 16px; text-decoration:none; color:inherit;
+    margin-bottom:10px; transition:border-color .15s;
+  }
+  .doc-link:hover{border-color:#A5B4FC;}
+  .doc-link .name{font-weight:600;font-size:14px;color:var(--ink);}
+  .doc-link .sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .doc-link .ext{font-size:13px;color:#A5B4FC;font-weight:700;flex-shrink:0;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;min-width:0;}
+  /* Date inputs and long text have a natural width that pushed the two-column layout past the edge of the card. */
+  input[type=text],input[type=email],input[type=tel],input[type=date],input[type=number],textarea{width:100%;min-width:0;max-width:100%;}
+  .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
+  .full{grid-column:1/-1;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text],input[type=email],input[type=tel],input[type=date],input[type=number],textarea{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-6);color:var(--ink);font-family:inherit;
+  }
+  textarea{resize:vertical;min-height:70px;}
+  input:focus,textarea:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
+  .radiorow{display:flex;gap:18px;flex-wrap:wrap;margin-top:2px;}
+  .radiorow label{display:flex;align-items:center;gap:6px;font-weight:400;color:var(--ink);font-size:13.5px;}
+  .radiorow input{width:auto;}
+  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;}
+  button{
+    color:#F8FAFC; border:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    font-size:14px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(139,92,246,0.3);
+  }
+  button:hover{filter:brightness(1.1);}
+  button.secondary{background:none;border:1px solid var(--line);color:var(--ink);box-shadow:none;}
+  button.secondary:hover{border-color:#A5B4FC;filter:none;}
+  .photo-btn{
+    display:inline-flex; align-items:center; gap:6px;
+    background:none; border:1px solid var(--line); color:var(--ink);
+    font-size:13px; padding:9px 14px; border-radius:8px; cursor:pointer;
+  }
+  .photo-btn:hover{border-color:#A5B4FC;}
+  .status{font-size:12px;color:var(--ink-soft);margin-top:10px;}
+  /* The peach used for headings and arrows is nearly invisible on the cream light theme. */
+  :root[data-theme="light"] .section h2, :root[data-theme="light"] .doc-link .ext, :root[data-theme="light"] .doc-link:hover{color:var(--kicker);}
+  :root[data-theme="light"] .doc-link:hover{border-color:var(--kicker);}
+  .progress{height:8px;border-radius:99px;background:var(--surface-5);overflow:hidden;border:1px solid var(--line);}
+  .progress-bar{height:100%;width:0;background:linear-gradient(90deg,var(--accent1),var(--accent2),var(--accent3));transition:width .3s ease;}
+  .progress-text{font-size:12px;color:var(--ink-soft);margin:6px 0 16px;}
+  .step{margin-bottom:12px;}
+  .step .doc-link{margin-bottom:6px;}
+  .step.done .doc-link{border-color:rgba(34,197,94,0.55);}
+  .step.done .doc-link .name::after{content:' \2713';color:var(--ok);}
+  .done-toggle{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);font-weight:400;padding:2px 4px;cursor:pointer;}
+  .done-toggle input{width:auto;}
+  .group-title{font-size:11px;color:var(--ink-soft);font-weight:700;letter-spacing:.06em;margin:24px 0 10px;}
+  .group-title.first{margin-top:6px;}
+  .field-err{font-size:11.5px;color:#6366F1;margin:0;}
+  input.invalid{border-color:#6366F1 !important;}
+  .req{color:#8B5CF6;}
+  button.link-btn{background:none;border:none;box-shadow:none;padding:0;font:inherit;font-size:12.5px;font-weight:400;color:#A5B4FC;text-decoration:underline;cursor:pointer;}
+  :root[data-theme="light"] button.link-btn{color:#4F46E5;}
+  button.link-btn:hover{filter:none;opacity:.8;}
+  .sendto{font-size:12px;color:var(--ink-soft);margin:12px 0 0;}
+  .sendto strong{color:var(--ink);font-weight:600;word-break:break-all;}
+  .result{background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.4);border-radius:10px;padding:14px 16px;margin-top:14px;font-size:13px;line-height:1.5;}
+  .result h3{margin:0 0 4px;font-size:14px;color:var(--ink);}
+  .result p{margin:8px 0 0;color:var(--ink);}
+  .draft-note{font-size:12px;color:var(--ink-soft);margin:0 0 4px;}
+  details.trouble{margin-top:12px;}
+  details.trouble summary{font-size:12px;color:var(--ink-soft);cursor:pointer;}
+  .note{font-size:11.5px;color:var(--ink-soft);margin-top:12px;line-height:1.5;}
+  @media(max-width:480px){
+    .grid2{grid-template-columns:1fr;}
+  }
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+</style>
+
+<script src="theme-picker.js" defer></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<div class="wrap">
+  <a class="back-link" href="index.html">&larr; Back to main menu</a>
+  <header>
+    <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+    <p class="kicker">Apex Pyrotechnics Inc.</p>
+    <h1>New Hire Documents</h1>
+  </header>
+
+  <div class="divider"></div>
+
+  <div class="section" id="stepsSection">
+    <h2>Getting set up</h2>
+    <p class="desc">Three things to finish. Tick each one off as you go &mdash; your checklist is saved on this phone.</p>
+    <div class="progress" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+    <p class="progress-text" id="progressText" aria-live="polite">0 of 3 done</p>
+
+    <div class="step" data-step="w4">
+      <a class="doc-link" href="https://www.irs.gov/pub/irs-pdf/fw4.pdf" target="_blank" rel="noopener">
+        <div>
+          <div class="name">1. IRS Form W-4</div>
+          <div class="sub">Employee's Withholding Certificate &mdash; fill it out, sign it, and return it to Apex Pyrotechnics</div>
+        </div>
+        <span class="ext">&#8599;</span>
+      </a>
+      <label class="done-toggle"><input type="checkbox" data-step="w4"> I've filled this out</label>
+    </div>
+
+    <div class="step" data-step="atf">
+      <a class="doc-link" href="https://www.atf.gov/media/22511/download" target="_blank" rel="noopener">
+        <div>
+          <div class="name">2. ATF Form 5400.28</div>
+          <div class="sub">Explosives Employee Possessor Questionnaire &mdash; each person fills out and signs their own copy</div>
+        </div>
+        <span class="ext">&#8599;</span>
+      </a>
+      <label class="done-toggle"><input type="checkbox" data-step="atf"> I've filled this out</label>
+    </div>
+
+    <div class="step" data-step="questionnaire">
+      <a class="doc-link" href="#questionnaire" onclick="jumpToQuestionnaire();return false;">
+        <div>
+          <div class="name">3. Get-to-know-you questionnaire</div>
+          <div class="sub">Fill it out below and email it to Apex Pyrotechnics &mdash; this also adds you to the crew directory</div>
+        </div>
+        <span class="ext">&#8595;</span>
+      </a>
+      <label class="done-toggle"><input type="checkbox" data-step="questionnaire"> Done &mdash; I've sent it</label>
+    </div>
+  </div>
+
+  <div class="section" id="questionnaire">
+    <h2>Get to know you / experience questionnaire</h2>
+    <p class="desc">Tell us a bit about yourself and your background. Fields marked <span class="req">*</span> are required. Your answers are saved as you go, so you can close this and come back.</p>
+    <p class="draft-note" id="draftNote" style="display:none;">Picked up your unfinished questionnaire. <button type="button" class="link-btn" onclick="startOver()">Start over</button></p>
+
+    <p class="group-title first">ABOUT YOU</p>
+    <div class="grid2">
+      <div class="field">
+        <label for="nhName">Full name <span class="req">*</span></label>
+        <input type="text" id="nhName" autocomplete="name">
+        <p class="field-err" id="nhNameErr" style="display:none;"></p>
+      </div>
+      <div class="field"><label for="nhDate">Date</label><input type="date" id="nhDate"></div>
+      <div class="field">
+        <label for="nhPhone">Phone number <span class="req">*</span></label>
+        <input type="tel" id="nhPhone" inputmode="tel" autocomplete="tel">
+        <p class="field-err" id="nhPhoneErr" style="display:none;"></p>
+      </div>
+      <div class="field"><label for="nhEmail">Email</label><input type="email" id="nhEmail" inputmode="email" autocomplete="email"></div>
+      <div class="field full"><label for="nhAddress">Address</label><input type="text" id="nhAddress" autocomplete="street-address"></div>
+      <div class="field"><label for="nhAge">Age</label><input type="text" id="nhAge" inputmode="numeric" autocomplete="off"></div>
+    </div>
+
+    <p class="group-title">LICENSES (if you have any)</p>
+    <div class="grid2">
+      <div class="field"><label for="nhDisplayLicense">Display Operator (D)</label><input type="text" id="nhDisplayLicense" autocomplete="off" autocapitalize="characters"></div>
+      <div class="field"><label for="nhSFXLicense">Special Effects Operator (P)</label><input type="text" id="nhSFXLicense" autocomplete="off" autocapitalize="characters"></div>
+      <div class="field"><label for="nhFlameLicense">Flame Effects Operator (F)</label><input type="text" id="nhFlameLicense" autocomplete="off" autocapitalize="characters"></div>
+    </div>
+
+    <p class="group-title">PHOTO</p>
+    <div class="field full" style="margin-bottom:16px;">
+      <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 8px;">A clear photo of your face, kept on file with your info. Take one now or upload one.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+        <label class="photo-btn">
+          Take photo
+          <input type="file" accept="image/*" capture="user" style="display:none;" onchange="handleNhPhotoSelect(event)">
+        </label>
+        <label class="photo-btn">
+          Upload photo
+          <input type="file" accept="image/*" style="display:none;" onchange="handleNhPhotoSelect(event)">
+        </label>
+        <button type="button" class="link-btn" id="nhPhotoRemove" style="display:none;" onclick="removeNhPhoto()">Remove</button>
+      </div>
+      <img id="nhPhotoPreview" alt="Your photo" style="display:none;width:120px;height:120px;object-fit:cover;border-radius:8px;margin-top:12px;border:1px solid var(--line);">
+      <p class="field-err" id="nhPhotoErr" style="display:none;margin-top:8px;"></p>
+    </div>
+
+    <p class="group-title">YOUR EXPERIENCE</p>
+    <div class="field">
+      <label for="nhHeard">How did you hear about Apex Pyrotechnics?</label>
+      <input type="text" id="nhHeard" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="nhExperience">Fireworks / pyrotechnics experience</label>
+      <textarea id="nhExperience" placeholder="Years of experience, prior roles, any licenses or certifications you hold"></textarea>
+    </div>
+    <div class="field">
+      <label for="nhWorkHistory">Relevant work history</label>
+      <textarea id="nhWorkHistory" placeholder="Previous employers or relevant jobs"></textarea>
+    </div>
+    <div class="field">
+      <label for="nhAvailability">Availability</label>
+      <textarea id="nhAvailability" placeholder="Days/times you're generally available, including evenings, weekends, and holidays"></textarea>
+    </div>
+    <div class="field">
+      <label>Comfortable with physically demanding outdoor work (heavy lifting, heat, long hours)?</label>
+      <div class="radiorow">
+        <label><input type="radio" name="nhPhysical" value="Yes"> Yes</label>
+        <label><input type="radio" name="nhPhysical" value="No"> No</label>
+      </div>
+    </div>
+
+    <p class="group-title">EMERGENCY CONTACT</p>
+    <div class="grid2">
+      <div class="field"><label for="nhEmergencyName">Emergency contact name</label><input type="text" id="nhEmergencyName" autocomplete="off"></div>
+      <div class="field"><label for="nhEmergencyPhone">Emergency contact phone</label><input type="tel" id="nhEmergencyPhone" inputmode="tel" autocomplete="off"></div>
+    </div>
+
+    <p class="group-title">ANYTHING ELSE</p>
+    <div class="field">
+      <label for="nhMore">Anything else you'd like us to know?</label>
+      <textarea id="nhMore"></textarea>
+    </div>
+
+    <div class="actions">
+      <button type="button" id="nhEmailBtn" onclick="emailQuestionnaire()">Email to Apex (PDF)</button>
+      <button class="secondary" type="button" onclick="downloadQuestionnairePDF()">Download as PDF</button>
+    </div>
+    <p class="sendto">Goes to <strong>demo@apexpyrotechnics.com</strong> &middot; <button type="button" class="link-btn" onclick="copyApexEmail()">Copy address</button></p>
+    <p class="status" id="nhStatus" aria-live="polite"></p>
+    <div class="result" id="nhResult" style="display:none;" aria-live="polite"></div>
+    <details class="trouble">
+      <summary>Trouble emailing?</summary>
+      <p class="note">On phones that support it, "Email to Apex" opens your share sheet with the actual PDF ready to attach. The share sheet can't fill in the recipient for you, so double-check the "To:" field once Mail opens &mdash; use "Copy address" above if it helps. On devices that don't support this, it downloads the PDF and opens a plain email instead, and you'll need to attach the PDF yourself.</p>
+    </details>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec";
+const APEX_EMAIL = 'demo@apexpyrotechnics.com';
+
+function val(id){ return document.getElementById(id).value.trim(); }
+function radioVal(name){
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : '';
+}
+function esc(v){
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function todayStr(){ return new Date().toLocaleDateString('en-CA'); }
+
+/* ---------------- The three-step checklist ---------------- */
+const STEPS_KEY = 'newHireSteps_v1';
+function readSteps(){
+  try{ return JSON.parse(localStorage.getItem(STEPS_KEY) || '{}') || {}; } catch(e){ return {}; }
+}
+function renderSteps(){
+  const saved = readSteps();
+  let done = 0;
+  document.querySelectorAll('.step').forEach(el => {
+    const on = !!saved[el.dataset.step];
+    el.classList.toggle('done', on);
+    el.querySelector('input[type=checkbox]').checked = on;
+    if(on) done++;
+  });
+  document.getElementById('progressBar').style.width = Math.round(done / 3 * 100) + '%';
+  document.getElementById('progressText').textContent = done === 3 ? 'All done \u2014 welcome to the crew!' : `${done} of 3 done`;
+}
+function setStep(key, on){
+  const saved = readSteps();
+  saved[key] = !!on;
+  try{ localStorage.setItem(STEPS_KEY, JSON.stringify(saved)); } catch(e){}
+  renderSteps();
+}
+document.querySelectorAll('.step input[type=checkbox]').forEach(box => {
+  box.addEventListener('change', () => setStep(box.dataset.step, box.checked));
+});
+function jumpToQuestionnaire(){
+  document.getElementById('questionnaire').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ---------------- Draft: the questionnaire saves itself as you type ---------------- */
+const NH_DRAFT_KEY = 'newHireDraft_v1';
+const NH_TEXT_FIELDS = ['nhName','nhPhone','nhEmail','nhAddress','nhAge','nhDisplayLicense','nhSFXLicense','nhFlameLicense','nhHeard','nhExperience','nhWorkHistory','nhAvailability','nhEmergencyName','nhEmergencyPhone','nhMore'];
+let nhPendingPhotoBase64 = null;
+
+function collectDraft(){
+  const d = { fields:{}, physical: radioVal('nhPhysical'), photo: nhPendingPhotoBase64 };
+  NH_TEXT_FIELDS.forEach(id => { d.fields[id] = document.getElementById(id).value; });
+  return d;
+}
+function hasDraftContent(d){
+  return Object.values(d.fields).some(v => v && v.trim()) || !!d.physical || !!d.photo;
+}
+let draftTimer = null;
+let draftSuppressed = false;     // set once the questionnaire has been sent, until the person edits it again
+function scheduleDraftSave(){
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    if(draftSuppressed) return;
+    const d = collectDraft();
+    try{
+      if(hasDraftContent(d)) localStorage.setItem(NH_DRAFT_KEY, JSON.stringify(d));
+      else localStorage.removeItem(NH_DRAFT_KEY);
+    } catch(e){}
+  }, 600);
+}
+function clearDraft(){ try{ localStorage.removeItem(NH_DRAFT_KEY); } catch(e){} }
+
+function showPhoto(dataUrl){
+  const preview = document.getElementById('nhPhotoPreview');
+  preview.src = dataUrl || '';
+  preview.style.display = dataUrl ? 'block' : 'none';
+  document.getElementById('nhPhotoRemove').style.display = dataUrl ? '' : 'none';
+}
+function restoreDraft(){
+  let d;
+  try{ d = JSON.parse(localStorage.getItem(NH_DRAFT_KEY) || 'null'); } catch(e){ d = null; }
+  if(!d || !hasDraftContent(d)) return false;
+  Object.keys(d.fields || {}).forEach(id => { const el = document.getElementById(id); if(el) el.value = d.fields[id]; });
+  if(d.physical){ const r = document.querySelector(`input[name="nhPhysical"][value="${d.physical}"]`); if(r) r.checked = true; }
+  if(d.photo){ nhPendingPhotoBase64 = d.photo; showPhoto(d.photo); }
+  document.getElementById('draftNote').style.display = '';
+  return true;
+}
+function startOver(){
+  clearDraft();
+  NH_TEXT_FIELDS.forEach(id => { document.getElementById(id).value = ''; });
+  document.querySelectorAll('input[name="nhPhysical"]').forEach(r => { r.checked = false; });
+  nhPendingPhotoBase64 = null;
+  showPhoto(null);
+  document.getElementById('nhDate').value = todayStr();
+  document.getElementById('draftNote').style.display = 'none';
+  document.getElementById('nhResult').style.display = 'none';
+  clearErrors();
+}
+// Only edits inside the questionnaire count: ticking a checklist box must not re-save a draft that was already sent.
+function onQuestionnaireEdit(e){
+  if(!e.target.closest || !e.target.closest('#questionnaire')) return;
+  draftSuppressed = false;
+  scheduleDraftSave();
+}
+document.addEventListener('input', onQuestionnaireEdit);
+document.addEventListener('change', onQuestionnaireEdit);
+
+/* ---------------- Required fields ---------------- */
+function showErr(id, msg){
+  const err = document.getElementById(id + 'Err');
+  err.textContent = msg; err.style.display = '';
+  document.getElementById(id).classList.add('invalid');
+}
+function clearErrors(){
+  ['nhName','nhPhone'].forEach(id => {
+    document.getElementById(id + 'Err').style.display = 'none';
+    document.getElementById(id).classList.remove('invalid');
+  });
+}
+['nhName','nhPhone'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+  document.getElementById(id + 'Err').style.display = 'none';
+  document.getElementById(id).classList.remove('invalid');
+}));
+function validateNh(){
+  clearErrors();
+  const digits = val('nhPhone').replace(/\D/g, '');
+  let first = null;
+  if(!val('nhName')){ showErr('nhName', 'Enter your full name.'); first = first || 'nhName'; }
+  if(digits.length < 7){
+    showErr('nhPhone', digits.length ? 'That number looks too short.' : "Enter your phone number \u2014 you'll use it to check in at shows.");
+    first = first || 'nhPhone';
+  }
+  if(first){
+    const el = document.getElementById(first);
+    el.scrollIntoView({ behavior:'smooth', block:'center' });
+    el.focus({ preventScroll:true });
+    return false;
+  }
+  return true;
+}
+
+/* ---------------- PDF ---------------- */
+function buildQuestionnairePDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'pt', format:'letter'});
+  const marginX = 40;
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const contentWidth = pageWidth - marginX * 2;
+  const lineHeight = 14;
+  let y = 50;
+
+  function ensureSpace(extra){
+    if(y + extra > pageHeight - 50){
+      doc.addPage();
+      y = 50;
+    }
+  }
+  function field(label, value){
+    ensureSpace(lineHeight * 2);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(91,100,112);
+    doc.text(label.toUpperCase(), marginX, y); y += 12;
+    doc.setFont('helvetica','normal'); doc.setFontSize(10.5); doc.setTextColor(20,26,32);
+    const lines = doc.splitTextToSize(value || '-', contentWidth);
+    doc.text(lines, marginX, y); y += lines.length * lineHeight + 6;
+  }
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(15);
+  doc.text('Apex Pyrotechnics Inc.', marginX, y); y += 20;
+  doc.setFontSize(12.5);
+  doc.text('New Hire Questionnaire', marginX, y); y += 26;
+
+  field('Full name', val('nhName'));
+  field('Date', val('nhDate'));
+  field('Phone number', val('nhPhone'));
+  field('Email', val('nhEmail'));
+  field('Age', val('nhAge'));
+  field('Display Operator license (D)', val('nhDisplayLicense'));
+  field('Special Effects Operator license (P)', val('nhSFXLicense'));
+  field('Flame Effects Operator license (F)', val('nhFlameLicense'));
+  field('Address', val('nhAddress'));
+  field('How did you hear about Apex Pyrotechnics?', val('nhHeard'));
+  field('Fireworks / pyrotechnics experience', val('nhExperience'));
+  field('Relevant work history', val('nhWorkHistory'));
+  field('Availability', val('nhAvailability'));
+  field('Comfortable with physically demanding outdoor work?', radioVal('nhPhysical') || '(not answered)');
+  field('Emergency contact name', val('nhEmergencyName'));
+  field('Emergency contact phone', val('nhEmergencyPhone'));
+  field('Anything else?', val('nhMore'));
+
+  return doc;
+}
+
+/* ---------------- Photo ---------------- */
+function resizeImageToDataUrl(file, maxSize, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxSize){ h = Math.round(h * maxSize / w); w = maxSize; } }
+        else { if(h > maxSize){ w = Math.round(w * maxSize / h); h = maxSize; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+async function handleNhPhotoSelect(event){
+  const file = event.target.files[0];
+  const err = document.getElementById('nhPhotoErr');
+  err.style.display = 'none';
+  if(!file) return;
+  try{
+    nhPendingPhotoBase64 = await resizeImageToDataUrl(file, 400, 0.7);
+    showPhoto(nhPendingPhotoBase64);
+    draftSuppressed = false;
+    scheduleDraftSave();
+  } catch(e){
+    err.textContent = "Couldn't read that photo \u2014 try taking it again or choosing a different one.";
+    err.style.display = '';
+  }
+  event.target.value = '';
+}
+function removeNhPhoto(){
+  nhPendingPhotoBase64 = null;
+  showPhoto(null);
+  draftSuppressed = false;
+  scheduleDraftSave();
+}
+
+/* ---------------- Adding the new hire to the crew directory ----------------
+   Only ever CREATES a record. If the name is already in the directory, nothing is written: this form carries
+   no phone check, so saving over an existing person would wipe their licenses, address, age and emergency
+   contact, and could change the phone number they check in with. */
+let directoryResult = null;
+let syncPromise = null;
+
+async function syncNewHireToDirectory(){
+  if(directoryResult && directoryResult.status === 'added') return directoryResult;
+  const name = val('nhName');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=names`, { cache:'no-store' });
+    if(!res.ok) throw new Error('names');
+    const names = await res.json();
+    if(!Array.isArray(names)) throw new Error('names');
+    if(names.some(n => String(n).trim().toLowerCase() === name.toLowerCase())) return { status:'exists' };
+  } catch(e){
+    return { status:'unchecked' };          // can't tell whether they're already on file, so don't risk writing
+  }
+  const payload = {
+    recordType: 'contact',
+    createOnly: true,      // the server adds a new person but never touches someone already on file
+    name: name,
+    displayLicense: val('nhDisplayLicense'),
+    specialEffectsLicense: val('nhSFXLicense'),
+    flameLicense: val('nhFlameLicense'),
+    address: val('nhAddress'),
+    phone: val('nhPhone'),
+    email: val('nhEmail'),
+    age: val('nhAge'),
+    emergencyContact: val('nhEmergencyName'),
+    emergencyContactPhone: val('nhEmergencyPhone')
+  };
+  if(nhPendingPhotoBase64) payload.photoBase64 = nhPendingPhotoBase64;
+  try{
+    const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if(!res.ok || !data || data.status !== 'ok') throw new Error('save');
+    directoryResult = { status:'added', photoError: data.photoError || '' };
+    return directoryResult;
+  } catch(e){
+    return { status:'failed' };
+  }
+}
+function syncOnce(){
+  if(!syncPromise) syncPromise = syncNewHireToDirectory().finally(() => { syncPromise = null; });
+  return syncPromise;
+}
+
+/* ---------------- What the person sees afterwards ---------------- */
+function showResult(title, lead, sync){
+  const lines = [];
+  if(sync.status === 'added'){
+    lines.push("You've been added to the crew directory.");
+    if(sync.photoError) lines.push("Your photo didn't upload \u2014 you can add it later under Update My Info.");
+  } else if(sync.status === 'exists'){
+    lines.push("You're already in the crew directory, so nothing there was changed. To update your details, use Update My Info.");
+  } else {
+    lines.push("We couldn't add you to the crew directory just now (no signal?). Apex Pyrotechnics can add you from your questionnaire.");
+  }
+  const box = document.getElementById('nhResult');
+  box.innerHTML = `
+    <h3>${esc(title)}</h3>
+    <p>${esc(lead)}</p>
+    <p>${lines.map(esc).join(' ')}</p>
+    <p><strong>At your first show:</strong> check in with this same name and phone number &mdash; <span style="white-space:nowrap">${esc(val('nhName'))}</span> &middot; <span style="white-space:nowrap">${esc(val('nhPhone'))}</span>.</p>`;
+  box.style.display = '';
+  box.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+function finishSubmit(title, lead, sync){
+  setStep('questionnaire', true);
+  draftSuppressed = true;          // the form stays on screen so they can still download a copy, but it is no longer a draft
+  clearTimeout(draftTimer);
+  clearDraft();
+  document.getElementById('draftNote').style.display = 'none';
+  showResult(title, lead, sync);
+}
+
+function copyApexEmail(){
+  const statusEl = document.getElementById('nhStatus');
+  const done = ok => { statusEl.textContent = ok ? `Copied ${APEX_EMAIL}` : `Send it to ${APEX_EMAIL}`; statusEl.style.color = 'var(--ink-soft)'; };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(APEX_EMAIL).then(() => done(true)).catch(() => done(false));
+  } else { done(false); }
+}
+
+function downloadQuestionnairePDF(){
+  if(!validateNh()) return;
+  const name = val('nhName').replace(/\s+/g,'_');
+  const sync = syncOnce();
+  buildQuestionnairePDF().save(`New_Hire_${name}.pdf`);
+  sync.then(result => finishSubmit('PDF downloaded', `Email the downloaded PDF to ${APEX_EMAIL} to finish this step.`, result));
+}
+
+async function emailQuestionnaire(){
+  const statusEl = document.getElementById('nhStatus');
+  if(!validateNh()) return;
+  const name = val('nhName');
+
+  // Runs alongside the share sheet. It must NOT be awaited before navigator.share(), which needs the tap that started this.
+  const syncing = syncOnce();
+
+  const doc = buildQuestionnairePDF();
+  const fileName = `New_Hire_${name.replace(/\s+/g,'_')}.pdf`;
+  const subject = `New Hire Questionnaire - ${name}`;
+  const recipientLine = `To: ${APEX_EMAIL}`;
+  const pdfBlob = doc.output('blob');
+
+  if(navigator.canShare){
+    try{
+      const file = new File([pdfBlob], fileName, {type: 'application/pdf'});
+      if(navigator.canShare({files: [file]})){
+        statusEl.textContent = `Opening share sheet \u2014 remember to address it: ${recipientLine}`;
+        statusEl.style.color = 'var(--ink-soft)';
+        await navigator.share({ files: [file], title: subject, text: `${recipientLine}\n\n${subject}` });
+        statusEl.textContent = '';
+        finishSubmit('Questionnaire shared', 'Make sure you tapped Send in your email app so it reaches Apex Pyrotechnics.', await syncing);
+        return;
+      }
+    } catch(err){
+      if(err && err.name === 'AbortError'){
+        statusEl.textContent = '';
+        return;
+      }
+    }
+  }
+
+  statusEl.textContent = '';
+  doc.save(fileName);
+  const body = `New hire questionnaire submitted by ${name}.\n\n(PDF copy downloaded separately \u2014 please attach it to this email before sending.)`;
+  const mailto = `mailto:${APEX_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+  finishSubmit('PDF downloaded', `Attach the downloaded PDF to the email that just opened and send it to ${APEX_EMAIL}.`, await syncing);
+}
+
+/* ---------------- Start-up ---------------- */
+document.getElementById('nhDate').value = todayStr();
+renderSteps();
+restoreDraft();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

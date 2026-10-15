@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
+<title>My Pay — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0F172A">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#A5B4FC; --surface-4:rgba(15,23,42,0.4); --surface-5:rgba(15,23,42,0.5); --surface-55:rgba(15,23,42,0.55); --bg1:#1E293B; --bg2:#0F172A; --bg3:#020617;
+    --logo-ring-bg:#0F172A;
+    --navy:#A5B4FC; --brick:#6366F1; --brick-light:#818CF8;
+    --paper:#1E293B; --card:rgba(30,41,59,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#F1F5F9; --ink-soft:#94A3B8; --ok:#22C55E;
+    --accent1:#4F46E5; --accent2:#8B5CF6;
+  }
+  :root[data-theme="light"]{
+    --kicker:#4F46E5; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#F8FAFC; --bg2:#F1F5F9; --bg3:#E2E8F0; --ink:#0F172A; --ink-soft:#475569; --card:rgba(255,255,255,0.78); --line:rgba(15,23,42,0.12); --paper:#F8FAFC; --navy:#4F46E5;
+    --logo-ring-bg:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:560px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 75%,#312E81);margin:0 auto 16px;box-shadow:0 0 34px rgba(139,92,246,0.35), 0 0 60px rgba(59,130,246,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#6366F1 0%,#8B5CF6 30%,#22D3EE 50%,#60A5FA 75%,#818CF8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#4F46E5,#8B5CF6 35%,#22D3EE 55%,#3B82F6 80%,#312E81);border-radius:2px;box-shadow:0 0 12px rgba(139,92,246,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=date], input[type=password]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus{outline:none;border-color:#8B5CF6;box-shadow:0 0 0 2px rgba(139,92,246,0.2);}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  .clear-link{font-size:12px;color:var(--ink-soft);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;}
+  .clear-link:hover{color:var(--navy);}
+  .back-link{display:block; max-width:560px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .total-card{background:var(--surface-5);border:1px solid var(--line);border-radius:10px;padding:18px;text-align:center;margin-bottom:16px;}
+  .total-card .amount{font-size:28px;font-weight:800;color:var(--ink);}
+  .total-card .amount .sub{display:block;font-size:14px;font-weight:600;color:var(--ink-soft);margin-top:4px;}
+  .total-card .label{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin-top:4px;}
+
+  .show-list{border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .pay-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 14px;border-top:1px solid var(--line);font-size:13.5px;}
+  .pay-row:first-child{border-top:none;}
+  .pay-venue{font-weight:600;color:var(--ink);}
+  .pay-date{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .pay-amount{font-weight:700;color:var(--ink);white-space:nowrap;}
+  .pay-pending{display:inline-block;margin-left:6px;font-size:10px;font-weight:700;color:#0F172A;background:#F59E0B;padding:2px 6px;border-radius:4px;vertical-align:middle;}
+  .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+</style>
+<script src="theme-picker.js" defer></script>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="hp-tools.html">&larr; Back to Head Pyro Tools</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Apex Pyrotechnics logo"></div></div>
+  <p class="kicker">Apex Pyrotechnics Inc.</p>
+  <h1>My Pay</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <div id="disabledNotice" style="display:none;text-align:center;padding:10px 0 4px;">
+      <div class="icon" style="font-size:32px;margin-bottom:8px;">🚧</div>
+      <p class="desc" style="margin:0;">My Pay is turned off right now. Check with your Head Pyro for your pay.</p>
+    </div>
+    <div id="lookupSection">
+    <p class="desc">Look up your own payroll history — logged automatically each time a payroll is emailed or shared. Since everyone shares one Head Pyro password, this also checks a PIN or phone number for your name, so you can only see your own pay.</p>
+
+    <div class="field">
+      <label for="nameInput">Your name</label>
+      <input type="text" id="nameInput" list="namesList" placeholder="Start typing your name…" autocomplete="off" oninput="scheduleLoad()">
+      <datalist id="namesList"></datalist>
+    </div>
+    <div class="field" id="phoneField">
+      <label for="phoneInput">Your phone number (on file)</label>
+      <input type="text" id="phoneInput" inputmode="tel" placeholder="(555) 555-5555" autocomplete="off" oninput="scheduleLoad()">
+    </div>
+    <div class="field" id="pinField" style="display:none;">
+      <label for="pinInput">Your PIN</label>
+      <input type="password" id="pinInput" inputmode="numeric" placeholder="4 to 8 digits" autocomplete="off" maxlength="8" oninput="scheduleLoad()">
+      <button type="button" class="clear-link" style="width:fit-content;" onclick="useForgotPin()">Forgot your PIN? Use your phone number instead</button>
+    </div>
+    <div id="pinOfferWrap" style="display:none;margin-bottom:14px;"></div>
+    <div class="filters">
+      <div>
+        <label for="fromDate">From date</label>
+        <input type="date" id="fromDate" onchange="rerenderOrLookup()">
+      </div>
+      <div>
+        <label for="toDate">To date</label>
+        <input type="date" id="toDate" onchange="rerenderOrLookup()">
+      </div>
+    </div>
+    <div style="margin-bottom:16px;"><button type="button" class="clear-link" onclick="clearFilters()">Clear date filters</button></div>
+
+    <div id="resultWrap"><div class="empty-state"><div class="icon">💵</div><p>Enter your name above, then your PIN or phone number, to see your pay history.</p></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyoDXZ-HyvHGMViKe96gxZlXn6ifzfjkihetuyh4aPMJYFHhxj0qgT2Edid9-mZqcBJ/exec";
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function fmtUsd(n){ return `$${(Number(n) || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`; }
+function fmtHrs(n){ return `${(Number(n) || 0).toLocaleString(undefined, {maximumFractionDigits: 2})} hrs`; }
+function formatEventDate(d){
+  if(!d) return 'No date';
+  const p = String(d).slice(0,10).split('-');
+  if(p.length !== 3) return d;
+  return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+}
+
+async function loadNames(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=names`, { cache: 'no-store' });
+    const names = await res.json();
+    if(Array.isArray(names)){
+      $('namesList').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+    }
+  } catch(err){ /* the text input still works without the suggestion list */ }
+}
+
+function clearFilters(){
+  $('fromDate').value = '';
+  $('toDate').value = '';
+  rerenderOrLookup();
+}
+
+let loadTimer = null;
+function scheduleLoad(){
+  clearTimeout(loadTimer);
+  loadTimer = setTimeout(runLookup, 350);
+}
+
+// The records from the last successful lookup, so changing the date filters just re-renders
+// instead of re-checking the PIN or phone number against the server again.
+let lastRecords = null;
+let knownHasPin = false;
+
+function rerenderOrLookup(){
+  if(lastRecords){
+    applyDateFilterAndRender(lastRecords);
+  } else {
+    runLookup();
+  }
+}
+
+function updateCredentialField(hasPin){
+  knownHasPin = hasPin;
+  $('phoneField').style.display = hasPin ? 'none' : '';
+  $('pinField').style.display = hasPin ? '' : 'none';
+}
+
+function useForgotPin(){
+  updateCredentialField(false);
+  $('phoneInput').focus();
+  scheduleLoad();
+}
+
+function pinOfferDismissKey(name){
+  return 'pinOfferDismissed_' + name.trim().toLowerCase();
+}
+
+let pinOfferName = '';
+function showPinOffer(name, phoneDigits){
+  let dismissed = false;
+  try{ dismissed = localStorage.getItem(pinOfferDismissKey(name)) === '1'; } catch(e){}
+  if(dismissed) return;
+  pinOfferName = name;
+  const wrap = $('pinOfferWrap');
+  wrap.style.display = '';
+  wrap.innerHTML = `
+    <div style="background:var(--surface-4);border:1px solid var(--line);border-radius:8px;padding:12px;">
+      <p style="margin:0 0 8px;font-size:12.5px;color:var(--ink-soft);">Want a faster way back in next time? Set up a PIN instead of re-entering your phone number.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="password" id="newPinInput" inputmode="numeric" maxlength="8" placeholder="New PIN (4-8 digits)" autocomplete="off" style="flex:1;min-width:120px;">
+        <input type="password" id="newPinConfirm" inputmode="numeric" maxlength="8" placeholder="Confirm PIN" autocomplete="off" style="flex:1;min-width:120px;">
+      </div>
+      <p id="pinOfferMsg" style="margin:8px 0 0;font-size:12.5px;color:var(--brick);display:none;"></p>
+      <div style="display:flex;gap:16px;margin-top:10px;align-items:center;">
+        <button type="button" class="secondary" onclick="submitPinOffer('${esc(phoneDigits)}')">Create PIN</button>
+        <button type="button" class="clear-link" onclick="dismissPinOffer()">No thanks</button>
+      </div>
+    </div>`;
+}
+
+function hidePinOffer(){
+  $('pinOfferWrap').style.display = 'none';
+  $('pinOfferWrap').innerHTML = '';
+}
+
+function dismissPinOffer(){
+  try{ localStorage.setItem(pinOfferDismissKey(pinOfferName), '1'); } catch(e){}
+  hidePinOffer();
+}
+
+async function submitPinOffer(phoneDigits){
+  const pin = $('newPinInput').value.trim();
+  const confirmPin = $('newPinConfirm').value.trim();
+  const msg = $('pinOfferMsg');
+  msg.style.display = 'none';
+  if(!/^\d{4,8}$/.test(pin)){
+    msg.textContent = 'Use a PIN of 4 to 8 digits.';
+    msg.style.display = 'block';
+    return;
+  }
+  if(pin !== confirmPin){
+    msg.textContent = 'Those two PINs don\'t match.';
+    msg.style.display = 'block';
+    return;
+  }
+  let data;
+  try{
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'payrollSetPin', name: pinOfferName, phone: phoneDigits, pin: pin })
+    });
+    data = await res.json();
+  } catch(err){
+    msg.textContent = 'Could not reach the server — check your connection and try again.';
+    msg.style.display = 'block';
+    return;
+  }
+  if(data.status !== 'ok'){
+    msg.textContent = data.message || 'Could not save that PIN — please try again.';
+    msg.style.display = 'block';
+    return;
+  }
+  $('pinOfferWrap').innerHTML = '<p style="margin:0;font-size:12.5px;color:var(--ok);">PIN saved — next time, enter your PIN instead of your phone number.</p>';
+  setTimeout(hidePinOffer, 4000);
+}
+
+function applyDateFilterAndRender(records){
+  records = Array.isArray(records) ? records : [];
+  const from = $('fromDate').value, to = $('toDate').value;
+  const filtered = records.filter(r => {
+    if(from && (r.eventDate || '') < from) return false;
+    if(to && (r.eventDate || '') > to) return false;
+    return true;
+  });
+  const wrap = $('resultWrap');
+  if(!filtered.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">🔍</div><p>No payroll found for that name in this range.</p></div>';
+    return;
+  }
+  filtered.sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || ''));
+  const totalUsd = filtered.filter(r => r.unit !== 'hours').reduce((a, r) => a + r.amount, 0);
+  const totalHours = filtered.filter(r => r.unit === 'hours').reduce((a, r) => a + r.amount, 0);
+
+  wrap.innerHTML = `
+    <div class="total-card">
+      <div class="amount">${totalUsd ? esc(fmtUsd(totalUsd)) : esc(fmtUsd(0))}${totalHours ? `<span class="sub">${esc(fmtHrs(totalHours))}</span>` : ''}</div>
+      <div class="label">${filtered.length} SHOW${filtered.length === 1 ? '' : 'S'}</div>
+    </div>
+    <p class="count-line">SHOWS, NEWEST FIRST</p>
+    <div class="show-list">${filtered.map(r => `
+      <div class="pay-row">
+        <div>
+          <div class="pay-venue">${esc(r.event || '(no venue)')}${r.status === 'Pending' ? '<span class="pay-pending">Pending</span>' : ''}</div>
+          <div class="pay-date">${esc(formatEventDate(r.eventDate))}</div>
+        </div>
+        <div class="pay-amount">${r.unit === 'hours' ? esc(fmtHrs(r.amount)) : esc(fmtUsd(r.amount))}</div>
+      </div>`).join('')}</div>`;
+}
+
+async function runLookup(){
+  const name = $('nameInput').value.trim();
+  const wrap = $('resultWrap');
+  lastRecords = null;
+  hidePinOffer();
+  if(!name){
+    updateCredentialField(false);
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">💵</div><p>Enter your name above, then your PIN or phone number, to see your pay history.</p></div>';
+    return;
+  }
+
+  // Figure out whether this name has a PIN on file, so the right box (PIN or phone) is showing.
+  try{
+    const statusRes = await fetch(`${CHECKIN_API_URL}?type=payrollPinStatus&name=${encodeURIComponent(name)}`, { cache: 'no-store' });
+    const statusData = await statusRes.json();
+    updateCredentialField(!!statusData.hasPin);
+  } catch(err){ /* keep whatever box was already showing */ }
+
+  const usingPin = knownHasPin;
+  const pin = $('pinInput').value.trim();
+  const phoneDigits = $('phoneInput').value.replace(/\D/g, '');
+  const haveCredential = usingPin ? pin.length >= 4 : phoneDigits.length >= 7;
+  if(!haveCredential){
+    wrap.innerHTML = `<div class="empty-state"><div class="icon">💵</div><p>Enter your ${usingPin ? 'PIN' : 'phone number'} above to see your pay history.</p></div>`;
+    return;
+  }
+
+  wrap.innerHTML = '<p class="loading-pulse">Checking…</p>';
+  let data;
+  try{
+    const credParam = usingPin ? `&pin=${encodeURIComponent(pin)}` : `&phone=${encodeURIComponent(phoneDigits)}`;
+    const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecordsForName&name=${encodeURIComponent(name)}${credParam}`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    data = await res.json();
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load your payroll — check your connection and try again.</p>';
+    return;
+  }
+
+  if(data.locked){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Too many attempts for that name. Wait a few minutes and try again, or ask your Head Pyro to look it up.</p>';
+    return;
+  }
+  if(!data.verified){
+    wrap.innerHTML = usingPin
+      ? '<p style="font-size:13px;color:var(--brick);">That PIN doesn\'t match. Double-check it, or use "Forgot your PIN?" below to switch back to your phone number.</p>'
+      : '<p style="font-size:13px;color:var(--brick);">That name and phone number don\'t match what\'s on file together. Double-check both and try again.</p>';
+    return;
+  }
+
+  lastRecords = Array.isArray(data.records) ? data.records : [];
+  applyDateFilterAndRender(lastRecords);
+
+  // First time this name has looked itself up with no PIN set up yet — offer to create one.
+  if(!usingPin && !data.hasPin){
+    showPinOffer(name, phoneDigits);
+  }
+}
+
+async function checkMyPayStatus(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=myPayStatus`, { cache: 'no-store' });
+    const data = await res.json();
+    if(data && data.disabled){
+      $('disabledNotice').style.display = 'block';
+      $('lookupSection').style.display = 'none';
+      return;
+    }
+  } catch(err){ /* if the check itself fails, fall through and let the normal lookup try */ }
+  loadNames();
+}
+checkMyPayStatus();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
