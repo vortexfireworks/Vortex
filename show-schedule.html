@@ -92,12 +92,13 @@ updateThemeToggleIcon();
 
   .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
   .show-list{border:1px solid var(--line);border-radius:10px;overflow:hidden;}
-  .sched-row{padding:12px 14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;}
+  .sched-row{padding:12px 14px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:nowrap;}
   .sched-row:first-child{border-top:none;}
+  .sched-left{flex:1 1 auto;min-width:0;}
   .sched-venue{font-weight:600;color:var(--ink);font-size:13.5px;}
   .sched-date{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
   .sched-addr{font-size:11px;color:var(--ink-soft);margin-top:2px;}
-  .sched-right{text-align:right;flex-shrink:0;}
+  .sched-right{text-align:right;flex-shrink:0;max-width:44%;}
   .sched-hp{font-size:13px;font-weight:600;color:var(--ink);}
   .sched-hp.unassigned{color:var(--brick-light);font-weight:500;font-style:italic;}
   .sched-call{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
@@ -148,8 +149,8 @@ updateThemeToggleIcon();
   .top-actions button:disabled{opacity:0.5;cursor:default;}
   .sched-directions{font-size:11px;color:var(--navy);text-decoration:none;margin-left:6px;}
   .sched-directions:hover{text-decoration:underline;}
-  .sched-hp-row{display:flex;align-items:center;gap:6px;justify-content:flex-end;}
-  .sched-avatar{width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;}
+  .sched-hp-row{display:flex;align-items:center;gap:7px;justify-content:flex-end;}
+  .sched-avatar{width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;}
   .waitlist-title{font-size:10.5px;color:var(--ink-soft);font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin:8px 0 4px;}
   .roster-chip.waitlisted{opacity:0.75;}
   .roster-chip .wl-pos{font-size:10px;color:var(--ink-soft);}
@@ -475,7 +476,7 @@ function render(){
 
     return monthHead + `
       <div class="sched-row ${rowClass}">
-        <div>
+        <div class="sched-left">
           <div class="sched-venue">${esc(v.name)}</div>
           <div class="sched-date">${esc(formatEventDate(v.eventDate))}</div>
           ${v.address ? `<div class="sched-addr">${esc(v.address)}${v.county ? ' · ' + esc(v.county) : ''} <a class="sched-directions" href="${directionsUrl(v.address)}" target="_blank" rel="noopener">Directions</a></div>` : ''}
