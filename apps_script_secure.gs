@@ -975,15 +975,15 @@ const GET_LEVELS = {
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
-  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp', scheduleStatus: 'hp',
-  myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'hp'
+  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp', scheduleStatus: 'public',
+  myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'public'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
   aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp', setAvailability: 'hp',
-  showSignup: 'hp', removeShowSignup: 'hp',
+  showSignup: 'public', removeShowSignup: 'public',
   deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
@@ -1535,6 +1535,7 @@ function doPostInner(e) {
   }
 
   if (data.recordType === 'showSignup') {
+    // Public — the Schedule page is a front-page feature with no sign-in, same as Check-In.
     const name = String(data.name || '').trim();
     const venueId = String(data.venueId || '').trim();
     if (!name) return jsonOut({status: 'error', message: 'Enter your name.'});
