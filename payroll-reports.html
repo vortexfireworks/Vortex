@@ -209,6 +209,7 @@ updateThemeToggleIcon();
       <div class="export-row">
         <button type="button" class="secondary" onclick="exportCsv()">Export to CSV (Excel)</button>
         <button type="button" class="secondary" onclick="exportPdf()">Export to PDF</button>
+        <button type="button" class="secondary" onclick="exportQuickBooksCsv()">Export for QuickBooks</button>
       </div>
     </div>
 
@@ -774,6 +775,29 @@ function exportCsv(){
   rows.push([]);
   rows.push(['Grand total', grandTotalUsd ? grandTotalUsd.toFixed(2) : '', grandTotalHours ? grandTotalHours.toFixed(2) : '']);
   downloadCsv(`Payroll_Report_${new Date().toISOString().slice(0,10)}.csv`, rows);
+}
+
+/* ---------------- QuickBooks Online export (3-column bank-import CSV) ---------------- */
+function mmddyyyy(isoDate){
+  const p = String(isoDate || '').slice(0,10).split('-');
+  if(p.length !== 3) return isoDate || '';
+  return `${p[1]}/${p[2]}/${p[0]}`;
+}
+function exportQuickBooksCsv(){
+  const { shows } = getFilteredData();
+  const rows = [['Date', 'Description', 'Amount']];
+  let skipped = 0;
+  shows.forEach(s => {
+    s.items.forEach(it => {
+      if(it.unit === 'hours'){ skipped++; return; } // no stored rate to turn hours into a dollar amount
+      const amt = Number(it.amount) || 0;
+      rows.push([mmddyyyy(s.eventDate), `${it.name} — ${s.event} (${it.role || 'Crew'})`, (-amt).toFixed(2)]);
+    });
+  });
+  downloadCsv(`Payroll_QuickBooks_${new Date().toISOString().slice(0,10)}.csv`, rows);
+  if(skipped){
+    alert(`Exported. ${skipped} hourly line item${skipped === 1 ? '' : 's'} ${skipped === 1 ? 'was' : 'were'} left out — there's no pay rate on file to turn hours into a dollar amount.`);
+  }
 }
 
 /* ---------------- PDF export ---------------- */

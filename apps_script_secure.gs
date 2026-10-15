@@ -338,6 +338,61 @@ function setPayrollPinHash(ss, nameKey, pinHash) {
   sheet.appendRow([nameKey, pinHash, new Date()]);
 }
 
+// Who's marked themselves unavailable for an upcoming show. Only "unavailable" rows are stored —
+// no row for a venue/name pair means that person hasn't flagged a conflict, which keeps the sheet
+// small and means a brand-new venue needs no setup to show everyone as available by default.
+function getOrCreateAvailabilitySheet(ss) {
+  let sheet = ss.getSheetByName('Availability');
+  if (!sheet) {
+    sheet = ss.insertSheet('Availability');
+    sheet.appendRow(['NameKey', 'Name', 'VenueId', 'UpdatedAt']);
+  }
+  return sheet;
+}
+// All venue ids a person has marked themselves unavailable for.
+function getUnavailableVenueIds(ss, nameKey) {
+  const sheet = getOrCreateAvailabilitySheet(ss);
+  if (sheet.getLastRow() <= 1) return [];
+  const rows = sheet.getDataRange().getValues();
+  const ids = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim().toLowerCase() === nameKey) ids.push(String(rows[i][2] || ''));
+  }
+  return ids;
+}
+// Map of venueId -> names marked unavailable for it, for every venue that has at least one.
+function getUnavailableNamesByVenue(ss) {
+  const sheet = getOrCreateAvailabilitySheet(ss);
+  const map = {};
+  if (sheet.getLastRow() <= 1) return map;
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const venueId = String(rows[i][2] || '');
+    const name = String(rows[i][1] || '').trim();
+    if (!venueId || !name) continue;
+    if (!map[venueId]) map[venueId] = [];
+    map[venueId].push(name);
+  }
+  return map;
+}
+function setAvailability(ss, nameKey, name, venueId, unavailable) {
+  const sheet = getOrCreateAvailabilitySheet(ss);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim().toLowerCase() === nameKey && String(rows[i][2] || '') === venueId) {
+      if (unavailable) {
+        sheet.getRange(i + 1, 4).setValue(new Date()); // just refresh UpdatedAt
+      } else {
+        sheet.deleteRow(i + 1); // marking available again removes the row entirely
+      }
+      return;
+    }
+  }
+  if (unavailable) {
+    sheet.appendRow([nameKey, name, venueId, new Date()]);
+  }
+}
+
 // Structured line items (who was paid what, per show) powering the Manage/Edit payroll report.
 function getOrCreatePayrollSheet(ss) {
   const requiredHeaders = ['Id', 'SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit', 'DeclaredTotal', 'Status', 'EditedAt', 'EditReason'];
@@ -847,13 +902,14 @@ const GET_LEVELS = {
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
-  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp'
+  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp',
+  myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
   aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
-  productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp',
+  productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp', setAvailability: 'hp',
   deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
@@ -1388,6 +1444,18 @@ function doPostInner(e) {
     }
     cache.remove(failKey);
     setPayrollPinHash(ss, nameKey, saltedHash(pin));
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'setAvailability') {
+    // Crew marking themselves unavailable for an upcoming show, so Head Pyros can see conflicts
+    // when staffing. Low-stakes self-reported data — no identity check beyond the name, same as
+    // everything else gated at the shared Head Pyro password level.
+    const name = String(data.name || '').trim();
+    const venueId = String(data.venueId || '').trim();
+    if (!name) return jsonOut({status: 'error', message: 'Enter your name.'});
+    if (!venueId) return jsonOut({status: 'error', message: 'Missing which show.'});
+    setAvailability(ss, name.toLowerCase(), name, venueId, !!data.unavailable);
     return jsonOut({status: 'ok'});
   }
 
@@ -2278,6 +2346,26 @@ function doGetInner(e) {
     }
   }
 
+  if (e.parameter.type === 'complianceReport') {
+    // Crew roster + license info per show, straight from check-in records — the license captured
+    // is whatever was on file at the moment that person checked in, which is the right number for
+    // proving who was certified to work a given show, even if their license has since been renewed.
+    const sheet = findCheckInSheet(ss);
+    const fromDate = String(e.parameter.fromDate || '');
+    const toDate = String(e.parameter.toDate || '');
+    const rows = sheet.getDataRange().getValues();
+    const results = rows.slice(1)
+      .map(row => ({
+        event: row[1], eventDate: normalizeDateValue(row[2]), name: row[3],
+        license: row[4] || '', isHeadPyro: row[9] === 'Yes', checkInTime: row[8] || ''
+      }))
+      .filter(r => r.name)
+      .filter(r => !fromDate || (r.eventDate || '') >= fromDate)
+      .filter(r => !toDate || (r.eventDate || '') <= toDate)
+      .sort((a, b) => (a.eventDate || '').localeCompare(b.eventDate || '') || a.event.localeCompare(b.event));
+    return jsonOut({records: results.slice(0, 20000)});
+  }
+
   if (e.parameter.type === 'payrollRecords') {
     // Every logged line item (who was paid what, per show) — the Manage/Edit payroll
     // report groups and totals these client-side, including by date range. Always returns
@@ -2299,6 +2387,19 @@ function doGetInner(e) {
     // without waiting for a failed lookup first.
     const nameKey = String(e.parameter.name || '').trim().toLowerCase();
     return jsonOut({hasPin: nameKey ? !!getPayrollPinHash(ss, nameKey) : false});
+  }
+
+  if (e.parameter.type === 'myAvailability') {
+    // Which upcoming shows this person has already flagged as a conflict, so the page can
+    // pre-check their boxes instead of starting blank every visit.
+    const nameKey = String(e.parameter.name || '').trim().toLowerCase();
+    return jsonOut({venueIds: nameKey ? getUnavailableVenueIds(ss, nameKey) : []});
+  }
+
+  if (e.parameter.type === 'availabilityOverview') {
+    // Everyone's conflicts, by show — this is what turns individual check-boxes into a shared
+    // staffing view for Head Pyros, without needing a separate sign-up/assignment system.
+    return jsonOut({unavailableByVenue: getUnavailableNamesByVenue(ss)});
   }
 
   if (e.parameter.type === 'payrollRecordsForName') {

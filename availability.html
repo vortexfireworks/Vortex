@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
+<title>Availability — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:560px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:18px;}
+  .clear-link{font-size:12px;color:var(--ink-soft);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;}
+  .clear-link:hover{color:var(--navy);}
+  .back-link{display:block; max-width:560px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .show-list{border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .avail-row{padding:12px 14px;border-top:1px solid var(--line);}
+  .avail-row:first-child{border-top:none;}
+  .avail-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .avail-venue{font-weight:600;color:var(--ink);font-size:13.5px;}
+  .avail-date{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .avail-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);font-weight:600;white-space:nowrap;cursor:pointer;}
+  .avail-check input{width:16px;height:16px;cursor:pointer;}
+  .avail-conflicts{font-size:11.5px;color:var(--brick-light);margin-top:6px;}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="hp-tools.html">&larr; Back to Head Pyro Tools</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Availability</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">See every upcoming show and flag the ones you can't make — useful when you're juggling other shows or clients. Head Pyros staffing a show can see who's already flagged a conflict.</p>
+
+    <div class="field">
+      <label for="nameInput">Your name</label>
+      <input type="text" id="nameInput" list="namesList" placeholder="Start typing your name…" autocomplete="off" oninput="onNameChange()">
+      <datalist id="namesList"></datalist>
+    </div>
+
+    <div id="countLine" class="count-line"></div>
+    <div id="listWrap"><div class="empty-state"><div class="icon">📅</div><p>Loading upcoming shows…</p></div></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function formatEventDate(d){
+  if(!d) return 'No date';
+  const p = String(d).slice(0,10).split('-');
+  if(p.length !== 3) return d;
+  return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+}
+function todayIso(){ return new Date().toISOString().slice(0,10); }
+
+let VENUES = [];
+let UNAVAIL_BY_VENUE = {};
+let MY_UNAVAILABLE = new Set();
+
+async function loadNames(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=names`, { cache: 'no-store' });
+    const names = await res.json();
+    if(Array.isArray(names)){
+      $('namesList').innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+    }
+  } catch(err){ /* the text input still works without the suggestion list */ }
+}
+
+async function loadSchedule(){
+  const wrap = $('listWrap');
+  try{
+    const [venuesRes, overviewRes] = await Promise.all([
+      fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' }),
+      fetch(`${CHECKIN_API_URL}?type=availabilityOverview`, { cache: 'no-store' })
+    ]);
+    const venues = await venuesRes.json();
+    const overview = await overviewRes.json();
+    const today = todayIso();
+    VENUES = (Array.isArray(venues) ? venues : [])
+      .filter(v => v.eventDate && v.eventDate.slice(0,10) >= today)
+      .sort((a, b) => (a.eventDate || '').localeCompare(b.eventDate || ''));
+    UNAVAIL_BY_VENUE = (overview && overview.unavailableByVenue) || {};
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the schedule — check your connection and try again.</p>';
+    return;
+  }
+  await loadMyAvailability();
+  render();
+}
+
+async function loadMyAvailability(){
+  const name = $('nameInput').value.trim();
+  MY_UNAVAILABLE = new Set();
+  if(!name) return;
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=myAvailability&name=${encodeURIComponent(name)}`, { cache: 'no-store' });
+    const data = await res.json();
+    if(data && Array.isArray(data.venueIds)) MY_UNAVAILABLE = new Set(data.venueIds);
+  } catch(err){ /* checkboxes just start unchecked if this fails */ }
+}
+
+function render(){
+  const wrap = $('listWrap');
+  $('countLine').textContent = VENUES.length ? `${VENUES.length} upcoming show${VENUES.length === 1 ? '' : 's'}` : '';
+  if(!VENUES.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">📅</div><p>No upcoming shows on the venue list.</p></div>';
+    return;
+  }
+  const name = $('nameInput').value.trim();
+  wrap.innerHTML = '<div class="show-list">' + VENUES.map(v => {
+    const mine = name && MY_UNAVAILABLE.has(v.id);
+    const others = (UNAVAIL_BY_VENUE[v.id] || []).filter(n => n.trim().toLowerCase() !== name.trim().toLowerCase());
+    return `
+      <div class="avail-row">
+        <div class="avail-top">
+          <div>
+            <div class="avail-venue">${esc(v.name)}</div>
+            <div class="avail-date">${esc(formatEventDate(v.eventDate))}</div>
+          </div>
+          <label class="avail-check">
+            <input type="checkbox" ${mine ? 'checked' : ''} ${name ? '' : 'disabled'} onchange="toggleUnavailable('${esc(v.id)}', this.checked)">
+            I can't make this one
+          </label>
+        </div>
+        ${others.length ? `<div class="avail-conflicts">Also unavailable: ${esc(others.join(', '))}</div>` : ''}
+      </div>`;
+  }).join('') + '</div>';
+}
+
+let nameDebounce = null;
+function onNameChange(){
+  clearTimeout(nameDebounce);
+  nameDebounce = setTimeout(async () => {
+    await loadMyAvailability();
+    render();
+  }, 300);
+}
+
+async function toggleUnavailable(venueId, unavailable){
+  const name = $('nameInput').value.trim();
+  if(!name) return;
+  if(unavailable) MY_UNAVAILABLE.add(venueId); else MY_UNAVAILABLE.delete(venueId);
+  try{
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'setAvailability', name, venueId, unavailable })
+    });
+    const data = await res.json();
+    if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+    if(!UNAVAIL_BY_VENUE[venueId]) UNAVAIL_BY_VENUE[venueId] = [];
+    UNAVAIL_BY_VENUE[venueId] = UNAVAIL_BY_VENUE[venueId].filter(n => n.trim().toLowerCase() !== name.trim().toLowerCase());
+    if(unavailable) UNAVAIL_BY_VENUE[venueId].push(name);
+    render();
+  } catch(err){
+    if(unavailable) MY_UNAVAILABLE.delete(venueId); else MY_UNAVAILABLE.add(venueId);
+    alert("Couldn't save that — check your connection and try again.");
+    render();
+  }
+}
+
+loadNames();
+loadSchedule();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>

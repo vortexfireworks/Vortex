@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
+<title>Compliance Export — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d; --warn:#ffb74d;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:760px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=date]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary:disabled{opacity:0.5;cursor:wait;}
+  .back-link{display:block; max-width:760px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;}
+  .filter-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 18px;}
+  .export-row{display:flex;gap:8px;flex-wrap:wrap;}
+  .clear-link{font-size:12px;color:var(--ink-soft);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;}
+  .clear-link:hover{color:var(--navy);}
+  .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+
+  .roster-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .roster-table th{text-align:left;font-size:11px;color:var(--ink-soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  .roster-table td{padding:8px 10px;border-bottom:1px solid var(--line);color:var(--ink);vertical-align:top;}
+  .roster-table tr:last-child td{border-bottom:none;}
+  .roster-wrap{border:1px solid var(--line);border-radius:10px;overflow-x:auto;}
+  .badge-hp{display:inline-block;font-size:10px;font-weight:700;color:#0a0f1e;background:var(--warn);padding:2px 6px;border-radius:4px;}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Compliance Export</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Who checked in to work each show, with the license on file at the time — for insurance, licensing, or client-facing proof of a certified crew. Pick a date range (or leave both blank for everything on record) and export to CSV.</p>
+
+    <div class="filters">
+      <div>
+        <label for="fromDate">From date</label>
+        <input type="date" id="fromDate" onchange="loadReport()">
+      </div>
+      <div>
+        <label for="toDate">To date</label>
+        <input type="date" id="toDate" onchange="loadReport()">
+      </div>
+    </div>
+    <div class="filter-actions">
+      <button type="button" class="clear-link" onclick="clearFilters()">Clear filters</button>
+      <div class="export-row">
+        <button type="button" class="secondary" onclick="exportCsv()">Export to CSV</button>
+      </div>
+    </div>
+
+    <div id="countLine" class="count-line"></div>
+    <div id="resultWrap"><div class="empty-state"><div class="icon">🪪</div><p>Loading…</p></div></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function formatEventDate(d){
+  if(!d) return 'No date';
+  const p = String(d).slice(0,10).split('-');
+  if(p.length !== 3) return d;
+  return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+}
+
+let RECORDS = [];
+
+function clearFilters(){
+  $('fromDate').value = '';
+  $('toDate').value = '';
+  loadReport();
+}
+
+async function loadReport(){
+  const wrap = $('resultWrap');
+  wrap.innerHTML = '<p class="loading-pulse">Loading…</p>';
+  const from = $('fromDate').value;
+  const to = $('toDate').value;
+  try{
+    const params = new URLSearchParams({ type: 'complianceReport' });
+    if(from) params.set('fromDate', from);
+    if(to) params.set('toDate', to);
+    const res = await fetch(`${CHECKIN_API_URL}?${params.toString()}`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    const data = await res.json();
+    RECORDS = Array.isArray(data.records) ? data.records : [];
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the report — check your connection and try again.</p>';
+    $('countLine').textContent = '';
+    return;
+  }
+  render();
+}
+
+function render(){
+  const wrap = $('resultWrap');
+  $('countLine').textContent = RECORDS.length ? `${RECORDS.length} check-in${RECORDS.length === 1 ? '' : 's'}` : '';
+  if(!RECORDS.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">🪪</div><p>No check-ins in that range.</p></div>';
+    return;
+  }
+  wrap.innerHTML = `<div class="roster-wrap"><table class="roster-table">
+    <thead><tr><th>Event</th><th>Date</th><th>Name</th><th>License</th><th>Role</th><th>Checked in</th></tr></thead>
+    <tbody>${RECORDS.map(r => `
+      <tr>
+        <td>${esc(r.event)}</td>
+        <td>${esc(formatEventDate(r.eventDate))}</td>
+        <td>${esc(r.name)}</td>
+        <td>${esc(r.license || '—')}</td>
+        <td>${r.isHeadPyro ? '<span class="badge-hp">Head Pyro</span>' : 'Crew'}</td>
+        <td>${esc(r.checkInTime || '—')}</td>
+      </tr>`).join('')}</tbody>
+  </table></div>`;
+}
+
+function csvField(v){
+  v = String(v == null ? '' : v);
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+function downloadCsv(filename, rows){
+  const text = rows.map(r => r.map(csvField).join(',')).join('\r\n') + '\r\n';
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function exportCsv(){
+  const rows = [['Event', 'Event Date', 'Name', 'License', 'Role', 'Checked In']];
+  RECORDS.forEach(r => rows.push([r.event, (r.eventDate || '').slice(0,10), r.name, r.license || '', r.isHeadPyro ? 'Head Pyro' : 'Crew', r.checkInTime || '']));
+  downloadCsv(`Compliance_Export_${new Date().toISOString().slice(0,10)}.csv`, rows);
+}
+
+loadReport();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
