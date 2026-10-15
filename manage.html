@@ -329,7 +329,7 @@ updateThemeToggleIcon();
       </svg>
     </div>
     <div>
-      <h2>Payroll Reports</h2>
+      <h2>Payroll Reports<span class="badge" id="payrollNeedsApprovalBadge" style="display:none;"></span></h2>
       <p>Who was paid what, for every show — compiled from payroll as it's emailed, with totals per person and export to CSV or PDF by date range.</p>
     </div>
   </a>
@@ -436,6 +436,28 @@ const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJl
       const badge = document.getElementById('venuesNeedHpBadge');
       badge.textContent = needsHp;
       badge.title = `${needsHp} upcoming show${needsHp === 1 ? '' : 's'} need${needsHp === 1 ? 's' : ''} a Head Pyro assigned`;
+      badge.style.display = '';
+    }
+  } catch(err){ /* the card just shows no badge if this fails */ }
+})();
+
+// Badge on the Payroll Reports card: how many shows have at least one line item not yet
+// approved — same "Pending approval" definition the Payroll Reports page itself uses.
+(async function loadPayrollNeedsApprovalBadge(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecords`, { cache: 'no-store' });
+    const data = await res.json();
+    const records = Array.isArray(data.records) ? data.records : [];
+    const bySubmission = {};
+    records.forEach(r => {
+      const key = r.submissionId || r.id;
+      (bySubmission[key] = bySubmission[key] || []).push(r);
+    });
+    const needsApproval = Object.values(bySubmission).filter(items => !items.every(it => it.status === 'Approved')).length;
+    if(needsApproval){
+      const badge = document.getElementById('payrollNeedsApprovalBadge');
+      badge.textContent = needsApproval;
+      badge.title = `${needsApproval} show${needsApproval === 1 ? '' : 's'} with payroll pending approval`;
       badge.style.display = '';
     }
   } catch(err){ /* the card just shows no badge if this fails */ }
