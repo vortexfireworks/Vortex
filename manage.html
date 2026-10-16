@@ -441,6 +441,7 @@ async function checkPassword(){
 function unlockManage(){
   document.getElementById('lockScreen').style.display = 'none';
   document.getElementById('mainContent').style.display = 'block';
+  loadDashboardBadges();
 }
 
 // Forget the sign-in and the crew list kept on this phone (for a shared phone).
@@ -449,80 +450,89 @@ function lockThisPhone(){
   location.replace(location.pathname.split('/').pop());
 }
 
+// Flags, on the Venues card, how many upcoming shows still have no Assigned Head Pyro.
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O0-lC7U01tCclhAVIrrGEwLfVoaa142YYGU0OyX1tBCiK1nGOqf_n8A/exec";
+
 if(Auth.has('admin')){
   unlockManage();
 } else if(Auth.expiredNotice()){
   document.querySelector('#lockScreen p').textContent = 'Your sign-in ended. Enter the password to continue.';
 }
 
-// Flags, on the Venues card, how many upcoming shows still have no Assigned Head Pyro.
-const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O0-lC7U01tCclhAVIrrGEwLfVoaa142YYGU0OyX1tBCiK1nGOqf_n8A/exec";
-(async function loadNeedsHpBadge(){
-  try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
-    const venues = await res.json();
-    const today = new Date();
-    const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
-    const needsHp = (Array.isArray(venues) ? venues : []).filter(v => v.eventDate && v.eventDate >= todayStr && !v.assignedHp).length;
-    if(needsHp){
-      const badge = document.getElementById('venuesNeedHpBadge');
-      badge.textContent = needsHp;
-      badge.title = `${needsHp} upcoming show${needsHp === 1 ? '' : 's'} need${needsHp === 1 ? 's' : ''} a Head Pyro assigned`;
-      badge.style.display = '';
-    }
-  } catch(err){ /* the card just shows no badge if this fails */ }
-})();
+// These badges only make sense once signed in — the cards they decorate are hidden behind
+// the lock screen anyway. Skipping them pre-login also avoids a bad loop: an admin-only
+// fetch made before sign-in comes back as an auth error, which used to bounce the page back
+// to itself (manage.html is its own lock screen) over and over, each time with a longer and
+// longer "return to" link, until the browser gave up with "URI Too Long". So this only ever
+// runs from unlockManage() — once at load if already signed in, and again right after login.
+function loadDashboardBadges(){
+  (async function loadNeedsHpBadge(){
+    try{
+      const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
+      const venues = await res.json();
+      const today = new Date();
+      const todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+      const needsHp = (Array.isArray(venues) ? venues : []).filter(v => v.eventDate && v.eventDate >= todayStr && !v.assignedHp).length;
+      if(needsHp){
+        const badge = document.getElementById('venuesNeedHpBadge');
+        badge.textContent = needsHp;
+        badge.title = `${needsHp} upcoming show${needsHp === 1 ? '' : 's'} need${needsHp === 1 ? 's' : ''} a Head Pyro assigned`;
+        badge.style.display = '';
+      }
+    } catch(err){ /* the card just shows no badge if this fails */ }
+  })();
 
-// Badge on the Payroll Reports card: how many shows have at least one line item not yet
-// approved — same "Pending approval" definition the Payroll Reports page itself uses.
-(async function loadPayrollNeedsApprovalBadge(){
-  try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecords`, { cache: 'no-store' });
-    const data = await res.json();
-    const records = Array.isArray(data.records) ? data.records : [];
-    const bySubmission = {};
-    records.forEach(r => {
-      const key = r.submissionId || r.id;
-      (bySubmission[key] = bySubmission[key] || []).push(r);
-    });
-    const needsApproval = Object.values(bySubmission).filter(items => !items.every(it => it.status === 'Approved')).length;
-    if(needsApproval){
-      const badge = document.getElementById('payrollNeedsApprovalBadge');
-      badge.textContent = needsApproval;
-      badge.title = `${needsApproval} show${needsApproval === 1 ? '' : 's'} with payroll pending approval`;
-      badge.style.display = '';
-    }
-  } catch(err){ /* the card just shows no badge if this fails */ }
-})();
+  // Badge on the Payroll Reports card: how many shows have at least one line item not yet
+  // approved — same "Pending approval" definition the Payroll Reports page itself uses.
+  (async function loadPayrollNeedsApprovalBadge(){
+    try{
+      const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecords`, { cache: 'no-store' });
+      const data = await res.json();
+      const records = Array.isArray(data.records) ? data.records : [];
+      const bySubmission = {};
+      records.forEach(r => {
+        const key = r.submissionId || r.id;
+        (bySubmission[key] = bySubmission[key] || []).push(r);
+      });
+      const needsApproval = Object.values(bySubmission).filter(items => !items.every(it => it.status === 'Approved')).length;
+      if(needsApproval){
+        const badge = document.getElementById('payrollNeedsApprovalBadge');
+        badge.textContent = needsApproval;
+        badge.title = `${needsApproval} show${needsApproval === 1 ? '' : 's'} with payroll pending approval`;
+        badge.style.display = '';
+      }
+    } catch(err){ /* the card just shows no badge if this fails */ }
+  })();
 
-// Badge on the Photo Wall card: how many submitted photos are still waiting on a decision.
-(async function loadPhotoWallPendingBadge(){
-  try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=photoWallAll`, { cache: 'no-store' });
-    const photos = await res.json();
-    const pending = (Array.isArray(photos) ? photos : []).filter(p => p.status === 'Pending').length;
-    if(pending){
-      const badge = document.getElementById('photoWallPendingBadge');
-      badge.textContent = pending;
-      badge.title = `${pending} photo${pending === 1 ? '' : 's'} waiting on review`;
-      badge.style.display = '';
-    }
-  } catch(err){ /* the card just shows no badge if this fails */ }
-})();
+  // Badge on the Photo Wall card: how many submitted photos are still waiting on a decision.
+  (async function loadPhotoWallPendingBadge(){
+    try{
+      const res = await fetch(`${CHECKIN_API_URL}?type=photoWallAll`, { cache: 'no-store' });
+      const photos = await res.json();
+      const pending = (Array.isArray(photos) ? photos : []).filter(p => p.status === 'Pending').length;
+      if(pending){
+        const badge = document.getElementById('photoWallPendingBadge');
+        badge.textContent = pending;
+        badge.title = `${pending} photo${pending === 1 ? '' : 's'} waiting on review`;
+        badge.style.display = '';
+      }
+    } catch(err){ /* the card just shows no badge if this fails */ }
+  })();
 
-// Badge on the Tasks card: the same total the Tasks password's login alert would show.
-(async function loadTasksPendingBadge(){
-  try{
-    const res = await fetch(`${CHECKIN_API_URL}?type=pendingTasksSummary`, { cache: 'no-store' });
-    const tasks = await res.json();
-    if(tasks && tasks.totalCount){
-      const badge = document.getElementById('tasksPendingBadge');
-      badge.textContent = tasks.totalCount;
-      badge.title = `${tasks.totalCount} task${tasks.totalCount === 1 ? '' : 's'} need attention`;
-      badge.style.display = '';
-    }
-  } catch(err){ /* the card just shows no badge if this fails */ }
-})();
+  // Badge on the Tasks card: the same total the Tasks password's login alert would show.
+  (async function loadTasksPendingBadge(){
+    try{
+      const res = await fetch(`${CHECKIN_API_URL}?type=pendingTasksSummary`, { cache: 'no-store' });
+      const tasks = await res.json();
+      if(tasks && tasks.totalCount){
+        const badge = document.getElementById('tasksPendingBadge');
+        badge.textContent = tasks.totalCount;
+        badge.title = `${tasks.totalCount} task${tasks.totalCount === 1 ? '' : 's'} need attention`;
+        badge.style.display = '';
+      }
+    } catch(err){ /* the card just shows no badge if this fails */ }
+  })();
+}
 </script>
 </body>
 </html>

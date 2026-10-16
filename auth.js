@@ -20,7 +20,18 @@
   function bestToken(){ return read('admin') || read('hp') || ''; }
   function here(){ return (location.pathname.split('/').pop() || 'index.html') + location.search; }
   function toLock(tier, why){
-    location.replace(LOCK_PAGE[tier] + '?next=' + encodeURIComponent(here()) + (why ? '&why=' + why : ''));
+    var target = LOCK_PAGE[tier];
+    // The lock screen for a tier can BE the protected page itself (manage.html is both the
+    // Manage/Edit password screen and the Manage/Edit page). If something on that page tries
+    // to call the server before sign-in and gets bounced here, sending it to "manage.html?next=
+    // manage.html" is pointless (we're already here) — and every re-bounce re-encodes the last
+    // next, so the query string doubles in length each time until the browser refuses the URL.
+    // When the lock page is the current page, just reload it plain instead of chaining next=.
+    if((location.pathname.split('/').pop() || 'index.html') === target){
+      location.replace(target + (why ? '?why=' + why : ''));
+      return;
+    }
+    location.replace(target + '?next=' + encodeURIComponent(here()) + (why ? '&why=' + why : ''));
   }
 
   var Auth = {
