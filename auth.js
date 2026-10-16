@@ -231,6 +231,9 @@
     if(tasks.photoWallPending && tasks.photoWallPending.length){
       lines.push('• ' + tasks.photoWallPending.length + ' photo' + (tasks.photoWallPending.length === 1 ? '' : 's') + ' waiting on review');
     }
+    if(tasks.accessRequests && tasks.accessRequests.length){
+      lines.push('• ' + tasks.accessRequests.length + ' Google sign-in' + (tasks.accessRequests.length === 1 ? '' : 's') + ' waiting on access approval');
+    }
     return lines.join('\n');
   };
 })();

@@ -396,7 +396,7 @@ updateThemeToggleIcon();
       </svg>
     </div>
     <div>
-      <h2>Manage Access</h2>
+      <h2>Manage Access<span class="badge" id="accessRequestsBadge" style="display:none;"></span></h2>
       <p>Let specific people sign in with their own Google account, and choose what each one can reach.</p>
     </div>
   </a>
@@ -571,6 +571,21 @@ function loadDashboardBadges(){
         const badge = document.getElementById('tasksPendingBadge');
         badge.textContent = tasks.totalCount;
         badge.title = `${tasks.totalCount} task${tasks.totalCount === 1 ? '' : 's'} need attention`;
+        badge.style.display = '';
+      }
+    } catch(err){ /* the card just shows no badge if this fails */ }
+  })();
+
+  // Badge on the Manage Access card: how many Google sign-ins are waiting on an admin to grant them a role.
+  (async function loadAccessRequestsBadge(){
+    try{
+      const res = await fetch(`${CHECKIN_API_URL}?type=accessRequests`, { cache: 'no-store' });
+      const requests = await res.json();
+      const pending = Array.isArray(requests) ? requests.length : 0;
+      if(pending){
+        const badge = document.getElementById('accessRequestsBadge');
+        badge.textContent = pending;
+        badge.title = `${pending} Google sign-in${pending === 1 ? '' : 's'} waiting on access approval`;
         badge.style.display = '';
       }
     } catch(err){ /* the card just shows no badge if this fails */ }

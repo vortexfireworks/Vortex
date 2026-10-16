@@ -133,6 +133,7 @@ updateThemeToggleIcon();
   .role-check input{width:auto;}
 
   .acc-row{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .req-row{border-left:3px solid #ff8c00;}
   .acc-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
   .acc-name{font-weight:700;font-size:14px;color:var(--ink);}
   .acc-email{font-size:12px;color:var(--ink-soft);margin-top:2px;}
@@ -163,6 +164,11 @@ updateThemeToggleIcon();
 <div class="sheet">
   <div class="section">
     <p class="desc">People on this list can sign in with their own Google account instead of typing a shared password. Add their Google email, their name, and which parts of the app they should be able to use. The shared passwords keep working for everyone else.</p>
+
+    <div id="requestsSection" style="display:none;">
+      <p class="list-title" id="requestsCount">PENDING ACCESS REQUESTS</p>
+      <div id="requestsList" style="margin-bottom:24px;"></div>
+    </div>
 
     <div class="editor-box">
       <p class="label-title" id="editorTitle">ADD SOMEONE</p>
@@ -267,7 +273,7 @@ async function saveAccess(){
   try{
     await postJson({ recordType: 'accessRoleSet', email, name, roles });
     resetEditor();
-    await loadAccess();
+    await Promise.all([loadAccess(), loadAccessRequests()]);
     setStatus($('saveStatus'), 'Saved ✓', 'ok');
   } catch(err){
     setStatus(st, err.message || "Couldn't save — check your connection and try again.", 'err');
@@ -315,7 +321,63 @@ async function loadAccess(){
     : '<div class="empty-state"><div class="icon">🔐</div><p>Nobody is set up for Google sign-in yet. Add someone above.</p></div>';
 }
 
+function formatRequestedAt(iso){
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+}
+
+// Fills the editor with this person's email/name and scrolls up so the admin just has to check roles and Save.
+function grantFromRequest(email, name){
+  resetEditor();
+  $('accEmail').value = email;
+  $('accName').value = name || '';
+  $('editorTitle').textContent = 'GRANTING ' + (name || email).toUpperCase();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  $('accName').focus();
+}
+
+async function dismissRequest(email){
+  if(!confirm(`Dismiss the request from ${email} without granting access?`)) return;
+  try{
+    await postJson({ recordType: 'accessRequestDismiss', email });
+    await loadAccessRequests();
+  } catch(err){
+    alert(err.message || "Couldn't dismiss — check your connection and try again.");
+  }
+}
+
+async function loadAccessRequests(){
+  const section = $('requestsSection'), list = $('requestsList');
+  let data;
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=accessRequests`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    data = await res.json();
+    if(!Array.isArray(data)) throw new Error('Unexpected reply');
+  } catch(err){
+    section.style.display = 'none';
+    return;
+  }
+  if(!data.length){
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  $('requestsCount').textContent = `${data.length} PENDING ACCESS REQUEST${data.length === 1 ? '' : 'S'}`;
+  list.innerHTML = data.map(r => `
+    <div class="acc-row req-row">
+      <div class="acc-top"><span class="acc-name">${esc(r.name || r.email)}</span><span class="acc-email">${esc(formatRequestedAt(r.firstRequestedAt))}</span></div>
+      <div class="acc-email">${esc(r.email)}</div>
+      <div class="acc-actions">
+        <button type="button" onclick='grantFromRequest(${JSON.stringify(r.email)}, ${JSON.stringify(r.name || "")})'>Grant access</button>
+        <button type="button" class="danger" onclick="dismissRequest(${JSON.stringify(r.email)})">Dismiss</button>
+      </div>
+    </div>`).join('');
+}
+
 loadAccess();
+loadAccessRequests();
 
 /* ---- CSV import / export ----
    Columns: Email, Name, Roles. Roles is one or more of crew, hp, payroll, photoMod, admin, separated by
@@ -441,7 +503,7 @@ async function importCsv(){
   }
   btn.disabled = false;
   fileInput.value = '';
-  await loadAccess();
+  await Promise.all([loadAccess(), loadAccessRequests()]);
   setStatus(st, `Imported ${ok} of ${valid.length}.`, failed.length ? 'err' : 'ok');
   const allErrors = errors.concat(failed);
   if(allErrors.length) errBox.innerHTML = allErrors.map(e => `<p class="import-err">${esc(e)}</p>`).join('');

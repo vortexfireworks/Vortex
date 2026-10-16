@@ -1109,7 +1109,8 @@ const GET_LEVELS = {
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'payroll',
   payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'payroll', myPayStatus: 'hp', scheduleStatus: 'public', scheduleFeed: 'public',
   myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'public',
-  photoWallApproved: 'public', photoWallAll: 'photoMod', pendingTasksSummary: 'admin', accessRoles: 'admin'
+  photoWallApproved: 'public', photoWallAll: 'photoMod', pendingTasksSummary: 'admin', accessRoles: 'admin',
+  accessRequests: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
@@ -1255,11 +1256,14 @@ function getPendingTasksSummary(ss) {
     .filter(p => p.status === 'Pending')
     .map(p => ({ name: p.name, caption: p.caption, submittedAt: p.submittedAt }));
 
+  const accessRequests = listAccessRequests(ss);
+
   return {
     venuesNeedHp: venuesNeedHp,
     payrollNeedsApproval: payrollNeedsApproval,
     photoWallPending: photoWallPending,
-    totalCount: venuesNeedHp.length + payrollNeedsApproval.length + photoWallPending.length
+    accessRequests: accessRequests,
+    totalCount: venuesNeedHp.length + payrollNeedsApproval.length + photoWallPending.length + accessRequests.length
   };
 }
 
@@ -1353,6 +1357,8 @@ function setAccessRole(ss, email, name, roles) {
   const sheet = getOrCreateAccessRolesSheet(ss);
   const values = sheet.getDataRange().getValues();
   const needle = email.toLowerCase();
+  // Granting access answers any pending request from this email, so it drops off the action-item list.
+  deleteAccessRequest(ss, email);
   for (let i = 1; i < values.length; i++) {
     if (String(values[i][0] || '').trim().toLowerCase() === needle) {
       sheet.getRange(i + 1, 1, 1, 4).setValues([[email, name || '', cleanRoles.join(','), values[i][3] || new Date()]]);
@@ -1403,6 +1409,7 @@ function handleGoogleLogin(data, ss) {
   }
   const roles = getRolesForEmail(ss, verified.email);
   if (!roles.length) {
+    recordAccessRequest(ss, verified.email, verified.name);
     return jsonOut({
       status: 'error', code: 'notprovisioned',
       message: "You're signed in as " + verified.email + ", but you're not set up for access yet. Ask an admin to add you in Manage Access."
@@ -1412,6 +1419,71 @@ function handleGoogleLogin(data, ss) {
     status: 'ok', token: makeToken(roles), roles: roles, email: verified.email, name: verified.name,
     expiresIn: TOKEN_LIFETIME_SECONDS
   });
+}
+
+/* ---- Pending access requests ----
+   Every time someone signs in with Google but isn't on the Manage Access roster yet, this logs
+   it (one row per email, just the latest attempt) so it shows up as an action item for admins —
+   on the Manage Access page, in the Tasks list, and as a badge on the Manage/Edit home screen —
+   instead of that person's request disappearing the moment they close the tab. */
+const ACCESS_REQUESTS_SHEET = 'AccessRequests';
+const ACCESS_REQUESTS_HEADERS = ['Email', 'Name', 'FirstRequestedAt', 'LastRequestedAt'];
+
+function getOrCreateAccessRequestsSheet(ss) {
+  let sheet = ss.getSheetByName(ACCESS_REQUESTS_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(ACCESS_REQUESTS_SHEET);
+    sheet.appendRow(ACCESS_REQUESTS_HEADERS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function recordAccessRequest(ss, email, name) {
+  email = String(email || '').trim();
+  if (!email) return;
+  const sheet = getOrCreateAccessRequestsSheet(ss);
+  const values = sheet.getDataRange().getValues();
+  const needle = email.toLowerCase();
+  const now = new Date();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim().toLowerCase() === needle) {
+      sheet.getRange(i + 1, 2, 1, 3).setValues([[name || values[i][1] || '', values[i][2] || now, now]]);
+      return;
+    }
+  }
+  sheet.appendRow([email, name || '', now, now]);
+}
+
+// Oldest request first, so the admin sees who's been waiting longest.
+function listAccessRequests(ss) {
+  const sheet = getOrCreateAccessRequestsSheet(ss);
+  const values = sheet.getDataRange().getValues();
+  const out = [];
+  for (let i = 1; i < values.length; i++) {
+    const email = String(values[i][0] || '').trim();
+    if (!email) continue;
+    out.push({
+      email: email, name: String(values[i][1] || ''),
+      firstRequestedAt: values[i][2] ? new Date(values[i][2]).toISOString() : '',
+      lastRequestedAt: values[i][3] ? new Date(values[i][3]).toISOString() : ''
+    });
+  }
+  out.sort((a, b) => a.firstRequestedAt.localeCompare(b.firstRequestedAt));
+  return out;
+}
+
+function deleteAccessRequest(ss, email) {
+  const needle = String(email || '').trim().toLowerCase();
+  if (!needle) return;
+  const sheet = getOrCreateAccessRequestsSheet(ss);
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim().toLowerCase() === needle) {
+      sheet.deleteRow(i + 1);
+      return;
+    }
+  }
 }
 
 /* ---- Run these from the Apps Script editor (not from a page) ---- */
@@ -1533,6 +1605,14 @@ function doPostInner(e) {
     const denied = authorize(data.token, 'admin');
     if (denied) return denied;
     return jsonOut(deleteAccessRole(ss, data.email));
+  }
+  if (data.recordType === 'accessRequestDismiss') {
+    // Lets an admin clear a request without granting access — a wrong email, someone who
+    // shouldn't have access, or a duplicate of one already handled.
+    const denied = authorize(data.token, 'admin');
+    if (denied) return denied;
+    deleteAccessRequest(ss, data.email);
+    return jsonOut({status: 'ok'});
   }
   if (data.recordType && data.recordType !== 'contact') {
     const denied = authorize(data.token, POST_LEVELS[data.recordType] || 'admin');
@@ -2955,6 +3035,11 @@ function doGetInner(e) {
   if (e.parameter.type === 'accessRoles') {
     // Admin-only — the roster the Manage Access page edits (who can sign in with Google, and what they can do).
     return jsonOut(listAccessRoles(ss));
+  }
+
+  if (e.parameter.type === 'accessRequests') {
+    // Admin-only — people who tried signing in with Google but aren't on the roster yet.
+    return jsonOut(listAccessRequests(ss));
   }
 
   if (e.parameter.type === 'payrollRecordsForName') {

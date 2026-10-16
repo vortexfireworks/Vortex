@@ -147,6 +147,11 @@ function formatEventDate(d){
   if(p.length !== 3) return d;
   return new Date(Number(p[0]), Number(p[1])-1, Number(p[2])).toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
 }
+function formatRequestedAt(iso){
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric' });
+}
 
 async function loadTasks(){
   const wrap = $('tasksWrap');
@@ -181,6 +186,12 @@ async function loadTasks(){
     'Photos waiting on review', tasks.photoWallPending,
     p => `<div class="task-row"><div><div class="who">${esc(p.name || 'Anonymous')}</div>${p.caption ? `<div class="what">${esc(p.caption)}</div>` : ''}</div></div>`,
     'manage-photo-wall.html', 'Open Photo Wall'
+  ));
+
+  groups.push(taskGroupHtml(
+    'Google sign-ins waiting on access', tasks.accessRequests,
+    r => `<div class="task-row"><div><div class="who">${esc(r.name || r.email)}</div><div class="what">${esc(r.email)}</div></div><div class="when">${esc(formatRequestedAt(r.firstRequestedAt))}</div></div>`,
+    'manage-access.html', 'Open Manage Access'
   ));
 
   wrap.innerHTML = groups.join('');
