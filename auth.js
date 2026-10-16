@@ -86,13 +86,20 @@
     // Loads the Google Identity Services script (once) and draws its sign-in button into elementId.
     // onToken(idToken) is called when someone successfully signs in with Google on that button.
     renderGoogleButton: function(elementId, onToken){
+      // Matches whichever theme the page already picked (every page sets data-theme before its
+      // body renders) — 'outline' reads fine on the light background, but on the dark background
+      // a solid button stands out against the surrounding cards better than an outline does.
+      function buttonTheme(){
+        try{ return document.documentElement.getAttribute('data-theme') === 'light' ? 'outline' : 'filled_black'; }
+        catch(e){ return 'outline'; }
+      }
       function draw(){
         try{
           google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
             callback: function(resp){ onToken(resp.credential); }
           });
-          google.accounts.id.renderButton(document.getElementById(elementId), { theme: 'outline', size: 'large', width: 280 });
+          google.accounts.id.renderButton(document.getElementById(elementId), { theme: buttonTheme(), size: 'large', width: 280 });
         } catch(e){ /* Google script failed to load or init — nothing else to fall back to now */ }
       }
       if(window.google && window.google.accounts && window.google.accounts.id){ draw(); return; }

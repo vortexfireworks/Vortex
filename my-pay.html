@@ -220,6 +220,27 @@ function scheduleLoad(){
 let lastRecords = null;
 let knownHasPin = false;
 
+// The name this browser's signed-in Google account was auto-matched to (via myContactInfo), if
+// any. Lookups for exactly this name skip the PIN/phone box entirely — see runLookup().
+let googleMatchedName = '';
+
+// Head Pyro Tools already requires a Google sign-in to get here, so if that account's email is on
+// file for a crew member, there's no reason to make that same person also type their name and a
+// PIN just to see their own pay. If nothing matches (or they type a different name — looking
+// someone else up), the normal PIN/phone box takes over with no extra steps.
+async function attemptGoogleAutoLookup(){
+  if(!(window.Auth && Auth.has('any'))) return;
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=myContactInfo`, { cache: 'no-store' });
+    const data = await res.json();
+    if(data && data.found && data.name){
+      googleMatchedName = data.name;
+      $('nameInput').value = data.name;
+      runLookup();
+    }
+  } catch(err){ /* the manual name + PIN/phone flow still works */ }
+}
+
 function rerenderOrLookup(){
   if(lastRecords){
     applyDateFilterAndRender(lastRecords);
@@ -358,17 +379,27 @@ async function runLookup(){
     return;
   }
 
-  // Figure out whether this name has a PIN on file, so the right box (PIN or phone) is showing.
-  try{
-    const statusRes = await fetch(`${CHECKIN_API_URL}?type=payrollPinStatus&name=${encodeURIComponent(name)}`, { cache: 'no-store' });
-    const statusData = await statusRes.json();
-    updateCredentialField(!!statusData.hasPin);
-  } catch(err){ /* keep whatever box was already showing */ }
+  // Signed in with the Google account already matched to this exact name — no PIN or phone
+  // needed. Typing a DIFFERENT name (looking someone else up) falls straight back to the normal
+  // PIN/phone box below, since it no longer matches googleMatchedName.
+  const viaGoogle = !!googleMatchedName && name.toLowerCase() === googleMatchedName.toLowerCase();
+
+  if(viaGoogle){
+    $('phoneField').style.display = 'none';
+    $('pinField').style.display = 'none';
+  } else {
+    // Figure out whether this name has a PIN on file, so the right box (PIN or phone) is showing.
+    try{
+      const statusRes = await fetch(`${CHECKIN_API_URL}?type=payrollPinStatus&name=${encodeURIComponent(name)}`, { cache: 'no-store' });
+      const statusData = await statusRes.json();
+      updateCredentialField(!!statusData.hasPin);
+    } catch(err){ /* keep whatever box was already showing */ }
+  }
 
   const usingPin = knownHasPin;
   const pin = $('pinInput').value.trim();
   const phoneDigits = $('phoneInput').value.replace(/\D/g, '');
-  const haveCredential = usingPin ? pin.length >= 4 : phoneDigits.length >= 7;
+  const haveCredential = viaGoogle || (usingPin ? pin.length >= 4 : phoneDigits.length >= 7);
   if(!haveCredential){
     wrap.innerHTML = `<div class="empty-state"><div class="icon">💵</div><p>Enter your ${usingPin ? 'PIN' : 'phone number'} above to see your pay history.</p></div>`;
     return;
@@ -377,7 +408,7 @@ async function runLookup(){
   wrap.innerHTML = '<p class="loading-pulse">Checking…</p>';
   let data;
   try{
-    const credParam = usingPin ? `&pin=${encodeURIComponent(pin)}` : `&phone=${encodeURIComponent(phoneDigits)}`;
+    const credParam = viaGoogle ? '' : (usingPin ? `&pin=${encodeURIComponent(pin)}` : `&phone=${encodeURIComponent(phoneDigits)}`);
     const res = await fetch(`${CHECKIN_API_URL}?type=payrollRecordsForName&name=${encodeURIComponent(name)}${credParam}`, { cache: 'no-store' });
     if(!res.ok) throw new Error('Request failed');
     data = await res.json();
@@ -391,6 +422,14 @@ async function runLookup(){
     return;
   }
   if(!data.verified){
+    if(viaGoogle){
+      // The server didn't find a matching email after all (record changed since the page
+      // loaded) — drop back to the manual box instead of silently failing forever.
+      googleMatchedName = '';
+      updateCredentialField(false);
+      wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not confirm that from your Google sign-in — enter your PIN or phone number below instead.</p>';
+      return;
+    }
     wrap.innerHTML = usingPin
       ? '<p style="font-size:13px;color:var(--brick);">That PIN doesn\'t match. Double-check it, or use "Forgot your PIN?" below to switch back to your phone number.</p>'
       : '<p style="font-size:13px;color:var(--brick);">That name and phone number don\'t match what\'s on file together. Double-check both and try again.</p>';
@@ -401,7 +440,8 @@ async function runLookup(){
   applyDateFilterAndRender(lastRecords);
 
   // First time this name has looked itself up with no PIN set up yet — offer to create one.
-  if(!usingPin && !data.hasPin){
+  // (Not when it came in via Google — that's already a faster path than a PIN would be.)
+  if(!usingPin && !data.hasPin && !viaGoogle){
     showPinOffer(name, phoneDigits);
   }
 }
@@ -417,6 +457,7 @@ async function checkMyPayStatus(){
     }
   } catch(err){ /* if the check itself fails, fall through and let the normal lookup try */ }
   loadNames();
+  attemptGoogleAutoLookup();
 }
 checkMyPayStatus();
 </script>

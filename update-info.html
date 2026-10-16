@@ -186,6 +186,10 @@ updateThemeToggleIcon();
 
   <div class="divider"></div>
 
+  <div id="signedInBar" style="display:none;text-align:center;font-size:11.5px;color:var(--ink-soft);margin:-10px 0 16px;">
+    Signed in as <strong id="signedInLabel"></strong> &middot; <a href="#" onclick="signOutGoogleHere();return false;" style="color:var(--ink-soft);text-decoration:underline;">Sign out</a>
+  </div>
+
   <div class="card">
     <div class="step-indicator" id="stepIndicator">
       <span class="dot active" id="stepDot1"></span>
@@ -333,6 +337,42 @@ function fillEditStep(name, data){
   document.getElementById('stepLabel').textContent = 'Step 2 of 2 — Update';
 }
 
+// Called after a successful manual name+phone verify. If they're ALSO signed in with Google and
+// their record has no email on file yet, pre-fill it with their Google account's email — saving
+// changes links the two, so next time the Google shortcut above finds them automatically instead
+// of asking for name+phone again. They're free to clear or change it before saving.
+function offerToLinkGoogleEmail(){
+  if(!(window.Auth && Auth.has('any'))) return;
+  const emailField = document.getElementById('eEmail');
+  if(emailField.value.trim()) return;
+  const info = Auth.googleInfo();
+  if(!info.email) return;
+  emailField.value = info.email;
+  const note = document.getElementById('saveMsg');
+  note.textContent = `Filled in your email from your Google sign-in (${info.email}) — save changes to link your account so next time you can just sign in, or clear this field if you'd rather not.`;
+  note.className = 'msg';
+}
+
+// Shows who's signed in (if anyone) just under the header, on both steps of this page, with a
+// way to sign out without having to go back to the main screen first.
+function updateSignedInBar(){
+  try{
+    const bar = document.getElementById('signedInBar');
+    const signedIn = window.Auth && Auth.has('any');
+    if(!bar) return;
+    bar.style.display = signedIn ? '' : 'none';
+    if(signedIn){
+      const info = Auth.googleInfo();
+      document.getElementById('signedInLabel').textContent = info.name || info.email || 'crew';
+    }
+  } catch(e){}
+}
+function signOutGoogleHere(){
+  if(window.Auth) Auth.signOutGoogle();
+  updateSignedInBar();
+}
+updateSignedInBar();
+
 // Google sign-in callback (Auth.renderGoogleButton). Signs in, then looks up a contact record
 // whose Email on file matches that Google account — the server only ever matches the signed-in
 // account's OWN email (see myContactInfo on the backend), so this can only ever pull up the
@@ -347,6 +387,7 @@ function onGoogleToken(idToken){
       msgEl.className = 'msg err';
       return;
     }
+    updateSignedInBar();
     lookupMyContactInfo();
   });
 }
@@ -397,6 +438,7 @@ async function verifyIdentity(){
       verifiedName = name;
       verifiedPhone = phone;
       fillEditStep(name, data);
+      offerToLinkGoogleEmail();
     } else {
       msgEl.textContent = "That name and phone number don't match what's on file.";
       msgEl.className = 'msg err';

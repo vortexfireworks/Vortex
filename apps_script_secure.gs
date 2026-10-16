@@ -1235,8 +1235,26 @@ function authError(needed) {
   else if (needed === 'crew' || needed === 'any') message = 'Sign in with your crew Google account to do this.';
   return jsonOut({ status: 'error', code: 'auth', needs: needed, message: message });
 }
-function authorize(token, needed) {
-  return hasRole(rolesFromToken(token), needed) ? null : authError(needed);
+// How long before a token's expiry it was issued at — lets anything holding a token work out
+// when it was handed out without needing to store that separately.
+function tokenIssuedAt(token) {
+  if (!token || typeof token !== 'string') return 0;
+  const parts = token.split('.');
+  if (parts.length !== 3 && parts.length !== 4) return 0;
+  const expires = Number(parts[1]);
+  return expires ? expires - TOKEN_LIFETIME_SECONDS : 0;
+}
+function authorize(ss, token, needed) {
+  if (!hasRole(rolesFromToken(token), needed)) return authError(needed);
+  if (needed === 'public') return null;
+  // The role check above only looks at what the token itself claims. A Manage Access change since
+  // this token was issued (role removed, person deleted) revokes it immediately — see revokeAccessFor.
+  const email = emailFromToken(token);
+  if (email) {
+    const issuedAt = tokenIssuedAt(token);
+    if (issuedAt && getRevokedAt(ss, email) > issuedAt) return authError(needed);
+  }
+  return null;
 }
 // Pulls together everything across the app that's waiting on an admin decision, for tasks.html.
 // Each category mirrors a badge already shown
@@ -1322,6 +1340,23 @@ function getRolesForEmail(ss, email) {
   return match ? match.roles.filter(r => KNOWN_ROLES.indexOf(r) > -1) : [];
 }
 
+// True if changing `email`'s roles to `newRolesOrNull` (null meaning "removed entirely") would
+// leave the roster with no admin at all. Only blocks when email is itself the LAST admin — editing
+// or removing anyone else is always fine, even if they're also an admin, as long as one other
+// admin account remains.
+function wouldRemoveLastAdmin(ss, email, newRolesOrNull) {
+  const needle = String(email || '').trim().toLowerCase();
+  const roster = listAccessRoles(ss);
+  const current = roster.find(r => r.email.toLowerCase() === needle);
+  const wasAdmin = !!(current && current.roles.indexOf('admin') > -1);
+  if (!wasAdmin) return false;
+  const otherAdminExists = roster.some(r => r.email.toLowerCase() !== needle && r.roles.indexOf('admin') > -1);
+  if (otherAdminExists) return false;
+  const stillAdmin = Array.isArray(newRolesOrNull) && newRolesOrNull.indexOf('admin') > -1;
+  return !stillAdmin;
+}
+const LAST_ADMIN_MESSAGE = "Can't do that — it would leave no one with admin access. Grant admin to someone else first.";
+
 // Adds a person to the roster, or overwrites their name/roles if the email is already there.
 function setAccessRole(ss, email, name, roles) {
   email = String(email || '').trim();
@@ -1331,6 +1366,7 @@ function setAccessRole(ss, email, name, roles) {
   const cleanRoles = (Array.isArray(roles) ? roles : String(roles || '').split(','))
     .map(r => String(r).trim()).filter(r => KNOWN_ROLES.indexOf(r) > -1);
   if (!cleanRoles.length) return { status: 'error', message: 'Pick at least one role.' };
+  if (wouldRemoveLastAdmin(ss, email, cleanRoles)) return { status: 'error', message: LAST_ADMIN_MESSAGE };
   const sheet = getOrCreateAccessRolesSheet(ss);
   const values = sheet.getDataRange().getValues();
   const needle = email.toLowerCase();
@@ -1339,6 +1375,9 @@ function setAccessRole(ss, email, name, roles) {
   for (let i = 1; i < values.length; i++) {
     if (String(values[i][0] || '').trim().toLowerCase() === needle) {
       sheet.getRange(i + 1, 1, 1, 4).setValues([[email, name || '', cleanRoles.join(','), values[i][3] || new Date()]]);
+      // Roles just changed — make that take effect right away instead of leaving whatever token
+      // they're already holding valid for up to another day.
+      revokeAccessFor(ss, email);
       return { status: 'ok' };
     }
   }
@@ -1348,15 +1387,83 @@ function setAccessRole(ss, email, name, roles) {
 
 function deleteAccessRole(ss, email) {
   const needle = String(email || '').trim().toLowerCase();
+  if (wouldRemoveLastAdmin(ss, email, null)) return { status: 'error', message: LAST_ADMIN_MESSAGE };
   const sheet = getOrCreateAccessRolesSheet(ss);
   const values = sheet.getDataRange().getValues();
   for (let i = 1; i < values.length; i++) {
     if (String(values[i][0] || '').trim().toLowerCase() === needle) {
       sheet.deleteRow(i + 1);
+      revokeAccessFor(ss, email);
       return { status: 'ok' };
     }
   }
   return { status: 'error', message: 'Not found.' };
+}
+
+/* ---- Revoking access immediately ----
+   Removing someone from Manage Access (or taking a role away) only stops NEW sign-ins by itself —
+   whatever token they're already holding in their browser keeps working until it naturally
+   expires, up to TOKEN_LIFETIME_SECONDS later. revokeAccessFor() records "nothing issued to this
+   email before right now still counts," so authorize() can refuse an already-issued token the
+   moment an admin makes the change, not up to a day afterward. Only tokens with an email bound in
+   (every Google sign-in — see makeToken) can be checked this way; there's nothing to check for an
+   older token with no email bound, but those expire on their own within a day regardless. */
+const REVOKED_ACCESS_SHEET = 'RevokedAccess';
+const REVOKED_ACCESS_HEADERS = ['Email', 'RevokedAt'];
+const REVOKED_ACCESS_CACHE_KEY = 'revokedAccess_v1';
+const REVOKED_ACCESS_CACHE_SECONDS = 300;
+
+function getOrCreateRevokedAccessSheet(ss) {
+  let sheet = ss.getSheetByName(REVOKED_ACCESS_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(REVOKED_ACCESS_SHEET);
+    sheet.appendRow(REVOKED_ACCESS_HEADERS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function revokeAccessFor(ss, email) {
+  email = String(email || '').trim().toLowerCase();
+  if (!email) return;
+  const sheet = getOrCreateRevokedAccessSheet(ss);
+  const values = sheet.getDataRange().getValues();
+  const now = new Date();
+  let found = false;
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim().toLowerCase() === email) {
+      sheet.getRange(i + 1, 2).setValue(now);
+      found = true;
+      break;
+    }
+  }
+  if (!found) sheet.appendRow([email, now]);
+  try { CacheService.getScriptCache().remove(REVOKED_ACCESS_CACHE_KEY); } catch (e) { /* ignore */ }
+}
+
+// epoch seconds that email's access was last revoked at, or 0 if never. Cached briefly (and
+// cleared the moment revokeAccessFor runs) since this is checked on nearly every request.
+function getRevokedAt(ss, email) {
+  email = String(email || '').trim().toLowerCase();
+  if (!email) return 0;
+  const cache = CacheService.getScriptCache();
+  let map = null;
+  try {
+    const cached = cache.get(REVOKED_ACCESS_CACHE_KEY);
+    if (cached) map = JSON.parse(cached);
+  } catch (e) { map = null; }
+  if (!map) {
+    map = {};
+    const sheet = getOrCreateRevokedAccessSheet(ss);
+    const values = sheet.getDataRange().getValues();
+    for (let i = 1; i < values.length; i++) {
+      const e = String(values[i][0] || '').trim().toLowerCase();
+      if (!e || !values[i][1]) continue;
+      map[e] = Math.floor(new Date(values[i][1]).getTime() / 1000);
+    }
+    try { cache.put(REVOKED_ACCESS_CACHE_KEY, JSON.stringify(map), REVOKED_ACCESS_CACHE_SECONDS); } catch (e) { /* ignore */ }
+  }
+  return map[email] || 0;
 }
 
 // Asks Google itself whether this ID token is genuine, unexpired, and issued for THIS app, and
@@ -1524,6 +1631,24 @@ function listSignInLog(ss, limit) {
   return out;
 }
 
+// For the Manage Access page only — when was each email last seen signing in, pulled from the
+// sign-in log. Scans the whole log once (it's capped at SIGN_IN_LOG_MAX_ROWS rows) rather than
+// once per person on the roster, since nothing else needs this.
+function getLastSignInByEmail(ss) {
+  const sheet = getOrCreateSignInLogSheet(ss);
+  const lastRow = sheet.getLastRow();
+  const map = {};
+  if (lastRow < 2) return map;
+  const values = sheet.getRange(2, 1, lastRow - 1, SIGN_IN_LOG_HEADERS.length).getValues();
+  values.forEach(row => {
+    const email = String(row[2] || '').trim().toLowerCase();
+    if (!email || !row[0]) return;
+    const ts = new Date(row[0]).toISOString();
+    if (!map[email] || ts > map[email]) map[email] = ts;
+  });
+  return map;
+}
+
 /* ---- Run this from the Apps Script editor (not from a page) ---- */
 // Invalidates every signed-in session (Google included) by rotating the token-signing secret —
 // useful if a device or account needs to be forced to sign in again right away.
@@ -1596,25 +1721,25 @@ function doPostInner(e) {
 
   if (data.recordType === 'googleLogin') return handleGoogleLogin(data, ss);
   if (data.recordType === 'accessRoleSet') {
-    const denied = authorize(data.token, 'admin');
+    const denied = authorize(ss, data.token, 'admin');
     if (denied) return denied;
     return jsonOut(setAccessRole(ss, data.email, data.name, data.roles));
   }
   if (data.recordType === 'accessRoleDelete') {
-    const denied = authorize(data.token, 'admin');
+    const denied = authorize(ss, data.token, 'admin');
     if (denied) return denied;
     return jsonOut(deleteAccessRole(ss, data.email));
   }
   if (data.recordType === 'accessRequestDismiss') {
     // Lets an admin clear a request without granting access — a wrong email, someone who
     // shouldn't have access, or a duplicate of one already handled.
-    const denied = authorize(data.token, 'admin');
+    const denied = authorize(ss, data.token, 'admin');
     if (denied) return denied;
     deleteAccessRequest(ss, data.email);
     return jsonOut({status: 'ok'});
   }
   if (data.recordType && data.recordType !== 'contact') {
-    const denied = authorize(data.token, POST_LEVELS[data.recordType] || 'admin');
+    const denied = authorize(ss, data.token, POST_LEVELS[data.recordType] || 'admin');
     if (denied) return denied;
   }
 
@@ -2696,7 +2821,7 @@ function doGet(e) {
 function doGetInner(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const requestType = (e.parameter && e.parameter.type) || '';
-  const denied = authorize(e.parameter && e.parameter.token, GET_LEVELS[requestType] || 'hp');
+  const denied = authorize(ss, e.parameter && e.parameter.token, GET_LEVELS[requestType] || 'hp');
   if (denied) return denied;
 
   if (e.parameter.type === 'names') {
@@ -3064,8 +3189,13 @@ function doGetInner(e) {
   }
 
   if (e.parameter.type === 'accessRoles') {
-    // Admin-only — the roster the Manage Access page edits (who can sign in with Google, and what they can do).
-    return jsonOut(listAccessRoles(ss));
+    // Admin-only — the roster the Manage Access page edits (who can sign in with Google, and what
+    // they can do), plus when each person was last seen signing in, so an admin can spot a grant
+    // nobody's actually using.
+    const roster = listAccessRoles(ss);
+    const lastSignIn = getLastSignInByEmail(ss);
+    roster.forEach(r => { r.lastSignIn = lastSignIn[r.email.toLowerCase()] || ''; });
+    return jsonOut(roster);
   }
 
   if (e.parameter.type === 'accessRequests') {
@@ -3079,28 +3209,34 @@ function doGetInner(e) {
   }
 
   if (e.parameter.type === 'payrollRecordsForName') {
-    // Self-serve "My Pay": being signed in to Head Pyro Tools isn't proof of who you are (it's
-    // one shared password), so this also checks either a PIN the person set up for themselves, or
-    // (if they never set one up, or forgot it) the phone number on file for that exact name — the
-    // same way the Contacts page lets someone update their own record. Locked out per name after
-    // repeated wrong attempts, so neither a PIN nor a phone number can just be brute-forced.
+    // Self-serve "My Pay": being signed in to Head Pyro Tools only proves which Google account
+    // someone used, not which crew member's pay they're allowed to see (one HP/admin account can
+    // look up anyone's name). So this also checks one of three things for that exact name: the
+    // signed-in Google account's own email, if it matches the Email on file for that name (see
+    // emailFromToken — can only ever match the SIGNED-IN account, never a name/email a request
+    // just claims); a PIN the person set up for themselves; or (if they never set one up, or
+    // forgot it) the phone number on file — the same way Update My Info lets someone update their
+    // own record. Locked out per name after repeated wrong PIN/phone attempts (a Google-email
+    // match never counts against that, since it isn't a guess).
     if (myPayDisabled()) return jsonOut({verified: false, disabled: true, records: []});
     const nameKey = String(e.parameter.name || '').trim().toLowerCase();
     if (!nameKey) return jsonOut({verified: false, records: []});
+    const merged = getMergedContacts(ss);
+    const match = merged[nameKey];
+    const signedInEmail = emailFromToken(e.parameter.token);
+    const viaGoogle = !!(signedInEmail && match && String(match.email || '').trim().toLowerCase() === signedInEmail);
     const cache = CacheService.getScriptCache();
     const failKey = 'payrollPhoneFail_' + nameKey.replace(/[^a-z0-9]/g, '_').slice(0, 80);
     const failures = Number(cache.get(failKey) || 0);
-    if (failures >= 8) {
+    if (!viaGoogle && failures >= 8) {
       return jsonOut({verified: false, locked: true, records: []});
     }
     const pinHash = getPayrollPinHash(ss, nameKey);
     const enteredPin = String(e.parameter.pin || '').trim();
-    let ok = false;
-    if (enteredPin) {
+    let ok = viaGoogle;
+    if (!ok && enteredPin) {
       ok = !!pinHash && passwordMatches(pinHash, enteredPin);
-    } else {
-      const merged = getMergedContacts(ss);
-      const match = merged[nameKey];
+    } else if (!ok) {
       const onFilePhone = match ? String(match.phone || '').replace(/\D/g, '') : '';
       const enteredPhone = String(e.parameter.phone || '').replace(/\D/g, '');
       ok = !!match && !!onFilePhone && enteredPhone.length >= 7 && onFilePhone === enteredPhone;
