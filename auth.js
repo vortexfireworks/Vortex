@@ -189,7 +189,12 @@
       }
     }
     return realFetch(url, init).then(function(res){
-      if(res && res.type !== 'opaque'){
+      // Only bounce the page away if IT asked for a sign-in level with Auth.require() in the first
+      // place. A page like Show Schedule or Photo Wall never calls require() — it's open to everyone
+      // and makes its own best-effort or optional calls (an 'hp'-only phone lookup, a 'crew'-gated
+      // sign-up) that are expected to come back denied for a signed-out visitor; sending that visitor
+      // away to a password screen they were never asked to use would just kick them off the page.
+      if(res && res.type !== 'opaque' && pageTier){
         try{
           res.clone().json().then(function(j){ if(j && j.code === 'auth') Auth.expired(j.needs); }).catch(function(){});
         } catch(e){}
