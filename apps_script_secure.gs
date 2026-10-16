@@ -1129,8 +1129,11 @@ const POST_LEVELS = {
   scheduleSettings: 'admin', accessRoleSet: 'admin', accessRoleDelete: 'admin'
 };
 // Roles a sign-in token can carry. 'admin' always passes every check (see hasRole below); the
-// other three are narrow slices handed out to someone who should only reach one part of the app.
-const KNOWN_ROLES = ['hp', 'admin', 'payroll', 'photoMod'];
+// others are narrow slices handed out to someone who should only reach one part of the app.
+// 'crew' isn't checked anywhere in GET_LEVELS/POST_LEVELS — those pages (Check-in, Show Schedule,
+// New Hire Documents, Photo Wall) are intentionally open to everyone with the link. It exists so
+// Manage Access has a label for "this person is a regular crew member" to track in the roster.
+const KNOWN_ROLES = ['hp', 'admin', 'payroll', 'photoMod', 'crew'];
 // The OAuth 2.0 Client ID for "Sign in with Google" (Google Cloud project "Vortex Web Login").
 // This is not a secret — it identifies the app to Google, the way a public key does.
 const GOOGLE_CLIENT_ID = '691238707295-qa5ugobjgrkeou9ji46hdtp354n4dgv0.apps.googleusercontent.com';

@@ -177,6 +177,7 @@ updateThemeToggleIcon();
       <div class="field">
         <label>Roles</label>
         <div class="role-checks">
+          <label class="role-check"><input type="checkbox" value="crew" id="roleCrew"> Crew (no extra access — just a label)</label>
           <label class="role-check"><input type="checkbox" value="hp" id="roleHp"> Head Pyro Tools</label>
           <label class="role-check"><input type="checkbox" value="payroll" id="rolePayroll"> Payroll only</label>
           <label class="role-check"><input type="checkbox" value="photoMod" id="rolePhotoMod"> Photo Wall moderator only</label>
@@ -188,7 +189,7 @@ updateThemeToggleIcon();
         <button class="secondary" type="button" id="cancelEditBtn" onclick="resetEditor()" style="display:none;">Cancel</button>
         <span class="status-line" id="saveStatus"></span>
       </div>
-      <p class="hint">Full Admin can do everything, so the other checkboxes don't matter once it's checked. Someone with no role checked won't be able to sign in at all.</p>
+      <p class="hint">Full Admin can do everything, so the other checkboxes don't matter once it's checked. Someone with no role checked won't be able to sign in at all. Crew doesn't unlock anything extra — Check-in, Show Schedule, New Hire Documents, and Photo Wall are already open to everyone with the link; it's just a way to note "this is a regular crew member" in this list.</p>
     </div>
 
     <div class="editor-box">
@@ -225,7 +226,7 @@ async function postJson(payload){
   return data;
 }
 
-const ROLE_LABEL = { hp: 'Head Pyro Tools', admin: 'Full Admin', payroll: 'Payroll only', photoMod: 'Photo Wall moderator' };
+const ROLE_LABEL = { hp: 'Head Pyro Tools', admin: 'Full Admin', payroll: 'Payroll only', photoMod: 'Photo Wall moderator', crew: 'Crew' };
 let editingEmail = null;   // the original email of the row being edited, or null when adding someone new
 
 function resetEditor(){
@@ -233,7 +234,7 @@ function resetEditor(){
   $('accEmail').value = '';
   $('accEmail').disabled = false;
   $('accName').value = '';
-  $('roleHp').checked = false; $('rolePayroll').checked = false; $('rolePhotoMod').checked = false; $('roleAdmin').checked = false;
+  $('roleCrew').checked = false; $('roleHp').checked = false; $('rolePayroll').checked = false; $('rolePhotoMod').checked = false; $('roleAdmin').checked = false;
   $('editorTitle').textContent = 'ADD SOMEONE';
   $('cancelEditBtn').style.display = 'none';
   setStatus($('saveStatus'), '');
@@ -244,6 +245,7 @@ function editAccess(email, name, roles){
   $('accEmail').value = email;
   $('accEmail').disabled = true;   // changing the email here would orphan the old row; delete and re-add instead
   $('accName').value = name || '';
+  $('roleCrew').checked = roles.indexOf('crew') > -1;
   $('roleHp').checked = roles.indexOf('hp') > -1;
   $('rolePayroll').checked = roles.indexOf('payroll') > -1;
   $('rolePhotoMod').checked = roles.indexOf('photoMod') > -1;
@@ -257,7 +259,7 @@ function editAccess(email, name, roles){
 async function saveAccess(){
   const email = $('accEmail').value.trim();
   const name = $('accName').value.trim();
-  const roles = ['hp','payroll','photoMod','admin'].filter(r => $(r === 'hp' ? 'roleHp' : r === 'payroll' ? 'rolePayroll' : r === 'photoMod' ? 'rolePhotoMod' : 'roleAdmin').checked);
+  const roles = ['crew','hp','payroll','photoMod','admin'].filter(r => $(r === 'crew' ? 'roleCrew' : r === 'hp' ? 'roleHp' : r === 'payroll' ? 'rolePayroll' : r === 'photoMod' ? 'rolePhotoMod' : 'roleAdmin').checked);
   const st = $('saveStatus'), btn = $('saveBtn');
   if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ setStatus(st, 'Enter a valid email address.', 'err'); return; }
   if(!roles.length){ setStatus(st, 'Check at least one role.', 'err'); return; }
@@ -316,9 +318,9 @@ async function loadAccess(){
 loadAccess();
 
 /* ---- CSV import / export ----
-   Columns: Email, Name, Roles. Roles is one or more of hp, payroll, photoMod, admin, separated by
+   Columns: Email, Name, Roles. Roles is one or more of crew, hp, payroll, photoMod, admin, separated by
    semicolons (so a plain comma-separated CSV doesn't need quoting around that field). */
-const CSV_ROLE_KEYS = ['hp', 'payroll', 'photoMod', 'admin'];
+const CSV_ROLE_KEYS = ['crew', 'hp', 'payroll', 'photoMod', 'admin'];
 
 function downloadCsv(filename, text){
   const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
@@ -414,7 +416,7 @@ async function importCsv(){
     if(!email && !name && !roles.length) return;   // blank line
     if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errors.push(`Row ${lineNum}: not a valid email (${email || 'blank'})`); return; }
     const cleanRoles = roles.filter(r => CSV_ROLE_KEYS.indexOf(r) > -1);
-    if(!cleanRoles.length){ errors.push(`Row ${lineNum} (${email}): no valid role — use hp, payroll, photoMod, or admin`); return; }
+    if(!cleanRoles.length){ errors.push(`Row ${lineNum} (${email}): no valid role — use crew, hp, payroll, photoMod, or admin`); return; }
     valid.push({ email, name, roles: cleanRoles });
   });
 
