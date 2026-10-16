@@ -272,6 +272,10 @@
 
   <div class="divider"></div>
 
+  <div id="signedInBar" style="display:none;text-align:center;font-size:11.5px;color:var(--ink-soft);margin:-10px 0 18px;">
+    Signed in as <strong id="signedInLabel"></strong> &middot; <a href="#" onclick="signOutEverywhere();return false;" style="color:var(--ink-soft);text-decoration:underline;">Sign out</a>
+  </div>
+
   <div class="cards">
     <a class="card c1" href="checkin.html">
       <div class="icon-circle">
@@ -501,6 +505,27 @@ function updateAccessLocks(){
   } catch(e){}
 }
 updateAccessLocks();
+
+// A one-tap way to sign out of whatever Google account is signed in on this browser — handy on
+// a shared or borrowed device. Shows nothing when nobody's signed in.
+function updateSignedInBar(){
+  try{
+    const bar = document.getElementById('signedInBar');
+    const signedIn = window.Auth && Auth.has('any');
+    if(!bar) return;
+    bar.style.display = signedIn ? '' : 'none';
+    if(signedIn){
+      const info = Auth.googleInfo();
+      document.getElementById('signedInLabel').textContent = info.name || info.email || 'crew';
+    }
+  } catch(e){}
+}
+function signOutEverywhere(){
+  if(window.Auth) Auth.lock();
+  updateSignedInBar();
+  updateAccessLocks();
+}
+updateSignedInBar();
 
 async function loadAnnouncements(){
   try{
