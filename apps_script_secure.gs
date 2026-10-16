@@ -1110,7 +1110,7 @@ const GET_LEVELS = {
   payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'payroll', myPayStatus: 'hp', scheduleStatus: 'public', scheduleFeed: 'public',
   myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'public',
   photoWallApproved: 'public', photoWallAll: 'photoMod', pendingTasksSummary: 'admin', accessRoles: 'admin',
-  accessRequests: 'admin'
+  accessRequests: 'admin', signInLog: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
@@ -1280,6 +1280,7 @@ function handleLogin(data, ss) {
   // the person should go review what's pending right now instead of landing wherever they were headed.
   if (passwordMatches(tasksHash, enteredPassword)) {
     cache.remove(LOGIN_FAIL_KEY);
+    logSignIn(ss, 'Tasks password', 'admin', data.userAgent);
     return jsonOut({
       status: 'ok', token: makeToken('admin'), tier: 'admin', expiresIn: TOKEN_LIFETIME_SECONDS,
       goToTasks: true, tasks: getPendingTasksSummary(ss)
@@ -1290,11 +1291,13 @@ function handleLogin(data, ss) {
   // administrator never has to remember or switch between the separate Head Pyro and Manage/Edit passwords.
   if (passwordMatches(masterHash, enteredPassword)) {
     cache.remove(LOGIN_FAIL_KEY);
+    logSignIn(ss, 'Master password', 'admin', data.userAgent);
     return jsonOut({status: 'ok', token: makeToken('admin'), tier: 'admin', expiresIn: TOKEN_LIFETIME_SECONDS});
   }
   const stored = getSecurityProps().getProperty(tier === 'admin' ? 'ADMIN_PASSWORD_HASH' : 'HP_PASSWORD_HASH');
   if (passwordMatches(stored, enteredPassword)) {
     cache.remove(LOGIN_FAIL_KEY);
+    logSignIn(ss, (tier === 'admin' ? 'Manage/Edit password' : 'Head Pyro password'), tier, data.userAgent);
     return jsonOut({status: 'ok', token: makeToken(tier), tier: tier, expiresIn: TOKEN_LIFETIME_SECONDS});
   }
   cache.put(LOGIN_FAIL_KEY, String(failures + 1), LOGIN_LOCKOUT_SECONDS);
@@ -1415,6 +1418,7 @@ function handleGoogleLogin(data, ss) {
       message: "You're signed in as " + verified.email + ", but you're not set up for access yet. Ask an admin to add you in Manage Access."
     });
   }
+  logSignIn(ss, 'Google', roles.join('+'), data.userAgent, verified.email, verified.name);
   return jsonOut({
     status: 'ok', token: makeToken(roles), roles: roles, email: verified.email, name: verified.name,
     expiresIn: TOKEN_LIFETIME_SECONDS
@@ -1484,6 +1488,66 @@ function deleteAccessRequest(ss, email) {
       return;
     }
   }
+}
+
+/* ---- Sign-in log ----
+   Records every successful sign-in, password-based or Google-based, so admins can see who's been
+   getting in and when. Apps Script never hands a web app the caller's real IP address, so there's
+   no IP column here on purpose — logging a self-reported one would mean an extra, unverifiable
+   network call out to a third-party lookup service for every sign-in, which wasn't worth it. The
+   "Device" column is the browser's own User-Agent string, reported by the page itself (no outside
+   service involved) to at least show roughly what device/browser was used. */
+const SIGN_IN_LOG_SHEET = 'SignInLog';
+const SIGN_IN_LOG_HEADERS = ['Timestamp', 'Via', 'Email', 'Name', 'Roles', 'Device'];
+const SIGN_IN_LOG_MAX_ROWS = 3000; // trims oldest entries beyond this so the sheet doesn't grow forever
+
+function getOrCreateSignInLogSheet(ss) {
+  let sheet = ss.getSheetByName(SIGN_IN_LOG_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(SIGN_IN_LOG_SHEET);
+    sheet.appendRow(SIGN_IN_LOG_HEADERS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+// via: a short label for how they signed in — "Google", "Master password", "Tasks password",
+// "Head Pyro password", or "Manage/Edit password". roles: a '+'-joined role string (or a bare
+// tier like 'admin'/'hp' for password logins). email/name: only set for Google sign-ins.
+function logSignIn(ss, via, roles, userAgent, email, name) {
+  try {
+    const sheet = getOrCreateSignInLogSheet(ss);
+    sheet.appendRow([
+      new Date(), via || '', email || '', name || '', roles || '',
+      String(userAgent || '').slice(0, 300)
+    ]);
+    const lastRow = sheet.getLastRow();
+    if (lastRow > SIGN_IN_LOG_MAX_ROWS + 1) {
+      sheet.deleteRows(2, lastRow - (SIGN_IN_LOG_MAX_ROWS + 1));
+    }
+  } catch (err) {
+    // A logging failure should never block someone from signing in.
+  }
+}
+
+// Newest first, capped to `limit` (default 200) so the admin page stays fast even once the sheet is large.
+function listSignInLog(ss, limit) {
+  const sheet = getOrCreateSignInLogSheet(ss);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  const cap = Math.max(1, Math.min(Number(limit) || 200, SIGN_IN_LOG_MAX_ROWS));
+  const firstRow = Math.max(2, lastRow - cap + 1);
+  const values = sheet.getRange(firstRow, 1, lastRow - firstRow + 1, SIGN_IN_LOG_HEADERS.length).getValues();
+  const out = values.map(row => ({
+    timestamp: row[0] ? new Date(row[0]).toISOString() : '',
+    via: String(row[1] || ''),
+    email: String(row[2] || ''),
+    name: String(row[3] || ''),
+    roles: String(row[4] || ''),
+    userAgent: String(row[5] || '')
+  }));
+  out.reverse(); // newest first
+  return out;
 }
 
 /* ---- Run these from the Apps Script editor (not from a page) ---- */
@@ -3040,6 +3104,11 @@ function doGetInner(e) {
   if (e.parameter.type === 'accessRequests') {
     // Admin-only — people who tried signing in with Google but aren't on the roster yet.
     return jsonOut(listAccessRequests(ss));
+  }
+
+  if (e.parameter.type === 'signInLog') {
+    // Admin-only — a record of every successful sign-in (password or Google), newest first.
+    return jsonOut(listSignInLog(ss, e.parameter.limit));
   }
 
   if (e.parameter.type === 'payrollRecordsForName') {

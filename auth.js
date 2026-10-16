@@ -63,7 +63,7 @@
       return realFetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ recordType: 'login', tier: tier, password: password })
+        body: JSON.stringify({ recordType: 'login', tier: tier, password: password, userAgent: navigator.userAgent })
       }).then(function(res){ return res.json(); }).then(function(data){
         if(data && data.status === 'ok' && data.token){
           var s = store();
@@ -86,7 +86,7 @@
       return realFetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ recordType: 'googleLogin', idToken: idToken })
+        body: JSON.stringify({ recordType: 'googleLogin', idToken: idToken, userAgent: navigator.userAgent })
       }).then(function(res){ return res.json(); }).then(function(data){
         if(data && data.status === 'ok' && data.token){
           var s = store();

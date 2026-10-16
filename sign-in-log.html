@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
+<title>Sign-In Log — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:720px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .back-link{display:block; max-width:720px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  input[type=text]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .search-box{margin-bottom:16px;}
+  .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .callout{border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:16px;border:1px solid var(--line);background:rgba(255,190,60,0.1);border-color:rgba(255,190,60,0.4);}
+  .callout b{color:var(--ink);}
+  .si-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;}
+  .si-row:last-child{border-bottom:none;}
+  .si-left{min-width:0;}
+  .si-who{font-weight:700;color:var(--ink);}
+  .si-via{font-size:11.5px;color:var(--brick-light);font-weight:600;margin-top:2px;}
+  .si-device{font-size:11.5px;color:var(--ink-soft);margin-top:3px;word-break:break-word;}
+  .si-right{flex-shrink:0;text-align:right;font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
+  .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Sign-In Log</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Every successful sign-in — password or Google — newest first. The shared passwords (Master, Tasks, Head Pyro, Manage/Edit) don't identify who typed them, so those rows show which password was used instead of a name. Google sign-ins show the person's email, name, and the roles they signed in with.</p>
+
+    <div class="callout"><b>No IP addresses here.</b> Google Apps Script never gives this app the caller's real IP address — the only way to get one would be each browser looking its own IP up from an outside service and reporting it, unverified, on every sign-in. The "Device" line below is just the browser's own self-reported info (no outside service involved).</div>
+
+    <div class="search-box">
+      <input type="text" id="searchBox" placeholder="Search by email, name, or password type…" oninput="renderList()">
+    </div>
+
+    <p class="count-line" id="siCount">SIGN-INS</p>
+    <div id="siList"><p class="loading-pulse">Loading…</p></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O0-lC7U01tCclhAVIrrGEwLfVoaa142YYGU0OyX1tBCiK1nGOqf_n8A/exec";
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function formatWhen(iso){
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month:'short', day:'numeric' }) + ' · ' + d.toLocaleTimeString(undefined, { hour:'numeric', minute:'2-digit' });
+}
+// Pulls a short, readable device/browser label out of a raw User-Agent string, so the
+// list doesn't just dump the full UA text into every row.
+function deviceLabel(ua){
+  if(!ua) return '';
+  let os = 'Unknown device';
+  if(/iPhone/i.test(ua)) os = 'iPhone';
+  else if(/iPad/i.test(ua)) os = 'iPad';
+  else if(/Android/i.test(ua)) os = 'Android';
+  else if(/Macintosh|Mac OS X/i.test(ua)) os = 'Mac';
+  else if(/Windows/i.test(ua)) os = 'Windows';
+  else if(/Linux/i.test(ua)) os = 'Linux';
+  let browser = '';
+  if(/Edg\//i.test(ua)) browser = 'Edge';
+  else if(/OPR\/|Opera/i.test(ua)) browser = 'Opera';
+  else if(/Chrome\//i.test(ua)) browser = 'Chrome';
+  else if(/CriOS\//i.test(ua)) browser = 'Chrome';
+  else if(/FxiOS\//i.test(ua)) browser = 'Firefox';
+  else if(/Firefox\//i.test(ua)) browser = 'Firefox';
+  else if(/Safari\//i.test(ua)) browser = 'Safari';
+  return browser ? `${os} · ${browser}` : os;
+}
+
+let allSignIns = [];
+
+async function loadSignIns(){
+  const list = $('siList');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=signInLog&limit=500`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    const data = await res.json();
+    if(!Array.isArray(data)) throw new Error('Unexpected reply');
+    allSignIns = data;
+  } catch(err){
+    list.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the sign-in log — check your connection and try again.</p>';
+    return;
+  }
+  renderList();
+}
+
+function renderList(){
+  const list = $('siList');
+  const q = ($('searchBox').value || '').trim().toLowerCase();
+  const rows = !q ? allSignIns : allSignIns.filter(r =>
+    (r.email && r.email.toLowerCase().includes(q)) ||
+    (r.name && r.name.toLowerCase().includes(q)) ||
+    (r.via && r.via.toLowerCase().includes(q)) ||
+    (r.roles && r.roles.toLowerCase().includes(q))
+  );
+
+  $('siCount').textContent = allSignIns.length
+    ? `${rows.length} OF ${allSignIns.length} SIGN-IN${allSignIns.length === 1 ? '' : 'S'} SHOWN (NEWEST FIRST, LAST 500)`
+    : 'SIGN-INS';
+
+  if(!rows.length){
+    list.innerHTML = allSignIns.length
+      ? '<div class="empty-state"><div class="icon">🔍</div><p>No sign-ins match that search.</p></div>'
+      : '<div class="empty-state"><div class="icon">🔑</div><p>No sign-ins recorded yet.</p></div>';
+    return;
+  }
+
+  list.innerHTML = rows.map(r => {
+    const who = r.email ? (r.name ? `${esc(r.name)} <span style="color:var(--ink-soft);font-weight:400;">(${esc(r.email)})</span>` : esc(r.email)) : esc(r.via);
+    const viaLine = r.email ? 'Google' + (r.roles ? ' · ' + esc(r.roles) : '') : esc(r.roles || '');
+    const device = deviceLabel(r.userAgent);
+    return `
+      <div class="si-row">
+        <div class="si-left">
+          <div class="si-who">${who}</div>
+          ${viaLine ? `<div class="si-via">${viaLine}</div>` : ''}
+          ${device ? `<div class="si-device" title="${esc(r.userAgent)}">${esc(device)}</div>` : ''}
+        </div>
+        <div class="si-right">${esc(formatWhen(r.timestamp))}</div>
+      </div>`;
+  }).join('');
+}
+
+loadSignIns();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update().catch(() => {});
+    }).catch(() => {});
+  });
+  let swRefreshedOnce = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swRefreshedOnce) return;
+    swRefreshedOnce = true;
+    location.reload();
+  });
+}
+</script>
+</body>
+</html>
