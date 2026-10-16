@@ -144,6 +144,7 @@ updateThemeToggleIcon();
   .acc-actions button:hover{border-color:var(--navy);}
   .acc-actions button.danger{color:var(--brick);}
   .acc-actions button.danger:hover{border-color:var(--brick);}
+  .import-err{font-size:12px;color:var(--brick);margin:4px 0 0;line-height:1.5;}
 </style>
 </head>
 <body>
@@ -188,6 +189,21 @@ updateThemeToggleIcon();
         <span class="status-line" id="saveStatus"></span>
       </div>
       <p class="hint">Full Admin can do everything, so the other checkboxes don't matter once it's checked. Someone with no role checked won't be able to sign in at all.</p>
+    </div>
+
+    <div class="editor-box">
+      <p class="label-title">IMPORT / EXPORT</p>
+      <p class="hint" style="margin:0 0 14px;">Add or update a whole crew list at once from a spreadsheet. Download the sample to see the format, fill it in (or export your current list to edit it), then import the file back. Importing never removes anyone — it only adds new people and updates ones already on the list.</p>
+      <div class="save-row" style="margin-bottom:10px;">
+        <button class="secondary" type="button" onclick="downloadSampleCsv()">Download sample CSV</button>
+        <button class="secondary" type="button" onclick="exportCurrentCsv()">Export current list as CSV</button>
+      </div>
+      <div class="save-row">
+        <input type="file" id="csvFile" accept=".csv,text/csv" style="font-size:13px;color:var(--ink-soft);max-width:220px;">
+        <button class="primary" type="button" id="importBtn" onclick="importCsv()">Import CSV</button>
+      </div>
+      <p class="status-line" id="importStatus" style="display:block;margin:10px 0 0;"></p>
+      <div id="importErrors"></div>
     </div>
 
     <p class="list-title" id="accCount">PEOPLE WITH ACCESS</p>
@@ -298,6 +314,136 @@ async function loadAccess(){
 }
 
 loadAccess();
+
+/* ---- CSV import / export ----
+   Columns: Email, Name, Roles. Roles is one or more of hp, payroll, photoMod, admin, separated by
+   semicolons (so a plain comma-separated CSV doesn't need quoting around that field). */
+const CSV_ROLE_KEYS = ['hp', 'payroll', 'photoMod', 'admin'];
+
+function downloadCsv(filename, text){
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Quotes a CSV field only when it needs it (contains a comma, quote, or newline).
+function csvField(v){
+  v = String(v == null ? '' : v);
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+
+function downloadSampleCsv(){
+  const rows = [
+    ['Email', 'Name', 'Roles'],
+    ['jane@gmail.com', 'Jane Smith', 'hp'],
+    ['john@gmail.com', 'John Doe', 'payroll;photoMod'],
+    ['pat@gmail.com', 'Pat Lee', 'admin']
+  ];
+  downloadCsv('vortex-access-sample.csv', rows.map(r => r.map(csvField).join(',')).join('\r\n') + '\r\n');
+}
+
+async function exportCurrentCsv(){
+  let data;
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=accessRoles`, { cache: 'no-store' });
+    data = await res.json();
+    if(!Array.isArray(data)) throw new Error();
+  } catch(err){
+    alert("Couldn't load the current list to export — check your connection and try again.");
+    return;
+  }
+  const rows = [['Email', 'Name', 'Roles']].concat(
+    data.map(p => [p.email, p.name || '', (p.roles || []).join(';')])
+  );
+  downloadCsv('vortex-access-export.csv', rows.map(r => r.map(csvField).join(',')).join('\r\n') + '\r\n');
+}
+
+// A small CSV parser that understands quoted fields (with embedded commas, newlines, and "" escapes),
+// which a spreadsheet program may produce even though our own exports rarely need it.
+function parseCsv(text){
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for(let i = 0; i < text.length; i++){
+    const c = text[i];
+    if(inQuotes){
+      if(c === '"'){
+        if(text[i + 1] === '"'){ field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if(c === '"'){
+      inQuotes = true;
+    } else if(c === ','){
+      row.push(field); field = '';
+    } else if(c === '\n' || c === '\r'){
+      if(c === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if(row.length > 1 || row[0] !== '') rows.push(row);
+      row = [];
+    } else {
+      field += c;
+    }
+  }
+  if(field !== '' || row.length){ row.push(field); rows.push(row); }
+  return rows;
+}
+
+async function importCsv(){
+  const fileInput = $('csvFile');
+  const st = $('importStatus'), btn = $('importBtn'), errBox = $('importErrors');
+  errBox.innerHTML = '';
+  const file = fileInput.files && fileInput.files[0];
+  if(!file){ setStatus(st, 'Choose a CSV file first.', 'err'); return; }
+
+  const text = await file.text();
+  const rows = parseCsv(text);
+  if(!rows.length){ setStatus(st, 'That file looks empty.', 'err'); return; }
+
+  // The header row is optional — skip it only if its first cell isn't a plausible email.
+  let dataRows = rows;
+  if(rows[0][0] && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rows[0][0].trim())) dataRows = rows.slice(1);
+
+  const valid = [], errors = [];
+  dataRows.forEach((r, i) => {
+    const lineNum = (dataRows === rows ? i : i + 2) + 1;
+    const email = (r[0] || '').trim();
+    const name = (r[1] || '').trim();
+    const roles = (r[2] || '').split(/[;,]/).map(s => s.trim()).filter(Boolean);
+    if(!email && !name && !roles.length) return;   // blank line
+    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errors.push(`Row ${lineNum}: not a valid email (${email || 'blank'})`); return; }
+    const cleanRoles = roles.filter(r => CSV_ROLE_KEYS.indexOf(r) > -1);
+    if(!cleanRoles.length){ errors.push(`Row ${lineNum} (${email}): no valid role — use hp, payroll, photoMod, or admin`); return; }
+    valid.push({ email, name, roles: cleanRoles });
+  });
+
+  if(!valid.length){
+    setStatus(st, 'Nothing to import.', 'err');
+    if(errors.length) errBox.innerHTML = errors.map(e => `<p class="import-err">${esc(e)}</p>`).join('');
+    return;
+  }
+  if(!confirm(`Import ${valid.length} ${valid.length === 1 ? 'person' : 'people'}? This adds new people and updates anyone already on the list by email.`)) return;
+
+  btn.disabled = true;
+  let ok = 0;
+  const failed = [];
+  for(const person of valid){
+    setStatus(st, `Importing… ${ok + failed.length + 1} of ${valid.length}`);
+    try{
+      await postJson({ recordType: 'accessRoleSet', email: person.email, name: person.name, roles: person.roles });
+      ok++;
+    } catch(err){
+      failed.push(`${person.email}: ${err.message || 'failed'}`);
+    }
+  }
+  btn.disabled = false;
+  fileInput.value = '';
+  await loadAccess();
+  setStatus(st, `Imported ${ok} of ${valid.length}.`, failed.length ? 'err' : 'ok');
+  const allErrors = errors.concat(failed);
+  if(allErrors.length) errBox.innerHTML = allErrors.map(e => `<p class="import-err">${esc(e)}</p>`).join('');
+}
 </script>
 
 <script>
