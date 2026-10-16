@@ -152,6 +152,11 @@ updateThemeToggleIcon();
   .sched-hp-row{display:flex;align-items:center;gap:7px;justify-content:flex-end;}
   .sched-avatar{width:30px;height:30px;border-radius:50%;object-fit:cover;flex-shrink:0;}
   .waitlist-title{font-size:10.5px;color:var(--ink-soft);font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin:8px 0 4px;}
+  .signin-box{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:14px;background:var(--surface-4);}
+  .signin-box p{font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;line-height:1.4;}
+  .signin-box p:last-child{margin-bottom:0;}
+  .signin-box a{color:var(--navy);}
+  .signup-btn.needs-signin{border-color:var(--line);color:var(--ink-soft);}
   .roster-chip.waitlisted{opacity:0.75;}
   .roster-chip .wl-pos{font-size:10px;color:var(--ink-soft);}
   .month-head{
@@ -176,7 +181,16 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
-    <p class="desc">Every upcoming show on the venue list — the date, venue, who's assigned as Head Pyro, and call time. Past shows drop off this list automatically. An admin assigns the Head Pyro and sets the call time from Manage &rarr; Venues. Some shows also have crew sign-up slots — enter your name above to sign up or remove yourself.</p>
+    <p class="desc">Every upcoming show on the venue list — the date, venue, who's assigned as Head Pyro, and call time. Past shows drop off this list automatically. An admin assigns the Head Pyro and sets the call time from Manage &rarr; Venues. Some shows also have crew sign-up slots — sign in below, then enter your name to sign up or remove yourself.</p>
+
+    <div id="signinBox" class="signin-box">
+      <p>Anyone can view the schedule. <strong>Sign in with your crew Google account</strong> to sign up for a show or remove your own sign-up.</p>
+      <div id="googleBtn"></div>
+    </div>
+    <div id="signedInBox" class="signin-box" style="display:none;">
+      <p>Signed in as <strong id="signedInName"></strong>. <a href="#" onclick="signOutCrew();return false;">Sign out</a></p>
+    </div>
+
     <div id="disabledNotice" style="display:none;"><div class="icon">🚧</div><p>The schedule page is turned off right now. Check with your Head Pyro for show details.</p></div>
     <div id="scheduleBody">
       <div class="top-actions">
@@ -280,6 +294,10 @@ function signupConflicts(venueId, name){
 }
 
 async function signUpForShow(venueId){
+  if(!(window.Auth && Auth.has('crew'))){
+    document.getElementById('signinBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   const name = $('myShowsInput').value.trim();
   if(!name){
     alert('Enter your name first.');
@@ -310,6 +328,10 @@ async function signUpForShow(venueId){
 }
 
 async function removeMySignup(venueId, name){
+  if(!(window.Auth && Auth.has('crew'))){
+    document.getElementById('signinBox').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
   if(!confirm(`Remove ${name} from this show's sign-up list?`)) return;
   try{
     const res = await fetch(CHECKIN_API_URL, {
@@ -330,16 +352,17 @@ function signupBoxHtml(v){
   const names = SIGNUPS_BY_VENUE[v.id] || [];
   const myName = $('myShowsInput').value.trim();
   const isAdmin = window.Auth && Auth.has('admin');
+  const isCrew = window.Auth && Auth.has('crew');
   const confirmed = names.slice(0, v.signupLimit);
   const waitlisted = names.slice(v.signupLimit);
   const full = names.length >= v.signupLimit;
   const alreadyIn = myName && names.some(n => keyOf(n) === keyOf(myName));
   const chip = n => {
-    const canRemove = isAdmin || (myName && keyOf(n) === keyOf(myName));
+    const canRemove = isAdmin || (isCrew && myName && keyOf(n) === keyOf(myName));
     return `<span class="roster-chip">${esc(n)}${canRemove ? `<button type="button" title="Remove" onclick="removeMySignup('${esc(v.id)}','${esc(n).replace(/'/g,"\\'")}')">&times;</button>` : ''}</span>`;
   };
   const waitlistChip = (n, i) => {
-    const canRemove = isAdmin || (myName && keyOf(n) === keyOf(myName));
+    const canRemove = isAdmin || (isCrew && myName && keyOf(n) === keyOf(myName));
     return `<span class="roster-chip waitlisted">${esc(n)} <span class="wl-pos">#${i + 1}</span>${canRemove ? `<button type="button" title="Remove" onclick="removeMySignup('${esc(v.id)}','${esc(n).replace(/'/g,"\\'")}')">&times;</button>` : ''}</span>`;
   };
   const confirmedChips = confirmed.map(chip).join('');
@@ -347,6 +370,8 @@ function signupBoxHtml(v){
   let actionHtml = '';
   if(alreadyIn){
     actionHtml = '';
+  } else if(!isCrew){
+    actionHtml = `<button type="button" class="signup-btn needs-signin" onclick="signUpForShow('${esc(v.id)}')">Sign in to ${full ? 'join waitlist' : 'sign up'}</button>`;
   } else if(full){
     actionHtml = `<button type="button" class="signup-btn" onclick="signUpForShow('${esc(v.id)}')">+ Join waitlist</button>`;
   } else {
@@ -492,7 +517,37 @@ function render(){
   wrap.innerHTML = '<div class="show-list">' + html + '</div>';
 }
 
+function refreshSigninUI(){
+  const signedIn = window.Auth && Auth.has('crew');
+  $('signinBox').style.display = signedIn ? 'none' : '';
+  $('signedInBox').style.display = signedIn ? '' : 'none';
+  if(signedIn){
+    const info = Auth.googleInfo();
+    $('signedInName').textContent = info.name || info.email || 'crew';
+    // Only fill the name field for them if they haven't already typed one of their own.
+    if(!$('myShowsInput').value.trim() && info.name) $('myShowsInput').value = info.name;
+  }
+}
+
+async function onGoogleToken(idToken){
+  const result = await Auth.googleLogin(idToken);
+  if(result.ok){
+    refreshSigninUI();
+    render();
+  } else {
+    alert(result.message || 'Could not sign in.');
+  }
+}
+
+function signOutCrew(){
+  Auth.signOutGoogle();
+  refreshSigninUI();
+  render();
+}
+
 $('myShowsInput').value = loadSavedName();
+if(window.Auth) Auth.renderGoogleButton('googleBtn', onGoogleToken);
+refreshSigninUI();
 checkScheduleStatus();
 </script>
 

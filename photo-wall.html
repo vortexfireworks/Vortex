@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
 <title>Photo Wall — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
@@ -89,6 +90,10 @@ updateThemeToggleIcon();
   }
   .theme-toggle:hover{transform:scale(1.08);}
 
+  .signin-box{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:16px;background:var(--surface-4);}
+  .signin-box p{font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;line-height:1.4;}
+  .signin-box p:last-child{margin-bottom:0;}
+  .signin-box a{color:var(--navy);}
   .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
   .field label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
   .field input[type=text]{
@@ -167,24 +172,35 @@ updateThemeToggleIcon();
   <div class="section">
     <h2>Share a photo</h2>
     <p class="desc">Got a good shot from a show? Share it here. An admin reviews every photo before it shows up in the slideshow below, so it may take a little while to appear.</p>
-    <div class="field">
-      <label for="pwName">Your name (optional)</label>
-      <input type="text" id="pwName" placeholder="Who's sharing this?" autocomplete="off">
+
+    <div id="signinBox" class="signin-box">
+      <p>Sign in with your crew Google account to share a photo.</p>
+      <div id="googleBtn"></div>
     </div>
-    <div class="field">
-      <label for="pwCaption">Caption (optional)</label>
-      <input type="text" id="pwCaption" placeholder="A line about the photo…" autocomplete="off">
+    <div id="signedInBox" class="signin-box" style="display:none;">
+      <p>Signed in as <strong id="signedInName"></strong>. <a href="#" onclick="signOutCrew();return false;">Sign out</a></p>
     </div>
-    <label class="file-drop" id="fileDrop">
-      <input type="file" id="pwFile" accept="image/*">
-      <div id="fileDropContent">
-        <div class="icon">📷</div>
-        <div class="hint">Tap to choose or take a photo</div>
+
+    <div id="shareForm" style="display:none;">
+      <div class="field">
+        <label for="pwName">Your name (optional)</label>
+        <input type="text" id="pwName" placeholder="Who's sharing this?" autocomplete="off">
       </div>
-    </label>
-    <img id="pwPreview" class="preview-thumb" style="display:none;">
-    <button type="button" class="btn" id="pwSubmitBtn" onclick="submitPhoto()">Submit photo</button>
-    <div id="pwStatus" class="status-msg"></div>
+      <div class="field">
+        <label for="pwCaption">Caption (optional)</label>
+        <input type="text" id="pwCaption" placeholder="A line about the photo…" autocomplete="off">
+      </div>
+      <label class="file-drop" id="fileDrop">
+        <input type="file" id="pwFile" accept="image/*">
+        <div id="fileDropContent">
+          <div class="icon">📷</div>
+          <div class="hint">Tap to choose or take a photo</div>
+        </div>
+      </label>
+      <img id="pwPreview" class="preview-thumb" style="display:none;">
+      <button type="button" class="btn" id="pwSubmitBtn" onclick="submitPhoto()">Submit photo</button>
+      <div id="pwStatus" class="status-msg"></div>
+    </div>
   </div>
 
   <div class="section">
@@ -254,7 +270,37 @@ function showStatus(msg, ok){
   el.className = 'status-msg' + (ok === true ? ' ok' : ok === false ? ' err' : '');
 }
 
+function refreshSigninUI(){
+  const signedIn = window.Auth && Auth.has('crew');
+  $('signinBox').style.display = signedIn ? 'none' : '';
+  $('signedInBox').style.display = signedIn ? '' : 'none';
+  $('shareForm').style.display = signedIn ? '' : 'none';
+  if(signedIn){
+    const info = Auth.googleInfo();
+    $('signedInName').textContent = info.name || info.email || 'crew';
+    if(!$('pwName').value.trim() && info.name) $('pwName').value = info.name;
+  }
+}
+
+async function onGoogleToken(idToken){
+  const result = await Auth.googleLogin(idToken);
+  if(result.ok) refreshSigninUI();
+  else alert(result.message || 'Could not sign in.');
+}
+
+function signOutCrew(){
+  Auth.signOutGoogle();
+  refreshSigninUI();
+}
+
+if(window.Auth) Auth.renderGoogleButton('googleBtn', onGoogleToken);
+refreshSigninUI();
+
 async function submitPhoto(){
+  if(!(window.Auth && Auth.has('crew'))){
+    showStatus('Sign in with your crew Google account first.', false);
+    return;
+  }
   if(!selectedDataUrl){
     showStatus('Choose a photo first.', false);
     return;

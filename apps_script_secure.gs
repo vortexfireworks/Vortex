@@ -1116,7 +1116,7 @@ const GET_LEVELS = {
 const POST_LEVELS = {
   aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp', setAvailability: 'hp',
-  showSignup: 'public', removeShowSignup: 'public', photoWallSubmit: 'public',
+  showSignup: 'crew', removeShowSignup: 'crew', photoWallSubmit: 'crew',
   photoWallModerate: 'photoMod', photoWallDelete: 'photoMod',
   deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
@@ -1220,6 +1220,7 @@ function authError(needed) {
   let message = 'Enter the Head Pyro Tools password to continue.';
   if (needed === 'admin') message = 'Enter the Manage/Edit password to continue.';
   else if (needed === 'payroll' || needed === 'photoMod') message = "You don't have access to this section. Ask an admin to grant it in Manage Access.";
+  else if (needed === 'crew') message = 'Sign in with your crew Google account to do this.';
   return jsonOut({ status: 'error', code: 'auth', needs: needed, message: message });
 }
 function authorize(token, needed) {

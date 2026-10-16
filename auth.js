@@ -90,7 +90,12 @@
       }).then(function(res){ return res.json(); }).then(function(data){
         if(data && data.status === 'ok' && data.token){
           var s = store();
-          if(s){ s.setItem(KEY.google, data.token); s.setItem('authRoles_google', JSON.stringify(data.roles || [])); }
+          if(s){
+            s.setItem(KEY.google, data.token);
+            s.setItem('authRoles_google', JSON.stringify(data.roles || []));
+            s.setItem('authName_google', data.name || '');
+            s.setItem('authEmail_google', data.email || '');
+          }
           googleRoles = data.roles || [];
           return { ok: true, roles: googleRoles, name: data.name || '', email: data.email || '' };
         }
@@ -120,13 +125,29 @@
       document.head.appendChild(s);
     },
 
+    // Name/email from the current Google sign-in, for a page that wants to greet the person or
+    // pre-fill a field with their name. {name:'', email:''} if nobody is signed in with Google.
+    googleInfo: function(){
+      var s = store();
+      return { name: (s && s.getItem('authName_google')) || '', email: (s && s.getItem('authEmail_google')) || '' };
+    },
+
+    // Signs out of Google only, for a page that lets someone browse signed out and sign in inline
+    // to unlock one action (as opposed to lock()/lockThisPhone(), which also forgets the crew
+    // directory and is meant for a shared phone leaving a password-protected page entirely).
+    signOutGoogle: function(){
+      clear('google');
+      try{ sessionStorage.removeItem('authRoles_google'); sessionStorage.removeItem('authName_google'); sessionStorage.removeItem('authEmail_google'); } catch(e){}
+      googleRoles = [];
+    },
+
     // The server said the sign-in is missing or ran out.
     // (A Manage/Edit page can ask for something that only needs Head Pyro level, such as the crew list. When that is
     // refused it is still the Manage/Edit sign-in that has run out, so the page's own level decides which screen to show.)
     expired: function(needs){
       var tier = (pageTier === 'admin' || needs === 'admin') ? 'admin' : (pageTier === 'hp' || needs === 'hp') ? 'hp' : (pageTier || needs);
       clear('hp'); clear('admin'); clear('google');
-      try{ sessionStorage.removeItem('authRoles_google'); } catch(e){}
+      try{ sessionStorage.removeItem('authRoles_google'); sessionStorage.removeItem('authName_google'); sessionStorage.removeItem('authEmail_google'); } catch(e){}
       googleRoles = [];
       toLock(tier, 'expired');
     },
@@ -134,7 +155,7 @@
     // Forget this sign-in and the crew list cached on the phone (for a shared phone).
     lock: function(){
       clear('hp'); clear('admin'); clear('google');
-      try{ sessionStorage.removeItem('authRoles_google'); } catch(e){}
+      try{ sessionStorage.removeItem('authRoles_google'); sessionStorage.removeItem('authName_google'); sessionStorage.removeItem('authEmail_google'); } catch(e){}
       googleRoles = [];
       Directory.clear();
     },
