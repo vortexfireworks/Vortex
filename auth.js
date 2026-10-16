@@ -1,18 +1,16 @@
 /* Shared sign-in for the Head Pyro Tools and Manage/Edit pages.
    Include with <script src="auth.js"></script>, then call Auth.require('hp') or Auth.require('admin') at the top of a page.
 
-   How it works: the lock screens call Auth.login(), which asks the server to check the password and hands back a signed
-   token that lasts a day. The token is kept for this browser tab only. Every request this page sends to the Google Apps
-   Script gets that token added automatically, and the SERVER decides what it may see or change. If the server says the
-   sign-in is missing or has run out, the person is sent back to the right password screen and returns here afterwards.
-
-   A person can also sign in with their own Google account (Auth.googleLogin), if an admin has added their email to the
-   Manage Access list with one or more roles. That token is kept under its own key ('google') and can carry any mix of
-   roles (hp, admin, payroll, photoMod), not just the one tier a password login grants. */
+   How it works: signing in is Google-only now (Auth.googleLogin) — there's no shared password. An admin adds a
+   person's Google email to the Manage Access list with one or more roles (hp, admin, payroll, photoMod, crew);
+   signing in with that Google account gets back a signed token carrying those roles, kept for this browser tab
+   only. Every request this page sends to the Google Apps Script gets that token added automatically, and the
+   SERVER decides what it may see or change. If the server says the sign-in is missing or has run out, the person
+   is sent back to the right sign-in screen and returns here afterwards. */
 (function(){
   var API = 'https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O0-lC7U01tCclhAVIrrGEwLfVoaa142YYGU0OyX1tBCiK1nGOqf_n8A/exec';
   var GOOGLE_CLIENT_ID = '691238707295-qa5ugobjgrkeou9ji46hdtp354n4dgv0.apps.googleusercontent.com';
-  var KEY = { hp: 'authToken_hp', admin: 'authToken_admin', google: 'authToken_google' };
+  var KEY = { google: 'authToken_google' };
   var LOCK_PAGE = { hp: 'hp-tools.html', admin: 'manage.html' };
   var realFetch = window.fetch.bind(window);
   var pageTier = null;      // the level this page asked for with Auth.require()
@@ -25,22 +23,21 @@
     try{ var saved = JSON.parse(sessionStorage.getItem('authRoles_google') || '[]'); return Array.isArray(saved) ? saved : []; } catch(e){ return []; }
   }
   googleRoles = loadGoogleRoles();
-  // A full Manage/Edit (admin) password sign-in satisfies any level, same as the server treats it.
-  // A Google sign-in satisfies a level if that role (or 'admin') is in the list the server granted it.
+  // A Google sign-in satisfies a level if that role (or 'admin', which always satisfies everything) is in the
+  // list of roles the server granted it.
   function has(tier){
-    if(read('admin') || googleRoles.indexOf('admin') > -1) return true;
-    if(tier === 'hp') return !!read('hp') || googleRoles.indexOf('hp') > -1;
+    if(googleRoles.indexOf('admin') > -1) return true;
     if(tier === 'admin') return false;
     return googleRoles.indexOf(tier) > -1;
   }
-  function bestToken(){ return read('admin') || read('hp') || read('google') || ''; }
+  function bestToken(){ return read('google') || ''; }
   function here(){ return (location.pathname.split('/').pop() || 'index.html') + location.search; }
   function toLock(tier, why){
-    // payroll/photoMod have no password screen of their own (they're Google-only roles) — manage.html
-    // is the fallback, since a full admin signing in there also satisfies those levels.
+    // payroll/photoMod have no sign-in screen of their own — manage.html is the fallback, since a full
+    // admin signing in there also satisfies those levels.
     var target = LOCK_PAGE[tier] || 'manage.html';
     // The lock screen for a tier can BE the protected page itself (manage.html is both the
-    // Manage/Edit password screen and the Manage/Edit page). If something on that page tries
+    // Manage/Edit sign-in screen and the Manage/Edit page). If something on that page tries
     // to call the server before sign-in and gets bounced here, sending it to "manage.html?next=
     // manage.html" is pointless (we're already here) — and every re-bounce re-encodes the last
     // next, so the query string doubles in length each time until the browser refuses the URL.
@@ -55,30 +52,9 @@
   var Auth = {
     has: has,
 
-    // Call first thing on a protected page. Sends the person to the password screen if they have not signed in.
-    // The page's own level is remembered, so if the sign-in runs out later they are sent to the RIGHT password screen.
+    // Call first thing on a protected page. Sends the person to the Google sign-in screen if they have not signed in.
+    // The page's own level is remembered, so if the sign-in runs out later they are sent to the RIGHT sign-in screen.
     require: function(tier){ pageTier = tier; if(!has(tier)) toLock(tier); },
-
-    login: function(tier, password){
-      return realFetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ recordType: 'login', tier: tier, password: password, userAgent: navigator.userAgent })
-      }).then(function(res){ return res.json(); }).then(function(data){
-        if(data && data.status === 'ok' && data.token){
-          var s = store();
-          // Store under whichever tier the token actually carries (the master and tasks passwords
-          // both always come back as 'admin', even when typed into the Head Pyro lock screen), so
-          // Auth.has('admin') works right away no matter which screen was used to sign in.
-          var actualTier = data.tier === 'admin' ? 'admin' : tier;
-          if(s) s.setItem(KEY[actualTier], data.token);
-          return { ok: true, goToTasks: !!data.goToTasks, tasks: data.tasks || null };
-        }
-        return { ok: false, code: data && data.code, message: (data && data.message) || 'Could not sign in.' };
-      }).catch(function(){
-        return { ok: false, code: 'network', message: "Couldn't reach the server \u2014 check your connection and try again." };
-      });
-    },
 
     // Sign in with a Google ID token (from Auth.renderGoogleButton's callback). The server checks the
     // token with Google itself and looks the email up in the Manage Access list; ok only if it's there.
@@ -115,7 +91,7 @@
             callback: function(resp){ onToken(resp.credential); }
           });
           google.accounts.id.renderButton(document.getElementById(elementId), { theme: 'outline', size: 'large', width: 280 });
-        } catch(e){ /* Google script failed to load or init — the page's own password screen still works */ }
+        } catch(e){ /* Google script failed to load or init — nothing else to fall back to now */ }
       }
       if(window.google && window.google.accounts && window.google.accounts.id){ draw(); return; }
       var s = document.createElement('script');
@@ -134,7 +110,7 @@
 
     // Signs out of Google only, for a page that lets someone browse signed out and sign in inline
     // to unlock one action (as opposed to lock()/lockThisPhone(), which also forgets the crew
-    // directory and is meant for a shared phone leaving a password-protected page entirely).
+    // directory and is meant for a shared phone leaving a protected page entirely).
     signOutGoogle: function(){
       clear('google');
       try{ sessionStorage.removeItem('authRoles_google'); sessionStorage.removeItem('authName_google'); sessionStorage.removeItem('authEmail_google'); } catch(e){}
@@ -146,7 +122,7 @@
     // refused it is still the Manage/Edit sign-in that has run out, so the page's own level decides which screen to show.)
     expired: function(needs){
       var tier = (pageTier === 'admin' || needs === 'admin') ? 'admin' : (pageTier === 'hp' || needs === 'hp') ? 'hp' : (pageTier || needs);
-      clear('hp'); clear('admin'); clear('google');
+      clear('google');
       try{ sessionStorage.removeItem('authRoles_google'); sessionStorage.removeItem('authName_google'); sessionStorage.removeItem('authEmail_google'); } catch(e){}
       googleRoles = [];
       toLock(tier, 'expired');
@@ -154,7 +130,7 @@
 
     // Forget this sign-in and the crew list cached on the phone (for a shared phone).
     lock: function(){
-      clear('hp'); clear('admin'); clear('google');
+      clear('google');
       try{ sessionStorage.removeItem('authRoles_google'); sessionStorage.removeItem('authName_google'); sessionStorage.removeItem('authEmail_google'); } catch(e){}
       googleRoles = [];
       Directory.clear();
@@ -181,7 +157,7 @@
       } else if(typeof init.body === 'string'){
         try{
           var body = JSON.parse(init.body);
-          if(body && typeof body === 'object' && !Array.isArray(body) && body.recordType !== 'login' && !body.token){
+          if(body && typeof body === 'object' && !Array.isArray(body) && !body.token){
             body.token = token;
             init.body = JSON.stringify(body);
           }
@@ -216,24 +192,4 @@
 
   window.Auth = Auth;
   window.Directory = Directory;
-
-  // Shared by any lock screen that can get the goToTasks flag back from a login (currently
-  // Head Pyro Tools and Manage/Edit), so the alert reads the same wherever it's typed.
-  window.tasksAlertText = function(tasks){
-    if(!tasks || !tasks.totalCount) return "Nice — nothing needs your attention right now.";
-    var lines = [tasks.totalCount + ' task' + (tasks.totalCount === 1 ? '' : 's') + ' need your attention:'];
-    if(tasks.venuesNeedHp && tasks.venuesNeedHp.length){
-      lines.push('• ' + tasks.venuesNeedHp.length + ' upcoming show' + (tasks.venuesNeedHp.length === 1 ? '' : 's') + ' need' + (tasks.venuesNeedHp.length === 1 ? 's' : '') + ' a Head Pyro assigned');
-    }
-    if(tasks.payrollNeedsApproval && tasks.payrollNeedsApproval.length){
-      lines.push('• ' + tasks.payrollNeedsApproval.length + ' show' + (tasks.payrollNeedsApproval.length === 1 ? '' : 's') + ' with payroll pending approval');
-    }
-    if(tasks.photoWallPending && tasks.photoWallPending.length){
-      lines.push('• ' + tasks.photoWallPending.length + ' photo' + (tasks.photoWallPending.length === 1 ? '' : 's') + ' waiting on review');
-    }
-    if(tasks.accessRequests && tasks.accessRequests.length){
-      lines.push('• ' + tasks.accessRequests.length + ' Google sign-in' + (tasks.accessRequests.length === 1 ? '' : 's') + ' waiting on access approval');
-    }
-    return lines.join('\n');
-  };
 })();

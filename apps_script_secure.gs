@@ -1080,25 +1080,11 @@ function savePhotoToDrive(dataUrl, name, size) {
      public - Check-In, New Hire and Update My Info. These only ever get what they need.
      hp     - Head Pyro Tools: the crew directory, pick lists, Payroll, the After-Action Report, Enable Sign-In.
      admin  - Manage/Edit: everything that edits or deletes, plus the saved reports and backups.
-   A page logs in once (recordType 'login') and gets a signed token that expires. Every request that is not
-   public must carry a valid token of at least the level it needs. Passwords live in Script Properties,
-   never in a page. The first time this runs it starts with the same two passwords the pages used before,
-   so nobody is locked out; change them afterwards with setAdminPasswordNow() and setHpPasswordNow(). */
+   Signing in is Google-only (recordType 'googleLogin') — there is no shared password anymore. An admin
+   grants each person's Google account one or more roles in Manage Access (the AccessRoles sheet), and
+   signing in with that Google account gets back a signed token carrying those roles. Every request that
+   is not public must carry a valid token of at least the level it needs. */
 const TOKEN_LIFETIME_SECONDS = 24 * 60 * 60;
-const LOGIN_FAIL_KEY = 'loginFailures_v1';
-const MAX_LOGIN_FAILS = 10;
-const LOGIN_LOCKOUT_SECONDS = 600;
-const ORIGINAL_HP_HASH = '3527374c1ff8dad43a5fae9007904cc82041d83a5d9adb69e030a71340f54b2a';
-const ORIGINAL_ADMIN_HASH = 'cf7c3f3c216f72e7b13203c30ff418dfff1206d08139fe52411603eeda3aedb2';
-// A master password an administrator can type into ANY lock screen (Head Pyro Tools or Manage/Edit)
-// to sign in at the admin level directly, instead of having to remember and switch between the two
-// separate passwords. Starts as "!sB9057214"; change it with setMasterPasswordNow() below.
-const ORIGINAL_MASTER_HASH = '0494931c1f7a91230b20808cbbe48256730cdc1d7d398c935f2a4f2ca753e927';
-// A third password, also admin-level and usable on any lock screen like the master password above,
-// but meant for a quick daily check rather than everyday admin work: logging in with it shows an
-// alert naming what needs attention right now and sends you straight to tasks.html instead of
-// wherever you were headed. Starts as "cliff1776"; change it with setTasksPasswordNow() below.
-const ORIGINAL_TASKS_HASH = 'a591377c536da78c9a2c98134d2178bbe9b3316a11b463bb1101cf04e585b94d';
 
 // What each read needs. Anything not listed here (including the check-in list) needs the Head Pyro level.
 const GET_LEVELS = {
@@ -1155,13 +1141,10 @@ function safeEqual(a, b) {
 function getSecurityProps() {
   const props = PropertiesService.getScriptProperties();
   if (!props.getProperty('TOKEN_SECRET')) props.setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid());
-  if (!props.getProperty('HP_PASSWORD_HASH')) props.setProperty('HP_PASSWORD_HASH', ORIGINAL_HP_HASH);
-  if (!props.getProperty('ADMIN_PASSWORD_HASH')) props.setProperty('ADMIN_PASSWORD_HASH', ORIGINAL_ADMIN_HASH);
-  if (!props.getProperty('MASTER_PASSWORD_HASH')) props.setProperty('MASTER_PASSWORD_HASH', ORIGINAL_MASTER_HASH);
-  if (!props.getProperty('TASKS_PASSWORD_HASH')) props.setProperty('TASKS_PASSWORD_HASH', ORIGINAL_TASKS_HASH);
   return props;
 }
 // A stored password is either an original plain SHA-256 hash, or "salt$hash" for passwords set with the functions below.
+// (Still used for the self-serve Payroll PIN, below — not for signing in to Head Pyro Tools or Manage/Edit anymore.)
 function passwordMatches(stored, candidate) {
   if (!stored) return false;
   stored = String(stored);
@@ -1218,8 +1201,8 @@ function hasRole(roles, needed) {
   return roles.indexOf(needed) > -1;
 }
 function authError(needed) {
-  let message = 'Enter the Head Pyro Tools password to continue.';
-  if (needed === 'admin') message = 'Enter the Manage/Edit password to continue.';
+  let message = 'Sign in with your Google account to continue.';
+  if (needed === 'admin' || needed === 'hp') message = 'Sign in with your Google account to continue. Ask an admin to grant you access in Manage Access if you need it.';
   else if (needed === 'payroll' || needed === 'photoMod') message = "You don't have access to this section. Ask an admin to grant it in Manage Access.";
   else if (needed === 'crew') message = 'Sign in with your crew Google account to do this.';
   return jsonOut({ status: 'error', code: 'auth', needs: needed, message: message });
@@ -1227,8 +1210,8 @@ function authError(needed) {
 function authorize(token, needed) {
   return hasRole(rolesFromToken(token), needed) ? null : authError(needed);
 }
-// Pulls together everything across the app that's waiting on an admin decision, for the Tasks
-// password's login alert and for tasks.html itself. Each category mirrors a badge already shown
+// Pulls together everything across the app that's waiting on an admin decision, for tasks.html.
+// Each category mirrors a badge already shown
 // elsewhere (Venues, Payroll Reports, Photo Wall) so there's one definition of "needs attention",
 // not a second one invented just for this page.
 function getPendingTasksSummary(ss) {
@@ -1267,47 +1250,10 @@ function getPendingTasksSummary(ss) {
   };
 }
 
-function handleLogin(data, ss) {
-  const cache = CacheService.getScriptCache();
-  const failures = Number(cache.get(LOGIN_FAIL_KEY) || 0);
-  if (failures >= MAX_LOGIN_FAILS) {
-    return jsonOut({status: 'error', code: 'locked', message: 'Too many wrong passwords. Wait a few minutes and try again.'});
-  }
-  const tier = data.tier === 'admin' ? 'admin' : 'hp';
-  const enteredPassword = String(data.password || '');
-  const tasksHash = getSecurityProps().getProperty('TASKS_PASSWORD_HASH');
-  // Same admin-level, any-lock-screen behavior as the master password, but this one also flags that
-  // the person should go review what's pending right now instead of landing wherever they were headed.
-  if (passwordMatches(tasksHash, enteredPassword)) {
-    cache.remove(LOGIN_FAIL_KEY);
-    logSignIn(ss, 'Tasks password', 'admin', data.userAgent);
-    return jsonOut({
-      status: 'ok', token: makeToken('admin'), tier: 'admin', expiresIn: TOKEN_LIFETIME_SECONDS,
-      goToTasks: true, tasks: getPendingTasksSummary(ss)
-    });
-  }
-  const masterHash = getSecurityProps().getProperty('MASTER_PASSWORD_HASH');
-  // The master password works on either lock screen and always signs in at the admin level, so an
-  // administrator never has to remember or switch between the separate Head Pyro and Manage/Edit passwords.
-  if (passwordMatches(masterHash, enteredPassword)) {
-    cache.remove(LOGIN_FAIL_KEY);
-    logSignIn(ss, 'Master password', 'admin', data.userAgent);
-    return jsonOut({status: 'ok', token: makeToken('admin'), tier: 'admin', expiresIn: TOKEN_LIFETIME_SECONDS});
-  }
-  const stored = getSecurityProps().getProperty(tier === 'admin' ? 'ADMIN_PASSWORD_HASH' : 'HP_PASSWORD_HASH');
-  if (passwordMatches(stored, enteredPassword)) {
-    cache.remove(LOGIN_FAIL_KEY);
-    logSignIn(ss, (tier === 'admin' ? 'Manage/Edit password' : 'Head Pyro password'), tier, data.userAgent);
-    return jsonOut({status: 'ok', token: makeToken(tier), tier: tier, expiresIn: TOKEN_LIFETIME_SECONDS});
-  }
-  cache.put(LOGIN_FAIL_KEY, String(failures + 1), LOGIN_LOCKOUT_SECONDS);
-  return jsonOut({status: 'error', code: 'badpassword', message: 'That password is not right.'});
-}
-
 /* ===================== GOOGLE SIGN-IN + ACCESS ROLES =====================
-   Lets specific people sign in with their own Google account instead of (or alongside) the shared
-   passwords. The "AccessRoles" sheet is the roster: which Google email maps to which person and
-   which roles they're allowed to use. Managed from the Manage Access admin page. */
+   The only way to sign in to Head Pyro Tools or Manage/Edit — there's no shared password anymore.
+   The "AccessRoles" sheet is the roster: which Google email maps to which person and which roles
+   they're allowed to use. Managed from the Manage Access admin page. */
 const ACCESS_ROLES_SHEET = 'AccessRoles';
 const ACCESS_ROLES_HEADERS = ['Email', 'Name', 'Roles', 'DateAdded'];
 
@@ -1550,49 +1496,11 @@ function listSignInLog(ss, limit) {
   return out;
 }
 
-/* ---- Run these from the Apps Script editor (not from a page) ---- */
-function setPasswordFor(tier, newPassword) {
-  newPassword = String(newPassword || '');
-  if (newPassword.length < 8) throw new Error('Use at least 8 characters for the new password.');
-  getSecurityProps().setProperty(tier === 'admin' ? 'ADMIN_PASSWORD_HASH' : 'HP_PASSWORD_HASH', saltedHash(newPassword));
-  signOutEveryone();   // anyone logged in with the old password has to sign in again
-}
-function setAdminPasswordNow() {
-  const NEW_PASSWORD = '';   // type the new Manage/Edit password between the quotes, run this once, then delete it from here and save
-  setPasswordFor('admin', NEW_PASSWORD);
-  console.log('Manage/Edit password changed. Now delete the password from this function and save.');
-}
-function setHpPasswordNow() {
-  const NEW_PASSWORD = '';   // type the new Head Pyro Tools password between the quotes, run this once, then delete it from here and save
-  setPasswordFor('hp', NEW_PASSWORD);
-  console.log('Head Pyro Tools password changed. Now delete the password from this function and save.');
-}
-function setMasterPasswordNow() {
-  const NEW_PASSWORD = '';   // type the new master (admin-on-any-lock-screen) password between the quotes, run this once, then delete it from here and save
-  const newPassword = String(NEW_PASSWORD || '');
-  if (newPassword.length < 8) throw new Error('Use at least 8 characters for the new password.');
-  getSecurityProps().setProperty('MASTER_PASSWORD_HASH', saltedHash(newPassword));
-  signOutEveryone();   // anyone logged in with the old password has to sign in again
-  console.log('Master password changed. Now delete the password from this function and save.');
-}
-function setTasksPasswordNow() {
-  const NEW_PASSWORD = '';   // type the new tasks (admin-on-any-lock-screen, jumps to tasks.html) password between the quotes, run this once, then delete it from here and save
-  const newPassword = String(NEW_PASSWORD || '');
-  if (newPassword.length < 8) throw new Error('Use at least 8 characters for the new password.');
-  getSecurityProps().setProperty('TASKS_PASSWORD_HASH', saltedHash(newPassword));
-  signOutEveryone();   // anyone logged in with the old password has to sign in again
-  console.log('Tasks password changed. Now delete the password from this function and save.');
-}
+/* ---- Run this from the Apps Script editor (not from a page) ---- */
+// Invalidates every signed-in session (Google included) by rotating the token-signing secret —
+// useful if a device or account needs to be forced to sign in again right away.
 function signOutEveryone() {
   PropertiesService.getScriptProperties().setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid());
-}
-function securityStatus() {
-  const props = getSecurityProps();
-  const describe = key => (String(props.getProperty(key)).indexOf('$') > -1) ? 'changed (good)' : 'STILL THE ORIGINAL — change it';
-  console.log('Manage/Edit password: ' + describe('ADMIN_PASSWORD_HASH'));
-  console.log('Head Pyro Tools password: ' + describe('HP_PASSWORD_HASH'));
-  console.log('Master password: ' + describe('MASTER_PASSWORD_HASH'));
-  console.log('Tasks password: ' + describe('TASKS_PASSWORD_HASH'));
 }
 
 /* ===================== BACKUPS =====================
@@ -1658,7 +1566,6 @@ function doPostInner(e) {
   const data = JSON.parse(e.postData.contents);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  if (data.recordType === 'login') return handleLogin(data, ss);
   if (data.recordType === 'googleLogin') return handleGoogleLogin(data, ss);
   if (data.recordType === 'accessRoleSet') {
     const denied = authorize(data.token, 'admin');

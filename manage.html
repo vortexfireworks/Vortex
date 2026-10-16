@@ -162,15 +162,7 @@ updateThemeToggleIcon();
   <div style="max-width:340px;width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:28px 24px;text-align:center;backdrop-filter:blur(6px);">
     <img src="logo.jpg" alt="Vortex Fireworks Artists logo" style="width:56px;height:56px;border-radius:8px;margin-bottom:14px;">
     <h1 style="font-size:17px;margin:0 0 6px;color:var(--ink);">Manage/Edit</h1>
-    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;">This page is password protected.</p>
-    <input type="password" id="lockPassword" placeholder="Password" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;margin-bottom:12px;box-sizing:border-box;background:var(--surface-6);color:var(--ink);" onkeydown="if(event.key==='Enter') checkPassword()">
-    <button type="button" style="width:100%;color:#fdf6f2;border:none;background:linear-gradient(135deg,#d92b2b,#ff8c00);font-size:14px;font-weight:700;padding:11px 16px;border-radius:8px;cursor:pointer;" onclick="checkPassword()">Unlock</button>
-    <p id="lockError" style="font-size:12px;color:#ff6a5a;margin:12px 0 0;display:none;">Incorrect password.</p>
-    <div style="display:flex;align-items:center;gap:10px;margin:18px 0 14px;">
-      <div style="flex:1;height:1px;background:var(--line);"></div>
-      <span style="font-size:11px;color:var(--ink-soft);">OR</span>
-      <div style="flex:1;height:1px;background:var(--line);"></div>
-    </div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;">Sign in with your Google account to continue.</p>
     <div id="googleBtn" style="display:flex;justify-content:center;"></div>
     <p id="googleError" style="font-size:12px;color:#ff6a5a;margin:12px 0 0;display:none;"></p>
   </div>
@@ -447,31 +439,6 @@ updateThemeToggleIcon();
 </div>
 
 <script>
-async function checkPassword(){
-  const input = document.getElementById('lockPassword');
-  const err = document.getElementById('lockError');
-  const btn = document.querySelector('#lockScreen button');
-  err.style.display = 'none';
-  btn.disabled = true; btn.textContent = 'Checking\u2026';
-  const result = await Auth.login('admin', input.value);
-  btn.disabled = false; btn.textContent = 'Unlock';
-  if(result.ok){
-    if(result.goToTasks){
-      alert(tasksAlertText(result.tasks));
-      location.replace('tasks.html');
-      return;
-    }
-    const next = Auth.nextPage();
-    if(next){ location.replace(next); return; }      // back to the page they were trying to open
-    unlockManage();
-  } else {
-    err.textContent = result.message;
-    err.style.display = 'block';
-    input.value = '';
-    input.focus();
-  }
-}
-
 function unlockManage(){
   document.getElementById('lockScreen').style.display = 'none';
   document.getElementById('mainContent').style.display = 'block';
@@ -512,7 +479,7 @@ const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O
 if(Auth.has('admin')){
   unlockManage();
 } else if(Auth.expiredNotice()){
-  document.querySelector('#lockScreen p').textContent = 'Your sign-in ended. Enter the password to continue.';
+  document.querySelector('#lockScreen p').textContent = 'Your sign-in ended. Sign in again to continue.';
 }
 
 // These badges only make sense once signed in — the cards they decorate are hidden behind
@@ -575,7 +542,7 @@ function loadDashboardBadges(){
     } catch(err){ /* the card just shows no badge if this fails */ }
   })();
 
-  // Badge on the Tasks card: the same total the Tasks password's login alert would show.
+  // Badge on the Tasks card: the same total tasks.html itself would show.
   (async function loadTasksPendingBadge(){
     try{
       const res = await fetch(`${CHECKIN_API_URL}?type=pendingTasksSummary`, { cache: 'no-store' });
