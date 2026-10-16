@@ -2167,7 +2167,7 @@ function doPostInner(e) {
     const existingSignIn = rowIndex > 0 ? rows[rowIndex - 1][map['SignInEnabled']] : '';
     const existingId = rowIndex > 0 ? String(rows[rowIndex - 1][map['Id']] || '') : '';
     const existingAssignedHp = rowIndex > 0 ? rows[rowIndex - 1][map['AssignedHp']] : '';
-    const existingCallTime = rowIndex > 0 ? rows[rowIndex - 1][map['CallTime']] : '';
+    const existingCallTime = rowIndex > 0 ? normalizeTimeValue(rows[rowIndex - 1][map['CallTime']]) : '';
     const existingSignupLimit = rowIndex > 0 ? rows[rowIndex - 1][map['SignupLimit']] : '';
 
     const newRow = [];
@@ -2248,6 +2248,18 @@ function normalizeDateValue(value) {
     return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
   return String(value || '').slice(0, 10);
+}
+
+// A call time typed as "14:30" can get auto-converted by Google Sheets into a time-formatted
+// cell, which Apps Script then hands back as a Date object (on the spreadsheet's 1899-12-30
+// epoch) instead of the original string. Left alone, that Date serializes to JSON as a full
+// ISO timestamp that nothing downstream can parse as a time. Same fix as normalizeDateValue,
+// just for the time-of-day part.
+function normalizeTimeValue(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]') {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  return String(value || '').trim();
 }
 
 function doGet(e) {
@@ -2549,7 +2561,7 @@ function doGetInner(e) {
         address: String(row[idx['Address']] || ''),
         eventDate: normalizeDateValue(row[idx['EventDate']]),
         assignedHp: String(row[idx['AssignedHp']] || ''),
-        callTime: String(row[idx['CallTime']] || '')
+        callTime: normalizeTimeValue(row[idx['CallTime']])
       }))
       .filter(v => v.eventDate && v.eventDate >= today)
       .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
@@ -2961,7 +2973,7 @@ function doGetInner(e) {
         eventDate: normalizeDateValue(row[idx['EventDate']]),
         signInEnabled: row[idx['SignInEnabled']] === 'Yes',
         assignedHp: row[idx['AssignedHp']] || '',
-        callTime: row[idx['CallTime']] || '',
+        callTime: normalizeTimeValue(row[idx['CallTime']]),
         signupLimit: Number(row[idx['SignupLimit']]) || 0
       }));
     const json = JSON.stringify(results);
