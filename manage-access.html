@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
+<title>Manage Access — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], input[type=email]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  button.primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2)); color:#fdf6f2; border:none;
+    font-size:14px; font-weight:700; padding:12px 20px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 16px rgba(255,140,0,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.primary:disabled{opacity:0.6;cursor:wait;}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary.danger{color:var(--brick);}
+  button.secondary.danger:hover{border-color:var(--brick);}
+  .editor-box{
+    background:var(--surface-4);border:1px solid var(--line);border-radius:10px;
+    padding:16px;margin-bottom:24px;
+  }
+  .editor-box p.label-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 12px;}
+  .save-row{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
+  .hint{font-size:11.5px;color:var(--ink-soft);margin:6px 0 0;line-height:1.5;}
+  .list-title{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .status-line{font-size:12.5px;margin-left:4px;}
+  .callout{border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:16px;border:1px solid var(--line);}
+  .callout.warn{background:rgba(255,190,60,0.12);border-color:rgba(255,190,60,0.5);}
+  .callout b{color:var(--ink);}
+  .callout code{background:var(--surface-5);padding:1px 6px;border-radius:4px;font-size:12px;}
+
+  .role-checks{display:flex;flex-wrap:wrap;gap:10px 18px;margin:4px 0 2px;}
+  .role-check{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink);}
+  .role-check input{width:auto;}
+
+  .acc-row{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+  .acc-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .acc-name{font-weight:700;font-size:14px;color:var(--ink);}
+  .acc-email{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .acc-roles{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
+  .role-pill{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:20px;background:var(--surface-5);color:var(--navy);border:1px solid var(--line);}
+  .role-pill.admin{color:#fff;background:linear-gradient(135deg,var(--accent1),var(--accent2));border:none;}
+  .acc-actions{display:flex;gap:8px;margin-top:10px;}
+  .acc-actions button{background:none;border:1px solid var(--line);color:var(--navy);font-size:12px;padding:6px 11px;border-radius:6px;cursor:pointer;}
+  .acc-actions button:hover{border-color:var(--navy);}
+  .acc-actions button.danger{color:var(--brick);}
+  .acc-actions button.danger:hover{border-color:var(--brick);}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Manage Access</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">People on this list can sign in with their own Google account instead of typing a shared password. Add their Google email, their name, and which parts of the app they should be able to use. The shared passwords keep working for everyone else.</p>
+
+    <div class="editor-box">
+      <p class="label-title" id="editorTitle">ADD SOMEONE</p>
+      <div class="field">
+        <label for="accEmail">Google email</label>
+        <input type="email" id="accEmail" placeholder="name@gmail.com" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="accName">Name</label>
+        <input type="text" id="accName" placeholder="So you can recognize them in this list" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Roles</label>
+        <div class="role-checks">
+          <label class="role-check"><input type="checkbox" value="hp" id="roleHp"> Head Pyro Tools</label>
+          <label class="role-check"><input type="checkbox" value="payroll" id="rolePayroll"> Payroll only</label>
+          <label class="role-check"><input type="checkbox" value="photoMod" id="rolePhotoMod"> Photo Wall moderator only</label>
+          <label class="role-check"><input type="checkbox" value="admin" id="roleAdmin"> Full Admin</label>
+        </div>
+      </div>
+      <div class="save-row">
+        <button class="primary" type="button" id="saveBtn" onclick="saveAccess()">Save</button>
+        <button class="secondary" type="button" id="cancelEditBtn" onclick="resetEditor()" style="display:none;">Cancel</button>
+        <span class="status-line" id="saveStatus"></span>
+      </div>
+      <p class="hint">Full Admin can do everything, so the other checkboxes don't matter once it's checked. Someone with no role checked won't be able to sign in at all.</p>
+    </div>
+
+    <p class="list-title" id="accCount">PEOPLE WITH ACCESS</p>
+    <div id="accList"><p class="loading-pulse">Loading…</p></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O0-lC7U01tCclhAVIrrGEwLfVoaa142YYGU0OyX1tBCiK1nGOqf_n8A/exec";
+function $(id){ return document.getElementById(id); }
+function esc(v){ return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function setStatus(el, msg, kind){ el.textContent = msg || ''; el.style.color = kind === 'ok' ? 'var(--ok)' : kind === 'err' ? 'var(--brick)' : 'var(--ink-soft)'; }
+// Reads the server's reply, so a refused or failed request is reported instead of looking like it worked.
+async function postJson(payload){
+  const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
+  let data = null;
+  try{ data = await res.json(); } catch(e){}
+  if(!res.ok || !data || data.status !== 'ok') throw new Error((data && data.message) || 'Request failed');
+  return data;
+}
+
+const ROLE_LABEL = { hp: 'Head Pyro Tools', admin: 'Full Admin', payroll: 'Payroll only', photoMod: 'Photo Wall moderator' };
+let editingEmail = null;   // the original email of the row being edited, or null when adding someone new
+
+function resetEditor(){
+  editingEmail = null;
+  $('accEmail').value = '';
+  $('accEmail').disabled = false;
+  $('accName').value = '';
+  $('roleHp').checked = false; $('rolePayroll').checked = false; $('rolePhotoMod').checked = false; $('roleAdmin').checked = false;
+  $('editorTitle').textContent = 'ADD SOMEONE';
+  $('cancelEditBtn').style.display = 'none';
+  setStatus($('saveStatus'), '');
+}
+
+function editAccess(email, name, roles){
+  editingEmail = email;
+  $('accEmail').value = email;
+  $('accEmail').disabled = true;   // changing the email here would orphan the old row; delete and re-add instead
+  $('accName').value = name || '';
+  $('roleHp').checked = roles.indexOf('hp') > -1;
+  $('rolePayroll').checked = roles.indexOf('payroll') > -1;
+  $('rolePhotoMod').checked = roles.indexOf('photoMod') > -1;
+  $('roleAdmin').checked = roles.indexOf('admin') > -1;
+  $('editorTitle').textContent = 'EDITING ' + (name || email).toUpperCase();
+  $('cancelEditBtn').style.display = '';
+  setStatus($('saveStatus'), '');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function saveAccess(){
+  const email = $('accEmail').value.trim();
+  const name = $('accName').value.trim();
+  const roles = ['hp','payroll','photoMod','admin'].filter(r => $(r === 'hp' ? 'roleHp' : r === 'payroll' ? 'rolePayroll' : r === 'photoMod' ? 'rolePhotoMod' : 'roleAdmin').checked);
+  const st = $('saveStatus'), btn = $('saveBtn');
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ setStatus(st, 'Enter a valid email address.', 'err'); return; }
+  if(!roles.length){ setStatus(st, 'Check at least one role.', 'err'); return; }
+  btn.disabled = true; setStatus(st, 'Saving…');
+  try{
+    await postJson({ recordType: 'accessRoleSet', email, name, roles });
+    resetEditor();
+    await loadAccess();
+    setStatus($('saveStatus'), 'Saved ✓', 'ok');
+  } catch(err){
+    setStatus(st, err.message || "Couldn't save — check your connection and try again.", 'err');
+  } finally { btn.disabled = false; }
+}
+
+async function removeAccess(email){
+  if(!confirm('Remove ' + email + '? They will no longer be able to sign in with Google.')) return;
+  try{
+    await postJson({ recordType: 'accessRoleDelete', email });
+    await loadAccess();
+  } catch(err){
+    alert(err.message || "Couldn't remove — check your connection and try again.");
+  }
+}
+
+async function loadAccess(){
+  const list = $('accList');
+  let data;
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=accessRoles`, { cache:'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    data = await res.json();
+    if(!Array.isArray(data)) throw new Error('Unexpected reply');
+  } catch(err){
+    list.innerHTML = '<div class="callout warn"><b>Couldn’t load the list</b> — check your connection and try again.</div>';
+    return;
+  }
+  data.sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
+  $('accCount').textContent = data.length ? `${data.length} ${data.length === 1 ? 'PERSON' : 'PEOPLE'} WITH ACCESS` : 'PEOPLE WITH ACCESS';
+  list.innerHTML = data.length
+    ? data.map(p => {
+        const rolesJson = esc(JSON.stringify(p.roles));
+        const pills = p.roles.map(r => `<span class="role-pill${r === 'admin' ? ' admin' : ''}">${esc(ROLE_LABEL[r] || r)}</span>`).join('');
+        return `<div class="acc-row">
+          <div class="acc-top"><span class="acc-name">${esc(p.name || p.email)}</span></div>
+          <div class="acc-email">${esc(p.email)}</div>
+          <div class="acc-roles">${pills}</div>
+          <div class="acc-actions">
+            <button type="button" onclick='editAccess(${JSON.stringify(p.email)}, ${JSON.stringify(p.name || "")}, ${rolesJson})'>Edit</button>
+            <button type="button" class="danger" onclick="removeAccess(${JSON.stringify(p.email)})">Remove</button>
+          </div>
+        </div>`;
+      }).join('')
+    : '<div class="empty-state"><div class="icon">🔐</div><p>Nobody is set up for Google sign-in yet. Add someone above.</p></div>';
+}
+
+loadAccess();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update().catch(() => {});
+    }).catch(() => {});
+  });
+  // iOS Safari in particular can hang onto an old service worker long after a new
+  // one has taken over. Once the new one activates and claims this page, reload
+  // once so the person actually sees the update instead of a stale cached copy.
+  let swRefreshedOnce = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swRefreshedOnce) return;
+    swRefreshedOnce = true;
+    location.reload();
+  });
+}
+</script>
+</body>
+</html>
