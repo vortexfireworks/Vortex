@@ -1088,7 +1088,7 @@ const TOKEN_LIFETIME_SECONDS = 24 * 60 * 60;
 
 // What each read needs. Anything not listed here (including the check-in list) needs the Head Pyro level.
 const GET_LEVELS = {
-  names: 'public', verifyPerson: 'public', venues: 'public', announcements: 'public',
+  names: 'public', verifyPerson: 'public', myContactInfo: 'any', venues: 'public', announcements: 'public',
   contacts: 'hp', pyroDirectory: 'any', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
@@ -1162,24 +1162,49 @@ function signPayload(payload) {
 }
 // A token carries one or more roles (sorted, joined with '+' — e.g. "admin", "hp", "payroll+photoMod").
 // Pass a single tier string (the old password-login shape) or an array of roles (Google sign-in).
-function makeToken(rolesOrTier) {
+// A Google sign-in also binds the signed-in email into the token (signed along with everything
+// else), so a page can look someone's own record up by that email later without having to trust
+// whatever email a request claims — see emailFromToken.
+function makeToken(rolesOrTier, email) {
   const roles = (Array.isArray(rolesOrTier) ? rolesOrTier : [rolesOrTier]).filter(Boolean).sort();
   const expires = Math.floor(new Date().getTime() / 1000) + TOKEN_LIFETIME_SECONDS;
-  const payload = roles.join('+') + '.' + expires;
+  const emailPart = email ? Utilities.base64EncodeWebSafe(Utilities.newBlob(String(email).trim().toLowerCase()).getBytes()).replace(/=+$/, '') : '';
+  const payload = roles.join('+') + '.' + expires + '.' + emailPart;
   return payload + '.' + signPayload(payload);
 }
 // Returns the roles a token actually carries (after checking its signature and expiry), or [] if
 // the token is missing, expired, tampered with, or carries something outside KNOWN_ROLES.
+// Accepts both the current 4-part token shape (roles.expires.email.signature) and the older
+// 3-part shape issued before tokens carried an email, so sign-ins from just before this change
+// keep working until they naturally expire.
 function rolesFromToken(token) {
   if (!token || typeof token !== 'string') return [];
   const parts = token.split('.');
-  if (parts.length !== 3) return [];
+  if (parts.length !== 3 && parts.length !== 4) return [];
   const expires = Number(parts[1]);
   if (!expires || expires < Math.floor(new Date().getTime() / 1000)) return [];
-  if (!safeEqual(signPayload(parts[0] + '.' + parts[1]), parts[2])) return [];
+  const signedPart = parts.slice(0, parts.length - 1).join('.');
+  if (!safeEqual(signPayload(signedPart), parts[parts.length - 1])) return [];
   const roles = parts[0].split('+').filter(Boolean);
   if (!roles.length || !roles.every(r => KNOWN_ROLES.indexOf(r) > -1)) return [];
   return roles;
+}
+// The Google email bound into a token at sign-in time ('' for a token with no email bound, such
+// as the legacy 3-part shape). Re-checks the token's signature itself rather than trusting a
+// caller that already called rolesFromToken, so this is always safe to call on its own.
+function emailFromToken(token) {
+  if (!token || typeof token !== 'string') return '';
+  const parts = token.split('.');
+  if (parts.length !== 4) return '';
+  const expires = Number(parts[1]);
+  if (!expires || expires < Math.floor(new Date().getTime() / 1000)) return '';
+  if (!safeEqual(signPayload(parts.slice(0, 3).join('.')), parts[3])) return '';
+  if (!parts[2]) return '';
+  try {
+    return Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[2])).getDataAsString();
+  } catch (e) {
+    return '';
+  }
 }
 // Backward-compatible helper some call sites still use for a plain "are they a full admin?" check.
 function tierFromToken(token) {
@@ -1369,7 +1394,7 @@ function handleGoogleLogin(data, ss) {
   }
   logSignIn(ss, 'Google', roles.join('+'), data.userAgent, verified.email, verified.name);
   return jsonOut({
-    status: 'ok', token: makeToken(roles), roles: roles, email: verified.email, name: verified.name,
+    status: 'ok', token: makeToken(roles, verified.email), roles: roles, email: verified.email, name: verified.name,
     expiresIn: TOKEN_LIFETIME_SECONDS
   });
 }
@@ -2704,6 +2729,38 @@ function doGetInner(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
     return ContentService.createTextOutput(JSON.stringify({verified: false}))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Lets a signed-in Google user skip typing their name+phone on Update My Info: the email bound
+  // into their token (set at Google sign-in, in makeToken) is matched against the Email column on
+  // each contact. Only ever matches the token's OWN email — never a name or email a request
+  // supplies — so a signed-in crew member can only ever auto-fill their own record this way, not
+  // look anyone else's up.
+  if (e.parameter.type === 'myContactInfo') {
+    const signedInEmail = emailFromToken(e.parameter.token);
+    const merged = signedInEmail ? getMergedContacts(ss) : {};
+    const match = signedInEmail
+      ? Object.values(merged).find(c => String(c.email || '').trim().toLowerCase() === signedInEmail)
+      : null;
+    if (match) {
+      return ContentService.createTextOutput(JSON.stringify({
+        found: true,
+        name: match.name || '',
+        license: match.license || '',
+        displayLicense: match.displayLicense || '',
+        specialEffectsLicense: match.specialEffectsLicense || '',
+        flameLicense: match.flameLicense || '',
+        address: match.address || '',
+        age: match.age || '',
+        phone: match.phone || '',
+        email: match.email || '',
+        photoUrl: match.photoUrl || '',
+        emergencyContact: match.emergencyContact || '',
+        emergencyContactPhone: match.emergencyContactPhone || ''
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({found: false}))
       .setMimeType(ContentService.MimeType.JSON);
   }
 

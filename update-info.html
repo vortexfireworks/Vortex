@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="CueSheet">
 <meta name="theme-color" content="#0a0f1e">
 <link rel="icon" href="icon-192.png">
+<script src="auth.js"></script>
 <script>
 function toggleTheme(){
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
@@ -193,6 +194,14 @@ updateThemeToggleIcon();
     </div>
 
     <div class="body" id="verifyStep">
+      <p class="sub" style="margin-bottom:10px;">Sign in with your crew Google account to skip typing your name and phone below.</p>
+      <div id="googleBtn"></div>
+      <p class="msg" id="googleMsg"></p>
+      <div style="display:flex;align-items:center;gap:10px;margin:18px 0;">
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+        <span style="font-size:11px;color:var(--ink-soft);">OR</span>
+        <div style="flex:1;height:1px;background:var(--line);"></div>
+      </div>
       <p class="sub">Enter your name and the phone number already on file to pull up your info and make changes.</p>
       <div class="field">
         <label for="vName">Your name</label>
@@ -299,6 +308,76 @@ async function fetchNameList(){
 }
 fetchNameList();
 
+// Shared by both ways in: typing name+phone (verifyIdentity) and signing in with Google
+// (lookupMyContactInfo). Fills the edit step from whichever record matched and moves to it.
+function fillEditStep(name, data){
+  document.getElementById('eName').value = name;
+  document.getElementById('ePhone').value = data.phone || '';
+  document.getElementById('eEmail').value = data.email || '';
+  document.getElementById('eDisplayLicense').value = data.displayLicense || '';
+  document.getElementById('eSFXLicense').value = data.specialEffectsLicense || '';
+  document.getElementById('eFlameLicense').value = data.flameLicense || '';
+  document.getElementById('eEmergencyContact').value = data.emergencyContact || '';
+  document.getElementById('eEmergencyContactPhone').value = data.emergencyContactPhone || '';
+  document.getElementById('eAddress').value = data.address || '';
+  document.getElementById('eAge').value = data.age || '';
+  if(data.photoUrl){
+    const preview = document.getElementById('photoPreview');
+    preview.src = data.photoUrl;
+    preview.style.display = 'block';
+  }
+  document.getElementById('verifyStep').style.display = 'none';
+  document.getElementById('editStep').style.display = 'block';
+  document.getElementById('stepDot1').className = 'dot done';
+  document.getElementById('stepDot2').className = 'dot active';
+  document.getElementById('stepLabel').textContent = 'Step 2 of 2 — Update';
+}
+
+// Google sign-in callback (Auth.renderGoogleButton). Signs in, then looks up a contact record
+// whose Email on file matches that Google account — the server only ever matches the signed-in
+// account's OWN email (see myContactInfo on the backend), so this can only ever pull up the
+// signed-in person's own info, never anyone else's.
+function onGoogleToken(idToken){
+  const msgEl = document.getElementById('googleMsg');
+  msgEl.textContent = 'Signing in…';
+  msgEl.className = 'msg';
+  Auth.googleLogin(idToken).then(result => {
+    if(!result.ok){
+      msgEl.textContent = result.message || 'Could not sign in with Google.';
+      msgEl.className = 'msg err';
+      return;
+    }
+    lookupMyContactInfo();
+  });
+}
+
+async function lookupMyContactInfo(){
+  const msgEl = document.getElementById('googleMsg');
+  msgEl.textContent = 'Looking up your info…';
+  msgEl.className = 'msg';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=myContactInfo`);
+    const data = await res.json();
+    if(data && data.found){
+      verifiedName = data.name;
+      verifiedPhone = data.phone || '';
+      msgEl.textContent = '';
+      fillEditStep(data.name, data);
+    } else {
+      const info = (window.Auth && Auth.googleInfo()) || {};
+      msgEl.textContent = `Signed in as ${info.name || info.email || 'your Google account'} — we don't have that account's email on file yet. Enter your name and phone below instead.`;
+      msgEl.className = 'msg';
+      const nameField = document.getElementById('vName');
+      if(info.name && !nameField.value) nameField.value = info.name;
+    }
+  } catch(err){
+    msgEl.textContent = 'Could not look up your info right now — enter your name and phone below instead.';
+    msgEl.className = 'msg err';
+  }
+}
+
+if(window.Auth) Auth.renderGoogleButton('googleBtn', onGoogleToken);
+
 async function verifyIdentity(){
   const msgEl = document.getElementById('verifyMsg');
   const name = document.getElementById('vName').value.trim();
@@ -317,26 +396,7 @@ async function verifyIdentity(){
     if(data && data.verified){
       verifiedName = name;
       verifiedPhone = phone;
-      document.getElementById('eName').value = name;
-      document.getElementById('ePhone').value = data.phone || phone;
-      document.getElementById('eEmail').value = data.email || '';
-      document.getElementById('eDisplayLicense').value = data.displayLicense || '';
-      document.getElementById('eSFXLicense').value = data.specialEffectsLicense || '';
-      document.getElementById('eFlameLicense').value = data.flameLicense || '';
-      document.getElementById('eEmergencyContact').value = data.emergencyContact || '';
-      document.getElementById('eEmergencyContactPhone').value = data.emergencyContactPhone || '';
-      document.getElementById('eAddress').value = data.address || '';
-      document.getElementById('eAge').value = data.age || '';
-      if(data.photoUrl){
-        const preview = document.getElementById('photoPreview');
-        preview.src = data.photoUrl;
-        preview.style.display = 'block';
-      }
-      document.getElementById('verifyStep').style.display = 'none';
-      document.getElementById('editStep').style.display = 'block';
-      document.getElementById('stepDot1').className = 'dot done';
-      document.getElementById('stepDot2').className = 'dot active';
-      document.getElementById('stepLabel').textContent = 'Step 2 of 2 — Update';
+      fillEditStep(name, data);
     } else {
       msgEl.textContent = "That name and phone number don't match what's on file.";
       msgEl.className = 'msg err';
