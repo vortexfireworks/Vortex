@@ -1094,6 +1094,11 @@ const ORIGINAL_ADMIN_HASH = 'cf7c3f3c216f72e7b13203c30ff418dfff1206d08139fe52411
 // to sign in at the admin level directly, instead of having to remember and switch between the two
 // separate passwords. Starts as "!sB9057214"; change it with setMasterPasswordNow() below.
 const ORIGINAL_MASTER_HASH = '0494931c1f7a91230b20808cbbe48256730cdc1d7d398c935f2a4f2ca753e927';
+// A third password, also admin-level and usable on any lock screen like the master password above,
+// but meant for a quick daily check rather than everyday admin work: logging in with it shows an
+// alert naming what needs attention right now and sends you straight to tasks.html instead of
+// wherever you were headed. Starts as "cliff1776"; change it with setTasksPasswordNow() below.
+const ORIGINAL_TASKS_HASH = 'a591377c536da78c9a2c98134d2178bbe9b3316a11b463bb1101cf04e585b94d';
 
 // What each read needs. Anything not listed here (including the check-in list) needs the Head Pyro level.
 const GET_LEVELS = {
@@ -1104,7 +1109,7 @@ const GET_LEVELS = {
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
   payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp', scheduleStatus: 'public', scheduleFeed: 'public',
   myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'public',
-  photoWallApproved: 'public', photoWallAll: 'admin'
+  photoWallApproved: 'public', photoWallAll: 'admin', pendingTasksSummary: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
@@ -1142,6 +1147,7 @@ function getSecurityProps() {
   if (!props.getProperty('HP_PASSWORD_HASH')) props.setProperty('HP_PASSWORD_HASH', ORIGINAL_HP_HASH);
   if (!props.getProperty('ADMIN_PASSWORD_HASH')) props.setProperty('ADMIN_PASSWORD_HASH', ORIGINAL_ADMIN_HASH);
   if (!props.getProperty('MASTER_PASSWORD_HASH')) props.setProperty('MASTER_PASSWORD_HASH', ORIGINAL_MASTER_HASH);
+  if (!props.getProperty('TASKS_PASSWORD_HASH')) props.setProperty('TASKS_PASSWORD_HASH', ORIGINAL_TASKS_HASH);
   return props;
 }
 // A stored password is either an original plain SHA-256 hash, or "salt$hash" for passwords set with the functions below.
@@ -1188,7 +1194,44 @@ function authorize(token, needed) {
   if (needed === 'public') return null;
   return tierRank(tierFromToken(token)) >= tierRank(needed) ? null : authError(needed);
 }
-function handleLogin(data) {
+// Pulls together everything across the app that's waiting on an admin decision, for the Tasks
+// password's login alert and for tasks.html itself. Each category mirrors a badge already shown
+// elsewhere (Venues, Payroll Reports, Photo Wall) so there's one definition of "needs attention",
+// not a second one invented just for this page.
+function getPendingTasksSummary(ss) {
+  const venuesSheet = getOrCreateVenuesSheet(ss);
+  const vMap = headerMap(venuesSheet);
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Denver', 'yyyy-MM-dd');
+  const venueRows = venuesSheet.getLastRow() > 1 ? venuesSheet.getDataRange().getValues().slice(1) : [];
+  const venuesNeedHp = venueRows
+    .filter(r => r[vMap['Name']] && normalizeDateValue(r[vMap['EventDate']]) >= today && !String(r[vMap['AssignedHp']] || '').trim())
+    .map(r => ({ name: String(r[vMap['Name']] || ''), eventDate: normalizeDateValue(r[vMap['EventDate']]) }))
+    .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+  const payrollRecords = readPayrollRecords(ss);
+  const bySubmission = {};
+  payrollRecords.forEach(r => {
+    const key = r.submissionId || r.id;
+    (bySubmission[key] = bySubmission[key] || []).push(r);
+  });
+  const payrollNeedsApproval = Object.values(bySubmission)
+    .filter(items => !items.every(it => it.status === 'Approved'))
+    .map(items => ({ event: items[0].event, eventDate: items[0].eventDate }))
+    .sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+  const photoWallPending = getAllPhotoWall(ss)
+    .filter(p => p.status === 'Pending')
+    .map(p => ({ name: p.name, caption: p.caption, submittedAt: p.submittedAt }));
+
+  return {
+    venuesNeedHp: venuesNeedHp,
+    payrollNeedsApproval: payrollNeedsApproval,
+    photoWallPending: photoWallPending,
+    totalCount: venuesNeedHp.length + payrollNeedsApproval.length + photoWallPending.length
+  };
+}
+
+function handleLogin(data, ss) {
   const cache = CacheService.getScriptCache();
   const failures = Number(cache.get(LOGIN_FAIL_KEY) || 0);
   if (failures >= MAX_LOGIN_FAILS) {
@@ -1196,6 +1239,16 @@ function handleLogin(data) {
   }
   const tier = data.tier === 'admin' ? 'admin' : 'hp';
   const enteredPassword = String(data.password || '');
+  const tasksHash = getSecurityProps().getProperty('TASKS_PASSWORD_HASH');
+  // Same admin-level, any-lock-screen behavior as the master password, but this one also flags that
+  // the person should go review what's pending right now instead of landing wherever they were headed.
+  if (passwordMatches(tasksHash, enteredPassword)) {
+    cache.remove(LOGIN_FAIL_KEY);
+    return jsonOut({
+      status: 'ok', token: makeToken('admin'), tier: 'admin', expiresIn: TOKEN_LIFETIME_SECONDS,
+      goToTasks: true, tasks: getPendingTasksSummary(ss)
+    });
+  }
   const masterHash = getSecurityProps().getProperty('MASTER_PASSWORD_HASH');
   // The master password works on either lock screen and always signs in at the admin level, so an
   // administrator never has to remember or switch between the separate Head Pyro and Manage/Edit passwords.
@@ -1237,6 +1290,14 @@ function setMasterPasswordNow() {
   signOutEveryone();   // anyone logged in with the old password has to sign in again
   console.log('Master password changed. Now delete the password from this function and save.');
 }
+function setTasksPasswordNow() {
+  const NEW_PASSWORD = '';   // type the new tasks (admin-on-any-lock-screen, jumps to tasks.html) password between the quotes, run this once, then delete it from here and save
+  const newPassword = String(NEW_PASSWORD || '');
+  if (newPassword.length < 8) throw new Error('Use at least 8 characters for the new password.');
+  getSecurityProps().setProperty('TASKS_PASSWORD_HASH', saltedHash(newPassword));
+  signOutEveryone();   // anyone logged in with the old password has to sign in again
+  console.log('Tasks password changed. Now delete the password from this function and save.');
+}
 function signOutEveryone() {
   PropertiesService.getScriptProperties().setProperty('TOKEN_SECRET', Utilities.getUuid() + Utilities.getUuid());
 }
@@ -1246,6 +1307,7 @@ function securityStatus() {
   console.log('Manage/Edit password: ' + describe('ADMIN_PASSWORD_HASH'));
   console.log('Head Pyro Tools password: ' + describe('HP_PASSWORD_HASH'));
   console.log('Master password: ' + describe('MASTER_PASSWORD_HASH'));
+  console.log('Tasks password: ' + describe('TASKS_PASSWORD_HASH'));
 }
 
 /* ===================== BACKUPS =====================
@@ -1311,7 +1373,7 @@ function doPostInner(e) {
   const data = JSON.parse(e.postData.contents);
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  if (data.recordType === 'login') return handleLogin(data);
+  if (data.recordType === 'login') return handleLogin(data, ss);
   if (data.recordType && data.recordType !== 'contact') {
     const denied = authorize(data.token, POST_LEVELS[data.recordType] || 'admin');
     if (denied) return denied;
@@ -2723,6 +2785,11 @@ function doGetInner(e) {
   if (e.parameter.type === 'photoWallAll') {
     // Admin-only — the Manage review screen, pending/approved/rejected alike.
     return jsonOut(getAllPhotoWall(ss));
+  }
+
+  if (e.parameter.type === 'pendingTasksSummary') {
+    // Admin-only — what tasks.html shows, and what the Tasks password's login alert is built from.
+    return jsonOut(getPendingTasksSummary(ss));
   }
 
   if (e.parameter.type === 'payrollRecordsForName') {

@@ -394,6 +394,19 @@ updateThemeToggleIcon();
     </div>
   </a>
 
+  <a class="card c2" href="tasks.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 11l2 2 4-4" stroke-width="1.6"/>
+        <rect x="4" y="4" width="16" height="16" rx="2.5" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Tasks<span class="badge" id="tasksPendingBadge" style="display:none;"></span></h2>
+      <p>Everything across the app that's waiting on a decision right now — shows needing a Head Pyro, payroll pending approval, and photos pending review.</p>
+    </div>
+  </a>
+
   </div>
 
   <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com<br><a href="#" onclick="lockThisPhone();return false;" style="color:inherit;opacity:.8;">&#128274; Lock this phone</a></footer>
@@ -409,6 +422,11 @@ async function checkPassword(){
   const result = await Auth.login('admin', input.value);
   btn.disabled = false; btn.textContent = 'Unlock';
   if(result.ok){
+    if(result.goToTasks){
+      alert(tasksAlertText(result.tasks));
+      location.replace('tasks.html');
+      return;
+    }
     const next = Auth.nextPage();
     if(next){ location.replace(next); return; }      // back to the page they were trying to open
     unlockManage();
@@ -487,6 +505,20 @@ const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJl
       const badge = document.getElementById('photoWallPendingBadge');
       badge.textContent = pending;
       badge.title = `${pending} photo${pending === 1 ? '' : 's'} waiting on review`;
+      badge.style.display = '';
+    }
+  } catch(err){ /* the card just shows no badge if this fails */ }
+})();
+
+// Badge on the Tasks card: the same total the Tasks password's login alert would show.
+(async function loadTasksPendingBadge(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=pendingTasksSummary`, { cache: 'no-store' });
+    const tasks = await res.json();
+    if(tasks && tasks.totalCount){
+      const badge = document.getElementById('tasksPendingBadge');
+      badge.textContent = tasks.totalCount;
+      badge.title = `${tasks.totalCount} task${tasks.totalCount === 1 ? '' : 's'} need attention`;
       badge.style.display = '';
     }
   } catch(err){ /* the card just shows no badge if this fails */ }

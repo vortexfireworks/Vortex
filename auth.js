@@ -38,8 +38,12 @@
       }).then(function(res){ return res.json(); }).then(function(data){
         if(data && data.status === 'ok' && data.token){
           var s = store();
-          if(s) s.setItem(KEY[tier], data.token);
-          return { ok: true };
+          // Store under whichever tier the token actually carries (the master and tasks passwords
+          // both always come back as 'admin', even when typed into the Head Pyro lock screen), so
+          // Auth.has('admin') works right away no matter which screen was used to sign in.
+          var actualTier = data.tier === 'admin' ? 'admin' : tier;
+          if(s) s.setItem(KEY[actualTier], data.token);
+          return { ok: true, goToTasks: !!data.goToTasks, tasks: data.tasks || null };
         }
         return { ok: false, code: data && data.code, message: (data && data.message) || 'Could not sign in.' };
       }).catch(function(){
@@ -113,4 +117,21 @@
 
   window.Auth = Auth;
   window.Directory = Directory;
+
+  // Shared by any lock screen that can get the goToTasks flag back from a login (currently
+  // Head Pyro Tools and Manage/Edit), so the alert reads the same wherever it's typed.
+  window.tasksAlertText = function(tasks){
+    if(!tasks || !tasks.totalCount) return "Nice — nothing needs your attention right now.";
+    var lines = [tasks.totalCount + ' task' + (tasks.totalCount === 1 ? '' : 's') + ' need your attention:'];
+    if(tasks.venuesNeedHp && tasks.venuesNeedHp.length){
+      lines.push('• ' + tasks.venuesNeedHp.length + ' upcoming show' + (tasks.venuesNeedHp.length === 1 ? '' : 's') + ' need' + (tasks.venuesNeedHp.length === 1 ? 's' : '') + ' a Head Pyro assigned');
+    }
+    if(tasks.payrollNeedsApproval && tasks.payrollNeedsApproval.length){
+      lines.push('• ' + tasks.payrollNeedsApproval.length + ' show' + (tasks.payrollNeedsApproval.length === 1 ? '' : 's') + ' with payroll pending approval');
+    }
+    if(tasks.photoWallPending && tasks.photoWallPending.length){
+      lines.push('• ' + tasks.photoWallPending.length + ' photo' + (tasks.photoWallPending.length === 1 ? '' : 's') + ' waiting on review');
+    }
+    return lines.join('\n');
+  };
 })();

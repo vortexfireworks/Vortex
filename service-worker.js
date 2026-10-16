@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuesheet-v6';
+const CACHE_NAME = 'cuesheet-v7';
 const ASSETS = [
   './',
   './index.html',
@@ -30,6 +30,7 @@ const ASSETS = [
   './show-schedule.html',
   './photo-wall.html',
   './manage-photo-wall.html',
+  './tasks.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

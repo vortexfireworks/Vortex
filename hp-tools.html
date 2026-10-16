@@ -473,6 +473,11 @@ async function checkPassword(){
   const result = await Auth.login('hp', input.value);
   btn.disabled = false; btn.textContent = 'Unlock';
   if(result.ok){
+    if(result.goToTasks){
+      alert(tasksAlertText(result.tasks));
+      location.replace('tasks.html');
+      return;
+    }
     const next = Auth.nextPage();
     if(next){ location.replace(next); return; }      // back to the page they were trying to open
     unlockHpTools();
