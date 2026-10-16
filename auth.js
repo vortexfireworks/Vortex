@@ -24,10 +24,12 @@
   }
   googleRoles = loadGoogleRoles();
   // A Google sign-in satisfies a level if that role (or 'admin', which always satisfies everything) is in the
-  // list of roles the server granted it.
+  // list of roles the server granted it. 'any' is a stand-in for "signed in with at least one role" —
+  // crew included, since crew is the lowest tier — for things open to every signed-in person.
   function has(tier){
     if(googleRoles.indexOf('admin') > -1) return true;
     if(tier === 'admin') return false;
+    if(tier === 'any') return googleRoles.length > 0;
     return googleRoles.indexOf(tier) > -1;
   }
   function bestToken(){ return read('google') || ''; }

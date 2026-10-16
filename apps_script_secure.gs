@@ -1089,7 +1089,7 @@ const TOKEN_LIFETIME_SECONDS = 24 * 60 * 60;
 // What each read needs. Anything not listed here (including the check-in list) needs the Head Pyro level.
 const GET_LEVELS = {
   names: 'public', verifyPerson: 'public', venues: 'public', announcements: 'public',
-  contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
+  contacts: 'hp', pyroDirectory: 'any', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'payroll',
@@ -1191,12 +1191,15 @@ function tierFromToken(token) {
 function tierRank(tier) {
   return tier === 'admin' ? 2 : (tier === 'hp' ? 1 : 0);
 }
-// 'admin' can always do everything. Otherwise the token needs the exact role being asked for —
-// 'hp' for Head Pyro Tools, or one of the narrow extra roles (payroll, photoMod) a person can be
-// granted in Manage Access without handing them full Manage/Edit access.
+// 'admin' can always do everything. 'any' passes for anyone signed in with at least one granted
+// role — crew included — since crew is the lowest tier Manage Access hands out; it's for things
+// that should be open to every signed-in crew member and up, without needing a specific role.
+// Otherwise the token needs the exact role being asked for — 'hp' for Head Pyro Tools, or one of
+// the narrow extra roles (payroll, photoMod) a person can be granted without full Manage/Edit access.
 function hasRole(roles, needed) {
   if (needed === 'public') return true;
   if (!roles || !roles.length) return false;
+  if (needed === 'any') return true;
   if (roles.indexOf('admin') > -1) return true;
   return roles.indexOf(needed) > -1;
 }
@@ -1204,7 +1207,7 @@ function authError(needed) {
   let message = 'Sign in with your Google account to continue.';
   if (needed === 'admin' || needed === 'hp') message = 'Sign in with your Google account to continue. Ask an admin to grant you access in Manage Access if you need it.';
   else if (needed === 'payroll' || needed === 'photoMod') message = "You don't have access to this section. Ask an admin to grant it in Manage Access.";
-  else if (needed === 'crew') message = 'Sign in with your crew Google account to do this.';
+  else if (needed === 'crew' || needed === 'any') message = 'Sign in with your crew Google account to do this.';
   return jsonOut({ status: 'error', code: 'auth', needs: needed, message: message });
 }
 function authorize(token, needed) {

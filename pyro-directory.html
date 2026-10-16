@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="auth.js"></script>
-<script>Auth.require('hp');</script>
 <title>Pyro Directory — CueSheet</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="CueSheet">
@@ -102,6 +101,10 @@ updateThemeToggleIcon();
     box-shadow:0 0 12px rgba(255,140,0,0.4);
   }
   p.sub{font-size:12.5px;color:var(--ink-soft);margin:12px 0 18px;line-height:1.5;}
+  .signin-box{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:16px;background:var(--card);}
+  .signin-box p{font-size:12.5px;color:var(--ink-soft);margin:0 0 10px;line-height:1.4;}
+  .signin-box p:last-child{margin-bottom:0;}
+  .signin-box a{color:#7fa8e8;}
   .search-box input{
     width:100%; font-size:14px; padding:10px 12px; border:1px solid var(--line);
     border-radius:8px; background:var(--surface-55); color:var(--ink); margin-bottom:16px;
@@ -162,7 +165,7 @@ updateThemeToggleIcon();
 <button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
 
 <div class="wrap">
-  <a class="back-link" href="hp-tools.html">&larr; Back to HP Tools</a>
+  <a class="back-link" href="index.html">&larr; Back to main menu</a>
   <header>
     <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
     <p class="kicker">Vortex Productions Inc.</p>
@@ -175,12 +178,23 @@ updateThemeToggleIcon();
 
   <div class="warning-banner">⚠️ Use for official Vortex purposes only.</div>
 
-  <div class="search-box">
-    <input type="text" id="directorySearch" placeholder="Search by name…" oninput="renderDirectory()">
+  <div id="signinBox" class="signin-box">
+    <p>Sign in with your crew Google account to view the directory.</p>
+    <div id="googleBtn"></div>
+    <p id="googleError" style="color:#ff6a5a;display:none;"></p>
+  </div>
+  <div id="signedInBox" class="signin-box" style="display:none;">
+    <p>Signed in as <strong id="signedInName"></strong>. <a href="#" onclick="signOutCrew();return false;">Sign out</a></p>
   </div>
 
-  <div id="directoryWrap">
-    <p class="status loading-pulse">Loading directory…</p>
+  <div id="directoryContent" style="display:none;">
+    <div class="search-box">
+      <input type="text" id="directorySearch" placeholder="Search by name…" oninput="renderDirectory()">
+    </div>
+
+    <div id="directoryWrap">
+      <p class="status loading-pulse">Loading directory…</p>
+    </div>
   </div>
 
   <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com</footer>
@@ -189,17 +203,58 @@ updateThemeToggleIcon();
 <script>
 const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O0-lC7U01tCclhAVIrrGEwLfVoaa142YYGU0OyX1tBCiK1nGOqf_n8A/exec";
 let DIRECTORY = [];
+let directoryLoaded = false;
+
+function $(id){ return document.getElementById(id); }
 
 async function loadDirectory(){
-  const wrap = document.getElementById('directoryWrap');
+  const wrap = $('directoryWrap');
   try{
     const res = await fetch(`${CHECKIN_API_URL}?type=pyroDirectory`);
     if(!res.ok) throw new Error('Request failed');
     DIRECTORY = await res.json();
+    directoryLoaded = true;
     renderDirectory();
   } catch(err){
     wrap.innerHTML = '<p class="status err">Could not load the directory — check your connection and try again.</p>';
   }
+}
+
+function refreshSigninUI(){
+  const signedIn = window.Auth && Auth.has('any');
+  $('signinBox').style.display = signedIn ? 'none' : '';
+  $('signedInBox').style.display = signedIn ? '' : 'none';
+  $('directoryContent').style.display = signedIn ? '' : 'none';
+  if(signedIn){
+    const info = Auth.googleInfo();
+    $('signedInName').textContent = info.name || info.email || 'crew';
+    if(!directoryLoaded) loadDirectory();
+  } else {
+    // Clear whatever was loaded — this is personal contact info, so it shouldn't linger
+    // in the page once someone signs out on a shared device.
+    DIRECTORY = [];
+    directoryLoaded = false;
+    $('directoryWrap').innerHTML = '<p class="status loading-pulse">Loading directory…</p>';
+    const search = $('directorySearch');
+    if(search) search.value = '';
+  }
+}
+
+async function onGoogleToken(idToken){
+  const err = $('googleError');
+  err.style.display = 'none';
+  const result = await Auth.googleLogin(idToken);
+  if(result.ok){
+    refreshSigninUI();
+  } else {
+    err.textContent = result.message || 'Could not sign in.';
+    err.style.display = 'block';
+  }
+}
+
+function signOutCrew(){
+  Auth.signOutGoogle();
+  refreshSigninUI();
 }
 
 function escapeHtml(str){
@@ -255,7 +310,8 @@ function renderDirectory(){
   `).join('')}</div>`;
 }
 
-loadDirectory();
+if(window.Auth) Auth.renderGoogleButton('googleBtn', onGoogleToken);
+refreshSigninUI();
 </script>
 
 <script>
