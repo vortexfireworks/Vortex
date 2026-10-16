@@ -380,6 +380,20 @@ updateThemeToggleIcon();
     </div>
   </a>
 
+  <a class="card c1" href="manage-photo-wall.html">
+    <div class="icon-circle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="6" width="18" height="14" rx="2" stroke-width="1.5"/>
+        <path d="M8 6l1.2-2h5.6L16 6" stroke-width="1.5"/>
+        <circle cx="12" cy="13" r="3.4" stroke-width="1.5"/>
+      </svg>
+    </div>
+    <div>
+      <h2>Photo Wall<span class="badge" id="photoWallPendingBadge" style="display:none;"></span></h2>
+      <p>Approve or reject photos people submit from the home screen before they show up in the public slideshow.</p>
+    </div>
+  </a>
+
   </div>
 
   <footer>Vortex Fireworks Artists · vortexfireworksartists@gmail.com<br><a href="#" onclick="lockThisPhone();return false;" style="color:inherit;opacity:.8;">&#128274; Lock this phone</a></footer>
@@ -458,6 +472,21 @@ const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJl
       const badge = document.getElementById('payrollNeedsApprovalBadge');
       badge.textContent = needsApproval;
       badge.title = `${needsApproval} show${needsApproval === 1 ? '' : 's'} with payroll pending approval`;
+      badge.style.display = '';
+    }
+  } catch(err){ /* the card just shows no badge if this fails */ }
+})();
+
+// Badge on the Photo Wall card: how many submitted photos are still waiting on a decision.
+(async function loadPhotoWallPendingBadge(){
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=photoWallAll`, { cache: 'no-store' });
+    const photos = await res.json();
+    const pending = (Array.isArray(photos) ? photos : []).filter(p => p.status === 'Pending').length;
+    if(pending){
+      const badge = document.getElementById('photoWallPendingBadge');
+      badge.textContent = pending;
+      badge.title = `${pending} photo${pending === 1 ? '' : 's'} waiting on review`;
       badge.style.display = '';
     }
   } catch(err){ /* the card just shows no badge if this fails */ }

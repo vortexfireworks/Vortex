@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('admin');</script>
+<title>Photo Wall — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:720px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .back-link{display:block; max-width:720px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  .filter-tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+  .filter-tab{
+    font-size:12px;padding:6px 12px;border-radius:12px;border:1px solid var(--line);
+    background:none;color:var(--ink-soft);cursor:pointer;font-family:inherit;
+  }
+  .filter-tab.active{color:#fff;background:var(--navy);border-color:var(--navy);}
+  .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+  .photo-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface-4);}
+  .photo-card img{width:100%;height:160px;object-fit:cover;display:block;background:#000;}
+  .photo-meta{padding:10px 12px;}
+  .photo-who{font-size:12.5px;font-weight:700;color:var(--ink);}
+  .photo-caption{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .photo-date{font-size:10.5px;color:var(--ink-soft);margin-top:4px;}
+  .photo-status{
+    display:inline-block;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
+    padding:2px 8px;border-radius:10px;margin-top:6px;
+  }
+  .photo-status.Pending{background:rgba(255,140,0,0.18);color:var(--brick-light);}
+  .photo-status.Approved{background:rgba(76,175,125,0.18);color:var(--ok);}
+  .photo-status.Rejected{background:rgba(255,106,90,0.18);color:var(--brick);}
+  .photo-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+  .photo-actions button{
+    font-size:11.5px;padding:5px 10px;border-radius:8px;border:1px solid var(--line);
+    background:none;cursor:pointer;font-family:inherit;
+  }
+  .btn-approve{color:var(--ok);border-color:var(--ok);}
+  .btn-approve:hover{background:rgba(76,175,125,0.12);}
+  .btn-reject{color:var(--brick-light);border-color:var(--brick-light);}
+  .btn-reject:hover{background:rgba(255,140,102,0.12);}
+  .btn-delete{color:var(--ink-soft);}
+  .btn-delete:hover{border-color:var(--brick);color:var(--brick);}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="manage.html">&larr; Back to Manage/Edit</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Photo Wall</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Approve a photo to add it to the public slideshow on the home screen's Photo Wall, or reject it to keep it out. Rejected and pending photos are only ever visible here.</p>
+    <div class="filter-tabs" id="filterTabs">
+      <button type="button" class="filter-tab" data-filter="Pending" onclick="setFilter('Pending')">Pending</button>
+      <button type="button" class="filter-tab" data-filter="Approved" onclick="setFilter('Approved')">Approved</button>
+      <button type="button" class="filter-tab" data-filter="Rejected" onclick="setFilter('Rejected')">Rejected</button>
+      <button type="button" class="filter-tab" data-filter="all" onclick="setFilter('all')">All</button>
+    </div>
+    <div id="photoGridWrap"><div class="empty-state"><div class="icon">🖼️</div><p>Loading…</p></div></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+let PHOTOS = [];
+let currentFilter = 'Pending';
+
+async function loadPhotos(){
+  const wrap = $('photoGridWrap');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=photoWallAll`, { cache: 'no-store' });
+    PHOTOS = await res.json();
+    if(!Array.isArray(PHOTOS)) PHOTOS = [];
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load photos — check your connection and try again.</p>';
+    return;
+  }
+  render();
+}
+
+function setFilter(filter){
+  currentFilter = filter;
+  document.querySelectorAll('.filter-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === filter));
+  render();
+}
+
+function render(){
+  const wrap = $('photoGridWrap');
+  const rows = currentFilter === 'all' ? PHOTOS : PHOTOS.filter(p => p.status === currentFilter);
+  document.querySelectorAll('.filter-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === currentFilter));
+  if(!rows.length){
+    wrap.innerHTML = `<div class="empty-state"><div class="icon">🖼️</div><p>No ${currentFilter === 'all' ? '' : currentFilter.toLowerCase() + ' '}photos.</p></div>`;
+    return;
+  }
+  wrap.innerHTML = '<div class="photo-grid">' + rows.map(p => `
+    <div class="photo-card">
+      <img src="${esc(p.photoUrl)}" alt="${esc(p.caption || 'Submitted photo')}">
+      <div class="photo-meta">
+        <div class="photo-who">${esc(p.name || 'Anonymous')}</div>
+        ${p.caption ? `<div class="photo-caption">${esc(p.caption)}</div>` : ''}
+        <div class="photo-date">${esc(p.submittedAt || '')}</div>
+        <div><span class="photo-status ${esc(p.status)}">${esc(p.status)}</span></div>
+        <div class="photo-actions">
+          ${p.status !== 'Approved' ? `<button type="button" class="btn-approve" onclick="moderate('${esc(p.id)}','Approved')">Approve</button>` : ''}
+          ${p.status !== 'Rejected' ? `<button type="button" class="btn-reject" onclick="moderate('${esc(p.id)}','Rejected')">Reject</button>` : ''}
+          <button type="button" class="btn-delete" onclick="deletePhoto('${esc(p.id)}')">Delete</button>
+        </div>
+      </div>
+    </div>`).join('') + '</div>';
+}
+
+async function moderate(id, status){
+  try{
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'photoWallModerate', id, status })
+    });
+    const data = await res.json();
+    if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+    const p = PHOTOS.find(x => x.id === id);
+    if(p) p.status = status;
+    render();
+  } catch(err){
+    alert(err.message || "Couldn't update that photo — check your connection and try again.");
+  }
+}
+
+async function deletePhoto(id){
+  if(!confirm('Permanently delete this photo? This cannot be undone.')) return;
+  try{
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'photoWallDelete', id })
+    });
+    const data = await res.json();
+    if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Request failed');
+    PHOTOS = PHOTOS.filter(x => x.id !== id);
+    render();
+  } catch(err){
+    alert(err.message || "Couldn't delete that photo — check your connection and try again.");
+  }
+}
+
+setFilter('Pending');
+loadPhotos();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update().catch(() => {});
+    }).catch(() => {});
+  });
+  let swRefreshedOnce = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swRefreshedOnce) return;
+    swRefreshedOnce = true;
+    location.reload();
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo Wall — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:620px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section + .section{border-top:1px solid var(--line);}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  .section h2{margin:0 0 14px;font-size:15px;font-weight:700;}
+  .back-link{display:block; max-width:620px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+  .field label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  .field input[type=text]{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  .field input:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  @media (max-width:600px){ input[type=text]{font-size:16px !important;} }
+
+  .file-drop{
+    border:1.5px dashed var(--line);border-radius:10px;padding:18px;text-align:center;
+    cursor:pointer;margin-bottom:14px;transition:border-color 0.15s ease;
+  }
+  .file-drop:hover{border-color:var(--navy);}
+  .file-drop input[type=file]{display:none;}
+  .file-drop .icon{font-size:22px;margin-bottom:4px;}
+  .file-drop .hint{font-size:12px;color:var(--ink-soft);}
+  .file-drop .filename{font-size:12.5px;color:var(--ink);font-weight:600;margin-top:4px;word-break:break-all;}
+  .preview-thumb{display:block;max-width:100%;max-height:220px;border-radius:8px;margin:0 auto 12px;object-fit:contain;}
+
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:6px;
+    background:linear-gradient(90deg,#ff6a5a,#ff8c00);color:#fff;border:none;
+    font-size:14px;font-weight:700;padding:11px 18px;border-radius:8px;cursor:pointer;
+    width:100%;
+  }
+  .btn:disabled{opacity:0.55;cursor:default;}
+  .btn:hover:not(:disabled){filter:brightness(1.06);}
+  .status-msg{font-size:12.5px;margin-top:10px;text-align:center;}
+  .status-msg.ok{color:var(--ok);}
+  .status-msg.err{color:var(--brick-light);}
+
+  .slideshow{position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;}
+  .slideshow img{width:100%;height:100%;object-fit:contain;background:#000;}
+  .slide-caption{
+    position:absolute;left:0;right:0;bottom:0;padding:10px 14px 8px;
+    background:linear-gradient(to top, rgba(0,0,0,0.75), transparent);color:#fff;
+  }
+  .slide-caption .who{font-size:12.5px;font-weight:700;}
+  .slide-caption .what{font-size:11.5px;opacity:0.85;margin-top:2px;}
+  .slide-nav{
+    position:absolute;top:50%;transform:translateY(-50%);
+    background:rgba(0,0,0,0.4);border:none;color:#fff;font-size:20px;
+    width:38px;height:38px;border-radius:50%;cursor:pointer;line-height:1;
+  }
+  .slide-nav:hover{background:rgba(0,0,0,0.6);}
+  .slide-nav.prev{left:8px;}
+  .slide-nav.next{right:8px;}
+  .slide-controls{display:flex;align-items:center;justify-content:space-between;margin-top:10px;}
+  .slide-dots{display:flex;gap:5px;flex-wrap:wrap;}
+  .slide-dot{width:7px;height:7px;border-radius:50%;background:var(--line);border:none;cursor:pointer;padding:0;}
+  .slide-dot.active{background:var(--navy);}
+  .play-btn{
+    font-size:11.5px;padding:5px 11px;border-radius:12px;border:1px solid var(--line);
+    background:none;color:var(--navy);cursor:pointer;font-family:inherit;
+  }
+  .play-btn:hover{border-color:var(--navy);}
+  .pending-note{font-size:11.5px;color:var(--ink-soft);text-align:center;margin-top:10px;}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="index.html">&larr; Back to Home</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Photo Wall</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <h2>Share a photo</h2>
+    <p class="desc">Got a good shot from a show? Share it here. An admin reviews every photo before it shows up in the slideshow below, so it may take a little while to appear.</p>
+    <div class="field">
+      <label for="pwName">Your name (optional)</label>
+      <input type="text" id="pwName" placeholder="Who's sharing this?" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="pwCaption">Caption (optional)</label>
+      <input type="text" id="pwCaption" placeholder="A line about the photo…" autocomplete="off">
+    </div>
+    <label class="file-drop" id="fileDrop">
+      <input type="file" id="pwFile" accept="image/*">
+      <div id="fileDropContent">
+        <div class="icon">📷</div>
+        <div class="hint">Tap to choose or take a photo</div>
+      </div>
+    </label>
+    <img id="pwPreview" class="preview-thumb" style="display:none;">
+    <button type="button" class="btn" id="pwSubmitBtn" onclick="submitPhoto()">Submit photo</button>
+    <div id="pwStatus" class="status-msg"></div>
+  </div>
+
+  <div class="section">
+    <h2>Slideshow</h2>
+    <p class="desc">Every approved photo from the crew and clients.</p>
+    <div id="slideshowWrap"><div class="empty-state"><div class="icon">🖼️</div><p>Loading photos…</p></div></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbyh2E21uM3TooJlwllIOL4BfoHkcAnlNautV4zcpZpj2lEUnq66oDDN6TfUiaTbXgMsrQ/exec";
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* ---------- Upload ---------- */
+let selectedDataUrl = '';
+
+$('pwFile').addEventListener('change', async () => {
+  const file = $('pwFile').files && $('pwFile').files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){
+    showStatus('That file is not a photo — pick an image.', false);
+    $('pwFile').value = '';
+    return;
+  }
+  try{
+    selectedDataUrl = await resizeImageToDataUrl(file, 1600, 0.82);
+    $('pwPreview').src = selectedDataUrl;
+    $('pwPreview').style.display = '';
+    $('fileDropContent').innerHTML = `<div class="icon">✅</div><div class="filename">${esc(file.name)}</div>`;
+    showStatus('', null);
+  } catch(err){
+    showStatus("Couldn't read that photo — try a different file.", false);
+  }
+});
+
+function resizeImageToDataUrl(file, maxDim, quality){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('decode failed'));
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > maxDim || height > maxDim){
+          if(width >= height){ height = Math.round(height * (maxDim / width)); width = maxDim; }
+          else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function showStatus(msg, ok){
+  const el = $('pwStatus');
+  el.textContent = msg;
+  el.className = 'status-msg' + (ok === true ? ' ok' : ok === false ? ' err' : '');
+}
+
+async function submitPhoto(){
+  if(!selectedDataUrl){
+    showStatus('Choose a photo first.', false);
+    return;
+  }
+  const btn = $('pwSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+  try{
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        recordType: 'photoWallSubmit',
+        name: $('pwName').value.trim(),
+        caption: $('pwCaption').value.trim(),
+        photoBase64: selectedDataUrl
+      })
+    });
+    const data = await res.json();
+    if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Submission failed');
+    showStatus('Thanks! Your photo is waiting on admin approval.', true);
+    $('pwCaption').value = '';
+    $('pwFile').value = '';
+    $('pwPreview').style.display = 'none';
+    selectedDataUrl = '';
+    $('fileDropContent').innerHTML = '<div class="icon">📷</div><div class="hint">Tap to choose or take a photo</div>';
+  } catch(err){
+    showStatus(err.message || "Couldn't submit — check your connection and try again.", false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Submit photo';
+  }
+}
+
+/* ---------- Slideshow ---------- */
+let PHOTOS = [];
+let slideIndex = 0;
+let autoplayTimer = null;
+const AUTOPLAY_MS = 5000;
+
+async function loadSlideshow(){
+  const wrap = $('slideshowWrap');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=photoWallApproved`, { cache: 'no-store' });
+    PHOTOS = await res.json();
+  } catch(err){
+    wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load the slideshow — check your connection and try again.</p>';
+    return;
+  }
+  if(!Array.isArray(PHOTOS) || !PHOTOS.length){
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">🖼️</div><p>No approved photos yet — be the first to share one above.</p></div>';
+    return;
+  }
+  slideIndex = 0;
+  wrap.innerHTML = `
+    <div class="slideshow" id="slideshowBox">
+      <button type="button" class="slide-nav prev" onclick="changeSlide(-1)" aria-label="Previous">&#8249;</button>
+      <img id="slideImg" src="" alt="">
+      <button type="button" class="slide-nav next" onclick="changeSlide(1)" aria-label="Next">&#8250;</button>
+      <div class="slide-caption" id="slideCaption"></div>
+    </div>
+    <div class="slide-controls">
+      <div class="slide-dots" id="slideDots"></div>
+      <button type="button" class="play-btn" id="playBtn" onclick="toggleAutoplay()">&#10073;&#10073; Pause</button>
+    </div>`;
+  renderSlide();
+  startAutoplay();
+}
+
+function renderSlide(){
+  const p = PHOTOS[slideIndex];
+  $('slideImg').src = p.photoUrl;
+  $('slideImg').alt = p.caption || 'Show photo';
+  const who = p.name ? esc(p.name) : 'Anonymous';
+  const what = p.caption ? esc(p.caption) : '';
+  $('slideCaption').innerHTML = `<div class="who">${who}</div>${what ? `<div class="what">${what}</div>` : ''}`;
+  $('slideDots').innerHTML = PHOTOS.map((_, i) =>
+    `<button type="button" class="slide-dot ${i === slideIndex ? 'active' : ''}" onclick="goToSlide(${i})" aria-label="Photo ${i + 1}"></button>`
+  ).join('');
+}
+
+function changeSlide(delta){
+  slideIndex = (slideIndex + delta + PHOTOS.length) % PHOTOS.length;
+  renderSlide();
+  restartAutoplay();
+}
+
+function goToSlide(i){
+  slideIndex = i;
+  renderSlide();
+  restartAutoplay();
+}
+
+function startAutoplay(){
+  if(PHOTOS.length < 2) return;
+  autoplayTimer = setInterval(() => changeSlide(1), AUTOPLAY_MS);
+}
+
+function restartAutoplay(){
+  if(autoplayTimer){
+    clearInterval(autoplayTimer);
+    autoplayTimer = null;
+    startAutoplay();
+  }
+}
+
+function toggleAutoplay(){
+  const btn = $('playBtn');
+  if(autoplayTimer){
+    clearInterval(autoplayTimer);
+    autoplayTimer = null;
+    btn.innerHTML = '&#9654; Play';
+  } else {
+    startAutoplay();
+    btn.innerHTML = '&#10073;&#10073; Pause';
+  }
+}
+
+loadSlideshow();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update().catch(() => {});
+    }).catch(() => {});
+  });
+  // iOS Safari in particular can hang onto an old service worker long after a new
+  // one has taken over. Once the new one activates and claims this page, reload
+  // once so the person actually sees the update instead of a stale cached copy.
+  let swRefreshedOnce = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swRefreshedOnce) return;
+    swRefreshedOnce = true;
+    location.reload();
+  });
+}
+</script>
+</body>
+</html>

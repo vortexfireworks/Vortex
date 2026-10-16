@@ -495,6 +495,104 @@ function removeShowSignup(ss, venueId, name) {
   }
 }
 
+// Photo wall: anyone can submit a photo from the front page, but it only shows up in the public
+// slideshow once an admin approves it from Manage. Pending/rejected photos stay on this sheet so
+// an admin can review them, but are never served to the public feed.
+function getOrCreatePhotoWallSheet(ss) {
+  let sheet = ss.getSheetByName('PhotoWall');
+  if (!sheet) {
+    sheet = ss.insertSheet('PhotoWall');
+    sheet.appendRow(['Id', 'Name', 'Caption', 'PhotoUrl', 'SubmittedAt', 'Status']);
+  }
+  return sheet;
+}
+
+function addPhotoWallSubmission(ss, name, caption, photoBase64) {
+  if (!photoBase64) return {status: 'error', message: 'No photo was attached.'};
+  const url = savePhotoToDrive(photoBase64, name || 'photo', 1600);
+  if (!url) return {status: 'error', message: "That didn't look like a photo — try a different file."};
+  const sheet = getOrCreatePhotoWallSheet(ss);
+  const id = Utilities.getUuid();
+  sheet.appendRow([id, String(name || '').trim(), String(caption || '').trim(), url, new Date(), 'Pending']);
+  return {status: 'ok'};
+}
+
+// The public slideshow feed: only ever approved photos, newest first.
+function getApprovedPhotoWall(ss) {
+  const sheet = getOrCreatePhotoWallSheet(ss);
+  if (sheet.getLastRow() <= 1) return [];
+  const map = headerMap(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][map['Status']] || '') !== 'Approved') continue;
+    out.push({
+      id: String(rows[i][map['Id']] || ''),
+      name: String(rows[i][map['Name']] || ''),
+      caption: String(rows[i][map['Caption']] || ''),
+      photoUrl: String(rows[i][map['PhotoUrl']] || ''),
+      submittedAt: normalizeDateValue(rows[i][map['SubmittedAt']]) || String(rows[i][map['SubmittedAt']] || '')
+    });
+  }
+  out.reverse();
+  return out;
+}
+
+// Everything, pending/approved/rejected alike, for the Manage review screen.
+function getAllPhotoWall(ss) {
+  const sheet = getOrCreatePhotoWallSheet(ss);
+  if (sheet.getLastRow() <= 1) return [];
+  const map = headerMap(sheet);
+  const rows = sheet.getDataRange().getValues();
+  const out = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (!rows[i][map['Id']]) continue;
+    out.push({
+      id: String(rows[i][map['Id']] || ''),
+      name: String(rows[i][map['Name']] || ''),
+      caption: String(rows[i][map['Caption']] || ''),
+      photoUrl: String(rows[i][map['PhotoUrl']] || ''),
+      submittedAt: normalizeDateValue(rows[i][map['SubmittedAt']]) || String(rows[i][map['SubmittedAt']] || ''),
+      status: String(rows[i][map['Status']] || 'Pending')
+    });
+  }
+  out.reverse();
+  return out;
+}
+
+// status is 'Approved' or 'Rejected'. Rejected photos just stop appearing in the public feed —
+// an admin can still see them under Manage and flip them back if it was a mistake.
+function setPhotoWallStatus(ss, id, status) {
+  const sheet = getOrCreatePhotoWallSheet(ss);
+  const map = headerMap(sheet);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][map['Id']] || '') === id) {
+      sheet.getRange(i + 1, map['Status'] + 1).setValue(status);
+      return {status: 'ok'};
+    }
+  }
+  return {status: 'error', message: 'Photo not found.'};
+}
+
+function deletePhotoWallEntry(ss, id) {
+  const sheet = getOrCreatePhotoWallSheet(ss);
+  const map = headerMap(sheet);
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][map['Id']] || '') === id) {
+      const url = String(rows[i][map['PhotoUrl']] || '');
+      sheet.deleteRow(i + 1);
+      const match = url.match(/\/d\/([^=]+)/);
+      if (match) {
+        try { DriveApp.getFileById(match[1]).setTrashed(true); } catch (err) { /* already gone, or not ours to trash */ }
+      }
+      return {status: 'ok'};
+    }
+  }
+  return {status: 'error', message: 'Photo not found.'};
+}
+
 // Structured line items (who was paid what, per show) powering the Manage/Edit payroll report.
 function getOrCreatePayrollSheet(ss) {
   const requiredHeaders = ['Id', 'SubmissionId', 'Timestamp', 'Event', 'EventDate', 'Name', 'Role', 'Amount', 'Unit', 'DeclaredTotal', 'Status', 'EditedAt', 'EditReason'];
@@ -964,7 +1062,7 @@ function getOrCreatePhotoFolder() {
   return DriveApp.createFolder(folderName);
 }
 
-function savePhotoToDrive(dataUrl, name) {
+function savePhotoToDrive(dataUrl, name, size) {
   const matches = dataUrl.match(/^data:(image\/\w+);base64,(.*)$/);
   if (!matches) return '';
   const contentType = matches[1];
@@ -974,7 +1072,7 @@ function savePhotoToDrive(dataUrl, name) {
   const folder = getOrCreatePhotoFolder();
   const file = folder.createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return 'https://lh3.googleusercontent.com/d/' + file.getId() + '=s400';
+  return 'https://lh3.googleusercontent.com/d/' + file.getId() + '=s' + (size || 400);
 }
 
 /* ===================== ACCESS CONTROL =====================
@@ -1005,14 +1103,16 @@ const GET_LEVELS = {
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
   inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
   payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp', scheduleStatus: 'public', scheduleFeed: 'public',
-  myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'public'
+  myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'public',
+  photoWallApproved: 'public', photoWallAll: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
   aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp', setAvailability: 'hp',
-  showSignup: 'public', removeShowSignup: 'public',
+  showSignup: 'public', removeShowSignup: 'public', photoWallSubmit: 'public',
+  photoWallModerate: 'admin', photoWallDelete: 'admin',
   deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
@@ -1580,6 +1680,28 @@ function doPostInner(e) {
     if (!venueId) return jsonOut({status: 'error', message: 'Missing which show.'});
     removeShowSignup(ss, venueId, name);
     return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'photoWallSubmit') {
+    // Public — anyone can submit from the front page, same trust level as Check-In. Nothing
+    // submitted here is shown anywhere until an admin approves it from Manage.
+    const result = addPhotoWallSubmission(ss, data.name, data.caption, data.photoBase64);
+    return jsonOut(result);
+  }
+
+  if (data.recordType === 'photoWallModerate') {
+    // Admin-only: approve or reject a pending photo.
+    const id = String(data.id || '').trim();
+    const status = data.status === 'Approved' ? 'Approved' : (data.status === 'Rejected' ? 'Rejected' : '');
+    if (!id || !status) return jsonOut({status: 'error', message: 'Missing which photo, or an invalid status.'});
+    return jsonOut(setPhotoWallStatus(ss, id, status));
+  }
+
+  if (data.recordType === 'photoWallDelete') {
+    // Admin-only: permanently remove a photo (and its Drive file).
+    const id = String(data.id || '').trim();
+    if (!id) return jsonOut({status: 'error', message: 'Missing which photo.'});
+    return jsonOut(deletePhotoWallEntry(ss, id));
   }
 
   if (data.recordType === 'editPayrollLine') {
@@ -2591,6 +2713,16 @@ function doGetInner(e) {
 
   if (e.parameter.type === 'showSignups') {
     return jsonOut({byVenue: getShowSignupsByVenue(ss)});
+  }
+
+  if (e.parameter.type === 'photoWallApproved') {
+    // Public — feeds the front-page slideshow. Only ever approved photos.
+    return jsonOut(getApprovedPhotoWall(ss));
+  }
+
+  if (e.parameter.type === 'photoWallAll') {
+    // Admin-only — the Manage review screen, pending/approved/rejected alike.
+    return jsonOut(getAllPhotoWall(ss));
   }
 
   if (e.parameter.type === 'payrollRecordsForName') {
