@@ -1106,10 +1106,10 @@ const GET_LEVELS = {
   contacts: 'hp', pyroDirectory: 'hp', pickLists: 'hp', pickListSiteMapData: 'hp', hpContactLookup: 'hp',
   findDuplicateContacts: 'admin', findDuplicateVenues: 'admin', findDuplicateProducts: 'admin',
   shellProducts: 'admin', cakeProducts: 'admin', products: 'hp', productImage: 'hp', showPlans: 'hp', fireworkProducts: 'admin',
-  inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'admin',
-  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'admin', myPayStatus: 'hp', scheduleStatus: 'public', scheduleFeed: 'public',
+  inventory: 'admin', inventoryHistory: 'admin', aarReports: 'admin', aarReportFile: 'admin', backups: 'admin', payrollRecords: 'payroll',
+  payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'payroll', myPayStatus: 'hp', scheduleStatus: 'public', scheduleFeed: 'public',
   myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'public',
-  photoWallApproved: 'public', photoWallAll: 'admin', pendingTasksSummary: 'admin'
+  photoWallApproved: 'public', photoWallAll: 'photoMod', pendingTasksSummary: 'admin', accessRoles: 'admin'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
@@ -1117,16 +1117,22 @@ const POST_LEVELS = {
   aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp', setAvailability: 'hp',
   showSignup: 'public', removeShowSignup: 'public', photoWallSubmit: 'public',
-  photoWallModerate: 'admin', photoWallDelete: 'admin',
+  photoWallModerate: 'photoMod', photoWallDelete: 'photoMod',
   deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
   announcement: 'admin', deleteAnnouncementRow: 'admin', pickList: 'admin', pickListSiteMap: 'admin', pickListRacksConfig: 'admin',
   shellProductsImport: 'admin', cakeProductsImport: 'admin', deleteShellProduct: 'admin', deleteCakeProduct: 'admin',
   product: 'admin', productsImport: 'admin', deleteProduct: 'admin',
   fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
   inventoryContainer: 'admin', deleteInventoryContainer: 'admin', inventoryTransfer: 'admin',
-  deleteAarReport: 'admin', deletePayrollLine: 'admin', deletePayrollShow: 'admin', backupNow: 'admin',
-  scheduleSettings: 'admin'
+  deleteAarReport: 'admin', deletePayrollLine: 'payroll', deletePayrollShow: 'payroll', backupNow: 'admin',
+  scheduleSettings: 'admin', accessRoleSet: 'admin', accessRoleDelete: 'admin'
 };
+// Roles a sign-in token can carry. 'admin' always passes every check (see hasRole below); the
+// other three are narrow slices handed out to someone who should only reach one part of the app.
+const KNOWN_ROLES = ['hp', 'admin', 'payroll', 'photoMod'];
+// The OAuth 2.0 Client ID for "Sign in with Google" (Google Cloud project "Vortex Web Login").
+// This is not a secret — it identifies the app to Google, the way a public key does.
+const GOOGLE_CLIENT_ID = '691238707295-qa5ugobjgrkeou9ji46hdtp354n4dgv0.apps.googleusercontent.com';
 
 function bytesToHex(bytes) {
   return bytes.map(b => ((b < 0 ? b + 256 : b)).toString(16).padStart(2, '0')).join('');
@@ -1166,33 +1172,54 @@ function signPayload(payload) {
   const secret = getSecurityProps().getProperty('TOKEN_SECRET');
   return Utilities.base64EncodeWebSafe(Utilities.computeHmacSha256Signature(payload, secret)).replace(/=+$/, '');
 }
-function makeToken(tier) {
+// A token carries one or more roles (sorted, joined with '+' — e.g. "admin", "hp", "payroll+photoMod").
+// Pass a single tier string (the old password-login shape) or an array of roles (Google sign-in).
+function makeToken(rolesOrTier) {
+  const roles = (Array.isArray(rolesOrTier) ? rolesOrTier : [rolesOrTier]).filter(Boolean).sort();
   const expires = Math.floor(new Date().getTime() / 1000) + TOKEN_LIFETIME_SECONDS;
-  const payload = tier + '.' + expires;
+  const payload = roles.join('+') + '.' + expires;
   return payload + '.' + signPayload(payload);
 }
-function tierFromToken(token) {
-  if (!token || typeof token !== 'string') return null;
+// Returns the roles a token actually carries (after checking its signature and expiry), or [] if
+// the token is missing, expired, tampered with, or carries something outside KNOWN_ROLES.
+function rolesFromToken(token) {
+  if (!token || typeof token !== 'string') return [];
   const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  const tier = parts[0];
+  if (parts.length !== 3) return [];
   const expires = Number(parts[1]);
-  if (tier !== 'hp' && tier !== 'admin') return null;
-  if (!expires || expires < Math.floor(new Date().getTime() / 1000)) return null;
-  return safeEqual(signPayload(tier + '.' + parts[1]), parts[2]) ? tier : null;
+  if (!expires || expires < Math.floor(new Date().getTime() / 1000)) return [];
+  if (!safeEqual(signPayload(parts[0] + '.' + parts[1]), parts[2])) return [];
+  const roles = parts[0].split('+').filter(Boolean);
+  if (!roles.length || !roles.every(r => KNOWN_ROLES.indexOf(r) > -1)) return [];
+  return roles;
+}
+// Backward-compatible helper some call sites still use for a plain "are they a full admin?" check.
+function tierFromToken(token) {
+  const roles = rolesFromToken(token);
+  if (roles.indexOf('admin') > -1) return 'admin';
+  if (roles.indexOf('hp') > -1) return 'hp';
+  return null;
 }
 function tierRank(tier) {
   return tier === 'admin' ? 2 : (tier === 'hp' ? 1 : 0);
 }
+// 'admin' can always do everything. Otherwise the token needs the exact role being asked for —
+// 'hp' for Head Pyro Tools, or one of the narrow extra roles (payroll, photoMod) a person can be
+// granted in Manage Access without handing them full Manage/Edit access.
+function hasRole(roles, needed) {
+  if (needed === 'public') return true;
+  if (!roles || !roles.length) return false;
+  if (roles.indexOf('admin') > -1) return true;
+  return roles.indexOf(needed) > -1;
+}
 function authError(needed) {
-  return jsonOut({
-    status: 'error', code: 'auth', needs: needed,
-    message: needed === 'admin' ? 'Enter the Manage/Edit password to continue.' : 'Enter the Head Pyro Tools password to continue.'
-  });
+  let message = 'Enter the Head Pyro Tools password to continue.';
+  if (needed === 'admin') message = 'Enter the Manage/Edit password to continue.';
+  else if (needed === 'payroll' || needed === 'photoMod') message = "You don't have access to this section. Ask an admin to grant it in Manage Access.";
+  return jsonOut({ status: 'error', code: 'auth', needs: needed, message: message });
 }
 function authorize(token, needed) {
-  if (needed === 'public') return null;
-  return tierRank(tierFromToken(token)) >= tierRank(needed) ? null : authError(needed);
+  return hasRole(rolesFromToken(token), needed) ? null : authError(needed);
 }
 // Pulls together everything across the app that's waiting on an admin decision, for the Tasks
 // password's login alert and for tasks.html itself. Each category mirrors a badge already shown
@@ -1263,6 +1290,123 @@ function handleLogin(data, ss) {
   }
   cache.put(LOGIN_FAIL_KEY, String(failures + 1), LOGIN_LOCKOUT_SECONDS);
   return jsonOut({status: 'error', code: 'badpassword', message: 'That password is not right.'});
+}
+
+/* ===================== GOOGLE SIGN-IN + ACCESS ROLES =====================
+   Lets specific people sign in with their own Google account instead of (or alongside) the shared
+   passwords. The "AccessRoles" sheet is the roster: which Google email maps to which person and
+   which roles they're allowed to use. Managed from the Manage Access admin page. */
+const ACCESS_ROLES_SHEET = 'AccessRoles';
+const ACCESS_ROLES_HEADERS = ['Email', 'Name', 'Roles', 'DateAdded'];
+
+function getOrCreateAccessRolesSheet(ss) {
+  let sheet = ss.getSheetByName(ACCESS_ROLES_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(ACCESS_ROLES_SHEET);
+    sheet.appendRow(ACCESS_ROLES_HEADERS);
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+// Reads the roster into a plain array of {email, name, roles: [...], dateAdded}.
+function listAccessRoles(ss) {
+  const sheet = getOrCreateAccessRolesSheet(ss);
+  const values = sheet.getDataRange().getValues();
+  const out = [];
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const email = String(row[0] || '').trim();
+    if (!email) continue;
+    out.push({
+      email: email,
+      name: String(row[1] || ''),
+      roles: String(row[2] || '').split(',').map(r => r.trim()).filter(Boolean),
+      dateAdded: row[3] ? String(row[3]) : ''
+    });
+  }
+  return out;
+}
+
+// Case-insensitive lookup of the roles on file for one email address. [] if not in the roster.
+function getRolesForEmail(ss, email) {
+  const needle = String(email || '').trim().toLowerCase();
+  if (!needle) return [];
+  const match = listAccessRoles(ss).find(r => r.email.toLowerCase() === needle);
+  return match ? match.roles.filter(r => KNOWN_ROLES.indexOf(r) > -1) : [];
+}
+
+// Adds a person to the roster, or overwrites their name/roles if the email is already there.
+function setAccessRole(ss, email, name, roles) {
+  email = String(email || '').trim();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { status: 'error', message: 'Enter a valid email address.' };
+  }
+  const cleanRoles = (Array.isArray(roles) ? roles : String(roles || '').split(','))
+    .map(r => String(r).trim()).filter(r => KNOWN_ROLES.indexOf(r) > -1);
+  if (!cleanRoles.length) return { status: 'error', message: 'Pick at least one role.' };
+  const sheet = getOrCreateAccessRolesSheet(ss);
+  const values = sheet.getDataRange().getValues();
+  const needle = email.toLowerCase();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim().toLowerCase() === needle) {
+      sheet.getRange(i + 1, 1, 1, 4).setValues([[email, name || '', cleanRoles.join(','), values[i][3] || new Date()]]);
+      return { status: 'ok' };
+    }
+  }
+  sheet.appendRow([email, name || '', cleanRoles.join(','), new Date()]);
+  return { status: 'ok' };
+}
+
+function deleteAccessRole(ss, email) {
+  const needle = String(email || '').trim().toLowerCase();
+  const sheet = getOrCreateAccessRolesSheet(ss);
+  const values = sheet.getDataRange().getValues();
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][0] || '').trim().toLowerCase() === needle) {
+      sheet.deleteRow(i + 1);
+      return { status: 'ok' };
+    }
+  }
+  return { status: 'error', message: 'Not found.' };
+}
+
+// Asks Google itself whether this ID token is genuine, unexpired, and issued for THIS app, and
+// returns the verified email (or null if anything about it looks wrong). Using Google's own
+// tokeninfo endpoint avoids needing a JWT/crypto library inside Apps Script.
+function verifyGoogleIdToken(idToken) {
+  if (!idToken || typeof idToken !== 'string') return null;
+  try {
+    const res = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken), {
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) return null;
+    const info = JSON.parse(res.getContentText());
+    if (!info || info.aud !== GOOGLE_CLIENT_ID) return null;
+    if (info.email_verified !== true && info.email_verified !== 'true') return null;
+    if (!info.email) return null;
+    return { email: String(info.email).toLowerCase(), name: info.name || info.email };
+  } catch (err) {
+    return null;
+  }
+}
+
+function handleGoogleLogin(data, ss) {
+  const verified = verifyGoogleIdToken(data.idToken);
+  if (!verified) {
+    return jsonOut({status: 'error', code: 'badtoken', message: 'Could not verify that Google sign-in. Please try again.'});
+  }
+  const roles = getRolesForEmail(ss, verified.email);
+  if (!roles.length) {
+    return jsonOut({
+      status: 'error', code: 'notprovisioned',
+      message: "You're signed in as " + verified.email + ", but you're not set up for access yet. Ask an admin to add you in Manage Access."
+    });
+  }
+  return jsonOut({
+    status: 'ok', token: makeToken(roles), roles: roles, email: verified.email, name: verified.name,
+    expiresIn: TOKEN_LIFETIME_SECONDS
+  });
 }
 
 /* ---- Run these from the Apps Script editor (not from a page) ---- */
@@ -1374,6 +1518,17 @@ function doPostInner(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   if (data.recordType === 'login') return handleLogin(data, ss);
+  if (data.recordType === 'googleLogin') return handleGoogleLogin(data, ss);
+  if (data.recordType === 'accessRoleSet') {
+    const denied = authorize(data.token, 'admin');
+    if (denied) return denied;
+    return jsonOut(setAccessRole(ss, data.email, data.name, data.roles));
+  }
+  if (data.recordType === 'accessRoleDelete') {
+    const denied = authorize(data.token, 'admin');
+    if (denied) return denied;
+    return jsonOut(deleteAccessRole(ss, data.email));
+  }
   if (data.recordType && data.recordType !== 'contact') {
     const denied = authorize(data.token, POST_LEVELS[data.recordType] || 'admin');
     if (denied) return denied;
@@ -1382,7 +1537,7 @@ function doPostInner(e) {
   if (data.recordType === 'contact') {
     // Three ways in: the manager (token), a person updating their own record (name + phone must match what is on file),
     // or a brand-new person (createOnly: it can add a record but never touch an existing one).
-    const isAdmin = tierRank(tierFromToken(data.token)) >= 2;
+    const isAdmin = rolesFromToken(data.token).indexOf('admin') > -1;
     if (!isAdmin && !data.verifyPhone && !data.createOnly) return authError('admin');
     if (data.verifyPhone) {
       const merged = getMergedContacts(ss);
@@ -2790,6 +2945,11 @@ function doGetInner(e) {
   if (e.parameter.type === 'pendingTasksSummary') {
     // Admin-only — what tasks.html shows, and what the Tasks password's login alert is built from.
     return jsonOut(getPendingTasksSummary(ss));
+  }
+
+  if (e.parameter.type === 'accessRoles') {
+    // Admin-only — the roster the Manage Access page edits (who can sign in with Google, and what they can do).
+    return jsonOut(listAccessRoles(ss));
   }
 
   if (e.parameter.type === 'payrollRecordsForName') {
