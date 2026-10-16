@@ -158,6 +158,13 @@ updateThemeToggleIcon();
     <input type="password" id="lockPassword" placeholder="Password" style="width:100%;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;margin-bottom:12px;box-sizing:border-box;background:var(--surface-6);color:var(--ink);" onkeydown="if(event.key==='Enter') checkPassword()">
     <button type="button" style="width:100%;color:#fdf6f2;border:none;background:linear-gradient(135deg,#d92b2b,#ff8c00);font-size:14px;font-weight:700;padding:11px 16px;border-radius:8px;cursor:pointer;" onclick="checkPassword()">Unlock</button>
     <p id="lockError" style="font-size:12px;color:#ff6a5a;margin:12px 0 0;display:none;">Incorrect password.</p>
+    <div style="display:flex;align-items:center;gap:10px;margin:18px 0 14px;">
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+      <span style="font-size:11px;color:var(--ink-soft);">OR</span>
+      <div style="flex:1;height:1px;background:var(--line);"></div>
+    </div>
+    <div id="googleBtn" style="display:flex;justify-content:center;"></div>
+    <p id="googleError" style="font-size:12px;color:#ff6a5a;margin:12px 0 0;display:none;"></p>
   </div>
 </div>
 
@@ -493,6 +500,26 @@ function unlockHpTools(){
   document.getElementById('lockScreen').style.display = 'none';
   document.getElementById('mainContent').style.display = 'block';
 }
+
+async function onGoogleToken(idToken){
+  const err = document.getElementById('googleError');
+  err.style.display = 'none';
+  const result = await Auth.googleLogin(idToken);
+  if(result.ok){
+    if(!Auth.has('hp')){
+      err.textContent = "Signed in, but your Google account doesn't have Head Pyro Tools access. Ask an admin to grant it in Manage Access.";
+      err.style.display = 'block';
+      return;
+    }
+    const next = Auth.nextPage();
+    if(next){ location.replace(next); return; }
+    unlockHpTools();
+  } else {
+    err.textContent = result.message;
+    err.style.display = 'block';
+  }
+}
+Auth.renderGoogleButton('googleBtn', onGoogleToken);
 
 // Forget the sign-in and the crew list kept on this phone (for a shared phone).
 function lockThisPhone(){

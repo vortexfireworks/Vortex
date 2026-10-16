@@ -1125,6 +1125,7 @@ const POST_LEVELS = {
   fireworkProduct: 'admin', deleteFireworkProduct: 'admin',
   inventoryContainer: 'admin', deleteInventoryContainer: 'admin', inventoryTransfer: 'admin',
   deleteAarReport: 'admin', deletePayrollLine: 'payroll', deletePayrollShow: 'payroll', backupNow: 'admin',
+  editPayrollLine: 'payroll', approvePayrollShow: 'payroll', unapprovePayrollShow: 'payroll',
   scheduleSettings: 'admin', accessRoleSet: 'admin', accessRoleDelete: 'admin'
 };
 // Roles a sign-in token can carry. 'admin' always passes every check (see hasRole below); the
