@@ -30,6 +30,9 @@
     if(googleRoles.indexOf('admin') > -1) return true;
     if(tier === 'admin') return false;
     if(tier === 'any') return googleRoles.length > 0;
+    // Head Pyro covers crew-level things too (matches the server's hasRole) — an hp grant alone
+    // is enough to unlock a 'crew' page or button, not just hp-specific ones.
+    if(tier === 'crew' && googleRoles.indexOf('hp') > -1) return true;
     return googleRoles.indexOf(tier) > -1;
   }
   function bestToken(){ return read('google') || ''; }

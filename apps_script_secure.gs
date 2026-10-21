@@ -1226,6 +1226,10 @@ function hasRole(roles, needed) {
   if (!roles || !roles.length) return false;
   if (needed === 'any') return true;
   if (roles.indexOf('admin') > -1) return true;
+  // Head Pyro is a crew role too (and then some) — someone granted 'hp' can do anything a 'crew'
+  // grant can, same as 'admin' can do anything at all. Doesn't go the other way: 'crew' alone
+  // doesn't unlock 'hp'-only pages.
+  if (needed === 'crew' && roles.indexOf('hp') > -1) return true;
   return roles.indexOf(needed) > -1;
 }
 function authError(needed) {
