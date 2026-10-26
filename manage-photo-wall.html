@@ -97,6 +97,8 @@ updateThemeToggleIcon();
   .photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
   .photo-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface-4);}
   .photo-card img{width:100%;height:160px;object-fit:cover;display:block;background:#000;}
+  .photo-card iframe{width:100%;height:160px;border:0;display:block;background:#000;}
+  .media-badge{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-soft);margin-top:4px;}
   .photo-meta{padding:10px 12px;}
   .photo-who{font-size:12.5px;font-weight:700;color:var(--ink);}
   .photo-caption{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
@@ -136,7 +138,7 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
-    <p class="desc">Approve a photo to add it to the public slideshow on the home screen's Photo Wall, or reject it to keep it out. Rejected and pending photos are only ever visible here.</p>
+    <p class="desc">Approve a photo or video to add it to the public slideshow on the home screen's Photo Wall, or reject it to keep it out. Rejected and pending submissions are only ever visible here.</p>
     <div class="filter-tabs" id="filterTabs">
       <button type="button" class="filter-tab" data-filter="Pending" onclick="setFilter('Pending')">Pending</button>
       <button type="button" class="filter-tab" data-filter="Approved" onclick="setFilter('Approved')">Approved</button>
@@ -186,11 +188,14 @@ function render(){
   }
   wrap.innerHTML = '<div class="photo-grid">' + rows.map(p => `
     <div class="photo-card">
-      <img src="${esc(p.photoUrl)}" alt="${esc(p.caption || 'Submitted photo')}">
+      ${p.mediaType === 'video'
+        ? `<iframe src="${esc(p.photoUrl)}" allow="autoplay; fullscreen" allowfullscreen title="${esc(p.caption || 'Submitted video')}"></iframe>`
+        : `<img src="${esc(p.photoUrl)}" alt="${esc(p.caption || 'Submitted photo')}">`}
       <div class="photo-meta">
         <div class="photo-who">${esc(p.name || 'Anonymous')}</div>
         ${p.caption ? `<div class="photo-caption">${esc(p.caption)}</div>` : ''}
         <div class="photo-date">${esc(p.submittedAt || '')}</div>
+        <div class="media-badge">${p.mediaType === 'video' ? '🎬 Video' : '📷 Photo'}</div>
         <div><span class="photo-status ${esc(p.status)}">${esc(p.status)}</span></div>
         <div class="photo-actions">
           ${p.status !== 'Approved' ? `<button type="button" class="btn-approve" onclick="moderate('${esc(p.id)}','Approved')">Approve</button>` : ''}

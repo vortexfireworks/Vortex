@@ -561,21 +561,64 @@ function removeShowSignup(ss, venueId, name) {
 // slideshow once an admin approves it from Manage. Pending/rejected photos stay on this sheet so
 // an admin can review them, but are never served to the public feed.
 function getOrCreatePhotoWallSheet(ss) {
+  const requiredHeaders = ['Id', 'Name', 'Caption', 'PhotoUrl', 'SubmittedAt', 'Status', 'MediaType'];
   let sheet = ss.getSheetByName('PhotoWall');
   if (!sheet) {
     sheet = ss.insertSheet('PhotoWall');
-    sheet.appendRow(['Id', 'Name', 'Caption', 'PhotoUrl', 'SubmittedAt', 'Status']);
+    sheet.appendRow(requiredHeaders);
+    return sheet;
   }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
   return sheet;
 }
 
-function addPhotoWallSubmission(ss, name, caption, photoBase64) {
-  if (!photoBase64) return {status: 'error', message: 'No photo was attached.'};
-  const url = savePhotoToDrive(photoBase64, name || 'photo', 1600);
-  if (!url) return {status: 'error', message: "That didn't look like a photo — try a different file."};
+// Saves a photo-wall submission (photo or video) to Drive. Images keep using the lh3
+// image-serving URL (fast, resized thumbnails) exactly as before; video can't go through that
+// image CDN, so it gets a Drive "preview" link instead — an embeddable player Drive serves
+// itself, which sidesteps the file-size/streaming limits a raw <video src=driveLink> would hit.
+const WALL_VIDEO_MAX_BYTES = 25 * 1024 * 1024; // safety cap: 25 MB, well inside Apps Script's request-size ceiling
+function saveWallMediaToDrive(dataUrl, name) {
+  const matches = String(dataUrl || '').match(/^data:(image\/[\w.+-]+|video\/[\w.+-]+);base64,(.*)$/);
+  if (!matches) return {error: "That didn't look like a photo or video — try a different file."};
+  const contentType = matches[1];
+  const isVideo = contentType.indexOf('video/') === 0;
+  const bytes = Utilities.base64Decode(matches[2]);
+  if (isVideo && bytes.length > WALL_VIDEO_MAX_BYTES) {
+    return {error: 'That video is too large (over 25 MB) — try a shorter clip or a lower resolution export.'};
+  }
+  const ext = isVideo ? (contentType.split('/')[1] || 'mp4').replace(/[^a-z0-9]/gi, '') : 'jpg';
+  const safeName = String(name).replace(/[^a-zA-Z0-9]/g, '_') + '_' + new Date().getTime() + '.' + ext;
+  const blob = Utilities.newBlob(bytes, contentType, safeName);
+  const folder = getOrCreatePhotoFolder();
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const url = isVideo
+    ? 'https://drive.google.com/file/d/' + file.getId() + '/preview'
+    : 'https://lh3.googleusercontent.com/d/' + file.getId() + '=s1600';
+  return { url: url, mediaType: isVideo ? 'video' : 'photo' };
+}
+
+function addPhotoWallSubmission(ss, name, caption, mediaBase64) {
+  if (!mediaBase64) return {status: 'error', message: 'No photo or video was attached.'};
+  const uploaded = saveWallMediaToDrive(mediaBase64, name || 'photo');
+  if (uploaded.error) return {status: 'error', message: uploaded.error};
   const sheet = getOrCreatePhotoWallSheet(ss);
+  const map = headerMap(sheet);
   const id = Utilities.getUuid();
-  sheet.appendRow([id, String(name || '').trim(), String(caption || '').trim(), url, new Date(), 'Pending']);
+  const row = new Array(Object.keys(map).length).fill('');
+  row[map['Id']] = id;
+  row[map['Name']] = String(name || '').trim();
+  row[map['Caption']] = String(caption || '').trim();
+  row[map['PhotoUrl']] = uploaded.url;
+  row[map['SubmittedAt']] = new Date();
+  row[map['Status']] = 'Pending';
+  row[map['MediaType']] = uploaded.mediaType;
+  sheet.appendRow(row);
   return {status: 'ok'};
 }
 
@@ -593,6 +636,7 @@ function getApprovedPhotoWall(ss) {
       name: String(rows[i][map['Name']] || ''),
       caption: String(rows[i][map['Caption']] || ''),
       photoUrl: String(rows[i][map['PhotoUrl']] || ''),
+      mediaType: String(rows[i][map['MediaType']] || '') === 'video' ? 'video' : 'photo',
       submittedAt: normalizeDateValue(rows[i][map['SubmittedAt']]) || String(rows[i][map['SubmittedAt']] || '')
     });
   }
@@ -614,6 +658,7 @@ function getAllPhotoWall(ss) {
       name: String(rows[i][map['Name']] || ''),
       caption: String(rows[i][map['Caption']] || ''),
       photoUrl: String(rows[i][map['PhotoUrl']] || ''),
+      mediaType: String(rows[i][map['MediaType']] || '') === 'video' ? 'video' : 'photo',
       submittedAt: normalizeDateValue(rows[i][map['SubmittedAt']]) || String(rows[i][map['SubmittedAt']] || ''),
       status: String(rows[i][map['Status']] || 'Pending')
     });
@@ -645,7 +690,9 @@ function deletePhotoWallEntry(ss, id) {
     if (String(rows[i][map['Id']] || '') === id) {
       const url = String(rows[i][map['PhotoUrl']] || '');
       sheet.deleteRow(i + 1);
-      const match = url.match(/\/d\/([^=]+)/);
+      // Matches the file id out of either URL shape this sheet stores: the lh3 image-CDN
+      // link (.../d/<id>=s1600) and a video's Drive preview link (.../d/<id>/preview).
+      const match = url.match(/\/d\/([^=/]+)/);
       if (match) {
         try { DriveApp.getFileById(match[1]).setTrashed(true); } catch (err) { /* already gone, or not ours to trash */ }
       }

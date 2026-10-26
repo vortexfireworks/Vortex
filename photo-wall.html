@@ -129,6 +129,7 @@ updateThemeToggleIcon();
 
   .slideshow{position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;}
   .slideshow img{width:100%;height:100%;object-fit:contain;background:#000;}
+  .slideshow iframe{width:100%;height:100%;border:0;background:#000;}
   .slide-caption{
     position:absolute;left:0;right:0;bottom:0;padding:10px 14px 8px;
     background:linear-gradient(to top, rgba(0,0,0,0.75), transparent);color:#fff;
@@ -170,11 +171,11 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
-    <h2>Share a photo</h2>
-    <p class="desc">Got a good shot from a show? Share it here. An admin reviews every photo before it shows up in the slideshow below, so it may take a little while to appear.</p>
+    <h2>Share a photo or video</h2>
+    <p class="desc">Got a good shot (or clip) from a show? Share it here. An admin reviews every submission before it shows up in the slideshow below, so it may take a little while to appear. Videos are capped at 25 MB.</p>
 
     <div id="signinBox" class="signin-box">
-      <p>Sign in with your crew Google account to share a photo.</p>
+      <p>Sign in with your crew Google account to share a photo or video.</p>
       <div id="googleBtn"></div>
     </div>
     <div id="signedInBox" class="signin-box" style="display:none;">
@@ -188,25 +189,26 @@ updateThemeToggleIcon();
       </div>
       <div class="field">
         <label for="pwCaption">Caption (optional)</label>
-        <input type="text" id="pwCaption" placeholder="A line about the photo…" autocomplete="off">
+        <input type="text" id="pwCaption" placeholder="A line about the photo or video…" autocomplete="off">
       </div>
       <label class="file-drop" id="fileDrop">
-        <input type="file" id="pwFile" accept="image/*">
+        <input type="file" id="pwFile" accept="image/*,video/*">
         <div id="fileDropContent">
           <div class="icon">📷</div>
-          <div class="hint">Tap to choose or take a photo</div>
+          <div class="hint">Tap to choose or take a photo or video</div>
         </div>
       </label>
       <img id="pwPreview" class="preview-thumb" style="display:none;">
-      <button type="button" class="btn" id="pwSubmitBtn" onclick="submitPhoto()">Submit photo</button>
+      <video id="pwPreviewVideo" class="preview-thumb" style="display:none;" controls muted></video>
+      <button type="button" class="btn" id="pwSubmitBtn" onclick="submitPhoto()">Submit</button>
       <div id="pwStatus" class="status-msg"></div>
     </div>
   </div>
 
   <div class="section">
     <h2>Slideshow</h2>
-    <p class="desc">Every approved photo from the crew and clients.</p>
-    <div id="slideshowWrap"><div class="empty-state"><div class="icon">🖼️</div><p>Loading photos…</p></div></div>
+    <p class="desc">Every approved photo and video from the crew and clients.</p>
+    <div id="slideshowWrap"><div class="empty-state"><div class="icon">🖼️</div><p>Loading…</p></div></div>
   </div>
 </div>
 
@@ -220,25 +222,48 @@ function esc(s){
 
 /* ---------- Upload ---------- */
 let selectedDataUrl = '';
+const VIDEO_MAX_BYTES = 25 * 1024 * 1024; // matches the backend's own cap
 
 $('pwFile').addEventListener('change', async () => {
   const file = $('pwFile').files && $('pwFile').files[0];
   if(!file) return;
-  if(!file.type.startsWith('image/')){
-    showStatus('That file is not a photo — pick an image.', false);
+  const isVideo = file.type.startsWith('video/');
+  if(!isVideo && !file.type.startsWith('image/')){
+    showStatus('That file is not a photo or video — pick one of those.', false);
+    $('pwFile').value = '';
+    return;
+  }
+  if(isVideo && file.size > VIDEO_MAX_BYTES){
+    showStatus('That video is over 25 MB — try a shorter clip or a lower-resolution export.', false);
     $('pwFile').value = '';
     return;
   }
   try{
-    selectedDataUrl = await resizeImageToDataUrl(file, 1600, 0.82);
-    $('pwPreview').src = selectedDataUrl;
-    $('pwPreview').style.display = '';
+    selectedDataUrl = isVideo ? await readFileToDataUrl(file) : await resizeImageToDataUrl(file, 1600, 0.82);
+    $('pwPreview').style.display = 'none';
+    $('pwPreviewVideo').style.display = 'none';
+    if(isVideo){
+      $('pwPreviewVideo').src = selectedDataUrl;
+      $('pwPreviewVideo').style.display = '';
+    } else {
+      $('pwPreview').src = selectedDataUrl;
+      $('pwPreview').style.display = '';
+    }
     $('fileDropContent').innerHTML = `<div class="icon">✅</div><div class="filename">${esc(file.name)}</div>`;
     showStatus('', null);
   } catch(err){
-    showStatus("Couldn't read that photo — try a different file.", false);
+    showStatus(`Couldn't read that ${isVideo ? 'video' : 'photo'} — try a different file.`, false);
   }
 });
+
+function readFileToDataUrl(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
 
 function resizeImageToDataUrl(file, maxDim, quality){
   return new Promise((resolve, reject) => {
@@ -302,7 +327,7 @@ async function submitPhoto(){
     return;
   }
   if(!selectedDataUrl){
-    showStatus('Choose a photo first.', false);
+    showStatus('Choose a photo or video first.', false);
     return;
   }
   const btn = $('pwSubmitBtn');
@@ -320,17 +345,19 @@ async function submitPhoto(){
     });
     const data = await res.json();
     if(!res.ok || !data || data.status === 'error') throw new Error((data && data.message) || 'Submission failed');
-    showStatus('Thanks! Your photo is waiting on admin approval.', true);
+    showStatus('Thanks! It’s waiting on admin approval.', true);
     $('pwCaption').value = '';
     $('pwFile').value = '';
     $('pwPreview').style.display = 'none';
+    $('pwPreviewVideo').removeAttribute('src');
+    $('pwPreviewVideo').style.display = 'none';
     selectedDataUrl = '';
-    $('fileDropContent').innerHTML = '<div class="icon">📷</div><div class="hint">Tap to choose or take a photo</div>';
+    $('fileDropContent').innerHTML = '<div class="icon">📷</div><div class="hint">Tap to choose or take a photo or video</div>';
   } catch(err){
     showStatus(err.message || "Couldn't submit — check your connection and try again.", false);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Submit photo';
+    btn.textContent = 'Submit';
   }
 }
 
@@ -350,14 +377,14 @@ async function loadSlideshow(){
     return;
   }
   if(!Array.isArray(PHOTOS) || !PHOTOS.length){
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">🖼️</div><p>No approved photos yet — be the first to share one above.</p></div>';
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">🖼️</div><p>Nothing approved yet — be the first to share a photo or video above.</p></div>';
     return;
   }
   slideIndex = 0;
   wrap.innerHTML = `
     <div class="slideshow" id="slideshowBox">
       <button type="button" class="slide-nav prev" onclick="changeSlide(-1)" aria-label="Previous">&#8249;</button>
-      <img id="slideImg" src="" alt="">
+      <div id="slideMedia"></div>
       <button type="button" class="slide-nav next" onclick="changeSlide(1)" aria-label="Next">&#8250;</button>
       <div class="slide-caption" id="slideCaption"></div>
     </div>
@@ -371,13 +398,15 @@ async function loadSlideshow(){
 
 function renderSlide(){
   const p = PHOTOS[slideIndex];
-  $('slideImg').src = p.photoUrl;
-  $('slideImg').alt = p.caption || 'Show photo';
+  const mediaEl = $('slideMedia');
+  mediaEl.innerHTML = p.mediaType === 'video'
+    ? `<iframe src="${esc(p.photoUrl)}" allow="autoplay; fullscreen" allowfullscreen title="${esc(p.caption || 'Show video')}"></iframe>`
+    : `<img src="${esc(p.photoUrl)}" alt="${esc(p.caption || 'Show photo')}">`;
   const who = p.name ? esc(p.name) : 'Anonymous';
   const what = p.caption ? esc(p.caption) : '';
   $('slideCaption').innerHTML = `<div class="who">${who}</div>${what ? `<div class="what">${what}</div>` : ''}`;
   $('slideDots').innerHTML = PHOTOS.map((_, i) =>
-    `<button type="button" class="slide-dot ${i === slideIndex ? 'active' : ''}" onclick="goToSlide(${i})" aria-label="Photo ${i + 1}"></button>`
+    `<button type="button" class="slide-dot ${i === slideIndex ? 'active' : ''}" onclick="goToSlide(${i})" aria-label="Item ${i + 1}"></button>`
   ).join('');
 }
 
