@@ -390,9 +390,9 @@ updateThemeToggleIcon();
     <div class="field full" style="margin-top:14px;">
       <label>Display type (select all that apply)</label>
       <div class="radiorow">
-        <label><input type="checkbox" name="dtype" value="NFPA 1123 Outdoor Display Operator"> NFPA 1123 outdoor display operator</label>
-        <label><input type="checkbox" name="dtype" value="NFPA 1126 Special Effects/Proximal Audience"> NFPA 1126 special effects / proximal audience</label>
-        <label><input type="checkbox" name="dtype" value="NFPA 160 Flame Effects"> NFPA 160 flame effects</label>
+        <label><input type="checkbox" name="dtype" id="dtype1123" value="NFPA 1123 Outdoor Display Operator"> NFPA 1123 outdoor display operator</label>
+        <label><input type="checkbox" name="dtype" id="dtype1126" value="NFPA 1126 Special Effects/Proximal Audience"> NFPA 1126 special effects / proximal audience</label>
+        <label><input type="checkbox" name="dtype" id="dtype160" value="NFPA 160 Flame Effects"> NFPA 160 flame effects</label>
       </div>
     </div>
   </div>
@@ -541,7 +541,8 @@ async function fetchVenueDirectory(){
         VENUE_INFO[v.name.trim().toLowerCase()] = {
           name: v.name.trim(),
           address: v.address || '',
-          county: v.county || ''
+          county: v.county || '',
+          nfpaTypes: Array.isArray(v.nfpaTypes) ? v.nfpaTypes : []
         };
       });
       populateVenueDatalist();
@@ -934,6 +935,12 @@ function autofillEventAddress(eventInput){
   if(match){
     document.getElementById('address').value = match.address;
     document.getElementById('venue').value = match.county;
+    // Auto-check (and un-check) the display-type boxes from the venue's saved NFPA type(s),
+    // so switching to a different venue doesn't leave a stale check from the last one.
+    const types = match.nfpaTypes || [];
+    document.getElementById('dtype1123').checked = types.indexOf('1123') > -1;
+    document.getElementById('dtype1126').checked = types.indexOf('1126') > -1;
+    document.getElementById('dtype160').checked = types.indexOf('160') > -1;
   }
 }
 

@@ -75,8 +75,17 @@ function getOrCreateContactsSheet(ss) {
   return sheet;
 }
 
+// Which NFPA standard(s) a venue/event falls under — checked off in Manage → Venues, autofilled
+// onto the After Action Report's own checkboxes from there, and used to decide which events even
+// show up in the Prox Planning Sheet (only 1126 shows do).
+const KNOWN_NFPA_TYPES = ['1123', '1126', '160'];
+function cleanNfpaTypes(types) {
+  const list = Array.isArray(types) ? types : String(types || '').split(',');
+  return list.map(t => String(t).trim()).filter(t => KNOWN_NFPA_TYPES.indexOf(t) > -1);
+}
+
 function getOrCreateVenuesSheet(ss) {
-  const requiredHeaders = ['Name', 'Address', 'County', 'EventDate', 'SignInEnabled', 'Id', 'AssignedHp', 'CallTime', 'SignupLimit'];
+  const requiredHeaders = ['Name', 'Address', 'County', 'EventDate', 'SignInEnabled', 'Id', 'AssignedHp', 'CallTime', 'SignupLimit', 'NfpaTypes'];
   let sheet = ss.getSheetByName('Venues');
   if (!sheet) {
     sheet = ss.insertSheet('Venues');
@@ -2808,6 +2817,7 @@ function doPostInner(e) {
     const existingAssignedHp = rowIndex > 0 ? rows[rowIndex - 1][map['AssignedHp']] : '';
     const existingCallTime = rowIndex > 0 ? normalizeTimeValue(rows[rowIndex - 1][map['CallTime']]) : '';
     const existingSignupLimit = rowIndex > 0 ? rows[rowIndex - 1][map['SignupLimit']] : '';
+    const existingNfpaTypes = rowIndex > 0 ? rows[rowIndex - 1][map['NfpaTypes']] : '';
 
     const newRow = [];
     newRow[map['Name']] = data.name;
@@ -2816,12 +2826,13 @@ function doPostInner(e) {
     newRow[map['EventDate']] = data.eventDate || '';
     newRow[map['SignInEnabled']] = existingSignIn || '';
     newRow[map['Id']] = existingId || Utilities.getUuid();
-    // assignedHp/callTime are only sent as explicit fields from venues.html's editor, but
-    // use hasOwnProperty so a value of '' (admin clearing the field) still gets saved rather
-    // than falling back to the preserved existing value.
+    // assignedHp/callTime/nfpaTypes are only sent as explicit fields from venues.html's editor,
+    // but use hasOwnProperty so an admin clearing the field still gets that saved rather than
+    // falling back to the preserved existing value.
     newRow[map['AssignedHp']] = Object.prototype.hasOwnProperty.call(data, 'assignedHp') ? (data.assignedHp || '') : (existingAssignedHp || '');
     newRow[map['CallTime']] = Object.prototype.hasOwnProperty.call(data, 'callTime') ? (data.callTime || '') : (existingCallTime || '');
     newRow[map['SignupLimit']] = Object.prototype.hasOwnProperty.call(data, 'signupLimit') ? (Number(data.signupLimit) || 0) : (existingSignupLimit || '');
+    newRow[map['NfpaTypes']] = Object.prototype.hasOwnProperty.call(data, 'nfpaTypes') ? cleanNfpaTypes(data.nfpaTypes).join(',') : (existingNfpaTypes || '');
 
     if (rowIndex > 0) {
       sheet.getRange(rowIndex, 1, 1, newRow.length).setValues([newRow]);
@@ -3711,7 +3722,8 @@ function doGetInner(e) {
         signInEnabled: row[idx['SignInEnabled']] === 'Yes',
         assignedHp: row[idx['AssignedHp']] || '',
         callTime: normalizeTimeValue(row[idx['CallTime']]),
-        signupLimit: Number(row[idx['SignupLimit']]) || 0
+        signupLimit: Number(row[idx['SignupLimit']]) || 0,
+        nfpaTypes: cleanNfpaTypes(row[idx['NfpaTypes']])
       }));
     const json = JSON.stringify(results);
     try {

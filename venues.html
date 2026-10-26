@@ -199,6 +199,15 @@ updateThemeToggleIcon();
         <div class="field"><label for="vEditAssignedHp">Assigned Head Pyro</label><input type="text" id="vEditAssignedHp" list="namesDirectoryList" placeholder="Leave blank if not assigned yet" autocomplete="off" oninput="checkAssignmentWarnings()"></div>
         <div class="field"><label for="vEditCallTime">Call time</label><input type="time" id="vEditCallTime"></div>
         <div class="field"><label for="vEditSignupLimit">Crew sign-up limit</label><input type="number" id="vEditSignupLimit" min="0" step="1" placeholder="Leave blank to turn off sign-ups"></div>
+        <div class="field full">
+          <label>NFPA type(s)</label>
+          <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:2px;">
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:var(--ink);"><input type="checkbox" id="vEditNfpa1123" value="1123" style="width:auto;"> NFPA 1123 (Outdoor Display)</label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:var(--ink);"><input type="checkbox" id="vEditNfpa1126" value="1126" style="width:auto;"> NFPA 1126 (Special FX / Proximate)</label>
+            <label style="display:flex;align-items:center;gap:6px;font-weight:400;font-size:13px;color:var(--ink);"><input type="checkbox" id="vEditNfpa160" value="160" style="width:auto;"> NFPA 160 (Flame Effects)</label>
+          </div>
+          <p class="hint">Used to autofill the After Action Report, and only NFPA 1126 events show up in the Prox Planning Sheet.</p>
+        </div>
       </div>
       <datalist id="venueDirectoryList"></datalist>
       <datalist id="namesDirectoryList"></datalist>
@@ -434,6 +443,21 @@ function onNameInput(value){
   }
 }
 
+function setNfpaCheckboxes(types){
+  const list = Array.isArray(types) ? types : [];
+  $('vEditNfpa1123').checked = list.indexOf('1123') > -1;
+  $('vEditNfpa1126').checked = list.indexOf('1126') > -1;
+  $('vEditNfpa160').checked = list.indexOf('160') > -1;
+}
+
+function getNfpaCheckboxes(){
+  const types = [];
+  if($('vEditNfpa1123').checked) types.push('1123');
+  if($('vEditNfpa1126').checked) types.push('1126');
+  if($('vEditNfpa160').checked) types.push('160');
+  return types;
+}
+
 function resetForm(){
   editingId = null;
   $('vEditName').value = '';
@@ -443,6 +467,7 @@ function resetForm(){
   $('vEditAssignedHp').value = '';
   $('vEditCallTime').value = '';
   $('vEditSignupLimit').value = '';
+  setNfpaCheckboxes([]);
   $('formTitle').textContent = 'ADD VENUE';
   $('cancelEditBtn').style.display = 'none';
   $('assignWarning').style.display = 'none';
@@ -460,6 +485,7 @@ function editVenue(id){
   $('vEditAssignedHp').value = v.assignedHp || '';
   $('vEditCallTime').value = v.callTime || '';
   $('vEditSignupLimit').value = v.signupLimit || '';
+  setNfpaCheckboxes(v.nfpaTypes);
   $('formTitle').textContent = 'EDITING: ' + v.name + (v.eventDate ? ' — ' + formatDateDisplay(v.eventDate) : '');
   $('cancelEditBtn').style.display = '';
   setStatus($('venueSaveStatus'), '');
@@ -478,6 +504,7 @@ function addAnotherDate(name){
   $('vEditAssignedHp').value = '';
   $('vEditCallTime').value = '';
   $('vEditSignupLimit').value = '';
+  setNfpaCheckboxes(match ? match.nfpaTypes : []);
   $('formTitle').textContent = 'ADD VENUE';
   $('cancelEditBtn').style.display = 'none';
   setStatus($('venueSaveStatus'), '');
@@ -496,6 +523,7 @@ async function saveVenue(){
   const assignedHp = $('vEditAssignedHp').value.trim();
   const callTime = $('vEditCallTime').value.trim();
   const signupLimit = Number($('vEditSignupLimit').value) || 0;
+  const nfpaTypes = getNfpaCheckboxes();
 
   if(!name){
     setStatus(statusEl, 'Enter a venue name first.', 'err');
@@ -512,16 +540,16 @@ async function saveVenue(){
   }
 
   setStatus(statusEl, 'Saving…');
-  const payload = { recordType: 'venue', name, address, county, eventDate, assignedHp, callTime, signupLimit };
+  const payload = { recordType: 'venue', name, address, county, eventDate, assignedHp, callTime, signupLimit, nfpaTypes };
   if(editingId) payload.id = editingId;
 
   try{
     const result = await postJson(payload);
     if(editingId){
       const v = VENUES.find(x => x.id === editingId);
-      if(v) Object.assign(v, { name, address, county, eventDate, assignedHp, callTime, signupLimit });
+      if(v) Object.assign(v, { name, address, county, eventDate, assignedHp, callTime, signupLimit, nfpaTypes });
     } else {
-      VENUES.push({ id: result.id || '', name, address, county, eventDate, assignedHp, callTime, signupLimit, signInEnabled: false });
+      VENUES.push({ id: result.id || '', name, address, county, eventDate, assignedHp, callTime, signupLimit, nfpaTypes, signInEnabled: false });
     }
     buildDatalist();
     renderVenueList();

@@ -202,7 +202,8 @@ async function loadVenues(){
   try{
     const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
     const data = await res.json();
-    VENUES = Array.isArray(data) ? data.filter(v => v && v.name) : [];
+    // Only NFPA 1126 (special effects / proximate audience) events use the Prox Planning Sheet.
+    VENUES = Array.isArray(data) ? data.filter(v => v && v.name && Array.isArray(v.nfpaTypes) && v.nfpaTypes.indexOf('1126') > -1) : [];
   } catch(err){
     select.innerHTML = '<option value="">Could not load events</option>';
     return;
