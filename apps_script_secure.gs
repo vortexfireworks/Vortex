@@ -1163,7 +1163,7 @@ const GET_LEVELS = {
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
-  aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
+  aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp', deleteCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp', setAvailability: 'hp',
   proxPlan: 'hp', deleteProxPlan: 'hp',
   showSignup: 'crew', removeShowSignup: 'crew', photoWallSubmit: 'crew',
@@ -2859,6 +2859,25 @@ function doPostInner(e) {
     return jsonOut({status: 'ok'});
   }
 
+  // Removes one sign-in row — for an accidental duplicate (the quick-tap sign-in on
+  // sign-in-crew.html is an easy double-tap away from one). rowIndex comes from the same
+  // ?event= listing the page just rendered, and name is checked against that row before
+  // deleting so a stale rowIndex (sheet edited elsewhere in between) can't delete the wrong person.
+  if (data.recordType === 'deleteCheckIn') {
+    const rowIndex = Number(data.rowIndex) || 0;
+    const name = String(data.name || '').trim();
+    if (!rowIndex || rowIndex < 2) return jsonOut({status: 'error', message: 'Missing row'});
+    const sheet = findCheckInSheet(ss);
+    if (rowIndex > sheet.getLastRow()) return jsonOut({status: 'error', message: 'That sign-in is already gone — refresh and try again.'});
+    const rowVals = sheet.getRange(rowIndex, 1, 1, Math.max(sheet.getLastColumn(), 4)).getValues()[0];
+    const rowName = String(rowVals[3] || '').trim();
+    if (name && rowName.toLowerCase() !== name.toLowerCase()) {
+      return jsonOut({status: 'error', message: 'That sign-in has changed — refresh and try again.'});
+    }
+    sheet.deleteRow(rowIndex);
+    return jsonOut({status: 'ok'});
+  }
+
   // Only a real check-in (which has no recordType) reaches here. Anything else is a request this script does not know,
   // and must not be quietly written into the check-in sheet.
   if (data.recordType) return jsonOut({status: 'error', message: 'Unknown request'});
@@ -3772,7 +3791,8 @@ function doGetInner(e) {
   const rows = sheet.getDataRange().getValues();
   const eventFilter = e.parameter.event;
   const results = rows.slice(1)
-    .map(row => ({
+    .map((row, i) => ({
+      rowIndex: i + 2, // actual 1-based sheet row, so a client can ask to delete this exact entry
       timestamp: row[0], event: row[1], eventDate: normalizeDateValue(row[2]), name: row[3],
       license: row[4], address: row[5], age: row[6], phone: row[7] || '', checkInTime: row[8] || '', isHeadPyro: row[9] === 'Yes',
       signedInByHp: row[10] === 'Yes'
