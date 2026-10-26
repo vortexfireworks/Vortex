@@ -972,6 +972,8 @@ async function buildReportPdfBytes(){
   const templateBytes = await loadAarTemplateBytes();
   const pdfDoc = await PDFDocument.load(templateBytes);
   const form = pdfDoc.getForm();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  let shellsOverflowText = null;
 
   const setText = (name, value) => {
     try{ form.getTextField(name).setText(value || ''); } catch(e){}
@@ -1010,7 +1012,29 @@ async function buildReportPdfBytes(){
   setText('Explain EventMitigation Please use reverse side for further explanationAny injuries If yes list NameAddressAge', val('expl_injury'));
   setText('Explain EventMitigation Please use reverse side for further explanationAny fire caused by fireworks', val('expl_fire'));
   setText('Explain EventMitigation Please use reverse side for further explanationAny violations or irregularties', val('expl_viol'));
-  setText('Number and size of shells used or number and types of special effects used', val('shells'));
+  // This field's printed line is only ~14pt tall, and pdf-lib's auto-size (the template's own
+  // default) will shrink to whatever font fits a long answer on one line — for a realistic
+  // "24x 3in shells, 12x 4in mines, ..." list that's often 2–3pt, which is to the eye the same
+  // as blank. A fixed, always-legible size plus an overflow onto page 2 (see below) fixes that.
+  {
+    const shellsRaw = val('shells').replace(/\s+/g, ' ').trim();
+    const shellsField = form.getTextField('Number and size of shells used or number and types of special effects used');
+    const SHELLS_SIZE = 8;
+    const SHELLS_MAX_WIDTH = 505; // a touch inside the ~515pt-wide box
+    shellsField.setFontSize(SHELLS_SIZE);
+    if(!shellsRaw){
+      shellsField.setText('');
+    } else if(font.widthOfTextAtSize(shellsRaw, SHELLS_SIZE) <= SHELLS_MAX_WIDTH){
+      shellsField.setText(shellsRaw);
+    } else {
+      const suffix = ' (cont. pg 2)';
+      const suffixWidth = font.widthOfTextAtSize(suffix, SHELLS_SIZE);
+      let cut = shellsRaw.length;
+      while(cut > 0 && font.widthOfTextAtSize(shellsRaw.slice(0, cut), SHELLS_SIZE) + suffixWidth > SHELLS_MAX_WIDTH) cut--;
+      shellsField.setText(shellsRaw.slice(0, cut).trim() + suffix);
+      shellsOverflowText = shellsRaw;
+    }
+  }
   setText('Date14_es_:signer:date', formatDateUS(val('sigDate')));
 
   // The template's page-1 personnel table only has three distinct rows (NameRow1-3,
@@ -1040,7 +1064,6 @@ async function buildReportPdfBytes(){
   const overflow = personnelRows.slice(3);
   if(overflow.length){
     const page2 = pdfDoc.getPages()[1];
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     // Bottom-left y of each of page 2's 12 "Additional Assistants" rows, top to bottom.
     const rowYs = [600.0, 575.7, 552.5, 528.0, 504.8, 480.8, 456.6, 432.7, 408.9, 384.4, 360.4, 336.8];
     overflow.slice(0, rowYs.length).forEach((p, i) => {
@@ -1049,6 +1072,39 @@ async function buildReportPdfBytes(){
       page2.drawText((p.license || '').slice(0, 14), { x: 180, y, size: 9, font });
       page2.drawText((p.address || '').slice(0, 56), { x: 246, y, size: 9, font });
       page2.drawText((p.age || '').slice(0, 6), { x: 524, y, size: 9, font });
+    });
+  }
+
+  // Spills the full shells/effects answer onto page 2's "Additional Event/Mitigation Continued"
+  // rows when it didn't fit legibly on page 1's one printed line. Nothing currently draws into
+  // that incident-narrative table unless there's actually an incident to describe, so it's free
+  // space the rest of the time — and clearly labeled here either way so it can't be mistaken
+  // for an incident description.
+  if(shellsOverflowText){
+    const page2 = pdfDoc.getPages()[1];
+    const rowYs = [268.08, 244.08, 221.04, 197.04, 174.0, 150.48, 126.96, 103.92, 79.92, 56.88, 33.12];
+    const wrapToWidth = (text, size, maxWidth) => {
+      const words = text.split(' ');
+      const lines = [];
+      let line = '';
+      words.forEach(word => {
+        const candidate = line ? line + ' ' + word : word;
+        if(font.widthOfTextAtSize(candidate, size) <= maxWidth || !line){
+          line = candidate;
+        } else {
+          lines.push(line);
+          line = word;
+        }
+      });
+      if(line) lines.push(line);
+      return lines;
+    };
+    const lines = [
+      'CONTINUED FROM PAGE 1 — Number and size of shells used, or number and types of special effects used:',
+      ...wrapToWidth(shellsOverflowText, 9, 505)
+    ];
+    lines.slice(0, rowYs.length).forEach((line, i) => {
+      page2.drawText(line, { x: 55, y: rowYs[i] + 7, size: 9, font });
     });
   }
 
