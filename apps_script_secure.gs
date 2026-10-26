@@ -194,7 +194,8 @@ function findShowPlanRow(sheet, map, name) {
 /* ---- Prox (Holotron) Planning Sheet ----
    One record per venue/event (keyed by the Venues row's own Id, not its name, since a show's
    name can repeat or change — see ProxPlan below). EffectsJson holds up to PROX_PLAN_MAX_EFFECTS
-   lines, each {label, channel, equipment, actions}. VenueName/VenueDate are just a snapshot taken
+   lines, each {label, holotronChannel, remoteChannel, repeaterChannel, actions} — a single effect
+   can use more than one piece of equipment at once, each on its own channel. VenueName/VenueDate are a snapshot taken
    at save time so the cheat sheet and the editor can show a label without a second lookup; the
    Venues row itself (by Id) is still the source of truth for scheduling. */
 const PROX_PLAN_MAX_EFFECTS = 10;
@@ -234,11 +235,12 @@ function cleanProxPlanEffects(effects) {
   return effects
     .map(e => ({
       label: String((e && e.label) || '').trim().slice(0, 120),
-      channel: String((e && e.channel) || '').trim().slice(0, 40),
-      equipment: String((e && e.equipment) || '').trim().slice(0, 40),
+      holotronChannel: String((e && e.holotronChannel) || '').trim().slice(0, 40),
+      remoteChannel: String((e && e.remoteChannel) || '').trim().slice(0, 40),
+      repeaterChannel: String((e && e.repeaterChannel) || '').trim().slice(0, 40),
       actions: String((e && e.actions) || '').trim().slice(0, 500)
     }))
-    .filter(e => e.label || e.channel || e.equipment || e.actions)
+    .filter(e => e.label || e.holotronChannel || e.remoteChannel || e.repeaterChannel || e.actions)
     .slice(0, PROX_PLAN_MAX_EFFECTS);
 }
 

@@ -124,8 +124,8 @@ updateThemeToggleIcon();
   .effect-line{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:var(--surface-4);}
   .effect-line-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
   .effect-line-top .num{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);}
-  .effect-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;}
-  @media (max-width:520px){ .effect-grid{grid-template-columns:1fr 1fr;} .effect-grid > div:first-child{grid-column:1 / -1;} }
+  .channel-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  @media (max-width:480px){ .channel-grid{grid-template-columns:1fr;} }
   .remove-line{background:none;border:none;color:var(--brick);font-size:12px;cursor:pointer;padding:2px 4px;text-decoration:underline;}
   .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
   .save-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;}
@@ -146,7 +146,7 @@ updateThemeToggleIcon();
 
 <div class="sheet">
   <div class="section">
-    <p class="desc">Plan out Holotron-triggered proximate effects for a show — which channel each effect is on, what equipment it needs, and any actions to remember. Pick the event below to load or start its plan.</p>
+    <p class="desc">Plan out Holotron-triggered proximate effects for a show — the channel assigned on each piece of equipment it uses (Holotron, Remote, Repeater — fill in only the ones that apply), and any actions to remember. Pick the event below to load or start its plan.</p>
 
     <div class="field">
       <label for="venueSelect">Event</label>
@@ -177,7 +177,7 @@ updateThemeToggleIcon();
 <script>
 const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O0-lC7U01tCclhAVIrrGEwLfVoaa142YYGU0OyX1tBCiK1nGOqf_n8A/exec";
 const MAX_EFFECTS = 10;
-const EQUIPMENT_OPTIONS = ['Holotron', 'Remote', 'Repeater', 'Other'];
+function blankEffectLine(){ return {label:'', holotronChannel:'', remoteChannel:'', repeaterChannel:'', actions:''}; }
 
 function $(id){ return document.getElementById(id); }
 function esc(s){
@@ -238,7 +238,7 @@ async function loadPlanFor(venueId){
   try{
     const res = await fetch(`${CHECKIN_API_URL}?type=proxPlan&venueId=${encodeURIComponent(venueId)}`, { cache: 'no-store' });
     const data = await res.json();
-    effectLines = (data && Array.isArray(data.effects) && data.effects.length) ? data.effects : [{label:'', channel:'', equipment:'', actions:''}];
+    effectLines = (data && Array.isArray(data.effects) && data.effects.length) ? data.effects : [blankEffectLine()];
     $('planNotes').value = (data && data.notes) || '';
     planExists = !!(data && data.found);
     $('deleteBtn').style.display = planExists ? '' : 'none';
@@ -260,21 +260,22 @@ function renderEffectLines(){
         <label>Effect label</label>
         <input type="text" value="${esc(line.label)}" placeholder="e.g. Gerb fan, stage left" oninput="updateLine(${i}, 'label', this.value)">
       </div>
-      <div class="effect-grid">
+      <div class="field">
+        <label>Actions</label>
+        <textarea rows="2" placeholder="What to remember when firing this" oninput="updateLine(${i}, 'actions', this.value)">${esc(line.actions)}</textarea>
+      </div>
+      <div class="channel-grid">
         <div class="field">
-          <label>Actions</label>
-          <textarea rows="2" placeholder="What to remember when firing this" oninput="updateLine(${i}, 'actions', this.value)">${esc(line.actions)}</textarea>
+          <label>Holotron channel</label>
+          <input type="text" value="${esc(line.holotronChannel)}" placeholder="e.g. 3" oninput="updateLine(${i}, 'holotronChannel', this.value)">
         </div>
         <div class="field">
-          <label>Channel</label>
-          <input type="text" value="${esc(line.channel)}" placeholder="e.g. 3" oninput="updateLine(${i}, 'channel', this.value)">
+          <label>Remote channel</label>
+          <input type="text" value="${esc(line.remoteChannel)}" placeholder="e.g. 3" oninput="updateLine(${i}, 'remoteChannel', this.value)">
         </div>
         <div class="field">
-          <label>Equipment</label>
-          <select onchange="updateLine(${i}, 'equipment', this.value)">
-            <option value="">—</option>
-            ${EQUIPMENT_OPTIONS.map(opt => `<option value="${opt}"${line.equipment === opt ? ' selected' : ''}>${opt}</option>`).join('')}
-          </select>
+          <label>Repeater channel</label>
+          <input type="text" value="${esc(line.repeaterChannel)}" placeholder="e.g. 3" oninput="updateLine(${i}, 'repeaterChannel', this.value)">
         </div>
       </div>
     </div>`).join('');
@@ -289,13 +290,13 @@ function updateLine(i, field, value){
 
 function addEffectLine(){
   if(effectLines.length >= MAX_EFFECTS) return;
-  effectLines.push({label:'', channel:'', equipment:'', actions:''});
+  effectLines.push(blankEffectLine());
   renderEffectLines();
 }
 
 function removeEffectLine(i){
   effectLines.splice(i, 1);
-  if(!effectLines.length) effectLines.push({label:'', channel:'', equipment:'', actions:''});
+  if(!effectLines.length) effectLines.push(blankEffectLine());
   renderEffectLines();
 }
 
@@ -304,7 +305,7 @@ async function savePlan(){
   if(!venueId) return;
   const venue = VENUES.find(v => v.id === venueId);
   const msgEl = $('saveMsg');
-  const cleaned = effectLines.filter(l => (l.label || '').trim() || (l.channel || '').trim() || (l.equipment || '').trim() || (l.actions || '').trim());
+  const cleaned = effectLines.filter(l => (l.label || '').trim() || (l.holotronChannel || '').trim() || (l.remoteChannel || '').trim() || (l.repeaterChannel || '').trim() || (l.actions || '').trim());
   const btn = $('saveBtn');
   btn.disabled = true;
   msgEl.textContent = 'Saving…';

@@ -90,6 +90,11 @@ updateThemeToggleIcon();
   }
   button.primary:hover{filter:brightness(1.1);}
   button.primary:disabled{opacity:0.5;cursor:default;filter:none;}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:10px 14px; border-radius:8px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
   .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
   .back-link:hover{color:var(--navy);}
   .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
@@ -120,6 +125,11 @@ updateThemeToggleIcon();
   .effect-row .actions-text{font-size:13px;color:var(--ink);line-height:1.4;white-space:pre-wrap;}
   .effect-row .actions-text:empty::before{content:'—';color:var(--ink-soft);}
   .plan-notes{margin-top:16px;font-size:12.5px;color:var(--ink-soft);background:var(--surface-4);border:1px solid var(--line);border-radius:8px;padding:10px 12px;white-space:pre-wrap;}
+  .channel-checks{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px;}
+  .channel-check{display:flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 10px 4px 8px;border:1px solid var(--line);border-radius:999px;background:var(--surface-4);cursor:pointer;user-select:none;}
+  .channel-check input{width:15px;height:15px;accent-color:var(--ok);cursor:pointer;margin:0;}
+  .channel-check.checked{border-color:var(--ok);color:var(--ok);}
+  .channel-checks .meta{font-size:11.5px;color:var(--ink-soft);align-self:center;}
 </style>
 </head>
 <body>
@@ -168,6 +178,30 @@ function formatDateForOption(dateStr){
 let VENUES = [];
 let currentPlan = null;
 let currentVenue = null;
+// Which channel checks have been ticked off while double-checking, keyed by effect index +
+// equipment type. On-screen only — resets whenever a different event is loaded or the page is
+// reloaded; it's a walkthrough aid, not something saved back to the plan itself.
+let checkState = {};
+
+function channelChip(effectIndex, type, label, channel){
+  if(!channel) return '';
+  const key = `${effectIndex}_${type}`;
+  const checked = !!checkState[key];
+  return `<label class="channel-check${checked ? ' checked' : ''}">
+    <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleCheck('${key}', this.checked)">
+    ${esc(label)} &middot; Ch ${esc(channel)}
+  </label>`;
+}
+
+function toggleCheck(key, value){
+  checkState[key] = value;
+  renderPlan();
+}
+
+function resetChecks(){
+  checkState = {};
+  renderPlan();
+}
 
 async function loadVenues(){
   const select = $('venueSelect');
@@ -209,6 +243,7 @@ function onVenueChange(){
 
 async function loadPlanFor(venueId){
   currentVenue = VENUES.find(v => v.id === venueId) || null;
+  checkState = {};
   $('resultWrap').innerHTML = '<p class="loading-pulse">Loading…</p>';
   try{
     const res = await fetch(`${CHECKIN_API_URL}?type=proxPlan&venueId=${encodeURIComponent(venueId)}`, { cache: 'no-store' });
@@ -230,21 +265,31 @@ function renderPlan(){
       <a href="prox-plan.html?venueId=${encodeURIComponent($('venueSelect').value)}" style="font-size:12.5px;color:var(--navy);">Create one in the Prox Planning Sheet &rarr;</a>`;
     return;
   }
-  const rows = currentPlan.effects.map((e, i) => `
+  const rows = currentPlan.effects.map((e, i) => {
+    const chips = [
+      channelChip(i, 'holotron', 'Holotron', e.holotronChannel),
+      channelChip(i, 'remote', 'Remote', e.remoteChannel),
+      channelChip(i, 'repeater', 'Repeater', e.repeaterChannel)
+    ].filter(Boolean).join('');
+    return `
     <div class="effect-row">
       <div class="row-top">
         <span class="effect-name">${i + 1}. ${esc(e.label || '(no label)')}</span>
-        <span class="meta">${[e.equipment, e.channel ? 'Ch ' + e.channel : ''].filter(Boolean).map(esc).join(' · ')}</span>
       </div>
+      <div class="channel-checks">${chips || '<span class="meta">No channel assigned</span>'}</div>
       <div class="actions-text">${esc(e.actions)}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   wrap.innerHTML = `
     <div class="plan-head">
       <div>
         <h2>${esc(label)}</h2>
         <div class="sub">${currentPlan.effects.length} effect line${currentPlan.effects.length === 1 ? '' : 's'}</div>
       </div>
-      <button type="button" class="primary" onclick="exportPdf()">Export to PDF</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="secondary" onclick="resetChecks()">Reset checks</button>
+        <button type="button" class="primary" onclick="exportPdf()">Export to PDF</button>
+      </div>
     </div>
     <div class="effect-table">${rows}</div>
     ${currentPlan.notes ? `<div class="plan-notes">${esc(currentPlan.notes)}</div>` : ''}`;
@@ -300,15 +345,37 @@ function exportPdf(){
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11.5);
     doc.text(`${i + 1}. ${e.label || '(no label)'}`, marginX, y);
-    const meta = [e.equipment, e.channel ? 'Ch ' + e.channel : ''].filter(Boolean).join('  ·  ');
-    if(meta){
+    y += 15;
+
+    // A hand-drawn checkbox per piece of equipment actually assigned a channel, so this can be
+    // ticked off by pen at the show — the same double-check the on-screen version does with a
+    // real checkbox.
+    const channels = [
+      e.holotronChannel ? { label: 'Holotron', channel: e.holotronChannel } : null,
+      e.remoteChannel ? { label: 'Remote', channel: e.remoteChannel } : null,
+      e.repeaterChannel ? { label: 'Repeater', channel: e.repeaterChannel } : null
+    ].filter(Boolean);
+    if(channels.length){
+      channels.forEach(c => {
+        ensureRoom(14);
+        doc.setDrawColor(90);
+        doc.rect(marginX + 2, y - 8, 9, 9);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(60);
+        doc.text(`${c.label} — Ch ${c.channel}`, marginX + 16, y);
+        doc.setTextColor(0);
+        y += 14;
+      });
+    } else {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9.5);
       doc.setTextColor(110);
-      doc.text(meta, pageWidth - marginX, y, { align: 'right' });
+      doc.text('No channel assigned', marginX + 2, y);
       doc.setTextColor(0);
+      y += 14;
     }
-    y += 15;
+
     if(e.actions){
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
