@@ -152,6 +152,18 @@ updateThemeToggleIcon();
   .roster-row .r-name{font-weight:600;color:var(--ink);}
   .roster-row .r-meta{color:var(--ink-soft);font-size:11.5px;white-space:nowrap;}
   .pl-h{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;margin:24px 0 8px;}
+  .signup-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;}
+  .signup-chip{
+    font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;
+    border:1px solid var(--line);background:var(--surface-55);color:var(--ink);
+    cursor:pointer;font-family:inherit;
+  }
+  .signup-chip:hover{border-color:#ff8c00;}
+  .signup-chip:active{filter:brightness(0.92);}
+  .signup-chip.signed{
+    cursor:default;opacity:.65;background:rgba(76,175,125,0.12);
+    border-color:rgba(76,175,125,0.4);color:var(--ink-soft);
+  }
 
   /* iOS zooms the whole page when a focused field is under 16px, and the page then slides sideways. Keep fields at 16px on phones. */
   @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
@@ -178,6 +190,9 @@ updateThemeToggleIcon();
       <label for="eventName">Event / venue</label>
       <select id="eventName" onchange="onVenueChange()"><option value="" disabled selected>Select a venue…</option></select>
     </div>
+
+    <p class="pl-h" id="signupHeading" style="display:none;margin-top:0;">Signed up for this show — tap a name to sign them in</p>
+    <div class="signup-chips" id="signupChips"></div>
 
     <div class="field">
       <label for="personName">Crew member's name</label>
@@ -300,6 +315,7 @@ function currentVenue(){
 function onVenueChange(){
   refreshMoment();   // fills in this venue's actual event date, unless the date was already edited by hand
   loadRoster();
+  loadSignups();
 }
 
 /* ---------- name list + contact lookup ---------- */
@@ -448,7 +464,7 @@ function allLicenseFieldsValid(){
 async function loadRoster(){
   const venue = currentVenue();
   const wrap = $('rosterList');
-  if(!venue){ wrap.innerHTML = ''; $('rosterHeading').style.display = 'none'; return; }
+  if(!venue){ wrap.innerHTML = ''; $('rosterHeading').style.display = 'none'; CHECKED_IN_NAMES = new Set(); renderSignupChips(); return; }
   wrap.innerHTML = '<p class="hint" style="color:var(--ink-soft);font-size:12.5px;">Loading…</p>';
   try{
     const res = await fetch(`${CHECKIN_API_URL}?event=${encodeURIComponent(venue.name)}`, { cache:'no-store' });
@@ -457,6 +473,8 @@ async function loadRoster(){
     if(!Array.isArray(rows)) rows = [];
     if(venue.eventDate) rows = rows.filter(r => String(r.eventDate || '').slice(0, 10) === venue.eventDate.slice(0, 10));
     rows.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    CHECKED_IN_NAMES = new Set(rows.map(r => String(r.name || '').trim().toLowerCase()));
+    renderSignupChips();
     $('rosterHeading').style.display = rows.length ? 'block' : 'none';
     wrap.innerHTML = rows.length ? rows.map(r => `
       <div class="roster-row">
@@ -466,6 +484,61 @@ async function loadRoster(){
   } catch(err){
     wrap.innerHTML = '<p class="hint" style="color:var(--ink-soft);font-size:12.5px;">Could not load the roster — check your connection.</p>';
   }
+}
+
+/* ---------- crew who self-signed-up for the show ---------- */
+let SIGNUPS = [];
+let CHECKED_IN_NAMES = new Set();
+
+async function loadSignups(){
+  const venue = currentVenue();
+  const chipsEl = $('signupChips');
+  const headingEl = $('signupHeading');
+  if(!venue){ SIGNUPS = []; chipsEl.innerHTML = ''; headingEl.style.display = 'none'; return; }
+  chipsEl.innerHTML = '<p class="hint" style="color:var(--ink-soft);font-size:12.5px;margin:0;">Loading sign-ups…</p>';
+  headingEl.style.display = 'block';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=showSignups`, { cache: 'no-store' });
+    if(!res.ok) throw new Error('Request failed');
+    const data = await res.json();
+    SIGNUPS = (data && data.byVenue && Array.isArray(data.byVenue[venue.id])) ? data.byVenue[venue.id] : [];
+  } catch(err){
+    SIGNUPS = [];
+    chipsEl.innerHTML = '<p class="hint" style="color:var(--ink-soft);font-size:12.5px;margin:0;">Could not load the sign-up list.</p>';
+    return;
+  }
+  renderSignupChips();
+}
+
+// Re-draws the tappable sign-up chips using whatever SIGNUPS/CHECKED_IN_NAMES currently hold,
+// without re-fetching — called again after loadRoster() refreshes who's already checked in,
+// so a name that was just signed in flips to the greyed-out "already here" state right away.
+function renderSignupChips(){
+  const chipsEl = $('signupChips');
+  const headingEl = $('signupHeading');
+  if(!SIGNUPS.length){
+    headingEl.style.display = 'none';
+    chipsEl.innerHTML = '';
+    return;
+  }
+  headingEl.style.display = 'block';
+  const sorted = SIGNUPS.slice().sort((a, b) => String(a).localeCompare(String(b)));
+  chipsEl.innerHTML = sorted.map(name => {
+    const signed = CHECKED_IN_NAMES.has(String(name).trim().toLowerCase());
+    return signed
+      ? `<span class="signup-chip signed">&#10003; ${esc(name)}</span>`
+      : `<button type="button" class="signup-chip" data-name="${esc(name)}" onclick="quickSignIn(this.dataset.name)">${esc(name)}</button>`;
+  }).join('');
+}
+
+// One tap: look the person up (pulls in license/phone/address/age if they're on file) and sign
+// them straight in, same as typing their name and hitting "Sign in" without touching anything else.
+async function quickSignIn(name){
+  if(!currentVenue()) return;
+  $('personName').value = name;
+  clearTimeout(lookupTimer);
+  await lookupContact();
+  signIn();
 }
 
 /* ---------- submit ---------- */
@@ -548,7 +621,7 @@ function signIn(){
   });
 }
 
-loadVenues().then(loadRoster);
+loadVenues().then(() => { loadRoster(); loadSignups(); });
 fetchNameList();
 updateWhenText();
 </script>
