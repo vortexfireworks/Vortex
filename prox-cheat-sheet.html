@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
+<title>Prox Cheat Sheet — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:680px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  select{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  select:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:16px;}
+  button.primary{
+    color:#fdf6f2; border:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    font-size:14px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer;
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.primary:disabled{opacity:0.5;cursor:default;filter:none;}
+  .back-link{display:block; max-width:680px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ select{font-size:16px !important;} }
+
+  .plan-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+  .plan-head h2{margin:0;font-size:16px;}
+  .plan-head .sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .effect-table{border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .effect-row{padding:12px 14px;border-top:1px solid var(--line);}
+  .effect-row:first-child{border-top:none;}
+  .effect-row .row-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px;}
+  .effect-row .effect-name{font-weight:700;font-size:14px;}
+  .effect-row .meta{font-size:11.5px;color:var(--ink-soft);white-space:nowrap;}
+  .effect-row .actions-text{font-size:13px;color:var(--ink);line-height:1.4;white-space:pre-wrap;}
+  .effect-row .actions-text:empty::before{content:'—';color:var(--ink-soft);}
+  .plan-notes{margin-top:16px;font-size:12.5px;color:var(--ink-soft);background:var(--surface-4);border:1px solid var(--line);border-radius:8px;padding:10px 12px;white-space:pre-wrap;}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="index.html">&larr; Back to Home</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Prox Cheat Sheet</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Load an event to see its Holotron Prox plan — effect, channel, equipment, and actions — at a glance, or export it to a PDF to bring along.</p>
+
+    <div class="field">
+      <label for="venueSelect">Event</label>
+      <select id="venueSelect" onchange="onVenueChange()"><option value="">Loading events…</option></select>
+    </div>
+
+    <div id="resultWrap"><div class="empty-state"><div class="icon">📡</div><p>Pick an event above to load its Prox plan.</p></div></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O0-lC7U01tCclhAVIrrGEwLfVoaa142YYGU0OyX1tBCiK1nGOqf_n8A/exec";
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = String(dateStr).slice(0, 10);
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
+  return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+}
+
+let VENUES = [];
+let currentPlan = null;
+let currentVenue = null;
+
+async function loadVenues(){
+  const select = $('venueSelect');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
+    const data = await res.json();
+    VENUES = Array.isArray(data) ? data.filter(v => v && v.name) : [];
+  } catch(err){
+    select.innerHTML = '<option value="">Could not load events</option>';
+    return;
+  }
+  const sorted = VENUES.slice().sort((a, b) => {
+    if(a.eventDate && b.eventDate) return b.eventDate.localeCompare(a.eventDate);
+    if(a.eventDate && !b.eventDate) return -1;
+    if(!a.eventDate && b.eventDate) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  select.innerHTML = '<option value="">Select an event…</option>' +
+    sorted.map(v => {
+      const label = v.eventDate ? `${formatDateForOption(v.eventDate)} — ${v.name}` : v.name;
+      return `<option value="${esc(v.id)}">${esc(label)}</option>`;
+    }).join('');
+  const preselect = new URLSearchParams(location.search).get('venueId');
+  if(preselect && sorted.some(v => v.id === preselect)){
+    select.value = preselect;
+    onVenueChange();
+  }
+}
+
+function onVenueChange(){
+  const venueId = $('venueSelect').value;
+  if(!venueId){
+    currentPlan = null; currentVenue = null;
+    $('resultWrap').innerHTML = '<div class="empty-state"><div class="icon">📡</div><p>Pick an event above to load its Prox plan.</p></div>';
+    return;
+  }
+  loadPlanFor(venueId);
+}
+
+async function loadPlanFor(venueId){
+  currentVenue = VENUES.find(v => v.id === venueId) || null;
+  $('resultWrap').innerHTML = '<p class="loading-pulse">Loading…</p>';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=proxPlan&venueId=${encodeURIComponent(venueId)}`, { cache: 'no-store' });
+    const data = await res.json();
+    currentPlan = data;
+    renderPlan();
+  } catch(err){
+    $('resultWrap').innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load this plan — check your connection and try again.</p>';
+  }
+}
+
+function renderPlan(){
+  const wrap = $('resultWrap');
+  const label = currentVenue ? (currentVenue.eventDate ? `${formatDateForOption(currentVenue.eventDate)} — ${currentVenue.name}` : currentVenue.name) : '';
+  if(!currentPlan || !currentPlan.found || !currentPlan.effects || !currentPlan.effects.length){
+    wrap.innerHTML = `
+      <div class="plan-head"><h2>${esc(label)}</h2></div>
+      <div class="empty-state"><div class="icon">📡</div><p>No Prox plan saved for this event yet.</p></div>
+      <a href="prox-plan.html?venueId=${encodeURIComponent($('venueSelect').value)}" style="font-size:12.5px;color:var(--navy);">Create one in the Prox Planning Sheet &rarr;</a>`;
+    return;
+  }
+  const rows = currentPlan.effects.map((e, i) => `
+    <div class="effect-row">
+      <div class="row-top">
+        <span class="effect-name">${i + 1}. ${esc(e.label || '(no label)')}</span>
+        <span class="meta">${[e.equipment, e.channel ? 'Ch ' + e.channel : ''].filter(Boolean).map(esc).join(' · ')}</span>
+      </div>
+      <div class="actions-text">${esc(e.actions)}</div>
+    </div>`).join('');
+  wrap.innerHTML = `
+    <div class="plan-head">
+      <div>
+        <h2>${esc(label)}</h2>
+        <div class="sub">${currentPlan.effects.length} effect line${currentPlan.effects.length === 1 ? '' : 's'}</div>
+      </div>
+      <button type="button" class="primary" onclick="exportPdf()">Export to PDF</button>
+    </div>
+    <div class="effect-table">${rows}</div>
+    ${currentPlan.notes ? `<div class="plan-notes">${esc(currentPlan.notes)}</div>` : ''}`;
+}
+
+function exportPdf(){
+  if(!currentPlan || !currentPlan.found) return;
+  if(!window.jspdf || !window.jspdf.jsPDF){
+    alert('The PDF library did not load — check your connection and try again.');
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const marginX = 48;
+  let y = 56;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('Vortex Productions Inc.', marginX, y);
+  y += 20;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(110);
+  doc.text('vortexfireworksartists@gmail.com', marginX, y);
+  doc.setTextColor(0);
+  y += 22;
+  doc.setDrawColor(200);
+  doc.line(marginX, y, pageWidth - marginX, y);
+  y += 26;
+
+  const label = currentVenue ? (currentVenue.eventDate ? `${formatDateForOption(currentVenue.eventDate)} — ${currentVenue.name}` : currentVenue.name) : '';
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text(`Prox Cheat Sheet: ${label}`, marginX, y);
+  y += 16;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
+  doc.setTextColor(110);
+  doc.text(`Printed ${new Date().toLocaleString()}`, marginX, y);
+  doc.setTextColor(0);
+  y += 26;
+
+  const ensureRoom = (needed) => {
+    if(y + needed > doc.internal.pageSize.getHeight() - 56){
+      doc.addPage();
+      y = 56;
+    }
+  };
+
+  currentPlan.effects.forEach((e, i) => {
+    ensureRoom(50);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11.5);
+    doc.text(`${i + 1}. ${e.label || '(no label)'}`, marginX, y);
+    const meta = [e.equipment, e.channel ? 'Ch ' + e.channel : ''].filter(Boolean).join('  ·  ');
+    if(meta){
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      doc.setTextColor(110);
+      doc.text(meta, pageWidth - marginX, y, { align: 'right' });
+      doc.setTextColor(0);
+    }
+    y += 15;
+    if(e.actions){
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      const wrapped = doc.splitTextToSize(e.actions, pageWidth - marginX * 2 - 10);
+      wrapped.forEach(line => {
+        ensureRoom(13);
+        doc.text(line, marginX + 10, y);
+        y += 13;
+      });
+    }
+    y += 10;
+    doc.setDrawColor(230);
+    doc.line(marginX, y - 4, pageWidth - marginX, y - 4);
+  });
+
+  if(currentPlan.notes){
+    ensureRoom(40);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.text('NOTES', marginX, y);
+    y += 14;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const wrappedNotes = doc.splitTextToSize(currentPlan.notes, pageWidth - marginX * 2);
+    wrappedNotes.forEach(line => {
+      ensureRoom(13);
+      doc.text(line, marginX, y);
+      y += 13;
+    });
+  }
+
+  const safeName = (label || 'prox-plan').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  doc.save(`${safeName}-prox-cheat-sheet.pdf`);
+}
+
+loadVenues();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update().catch(() => {});
+    }).catch(() => {});
+  });
+  let swRefreshedOnce = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swRefreshedOnce) return;
+    swRefreshedOnce = true;
+    location.reload();
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="auth.js"></script>
+<script>Auth.require('hp');</script>
+<title>Prox Planning Sheet — CueSheet</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-title" content="CueSheet">
+<meta name="theme-color" content="#0a0f1e">
+<link rel="icon" href="icon-192.png">
+<script>
+function toggleTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  if(isLight){
+    document.documentElement.removeAttribute('data-theme');
+    try{ localStorage.setItem('pyroTheme', 'dark'); } catch(e){}
+  } else {
+    document.documentElement.setAttribute('data-theme', 'light');
+    try{ localStorage.setItem('pyroTheme', 'light'); } catch(e){}
+  }
+  updateThemeToggleIcon();
+}
+function updateThemeToggleIcon(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const el = document.getElementById('themeToggleIcon');
+  if(el) el.textContent = isLight ? '🌙' : '☀️';
+}
+updateThemeToggleIcon();
+
+  (function(){
+    try{
+      var saved = localStorage.getItem('pyroTheme');
+      var wantLight;
+      if(saved === 'light' || saved === 'dark'){
+        wantLight = (saved === 'light');
+      } else {
+        wantLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      }
+      if(wantLight){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){}
+  })();
+</script>
+<style>
+  :root{
+    --kicker:#ffb98a; --surface-4:rgba(10,14,26,0.4); --surface-5:rgba(10,14,26,0.5); --surface-55:rgba(10,14,26,0.55); --bg1:#16233f; --bg2:#0a0f1e; --bg3:#05070f;
+    --logo-ring-bg:#0d1220;
+    --navy:#ffb98a; --brick:#ff6a5a; --brick-light:#ff8c66;
+    --paper:#1a2032; --card:rgba(22,28,48,0.75); --line:rgba(255,255,255,0.12);
+    --ink:#f4f1ea; --ink-soft:#a3a9bf; --ok:#4caf7d;
+    --accent1:#d92b2b; --accent2:#ff8c00;
+  }
+  :root[data-theme="light"]{
+    --kicker:#c9601f; --surface-4:rgba(255,255,255,0.5); --surface-5:rgba(255,255,255,0.6); --surface-55:rgba(255,255,255,0.65); --bg1:#fdf3e7; --bg2:#f7ead9; --bg3:#f0e0c9; --ink:#241f18; --ink-soft:#6b6152; --card:rgba(255,255,255,0.78); --line:rgba(36,31,24,0.12); --paper:#fdf3e7; --navy:#c9601f;
+    --logo-ring-bg:#fffaf3;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: radial-gradient(ellipse at 50% -10%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%); color:var(--ink);
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    padding:32px 16px 80px;
+    min-height:100vh;
+  }
+  .sheet{max-width:640px;margin:0 auto;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;backdrop-filter:blur(6px);}
+  header{text-align:center;margin-bottom:12px;}
+  .logo-ring{width:92px;height:92px;border-radius:50%;padding:3px;background:linear-gradient(140deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 75%,#123a63);margin:0 auto 16px;box-shadow:0 0 34px rgba(255,140,0,0.35), 0 0 60px rgba(47,126,201,0.25);}
+  .logo-ring-inner{width:100%;height:100%;border-radius:50%;background:var(--logo-ring-bg);display:flex;align-items:center;justify-content:center;}
+  .logo-ring img{width:72px;height:72px;border-radius:50%;object-fit:cover;}
+  header .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--kicker);font-weight:700;margin-bottom:6px;}
+  header h1{margin:0;font-size:22px;font-weight:800;letter-spacing:-0.02em;background:linear-gradient(90deg,#ff6a5a 0%,#ff8c00 30%,#ffd23f 50%,#5a9de0 75%,#7fa8e8 100%);-webkit-background-clip:text;background-clip:text;color:transparent;line-height:1.15;}
+  .divider{height:3px;width:64px;margin:20px auto 24px;background:linear-gradient(90deg,#d92b2b,#ff8c00 35%,#ffd23f 55%,#2f7ec9 80%,#123a63);border-radius:2px;box-shadow:0 0 12px rgba(255,140,0,0.4);}
+  .section{padding:22px 24px;}
+  .section p.desc{font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;line-height:1.5;}
+  label{font-size:11.5px;color:var(--ink-soft);font-weight:600;}
+  input[type=text], select, textarea{
+    font-size:14px;padding:9px 11px;border:1px solid var(--line);
+    border-radius:6px;background:var(--surface-55);color:var(--ink);
+    width:100%; min-width:0; box-sizing:border-box; font-family:inherit;
+  }
+  textarea{resize:vertical;min-height:44px;}
+  input:focus, select:focus, textarea:focus{outline:none;border-color:#ff8c00;box-shadow:0 0 0 2px rgba(255,140,0,0.2);}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+  button.primary{
+    color:#fdf6f2; border:none;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    font-size:14px; font-weight:700; padding:11px 18px; border-radius:8px; cursor:pointer;
+    box-shadow:0 0 18px rgba(255,140,0,0.3);
+  }
+  button.primary:hover{filter:brightness(1.1);}
+  button.primary:disabled{opacity:0.5;cursor:default;filter:none;}
+  button.secondary{
+    background:none; border:1px solid var(--line); color:var(--navy);
+    font-size:13px; padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.secondary:hover{border-color:var(--navy);}
+  button.secondary.danger{color:var(--brick);}
+  button.secondary.danger:hover{border-color:var(--brick);}
+  .clear-link{font-size:12px;color:var(--ink-soft);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;}
+  .clear-link:hover{color:var(--navy);}
+  .back-link{display:block; max-width:640px; margin:16px auto 0; padding:0 16px;font-size:12.5px; color:var(--ink-soft); text-decoration:none;}
+  .back-link:hover{color:var(--navy);}
+  .loading-pulse{color:var(--ink-soft); margin:4px 0; animation:pulseFade 1.4s ease-in-out infinite;}
+  @keyframes pulseFade{0%,100%{opacity:0.4;} 50%{opacity:1;}}
+  .empty-state{text-align:center; padding:24px 12px; color:var(--ink-soft);}
+  .empty-state .icon{font-size:26px;margin-bottom:8px;opacity:0.6;}
+  .empty-state p{margin:0;font-size:13px;}
+  .theme-toggle{
+    position:fixed; top:14px; right:14px; z-index:50;
+    width:36px;height:36px;border-radius:50%;
+    background:var(--card); border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px; cursor:pointer;
+    transition:transform 0.15s ease;
+  }
+  .theme-toggle:hover{transform:scale(1.08);}
+  @media (max-width:600px){ input:not([type=checkbox]):not([type=radio]), select, textarea{font-size:16px !important;} }
+
+  .msg{font-size:13px;margin-top:12px;}
+  .msg.ok{color:var(--ok);}
+  .msg.err{color:var(--brick);}
+  .effect-line{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:var(--surface-4);}
+  .effect-line-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .effect-line-top .num{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);}
+  .effect-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;}
+  @media (max-width:520px){ .effect-grid{grid-template-columns:1fr 1fr;} .effect-grid > div:first-child{grid-column:1 / -1;} }
+  .remove-line{background:none;border:none;color:var(--brick);font-size:12px;cursor:pointer;padding:2px 4px;text-decoration:underline;}
+  .count-line{font-size:11.5px;color:var(--ink-soft);font-weight:600;margin:0 0 10px;}
+  .save-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Switch theme"><span id="themeToggleIcon">☀️</span></button>
+
+<a class="back-link" href="hp-tools.html">&larr; Back to Head Pyro Tools</a>
+
+<header>
+  <div class="logo-ring"><div class="logo-ring-inner"><img src="logo.jpg" alt="Vortex Fireworks Artists logo"></div></div>
+  <p class="kicker">Vortex Productions Inc.</p>
+  <h1>Prox Planning Sheet</h1>
+</header>
+
+<div class="divider"></div>
+
+<div class="sheet">
+  <div class="section">
+    <p class="desc">Plan out Holotron-triggered proximate effects for a show — which channel each effect is on, what equipment it needs, and any actions to remember. Pick the event below to load or start its plan.</p>
+
+    <div class="field">
+      <label for="venueSelect">Event</label>
+      <select id="venueSelect" onchange="onVenueChange()"><option value="">Loading events…</option></select>
+    </div>
+
+    <div id="planArea" style="display:none;">
+      <p class="count-line" id="countLine"></p>
+      <div id="effectLines"></div>
+      <button type="button" class="secondary" id="addLineBtn" onclick="addEffectLine()">+ Add effect line</button>
+
+      <div class="field" style="margin-top:18px;">
+        <label for="planNotes">Notes (optional)</label>
+        <textarea id="planNotes" rows="3" placeholder="Anything else worth noting about this plan…"></textarea>
+      </div>
+
+      <div class="save-bar">
+        <button type="button" class="primary" id="saveBtn" onclick="savePlan()">Save plan</button>
+        <button type="button" class="secondary danger" id="deleteBtn" onclick="deletePlan()" style="display:none;">Delete this plan</button>
+      </div>
+      <p class="msg" id="saveMsg"></p>
+    </div>
+
+    <div id="noVenueState" class="empty-state"><div class="icon">📡</div><p>Pick an event above to start its Prox plan.</p></div>
+  </div>
+</div>
+
+<script>
+const CHECKIN_API_URL = "https://script.google.com/macros/s/AKfycbxHGsAnuVvfdr5O0-lC7U01tCclhAVIrrGEwLfVoaa142YYGU0OyX1tBCiK1nGOqf_n8A/exec";
+const MAX_EFFECTS = 10;
+const EQUIPMENT_OPTIONS = ['Holotron', 'Remote', 'Repeater', 'Other'];
+
+function $(id){ return document.getElementById(id); }
+function esc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function formatDateForOption(dateStr){
+  if(!dateStr) return '';
+  const datePart = String(dateStr).slice(0, 10);
+  const parts = datePart.split('-');
+  if(parts.length !== 3) return dateStr;
+  const [y, m, d] = parts;
+  if(isNaN(Number(m)) || isNaN(Number(d))) return dateStr;
+  return new Date(Number(y), Number(m) - 1, Number(d)).toLocaleDateString(undefined, { month:'short', day:'numeric', year:'numeric' });
+}
+
+let VENUES = [];
+let effectLines = []; // [{label, channel, equipment, actions}]
+let planExists = false;
+
+async function loadVenues(){
+  const select = $('venueSelect');
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=venues`, { cache: 'no-store' });
+    const data = await res.json();
+    VENUES = Array.isArray(data) ? data.filter(v => v && v.name) : [];
+  } catch(err){
+    select.innerHTML = '<option value="">Could not load events</option>';
+    return;
+  }
+  const sorted = VENUES.slice().sort((a, b) => {
+    if(a.eventDate && b.eventDate) return b.eventDate.localeCompare(a.eventDate);
+    if(a.eventDate && !b.eventDate) return -1;
+    if(!a.eventDate && b.eventDate) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  select.innerHTML = '<option value="">Select an event…</option>' +
+    sorted.map(v => {
+      const label = v.eventDate ? `${formatDateForOption(v.eventDate)} — ${v.name}` : v.name;
+      return `<option value="${esc(v.id)}">${esc(label)}</option>`;
+    }).join('');
+}
+
+function onVenueChange(){
+  const venueId = $('venueSelect').value;
+  if(!venueId){
+    $('planArea').style.display = 'none';
+    $('noVenueState').style.display = '';
+    return;
+  }
+  loadPlanFor(venueId);
+}
+
+async function loadPlanFor(venueId){
+  $('noVenueState').style.display = 'none';
+  $('planArea').style.display = '';
+  $('effectLines').innerHTML = '<p class="loading-pulse">Loading…</p>';
+  $('saveMsg').textContent = '';
+  try{
+    const res = await fetch(`${CHECKIN_API_URL}?type=proxPlan&venueId=${encodeURIComponent(venueId)}`, { cache: 'no-store' });
+    const data = await res.json();
+    effectLines = (data && Array.isArray(data.effects) && data.effects.length) ? data.effects : [{label:'', channel:'', equipment:'', actions:''}];
+    $('planNotes').value = (data && data.notes) || '';
+    planExists = !!(data && data.found);
+    $('deleteBtn').style.display = planExists ? '' : 'none';
+    renderEffectLines();
+  } catch(err){
+    $('effectLines').innerHTML = '<p class="msg err">Could not load this plan — check your connection and try again.</p>';
+  }
+}
+
+function renderEffectLines(){
+  const wrap = $('effectLines');
+  wrap.innerHTML = effectLines.map((line, i) => `
+    <div class="effect-line">
+      <div class="effect-line-top">
+        <span class="num">EFFECT ${i + 1}</span>
+        ${effectLines.length > 1 ? `<button type="button" class="remove-line" onclick="removeEffectLine(${i})">Remove</button>` : ''}
+      </div>
+      <div class="field">
+        <label>Effect label</label>
+        <input type="text" value="${esc(line.label)}" placeholder="e.g. Gerb fan, stage left" oninput="updateLine(${i}, 'label', this.value)">
+      </div>
+      <div class="effect-grid">
+        <div class="field">
+          <label>Actions</label>
+          <textarea rows="2" placeholder="What to remember when firing this" oninput="updateLine(${i}, 'actions', this.value)">${esc(line.actions)}</textarea>
+        </div>
+        <div class="field">
+          <label>Channel</label>
+          <input type="text" value="${esc(line.channel)}" placeholder="e.g. 3" oninput="updateLine(${i}, 'channel', this.value)">
+        </div>
+        <div class="field">
+          <label>Equipment</label>
+          <select onchange="updateLine(${i}, 'equipment', this.value)">
+            <option value="">—</option>
+            ${EQUIPMENT_OPTIONS.map(opt => `<option value="${opt}"${line.equipment === opt ? ' selected' : ''}>${opt}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>`).join('');
+  $('countLine').textContent = `${effectLines.length} of ${MAX_EFFECTS} effect lines`;
+  $('addLineBtn').style.display = effectLines.length >= MAX_EFFECTS ? 'none' : '';
+}
+
+function updateLine(i, field, value){
+  if(!effectLines[i]) return;
+  effectLines[i][field] = value;
+}
+
+function addEffectLine(){
+  if(effectLines.length >= MAX_EFFECTS) return;
+  effectLines.push({label:'', channel:'', equipment:'', actions:''});
+  renderEffectLines();
+}
+
+function removeEffectLine(i){
+  effectLines.splice(i, 1);
+  if(!effectLines.length) effectLines.push({label:'', channel:'', equipment:'', actions:''});
+  renderEffectLines();
+}
+
+async function savePlan(){
+  const venueId = $('venueSelect').value;
+  if(!venueId) return;
+  const venue = VENUES.find(v => v.id === venueId);
+  const msgEl = $('saveMsg');
+  const cleaned = effectLines.filter(l => (l.label || '').trim() || (l.channel || '').trim() || (l.equipment || '').trim() || (l.actions || '').trim());
+  const btn = $('saveBtn');
+  btn.disabled = true;
+  msgEl.textContent = 'Saving…';
+  msgEl.className = 'msg';
+  try{
+    const res = await fetch(CHECKIN_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        recordType: 'proxPlan',
+        venueId: venueId,
+        venueName: venue ? venue.name : '',
+        venueDate: venue ? venue.eventDate : '',
+        effects: cleaned,
+        notes: $('planNotes').value
+      })
+    });
+    const data = await res.json();
+    if(data.status !== 'ok') throw new Error(data.message || 'Save failed');
+    msgEl.textContent = 'Saved.';
+    msgEl.className = 'msg ok';
+    planExists = true;
+    $('deleteBtn').style.display = '';
+  } catch(err){
+    msgEl.textContent = 'Could not save — check your connection and try again.';
+    msgEl.className = 'msg err';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deletePlan(){
+  const venueId = $('venueSelect').value;
+  if(!venueId || !planExists) return;
+  if(!confirm('Delete the Prox plan for this event? This cannot be undone.')) return;
+  try{
+    await fetch(CHECKIN_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ recordType: 'deleteProxPlan', venueId: venueId })
+    });
+    loadPlanFor(venueId);
+  } catch(err){
+    $('saveMsg').textContent = 'Could not delete — check your connection and try again.';
+    $('saveMsg').className = 'msg err';
+  }
+}
+
+loadVenues();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update().catch(() => {});
+    }).catch(() => {});
+  });
+  let swRefreshedOnce = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swRefreshedOnce) return;
+    swRefreshedOnce = true;
+    location.reload();
+  });
+}
+</script>
+</body>
+</html>

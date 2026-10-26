@@ -191,6 +191,57 @@ function findShowPlanRow(sheet, map, name) {
   return -1;
 }
 
+/* ---- Prox (Holotron) Planning Sheet ----
+   One record per venue/event (keyed by the Venues row's own Id, not its name, since a show's
+   name can repeat or change — see ProxPlan below). EffectsJson holds up to PROX_PLAN_MAX_EFFECTS
+   lines, each {label, channel, equipment, actions}. VenueName/VenueDate are just a snapshot taken
+   at save time so the cheat sheet and the editor can show a label without a second lookup; the
+   Venues row itself (by Id) is still the source of truth for scheduling. */
+const PROX_PLAN_MAX_EFFECTS = 10;
+
+function getOrCreateProxPlansSheet(ss) {
+  const requiredHeaders = ['VenueId', 'VenueName', 'VenueDate', 'EffectsJson', 'Notes', 'UpdatedAt'];
+  let sheet = ss.getSheetByName('ProxPlans');
+  if (!sheet) {
+    sheet = ss.insertSheet('ProxPlans');
+    sheet.appendRow(requiredHeaders);
+    sheet.setFrozenRows(1);
+    return sheet;
+  }
+  const headers = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0];
+  requiredHeaders.forEach(h => {
+    if (headers.indexOf(h) === -1) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(h);
+    }
+  });
+  return sheet;
+}
+
+function findProxPlanRow(sheet, map, venueId) {
+  const rows = sheet.getDataRange().getValues();
+  const key = String(venueId || '').trim();
+  if (!key) return -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][map['VenueId']]).trim() === key) return i + 1;
+  }
+  return -1;
+}
+
+// Keeps only well-formed lines, trims text, and caps the count — applied both on save (so nothing
+// oversized or malformed ever reaches the sheet) and left for the reader to trust as already clean.
+function cleanProxPlanEffects(effects) {
+  if (!Array.isArray(effects)) return [];
+  return effects
+    .map(e => ({
+      label: String((e && e.label) || '').trim().slice(0, 120),
+      channel: String((e && e.channel) || '').trim().slice(0, 40),
+      equipment: String((e && e.equipment) || '').trim().slice(0, 40),
+      actions: String((e && e.actions) || '').trim().slice(0, 500)
+    }))
+    .filter(e => e.label || e.channel || e.equipment || e.actions)
+    .slice(0, PROX_PLAN_MAX_EFFECTS);
+}
+
 const AAR_FOLDER_NAME = 'Vortex After Action Reports';
 
 function getOrCreateAarSheet(ss) {
@@ -1096,13 +1147,14 @@ const GET_LEVELS = {
   payrollRecordsForName: 'hp', payRate: 'hp', payrollPinStatus: 'hp', payrollSettings: 'payroll', myPayStatus: 'hp', scheduleStatus: 'public', scheduleFeed: 'public',
   myAvailability: 'hp', availabilityOverview: 'hp', complianceReport: 'admin', showSignups: 'public',
   photoWallApproved: 'public', photoWallAll: 'photoMod', pendingTasksSummary: 'admin', accessRoles: 'admin',
-  accessRequests: 'admin', signInLog: 'admin'
+  accessRequests: 'admin', signInLog: 'admin', proxPlan: 'hp'
 };
 // What each write needs. Anything not listed here needs the Manage/Edit level.
 // (A check-in has no recordType and is public; 'contact' decides for itself below.)
 const POST_LEVELS = {
   aarReport: 'hp', payrollReport: 'hp', payrollSetPin: 'hp', toggleVenueSignIn: 'hp', hpCheckIn: 'hp',
   productsImageBackfill: 'hp', showPlan: 'hp', deleteShowPlan: 'hp', setAvailability: 'hp',
+  proxPlan: 'hp', deleteProxPlan: 'hp',
   showSignup: 'crew', removeShowSignup: 'crew', photoWallSubmit: 'crew',
   photoWallModerate: 'photoMod', photoWallDelete: 'photoMod',
   deleteContact: 'admin', deleteContactRow: 'admin', venue: 'admin', deleteVenueRow: 'admin',
@@ -2485,6 +2537,39 @@ function doPostInner(e) {
     return jsonOut({status: 'ok'});
   }
 
+  if (data.recordType === 'proxPlan') {
+    const venueId = String(data.venueId || '').trim();
+    if (!venueId) return jsonOut({status: 'error', message: 'Pick an event first.'});
+    const effects = cleanProxPlanEffects(data.effects);
+    const notes = String(data.notes || '').slice(0, 2000);
+    const sheet = getOrCreateProxPlansSheet(ss);
+    const map = headerMap(sheet);
+    const row = findProxPlanRow(sheet, map, venueId);
+    const rowValues = new Array(sheet.getLastColumn()).fill('');
+    rowValues[map['VenueId']] = venueId;
+    rowValues[map['VenueName']] = String(data.venueName || '').trim();
+    rowValues[map['VenueDate']] = String(data.venueDate || '').trim();
+    rowValues[map['EffectsJson']] = JSON.stringify(effects);
+    rowValues[map['Notes']] = notes;
+    rowValues[map['UpdatedAt']] = new Date();
+    if (row > 0) {
+      sheet.getRange(row, 1, 1, rowValues.length).setValues([rowValues]);
+    } else {
+      sheet.appendRow(rowValues);
+    }
+    return jsonOut({status: 'ok'});
+  }
+
+  if (data.recordType === 'deleteProxPlan') {
+    const sheet = ss.getSheetByName('ProxPlans');
+    if (sheet) {
+      const map = headerMap(sheet);
+      const row = findProxPlanRow(sheet, map, data.venueId);
+      if (row > 0) sheet.deleteRow(row);
+    }
+    return jsonOut({status: 'ok'});
+  }
+
   if (data.recordType === 'fireworkProduct') {
     const name = String(data.name || '').trim();
     if (!name) return jsonOut({status: 'error', message: 'Missing product name'});
@@ -3451,6 +3536,31 @@ function doGetInner(e) {
     }
     plans.sort((a, b) => a.name.localeCompare(b.name));
     return jsonOut({plans: plans});
+  }
+
+  if (e.parameter.type === 'proxPlan') {
+    // One venue/event's Holotron planning sheet, by the Venues row's own Id — both the editor
+    // (prox-plan.html) and the read-only cheat sheet (prox-cheat-sheet.html) use this. An empty
+    // shape (not an error) for a venue that has no plan saved yet, so the editor just starts blank.
+    const venueId = String(e.parameter.venueId || '').trim();
+    if (!venueId) return jsonOut({found: false, effects: [], notes: ''});
+    const sheet = getOrCreateProxPlansSheet(ss);
+    const map = headerMap(sheet);
+    const row = findProxPlanRow(sheet, map, venueId);
+    if (row < 0) return jsonOut({found: false, effects: [], notes: ''});
+    const values = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+    let effects = [];
+    try { effects = JSON.parse(values[map['EffectsJson']] || '[]'); } catch (err) { effects = []; }
+    const updated = values[map['UpdatedAt']];
+    return jsonOut({
+      found: true,
+      venueId: venueId,
+      venueName: String(values[map['VenueName']] || ''),
+      venueDate: normalizeDateValue(values[map['VenueDate']]),
+      effects: cleanProxPlanEffects(effects),
+      notes: String(values[map['Notes']] || ''),
+      updatedAt: updated instanceof Date ? updated.toISOString() : String(updated || '')
+    });
   }
 
   if (e.parameter.type === 'fireworkProducts') {
