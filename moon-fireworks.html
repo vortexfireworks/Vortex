@@ -123,7 +123,7 @@
     <li><span class="dot" style="--c:#9b4dff">✸</span><span><b>Purple:</b> mega burst that sets off every rocket on screen.</span></li>
     <li><span class="dot" style="--c:#6e6e78">✕</span><span><b>Grey dud:</b> don't tap it! It costs 25 points. Let it fizzle, it's harmless.</span></li>
   </ul>
-  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck takes a break to fire a Roman candle, so sit back and enjoy it. Tap Chuck once per show for a surprise.</p>
+  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck takes a break to fire a Roman candle, so sit back and enjoy it. Tap Chuck once per show for a surprise. His whippet tags along too, so watch where you step.</p>
   <button class="play" id="helpGo">Got it</button>
 </div></div>
 
@@ -459,6 +459,7 @@ function startArrival() {
   van = { startX: -70 * p, x: -70 * p, parkX: Math.max(8, Math.min(W * 0.56, W - 66 * p - 8)), door: 0, spin: 0, parked: false };
   state = 'arrive'; arriveT = 0;
   showman.hidden = true; showman.say = null; showman.mood = 'walk';
+  dog.hidden = true; poops = [];
 }
 
 function updateArrival(dt) {
@@ -478,6 +479,8 @@ function updateArrival(dt) {
   if (arriveT >= 3.4 && m.hidden) {
     m.hidden = false; m.x = v.x + 47 * p; m.dir = -1;
   }
+  // his whippet leaps out right behind him
+  if (arriveT >= 3.9 && dog.hidden) releaseDog(v.x + 47 * p);
   // he walks along the van until he's clear of it, then turns to the crowd
   if (!m.hidden && arriveT < 5.0) {
     m.x -= 34 * p * dt;
@@ -493,6 +496,7 @@ function endArrival() {
   const p = pixelSize();
   if (showman.hidden || arriveT < 5) { showman.x = van.parkX - 8 * p; showman.dir = -1; }
   showman.hidden = false; showman.say = null;
+  if (dog.hidden) releaseDog(van.parkX - 22 * p);
   van.x = van.parkX; van.door = 0; van.parked = true;
   beginShow();
 }
@@ -689,6 +693,186 @@ function drawShowman() {
     }
   }
   if (m.say) drawSpeech(m.say.text, m.x, top - 8);
+}
+
+// ---------- Chuck's whippet: rides along in the van, does zoomies and leaves little surprises ----------
+const DOG_PAL = {
+  F: '#c99460', f: '#9a6a3e', w: '#f2ece2', E: '#1a1210', N: '#1a1210', C: '#d4252b',
+  P: '#5a3a1e', p: '#3e2612', q: '#7a5430',
+};
+// Facing right, drawn in Chuck's pixel units; the last row is the paws on the ground.
+const DOG_BODY = [
+  '...................ff.....',
+  '..................fFFFF...',
+  '..................FFEFFFFN',
+  '.................CCFFFww..',
+  '.................CCF......',
+  '................FFF.......',
+  '...FFFFFFFFFFFFFFFw.......',
+  '..fFFFFFFFFFFFFFFww.......',
+  '.f.FFFF.....FFFFww........',
+  'f...FFf.....FFFw..........',
+];
+const DOG_LEGS = {
+  stand: ['f....Ff......Fw...........',
+          '.....F.......F............',
+          '....F........F............',
+          '...ff........ww...........'],
+  stretch: ['...F.........FF...........',
+            '..F............F..........',
+            '.F...............F........',
+            'ff................ww......'],
+  gather: ['.....F......F.............',
+           '......F....F..............',
+           '.......F..F...............',
+           '.......ffww...............'],
+};
+const DOG_SQUAT = [
+  '...................ff.....',
+  '..................fFFFF...',
+  '..................FFEFFFFN',
+  '.................CCFFFww..',
+  '.........FFFF....CCF......',
+  '......FFFFFFFFFFFFF.......',
+  '.....FFFFFFFFFFFFFw.......',
+  'ff..FFFFFFFFFFFFww........',
+  '..ffFFFFF....FFww.........',
+  '....FFFF.....Fw...........',
+  '....FFF......F............',
+  '....FFF......F............',
+  '...FFFF......F............',
+  '..fff........ww...........',
+];
+const DOG_POSES = {
+  stand: DOG_BODY.concat(DOG_LEGS.stand),
+  stretch: DOG_BODY.concat(DOG_LEGS.stretch),
+  gather: DOG_BODY.concat(DOG_LEGS.gather),
+  squat: DOG_SQUAT,
+};
+const POOP = ['..p..', '.pPq.', 'pPPPp'];
+const CHUCK_POOP_LINES = ['Aw, not there!', 'Good girl… I guess', "Who's cleaning that up?", 'Moon dust and dog poop'];
+const dog = { x: 0, dir: -1, mode: 'trot', t: 2, anim: 0, poopIn: 8, hidden: false, pose: DOG_POSES.stand };
+let poops = [];
+
+function dogMode(mode, t) { dog.mode = mode; dog.t = t; }
+
+function updateDog(dt) {
+  const d = dog, p = pixelSize();
+  if (!d.x) d.x = W * 0.4;
+  for (const s of poops) s.age += dt;
+  if (d.hidden) return;
+  d.t -= dt; d.anim += dt;
+  const speed = d.mode === 'zoom' ? 75 : d.mode === 'trot' ? 24 : 0;
+  if (speed) {
+    d.x += d.dir * speed * p * dt;
+    const lo = W * 0.04, hi = W * 0.96;
+    if (d.x < lo) { d.x = lo; d.dir = 1; }
+    if (d.x > hi) { d.x = hi; d.dir = -1; }
+    if (d.mode === 'zoom' && Math.random() < dt * 0.8) d.dir *= -1;
+    d.pose = Math.floor(d.anim / (d.mode === 'zoom' ? 0.08 : 0.16)) % 2 ? DOG_POSES.stretch : DOG_POSES.gather;
+  } else d.pose = d.mode === 'squat' ? DOG_POSES.squat : DOG_POSES.stand;
+
+  if (d.mode !== 'squat' && d.mode !== 'zoom') d.poopIn -= dt;
+  if (d.t > 0) return;
+  if (d.mode === 'squat') {
+    dropPoop();
+    dogMode('zoom', 1.2 + Math.random() * 1.2); // the post-poop zoomies
+  } else if (d.poopIn <= 0 && state !== 'arrive') {
+    d.poopIn = 14 + Math.random() * 16;
+    dogMode('squat', 1.8);
+  } else {
+    const r = Math.random();
+    if (r < 0.2) dogMode('zoom', 1.2 + Math.random() * 1.8);
+    else if (r < 0.6) { dogMode('trot', 1.5 + Math.random() * 3); if (Math.random() < 0.4) d.dir *= -1; }
+    else dogMode('sniff', 0.8 + Math.random() * 1.8);
+  }
+}
+
+function dropPoop() {
+  const p = pixelSize();
+  poops.push({ x: dog.x - dog.dir * 9 * p, age: 0 });
+  if (poops.length > 8) poops.shift();
+  plop();
+  const m = showman;
+  if (!m.hidden && m.mood !== 'candle' && !m.say && Math.random() < 0.5) {
+    const line = CHUCK_POOP_LINES[Math.floor(Math.random() * CHUCK_POOP_LINES.length)];
+    texts.push({ x: m.x, y: showmanBox().top - 10, txt: line, color: '#fff', life: 1.6 });
+  }
+}
+
+function plop() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = 'sine';
+  o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.12);
+  const g = actx.createGain(); g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+  o.connect(g).connect(master); o.start(t); o.stop(t + 0.16);
+}
+
+function releaseDog(x) {
+  dog.hidden = false; dog.x = x; dog.dir = -1; dog.poopIn = 6 + Math.random() * 6;
+  dogMode('zoom', 1.5);
+}
+
+function dogBox() {
+  const d = dog, p = pixelSize();
+  const w = d.pose[0].length * p, h = d.pose.length * p;
+  const bob = d.pose === DOG_POSES.stretch ? -p : 0;
+  return { left: Math.round(d.x - w / 2), top: Math.round(horizon(d.x) + 4 - h + bob), w, h, p };
+}
+
+function tapDog() {
+  dogMode('zoom', 2);
+  texts.push({ x: dog.x, y: dogBox().top - 6, txt: 'Woof!', color: '#ffd86b', life: 1 });
+}
+
+function drawPoops() {
+  const p = pixelSize();
+  for (const s of poops) {
+    const left = Math.round(s.x - 2.5 * p), top = Math.round(horizon(s.x) + 4 - 3 * p);
+    for (let y = 0; y < POOP.length; y++) for (let x = 0; x < 5; x++) {
+      const c = POOP[y][x];
+      if (c === '.') continue;
+      ctx.fillStyle = DOG_PAL[c];
+      ctx.fillRect(left + x * p, top + y * p, p, p);
+    }
+    // stink lines while it's fresh
+    if (s.age < 8) {
+      ctx.strokeStyle = `rgba(170,200,110,${0.6 * (1 - s.age / 8)})`;
+      ctx.lineWidth = Math.max(1, p * 0.5);
+      for (const k of [-1, 1]) {
+        ctx.beginPath();
+        for (let i = 0; i <= 6; i++) {
+          const yy = top - p - i * p * 1.2, xx = s.x + k * 1.6 * p + Math.sin(i * 1.3 + s.age * 4 + k) * p;
+          i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+        }
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function drawDog() {
+  if (dog.hidden) return;
+  const d = dog, { left, top, p } = dogBox();
+  const cols = d.pose[0].length;
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath(); ctx.ellipse(d.x, horizon(d.x) + 4, 10 * p, 1.2 * p, 0, 0, TAU); ctx.fill();
+  for (let y = 0; y < d.pose.length; y++) {
+    const row = d.pose[y];
+    for (let x = 0; x < cols; x++) {
+      const c = row[d.dir > 0 ? x : cols - 1 - x];
+      if (!c || c === '.') continue;
+      ctx.fillStyle = DOG_PAL[c];
+      ctx.fillRect(left + x * p, top + y * p, p, p);
+    }
+  }
+  // sniffing: nose bobs down to the ground
+  if (d.mode === 'sniff' && Math.floor(d.anim * 4) % 2) {
+    ctx.fillStyle = DOG_PAL.N;
+    const nx = d.dir > 0 ? left + 25 * p : left;
+    ctx.fillRect(nx, top + 3 * p, p, p);
+  }
 }
 
 function drawSpeech(text, x, bottom) {
@@ -1304,7 +1488,9 @@ cv.addEventListener('pointerdown', e => {
     return;
   }
   const b = showmanBox();
-  if (x > b.left && x < b.left + b.w && y > b.top && y < b.top + b.h) tapShowman();
+  if (x > b.left && x < b.left + b.w && y > b.top && y < b.top + b.h) { tapShowman(); return; }
+  const db = dogBox();
+  if (!dog.hidden && x > db.left && x < db.left + db.w && y > db.top && y < db.top + db.h) tapDog();
 });
 cv.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -1340,6 +1526,7 @@ $('resume').onclick = () => setPaused(false);
 $('quit').onclick = () => {
   state = 'menu'; paused = false; slowT = 0; banner = null; rockets = [];
   candle = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
+  dog.hidden = false;
   if (van && !van.parked) van = null;
   $('hud').classList.add('hidden');
   showOverlay('menu');
@@ -1508,6 +1695,7 @@ function update(dt) {
   ripples = ripples.filter(r => r.life > 0);
 
   updateShowman(dt);
+  updateDog(dt);
   updateEarthFire(dt);
 
   flash = Math.max(0, flash - dt * 2.5);
@@ -1637,6 +1825,8 @@ function draw() {
   ctx.drawImage(fg, 0, 0, W, H);
   drawVan();
   drawFlag();
+  drawPoops();
+  drawDog();
   drawShowman();
   drawCandle();
   if (state === 'arrive' && !paused) {
