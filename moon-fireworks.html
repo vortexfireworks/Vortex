@@ -443,14 +443,80 @@ function drawVan() {
   }
 }
 
+// A two-tone car horn: "beep, beeeep".
 function honk() {
   if (!actx) return;
-  for (const off of [0, 0.22]) {
+  const shaper = actx.createWaveShaper();
+  const curve = new Float32Array(256);
+  for (let i = 0; i < 256; i++) { const x = i / 128 - 1; curve[i] = Math.tanh(x * 3); }
+  shaper.curve = curve;
+  const tone = actx.createBiquadFilter(); tone.type = 'bandpass'; tone.frequency.value = 900; tone.Q.value = 0.7;
+  shaper.connect(tone).connect(master);
+  for (const [off, dur] of [[0, 0.15], [0.24, 0.42]]) {
     const t = actx.currentTime + off;
-    const o = actx.createOscillator(); o.type = 'square'; o.frequency.value = 420;
-    const g = actx.createGain(); g.gain.setValueAtTime(0.06, t); g.gain.setValueAtTime(0.0001, t + 0.14);
-    o.connect(g).connect(master); o.start(t); o.stop(t + 0.15);
+    const g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.012);
+    g.gain.setValueAtTime(0.09, t + dur - 0.03); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    g.connect(shaper);
+    for (const f of [370, 466]) {
+      const o = actx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f;
+      o.connect(g); o.start(t); o.stop(t + dur + 0.02);
+    }
   }
+}
+
+// The van's engine: a low, lumpy diesel rumble whose pitch follows its speed.
+let engine = null, engineNoise = null;
+function startEngine() {
+  stopEngine();
+  if (!actx) return;
+  const t = actx.currentTime;
+  const out = actx.createGain(); out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(0.12, t + 0.3);
+  const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500; lp.Q.value = 2;
+  const a = actx.createOscillator(); a.type = 'sawtooth';
+  const b = actx.createOscillator(); b.type = 'square'; b.detune.value = 12;
+  const bg = actx.createGain(); bg.gain.value = 0.5;
+  a.connect(lp); b.connect(bg).connect(lp);
+  // cylinder "chug": wobble the volume at the firing rate
+  const chug = actx.createGain(); chug.gain.value = 0.6;
+  const lfo = actx.createOscillator(); lfo.type = 'sine';
+  const lfoAmt = actx.createGain(); lfoAmt.gain.value = 0.4;
+  lfo.connect(lfoAmt).connect(chug.gain);
+  lp.connect(out).connect(chug).connect(master);
+  // a bit of road/exhaust noise underneath
+  if (!engineNoise) {
+    engineNoise = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+    const d = engineNoise.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  const n = actx.createBufferSource(); n.buffer = engineNoise; n.loop = true;
+  const nf = actx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 180;
+  const ng = actx.createGain(); ng.gain.value = 0.35;
+  n.connect(nf).connect(ng).connect(lp);
+  for (const src of [a, b, lfo, n]) src.start(t);
+  engine = { out, lp, a, b, lfo, n, ng };
+  setEngine(1);
+}
+function setEngine(rpm) {
+  if (!engine) return;
+  const t = actx.currentTime, f = 30 + 34 * rpm;
+  engine.a.frequency.setTargetAtTime(f, t, 0.08);
+  engine.b.frequency.setTargetAtTime(f * 2, t, 0.08);
+  engine.lfo.frequency.setTargetAtTime(f / 4, t, 0.08);
+  engine.lp.frequency.setTargetAtTime(260 + 700 * rpm, t, 0.08);
+  engine.ng.gain.setTargetAtTime(0.1 + 0.4 * rpm, t, 0.1);
+}
+function stopEngine(fade = 0.05) {
+  if (!engine) return;
+  const e = engine, t = actx.currentTime;
+  engine = null;
+  e.out.gain.cancelScheduledValues(t);
+  e.out.gain.setValueAtTime(e.out.gain.value, t);
+  e.out.gain.linearRampToValueAtTime(0.0001, t + fade);
+  for (const src of [e.a, e.b, e.lfo, e.n]) src.stop(t + fade + 0.05);
+}
+function muteEngine(off) {
+  if (engine) engine.out.gain.setTargetAtTime(off ? 0.0001 : 0.12, actx.currentTime, 0.05);
 }
 
 // Start of every game: the van drives in, Chuck hops out and asks if anyone needs fireworks.
@@ -458,6 +524,7 @@ function startArrival() {
   const p = pixelSize();
   van = { startX: -70 * p, x: -70 * p, parkX: Math.max(8, Math.min(W * 0.56, W - 66 * p - 8)), door: 0, spin: 0, parked: false };
   state = 'arrive'; arriveT = 0;
+  startEngine();
   showman.hidden = true; showman.say = null; showman.mood = 'walk';
   dog.hidden = true; poops = [];
 }
@@ -472,7 +539,11 @@ function updateArrival(dt) {
     const nx = v.startX + (v.parkX - v.startX) * e;
     v.spin += (nx - v.x) / (5 * p);
     v.x = nx;
+    // revs as it rolls in, easing off as it slows to park
+    setEngine(0.2 + 0.8 * Math.pow(1 - arriveT / DRIVE, 2));
   } else v.x = v.parkX;
+  if (prev < DRIVE && arriveT >= DRIVE) setEngine(0);
+  if (prev < 3.3 && arriveT >= 3.3) stopEngine(0.5);
   if (prev < 2.7 && arriveT >= 2.7) honk();
   const clamp = k => Math.max(0, Math.min(1, k));
   v.door = clamp((arriveT - 3.0) / 0.4) - clamp((arriveT - 5.2) / 0.4);
@@ -496,6 +567,7 @@ function endArrival() {
   const p = pixelSize();
   if (showman.hidden || arriveT < 5) { showman.x = van.parkX - 8 * p; showman.dir = -1; }
   showman.hidden = false; showman.say = null;
+  stopEngine(0.3);
   if (dog.hidden) releaseDog(van.parkX - 22 * p);
   van.x = van.parkX; van.door = 0; van.parked = true;
   beginShow();
@@ -1179,6 +1251,7 @@ function gameOver() {
 function setPaused(v) {
   if (!playing()) return;
   paused = v;
+  muteEngine(v);
   showOverlay(v ? 'pause' : null);
 }
 
@@ -1528,6 +1601,7 @@ $('quit').onclick = () => {
   candle = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
   dog.hidden = false;
   if (van && !van.parked) van = null;
+  stopEngine();
   $('hud').classList.add('hidden');
   showOverlay('menu');
   updateHud();
