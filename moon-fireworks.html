@@ -41,6 +41,8 @@
   h3 { font-size: 16px; margin: 18px 0 6px; color: #ffd86b; }
   p { line-height: 1.5; margin: 6px 0; color: #dfe3ff; }
   .big { font-size: 28px; font-weight: 700; color: #fff; }
+  .quote { font-size: 18px; font-style: italic; color: #fff; }
+  .quote span { font-style: normal; font-size: 14px; color: #ffd86b; }
   .play { font-size: 20px; padding: 12px 32px; border-radius: 999px; border: 0; background: #ffd86b;
     color: #1a1a2a; cursor: pointer; margin-top: 18px; font-weight: 800; }
   .play:hover { background: #ffe79a; }
@@ -121,7 +123,7 @@
     <li><span class="dot" style="--c:#9b4dff">✸</span><span><b>Purple:</b> mega burst that sets off every rocket on screen.</span></li>
     <li><span class="dot" style="--c:#6e6e78">✕</span><span><b>Grey dud:</b> don't tap it! It costs 25 points. Let it fizzle, it's harmless.</span></li>
   </ul>
-  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Tap the showman once per show for a surprise.</p>
+  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck takes a break to fire a Roman candle, so sit back and enjoy it. Tap Chuck once per show for a surprise.</p>
   <button class="play" id="helpGo">Got it</button>
 </div></div>
 
@@ -142,6 +144,7 @@
 
 <div id="over" class="overlay hidden"><div class="panel">
   <h1>Show's over!</h1>
+  <p class="quote">&ldquo;I love every damn one of you.&rdquo; <span>&mdash; Chuck</span></p>
   <p class="big" id="final"></p>
   <p id="reached"></p>
   <p id="best"></p>
@@ -217,7 +220,7 @@ function drawBackground() {
   b.restore();
 
   // Earth hanging in the sky
-  const er = Math.max(26, Math.min(W, H) * 0.075), ex = W * 0.82, ey = H * 0.17;
+  const { er, ex, ey } = earthGeom();
   const glow = b.createRadialGradient(ex, ey, er * 0.95, ex, ey, er * 1.4);
   glow.addColorStop(0, 'rgba(120,190,255,.45)');
   glow.addColorStop(1, 'rgba(120,190,255,0)');
@@ -241,6 +244,60 @@ function drawBackground() {
   b.fillStyle = 'rgba(0,0,12,.7)';
   b.beginPath(); b.arc(ex + er * .6, ey + er * .3, er * 1.05, 0, TAU); b.fill();
   b.restore();
+}
+
+function earthGeom() {
+  return { er: Math.max(26, Math.min(W, H) * 0.075), ex: W * 0.82, ey: H * 0.17 };
+}
+
+// ---------- the Earth catches fire from Show 4 on ----------
+let earthFire = 0, flames = [];
+function updateEarthFire(dt) {
+  const target = showIdx >= 3 && state !== 'menu' ? 1 : 0;
+  earthFire += Math.sign(target - earthFire) * Math.min(Math.abs(target - earthFire), dt / 3);
+  const { er, ex, ey } = earthGeom();
+  let n = earthFire * 160 * dt;
+  while (n > 0) {
+    if (Math.random() < n) {
+      // mostly from the top and sides, since flames rise
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.7;
+      const smoke = Math.random() < 0.15;
+      flames.push({ x: ex + Math.cos(a) * er * 0.92, y: ey + Math.sin(a) * er * 0.92,
+        vx: Math.cos(a) * er * 0.25 + (Math.random() - 0.5) * er * 0.2, vy: -er * (0.6 + Math.random() * 0.8),
+        life: 1, decay: smoke ? 0.5 : 1 + Math.random() * 0.8, size: er * (0.16 + Math.random() * 0.14), smoke });
+    }
+    n -= 1;
+  }
+  for (const f of flames) {
+    f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= 0.97;
+    f.life -= f.decay * dt;
+  }
+  flames = flames.filter(f => f.life > 0);
+}
+
+function drawEarthFire() {
+  if (earthFire <= 0 && !flames.length) return;
+  const { er, ex, ey } = earthGeom();
+  // scorched tint and a hot glow around the planet
+  ctx.fillStyle = `rgba(255,80,20,${0.3 * earthFire})`;
+  ctx.beginPath(); ctx.arc(ex, ey, er, 0, TAU); ctx.fill();
+  const glow = ctx.createRadialGradient(ex, ey, er * 0.9, ex, ey, er * 2);
+  glow.addColorStop(0, `rgba(255,120,30,${0.45 * earthFire})`);
+  glow.addColorStop(1, 'rgba(255,60,0,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(ex, ey, er * 2, 0, TAU); ctx.fill();
+
+  for (const f of flames) {
+    if (!f.smoke) continue;
+    ctx.fillStyle = `rgba(50,40,45,${f.life * 0.35})`;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.size * (2 - f.life), 0, TAU); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  for (const f of flames) {
+    if (f.smoke) continue;
+    ctx.fillStyle = `hsla(${10 + f.life * 40},100%,${45 + f.life * 20}%,${f.life * 0.55})`;
+    ctx.beginPath(); ctx.arc(f.x, f.y, f.size * (0.4 + f.life * 0.6), 0, TAU); ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
 }
 
 function drawForeground() {
@@ -312,6 +369,123 @@ let UTAH_POINTS = [];
   img.src = 'data:image/png;base64,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';
 })();
 
+// ---------- Chuck's white van, with the 1.3G placard on the side ----------
+const placard = new Image();
+placard.src = 'data:image/png;base64,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';
+let van = null, arriveT = 0;
+
+// Drawn in Chuck's pixel units (p) so it matches him; (0,0) is the van's back bottom corner on the ground.
+function drawVan() {
+  if (!van) return;
+  const p = pixelSize();
+  const moving = !van.parked && arriveT < 2.6;
+  const gx = van.x, gy = horizon(van.x + 32 * p) + 3 + (moving ? Math.sin(time * 30) * 0.6 : 0);
+  const X = u => gx + u * p, Y = v => gy + v * p;
+
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath(); ctx.ellipse(X(32), gy, 34 * p, 2 * p, 0, 0, TAU); ctx.fill();
+
+  // body
+  ctx.fillStyle = '#f4f4f6'; ctx.strokeStyle = '#8c8c98'; ctx.lineWidth = Math.max(1, p * 0.6);
+  ctx.beginPath();
+  ctx.moveTo(X(0), Y(-31)); ctx.arcTo(X(0), Y(-34), X(3), Y(-34), 3 * p);
+  ctx.lineTo(X(50), Y(-34)); ctx.lineTo(X(60), Y(-22)); ctx.lineTo(X(64), Y(-20));
+  ctx.lineTo(X(64), Y(-8)); ctx.lineTo(X(0), Y(-8)); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // red stripe
+  ctx.fillStyle = '#d4252b'; ctx.fillRect(X(0.5), Y(-14), 63.5 * p, 2 * p);
+  // windows
+  ctx.fillStyle = '#5a7fa8';
+  ctx.beginPath(); ctx.moveTo(X(51), Y(-32)); ctx.lineTo(X(58.5), Y(-23)); ctx.lineTo(X(51), Y(-23)); ctx.closePath(); ctx.fill();
+  ctx.fillRect(X(43), Y(-31), 7 * p, 8 * p);
+  // bumper and headlight
+  ctx.fillStyle = '#9a9aa6'; ctx.fillRect(X(61), Y(-12), 4 * p, 4 * p); ctx.fillRect(X(-1), Y(-12), 2 * p, 4 * p);
+  ctx.fillStyle = '#ffe28a'; ctx.fillRect(X(62), Y(-19), 2 * p, 3 * p);
+  ctx.fillStyle = '#ff4a3a'; ctx.fillRect(X(0), Y(-30), 1.5 * p, 4 * p);
+  // the 1.3G placard
+  if (placard.complete && placard.naturalWidth) ctx.drawImage(placard, X(13), Y(-32), 18 * p, 18 * p);
+
+  // driver's door: closed, or swung open toward us on its front hinge
+  const d = van.door;
+  ctx.strokeStyle = '#8c8c98';
+  if (d <= 0) {
+    ctx.strokeRect(X(42), Y(-33), 10 * p, 24 * p);
+    ctx.fillStyle = '#6a6a74'; ctx.fillRect(X(43), Y(-21), 2.5 * p, 1 * p);
+  } else {
+    ctx.fillStyle = '#2a2a33'; ctx.fillRect(X(42), Y(-33), 10 * p, 24 * p);
+    const w = 10 * Math.cos(d * 1.3);
+    ctx.fillStyle = '#e6e6ea'; ctx.fillRect(X(52 - w), Y(-34), w * p, 26 * p);
+    ctx.strokeRect(X(52 - w), Y(-34), w * p, 26 * p);
+  }
+
+  // wheels
+  for (const wx of [12, 52]) {
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(X(wx), Y(-5), 5 * p, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#9a9aa6'; ctx.beginPath(); ctx.arc(X(wx), Y(-5), 2.2 * p, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#555'; ctx.lineWidth = Math.max(1, p * 0.7);
+    ctx.beginPath();
+    for (let k = 0; k < 3; k++) {
+      const a = van.spin + k * TAU / 3;
+      ctx.moveTo(X(wx), Y(-5)); ctx.lineTo(X(wx) + Math.cos(a) * 2.2 * p, Y(-5) + Math.sin(a) * 2.2 * p);
+    }
+    ctx.stroke();
+  }
+}
+
+function honk() {
+  if (!actx) return;
+  for (const off of [0, 0.22]) {
+    const t = actx.currentTime + off;
+    const o = actx.createOscillator(); o.type = 'square'; o.frequency.value = 420;
+    const g = actx.createGain(); g.gain.setValueAtTime(0.06, t); g.gain.setValueAtTime(0.0001, t + 0.14);
+    o.connect(g).connect(master); o.start(t); o.stop(t + 0.15);
+  }
+}
+
+// Start of every game: the van drives in, Chuck hops out and asks if anyone needs fireworks.
+function startArrival() {
+  const p = pixelSize();
+  van = { startX: -70 * p, x: -70 * p, parkX: Math.max(8, Math.min(W * 0.56, W - 66 * p - 8)), door: 0, spin: 0, parked: false };
+  state = 'arrive'; arriveT = 0;
+  showman.hidden = true; showman.say = null; showman.mood = 'walk';
+}
+
+function updateArrival(dt) {
+  const p = pixelSize(), v = van, m = showman;
+  const prev = arriveT;
+  arriveT += dt;
+  const DRIVE = 2.6;
+  if (arriveT < DRIVE) {
+    const e = 1 - Math.pow(1 - arriveT / DRIVE, 3);
+    const nx = v.startX + (v.parkX - v.startX) * e;
+    v.spin += (nx - v.x) / (5 * p);
+    v.x = nx;
+  } else v.x = v.parkX;
+  if (prev < 2.7 && arriveT >= 2.7) honk();
+  const clamp = k => Math.max(0, Math.min(1, k));
+  v.door = clamp((arriveT - 3.0) / 0.4) - clamp((arriveT - 5.2) / 0.4);
+  if (arriveT >= 3.4 && m.hidden) {
+    m.hidden = false; m.x = v.x + 47 * p; m.dir = -1;
+  }
+  // he walks along the van until he's clear of it, then turns to the crowd
+  if (!m.hidden && arriveT < 5.0) {
+    m.x -= 34 * p * dt;
+    m.pose = Math.floor(arriveT * 7) % 2 ? POSES.walk1 : POSES.walk0;
+  } else if (!m.hidden) {
+    if (!m.say) m.say = { text: 'Anyone need some fireworks?', t: 0 };
+    m.pose = arriveT < 6.2 ? POSES.cheer : POSES.walk0;
+  }
+  if (arriveT >= 7.8) endArrival();
+}
+
+function endArrival() {
+  const p = pixelSize();
+  if (showman.hidden || arriveT < 5) { showman.x = van.parkX - 8 * p; showman.dir = -1; }
+  showman.hidden = false; showman.say = null;
+  van.x = van.parkX; van.door = 0; van.parked = true;
+  beginShow();
+}
+
 function drawFlag() {
   const s = Math.max(0.7, Math.min(1.6, H / 550, W / 450));
   const px = W * 0.12, py = horizon(px);
@@ -337,7 +511,7 @@ function drawFlag() {
   }
 }
 
-// ---------- the showman: a little pixel guy strolling the moon ----------
+// ---------- Chuck, the showman: a little pixel guy strolling the moon ----------
 const PAL = {
   H: '#d4252b', h: '#951519', L: '#ff6060',            // bowler hat
   W: '#f4f4f4', w: '#c4c4cc',                          // white hair & beard
@@ -401,6 +575,12 @@ const CHEER_ARMS = [
   [19,25,'.'],[20,25,'.'],[19,26,'.'],[20,26,'.'],
 ];
 const SWEAT = [[20,7,'D'],[20,8,'D'],[21,8,'D']];
+// Front arm held straight out to grip the Roman candle.
+const CANDLE_ARM = [
+  [19,15,'R'],[20,15,'R'],[21,15,'R'],[19,16,'R'],[20,16,'R'],[21,16,'r'],
+  [22,14,'S'],[23,14,'S'],[22,15,'S'],[23,15,'S'],
+  [19,25,'.'],[20,25,'.'],[19,26,'.'],[20,26,'.'],
+];
 function buildPose(legs, extra) {
   const g = BODY.concat(legs).map(r => r.split(''));
   for (const [x, y, c] of extra || []) g[y][x] = c;
@@ -409,6 +589,7 @@ function buildPose(legs, extra) {
 const POSES = {
   walk0: buildPose(LEGS[0]), walk1: buildPose(LEGS[1]),
   cheer: buildPose(LEGS[0], CHEER_ARMS), slump: buildPose(LEGS[0], SWEAT),
+  candle: buildPose(LEGS[0], CANDLE_ARM),
 };
 const showman = { x: 0, dir: 1, anim: 0, pause: 0, walk: 3 + Math.random() * 4,
   mood: 'walk', moodT: 0, pose: POSES.walk0, lift: 0, sink: 0, tappedShow: -1 };
@@ -417,6 +598,7 @@ function pixelSize() { return Math.max(2, Math.round(H / 250)); }
 
 function react(mood, dur) {
   const m = showman;
+  if (m.mood === 'candle') return;
   if (m.mood === 'dance' && mood !== 'dance' && m.moodT > 0) return;
   m.mood = mood; m.moodT = dur;
 }
@@ -425,6 +607,14 @@ function updateShowman(dt) {
   const m = showman, p = pixelSize();
   if (!m.x) m.x = W * 0.25;
   m.lift = 0; m.sink = 0;
+  if (state === 'arrive') return; // updateArrival moves him
+  if (m.mood === 'candle') { m.pose = POSES.candle; return; }
+  if (m.say) {
+    // stands still facing the crowd while he talks, arms up for the first moment
+    m.say.t += dt;
+    m.pose = m.say.t < 1.6 ? POSES.cheer : POSES.walk0;
+    return;
+  }
   if (m.mood !== 'walk') {
     m.moodT -= dt;
     if (m.moodT <= 0) m.mood = 'walk';
@@ -473,6 +663,7 @@ function showmanBox() {
 }
 
 function drawShowman() {
+  if (showman.hidden) return;
   const m = showman, { left, top, p } = showmanBox();
   const cols = m.pose[0].length;
   ctx.fillStyle = 'rgba(0,0,0,.3)';
@@ -486,6 +677,22 @@ function drawShowman() {
       ctx.fillRect(left + x * p, top + y * p, p, p);
     }
   }
+  if (m.say) drawSpeech(m.say.text, m.x, top - 8);
+}
+
+function drawSpeech(text, x, bottom) {
+  ctx.font = '700 16px system-ui, sans-serif';
+  const padX = 12, h = 34, w = ctx.measureText(text).width + padX * 2;
+  const bx = Math.max(8, Math.min(W - w - 8, x - w / 2)), by = bottom - h - 10;
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1a1a2a'; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(bx + 10, by); ctx.arcTo(bx + w, by, bx + w, by + h, 10); ctx.arcTo(bx + w, by + h, bx, by + h, 10);
+  ctx.lineTo(x + 8, by + h); ctx.lineTo(x, by + h + 10); ctx.lineTo(x - 4, by + h);
+  ctx.arcTo(bx, by + h, bx, by, 10); ctx.arcTo(bx, by, bx + w, by, 10); ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  ctx.fillStyle = '#1a1a2a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, bx + w / 2, by + h / 2 + 1);
+  ctx.textBaseline = 'alphabetic';
 }
 
 // ---------- sound ----------
@@ -546,6 +753,14 @@ function whistle(dur) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
+function candlePop() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 500 + Math.random() * 300; bp.Q.value = 0.8;
+  const g = actx.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+  s.connect(bp).connect(g).connect(master); s.start(t); s.stop(t + 0.2);
+}
 function fizzleSound() {
   if (!actx) return;
   const t = actx.currentTime;
@@ -602,11 +817,12 @@ let state = 'menu', paused = false;
 let rockets = [], particles = [], texts = [], ripples = [];
 let score = 0, lives = MAX_LIVES, streak = 0, showIdx = 0, showScore = 0, showTime = 0;
 let spawnTimer = 0, introT = 0, finaleT = 0, slowT = 0, banner = null;
+let candle = null, candleAt = Infinity;
 let flash = 0, shake = 0, time = 0;
 let best = +store.get('moonFireworksBest', 0) || 0;
 let firstHint = store.get('mfPlayed', '0') !== '1';
 
-const playing = () => state === 'intro' || state === 'play' || state === 'finale';
+const playing = () => ['arrive', 'intro', 'play', 'finale', 'candle'].includes(state);
 
 function showOverlay(id) {
   for (const o of ['menu', 'help', 'board', 'pause', 'over']) $(o).classList.toggle('hidden', o !== id);
@@ -616,26 +832,116 @@ function startGame() {
   audio();
   rockets = []; particles = []; texts = []; ripples = [];
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
-  showman.tappedShow = -1;
+  candle = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
   showOverlay(null);
   $('hud').classList.remove('hidden');
-  beginShow();
+  startArrival();
+  updateHud();
 }
 
 function beginShow() {
   const info = showInfo(showIdx);
   state = 'intro'; introT = 2.6; showScore = 0; showTime = 0;
+  // Most shows (always the first) take a Roman candle break somewhere in the middle.
+  candleAt = showIdx === 0 || Math.random() < 0.7 ? info.target * (0.35 + Math.random() * 0.25) : Infinity;
   banner = { title: 'Show ' + (showIdx + 1), sub: info.name, sub2: 'Target: ' + info.target + ' points', t: 2.6, dur: 2.6 };
   react('cheer', 1);
+  if (showIdx === 3) texts.push({ x: W / 2, y: H * 0.62, txt: "Uh oh... the Earth's on fire!", color: '#ff9a3a', life: 3, big: true });
   updateHud();
 }
 
 function startFinale() {
-  state = 'finale'; finaleT = 5.5; spawnTimer = 0;
-  banner = { title: 'GRAND FINALE!', sub: showInfo(showIdx).name + ' complete', t: 2.2, dur: 2.2 };
-  react('dance', 5.5);
+  state = 'finale'; finaleT = 7; spawnTimer = 0;
+  banner = { title: 'GRAND FINALE!', sub: showInfo(showIdx).name + ' complete', t: 2.6, dur: 2.6 };
+  react('dance', 7);
   buzz([30, 50, 30, 50, 60]);
   updateHud();
+}
+
+// ---------- Roman candle break ----------
+// The showman stops, aims a Roman candle and fires 20 shots in different directions, each
+// one sooner than the last. No new rockets launch until he's done.
+const CANDLE_SHOTS = 20;
+function candleAim() { return -Math.PI / 2 + showman.dir * (-0.3 + Math.random() * 1.3); }
+
+function startCandle() {
+  state = 'candle';
+  const m = showman;
+  m.dir = m.x < W / 2 ? 1 : -1;
+  m.mood = 'candle';
+  candle = { shots: 0, next: 1.4, aim: -Math.PI / 2, target: candleAim(), kick: 0, done: 0 };
+  banner = { title: 'Break time!', sub: 'Roman candle: 20 shots', t: 2.2, dur: 2.2 };
+  updateHud();
+}
+
+function candleInterval(i) { return 0.65 * Math.pow(0.1 / 0.65, i / (CANDLE_SHOTS - 1)); }
+
+function candleMuzzle() {
+  const c = candle, { left, top, p } = showmanBox();
+  const hx = left + (showman.dir > 0 ? 23 : 1) * p, hy = top + 15 * p;
+  const len = (11 - c.kick * 3) * p;
+  return { hx, hy, mx: hx + Math.cos(c.aim) * len, my: hy + Math.sin(c.aim) * len, p };
+}
+
+function updateCandle(dt) {
+  const c = candle;
+  c.aim += (c.target - c.aim) * Math.min(1, dt * 14);
+  c.kick = Math.max(0, c.kick - dt * 6);
+  if (c.shots < CANDLE_SHOTS) {
+    c.next -= dt;
+    if (c.next <= 0) { fireCandle(); c.next = candleInterval(c.shots); }
+  } else {
+    c.done += dt;
+    if (c.done > 2) endCandle();
+  }
+}
+
+function fireCandle() {
+  const c = candle;
+  c.shots++;
+  const { mx, my } = candleMuzzle();
+  const sp = H * (0.42 + Math.random() * 0.1);
+  particles.push({ x: mx, y: my, px: mx, py: my, vx: Math.cos(c.aim) * sp, vy: Math.sin(c.aim) * sp,
+    h: Math.random() * 360, sat: 100, life: 1, decay: 0.55, size: 5, streak: 0.08, emit: 50, glow: true, glitter: false });
+  for (let i = 0; i < 10; i++) {
+    const a = c.aim + (Math.random() - 0.5) * 1.2, s = 40 + Math.random() * 80;
+    particles.push({ x: mx, y: my, px: mx, py: my, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+      h: 40, sat: 100, life: 0.4, decay: 2, size: 1.4, glitter: false });
+  }
+  c.kick = 1;
+  flash = Math.min(1, flash + 0.06);
+  candlePop(); buzz(8);
+  c.target = candleAim();
+}
+
+function endCandle() {
+  candle = null;
+  showman.mood = 'walk';
+  react('cheer', 1.2);
+  if (showScore >= showInfo(showIdx).target) return startFinale();
+  state = 'play'; spawnTimer = 0.6;
+  updateHud();
+}
+
+function drawCandle() {
+  if (!candle) return;
+  const { hx, hy, mx, my, p } = candleMuzzle();
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 3 * p;
+  ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(mx, my); ctx.stroke();
+  ctx.strokeStyle = '#2f6fe0'; ctx.lineWidth = 2 * p;
+  ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(mx, my); ctx.stroke();
+  // yellow bands on the tube
+  ctx.strokeStyle = '#ffd86b';
+  for (const t of [0.35, 0.7]) {
+    const x = hx + (mx - hx) * t, y = hy + (my - hy) * t, dx = (mx - hx) * 0.06, dy = (my - hy) * 0.06;
+    ctx.beginPath(); ctx.moveTo(x - dx, y - dy); ctx.lineTo(x + dx, y + dy); ctx.stroke();
+  }
+  if (candle.kick > 0) {
+    const g = ctx.createRadialGradient(mx, my, 0, mx, my, 10 * p * candle.kick);
+    g.addColorStop(0, 'rgba(255,240,180,.95)'); g.addColorStop(1, 'rgba(255,160,40,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, 10 * p * candle.kick, 0, TAU); ctx.fill();
+  }
 }
 
 function endFinale() {
@@ -650,6 +956,9 @@ function endFinale() {
 function gameOver() {
   state = 'over'; paused = false; slowT = 0;
   store.set('mfPlayed', '1'); firstHint = false;
+  showman.mood = 'walk';
+  showman.dir = showman.x < W / 2 ? 1 : -1;
+  showman.say = { text: 'I love every damn one of you.', t: 0 };
   if (score > best) {
     best = score;
     store.set('moonFireworksBest', best);
@@ -668,7 +977,7 @@ function gameOver() {
     if (state !== 'over') return;
     showOverlay('over');
     $('hud').classList.add('hidden');
-  }, 1000);
+  }, 3200);
   updateHud();
 }
 
@@ -708,12 +1017,13 @@ const KIND = {
   slow:   { base: 10, hue: 210, sym: 'clock' },
   mega:   { base: 25, hue: 280, sym: 'burst' },
   mini:   { base: 15 },
+  salute: { base: 0, hue: 0, lit: 50 },   // the red celebration volley after a U; just for show
 };
-const special = r => r.kind !== 'normal' && r.kind !== 'mini';
+const special = r => r.kind !== 'normal' && r.kind !== 'mini' && r.kind !== 'salute';
 
 function level() { return showIdx + showTime / 45; }
 function flightTime() {
-  if (state === 'finale') return 1.7;
+  if (state === 'finale') return 2.3;
   if (state !== 'play') return 2.4;
   return Math.max(1.0, 2.6 - level() * 0.2);
 }
@@ -750,16 +1060,14 @@ function rcol(r, a, lit) {
 
 function addPoints(pts) {
   score += pts;
-  if (state === 'play') {
-    showScore += pts;
-    if (showScore >= showInfo(showIdx).target) startFinale();
-  }
+  if (state === 'play' || state === 'candle') showScore += pts;
+  if (state === 'play' && showScore >= showInfo(showIdx).target) startFinale();
 }
 
 function pop(r, chain) {
   if (r.dead) return;
   r.dead = true;
-  const live = state === 'play' || state === 'finale';
+  const live = state === 'play' || state === 'finale' || state === 'candle';
   if (r.kind === 'dud') {
     puff(r.x, r.y, 24);
     if (!live) return;
@@ -790,6 +1098,7 @@ function pop(r, chain) {
     case 'utah':
       texts.push({ x: r.x, y: r.y - 30, txt: 'GO UTES!', color: '#ff3b3b', life: 1.6, big: true });
       react('dance', 2.5);
+      redSalute();
       break;
     case 'gold': react('cheer', 1); break;
     case 'slow':
@@ -807,7 +1116,7 @@ function pop(r, chain) {
   // set off neighbours
   const R = Math.max(70, Math.min(W, H) * 0.12);
   for (const o of rockets) {
-    if (o.dead || o.pending !== null || o.kind === 'dud') continue;
+    if (o.dead || o.pending !== null || o.kind === 'dud' || o.kind === 'salute') continue;
     if (Math.hypot(o.x - r.x, o.y - r.y) < R) { o.pending = 0.12; o.chain = chain + 1; }
   }
   updateHud();
@@ -822,23 +1131,34 @@ function splitRocket(r) {
   }
 }
 
+// Six red rockets go up from evenly spaced spots along the ground and burst one after
+// another, left to right.
+function redSalute() {
+  for (let i = 0; i < 6; i++) {
+    const x = W * (i + 0.5) / 6;
+    const apex = H * (0.15 + Math.random() * 0.15);
+    launch(x, horizon(x), apex, 0.9 + i * 0.14, 0, 'salute');
+  }
+}
+
 function megaBurst(r, chain) {
   texts.push({ x: W / 2, y: H * 0.36, txt: 'MEGA BURST!', color: '#d9a8ff', life: 1.5, big: true });
   flash = 1; shake = 8;
   react('cheer', 1.5);
   let i = 0;
   for (const o of rockets) {
-    if (o.dead || o.pending !== null) continue;
+    if (o.dead || o.pending !== null || o.kind === 'salute') continue;
     if (o.kind === 'dud') { o.dead = true; puff(o.x, o.y, 12); continue; }
     o.pending = 0.08 + i * 0.05; o.chain = chain + 1; i++;
   }
 }
 
 function atApex(r) {
+  if (r.kind === 'salute') { r.dead = true; explode(r); return; }
   if (state === 'play' && r.kind !== 'dud' && r.kind !== 'mini') return fizzle(r);
   r.dead = true;
   if (r.kind === 'dud' || state === 'play') { puff(r.x, r.y, 14); return; }
-  explode(r); // the menu demo and the finale go off on their own, for show
+  explode(r); // the menu demo, the finale and the candle break go off on their own, for show
 }
 
 function fizzle(r) {
@@ -873,6 +1193,7 @@ function explode(r) {
     case 'mega': shell(r.x, r.y, 'double', 280, 1.3); shell(r.x, r.y, 'crackle', 50, 1); return '';
     case 'stage2': shell(r.x, r.y, 'peony', 185, 0.6); return '';
     case 'mini': shell(r.x, r.y, 'peony', r.hue, 0.55); return '';
+    case 'salute': shell(r.x, r.y, ['peony', 'ring', 'chrysanthemum'][Math.floor(Math.random() * 3)], Math.random() < 0.5 ? 0 : 355, 0.9); return '';
   }
   const type = SHELL_TYPES[Math.floor(Math.random() * SHELL_TYPES.length)];
   shell(r.x, r.y, type, r.hue, s, r.kind === 'gold');
@@ -957,11 +1278,12 @@ cv.addEventListener('pointerdown', e => {
   e.preventDefault();
   const x = e.clientX, y = e.clientY;
   ripples.push({ x, y, life: 1 });
-  if (!(state === 'play' || state === 'finale') || paused) return;
+  if (state === 'arrive' && !paused) { endArrival(); return; }
+  if (!(state === 'play' || state === 'finale' || state === 'candle') || paused) return;
   const hitR = Math.max(34, Math.min(W, H) * 0.05) * (e.pointerType === 'touch' ? 1.3 : 1);
   let target = null, bestD = hitR;
   for (const r of rockets) {
-    if (r.dead || r.pending !== null) continue;
+    if (r.dead || r.pending !== null || r.kind === 'salute') continue;
     const d = Math.hypot(r.x - x, r.y - y);
     if (d < bestD) { bestD = d; target = r; }
   }
@@ -1006,6 +1328,8 @@ $('pauseBtn').onclick = () => setPaused(!paused);
 $('resume').onclick = () => setPaused(false);
 $('quit').onclick = () => {
   state = 'menu'; paused = false; slowT = 0; banner = null; rockets = [];
+  candle = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
+  if (van && !van.parked) van = null;
   $('hud').classList.add('hidden');
   showOverlay('menu');
   updateHud();
@@ -1081,7 +1405,10 @@ $('postForm').onsubmit = async e => {
 // ---------- loop ----------
 function update(dt) {
   time += dt;
-  if (playing()) showTime += dt;
+  if (state === 'play') showTime += dt;
+  if (state === 'play' && showScore >= candleAt) { candleAt = Infinity; startCandle(); }
+  if (state === 'candle') updateCandle(dt);
+  if (state === 'arrive') updateArrival(dt);
   if (banner) { banner.t -= dt; if (banner.t <= 0) banner = null; }
 
   if (state === 'intro') {
@@ -1090,7 +1417,7 @@ function update(dt) {
   }
   if (state === 'finale') {
     finaleT -= dt;
-    if (finaleT <= -2.2) endFinale();
+    if (finaleT <= -3) endFinale();
   }
   if (slowT > 0) {
     slowT -= dt;
@@ -1106,7 +1433,7 @@ function update(dt) {
       spawnTimer = Math.max(0.33, 1.35 - level() * 0.14) * (0.7 + Math.random() * 0.6);
     } else if (state === 'finale' && finaleT > 0) {
       spawnRocket();
-      spawnTimer = 0.12 + Math.random() * 0.1;
+      spawnTimer = 0.25 + Math.random() * 0.15;
     } else if (state === 'menu' || state === 'over') {
       spawnRocket();
       spawnTimer = 0.9;
@@ -1169,6 +1496,7 @@ function update(dt) {
   ripples = ripples.filter(r => r.life > 0);
 
   updateShowman(dt);
+  updateEarthFire(dt);
 
   flash = Math.max(0, flash - dt * 2.5);
   shake = Math.max(0, shake - dt * 40);
@@ -1226,7 +1554,7 @@ function drawBanner() {
 
 function drawHint() {
   if (!firstHint || state !== 'play') return;
-  const r = rockets.find(r => !r.dead && r.kind !== 'dud');
+  const r = rockets.find(r => !r.dead && r.kind !== 'dud' && r.kind !== 'salute');
   if (!r) return;
   const y = r.y - 48 + Math.sin(time * 8) * 5;
   ctx.fillStyle = '#ffd86b'; ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
@@ -1247,6 +1575,7 @@ function draw() {
     ctx.fillRect(s.x, s.y, s.r, s.r);
   }
   ctx.globalAlpha = 1;
+  drawEarthFire();
 
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'round';
@@ -1260,6 +1589,14 @@ function draw() {
     if (p.streak) ctx.moveTo(p.x - p.vx * p.streak, p.y - p.vy * p.streak);
     else ctx.moveTo(p.px, p.py);
     ctx.lineTo(p.x, p.y); ctx.stroke();
+    if (p.glow) {
+      ctx.strokeStyle = `hsla(${p.h},100%,60%,${a * 0.3})`;
+      ctx.lineWidth = p.size * 3.5;
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,255,${a})`;
+      ctx.lineWidth = p.size * 0.5;
+      ctx.stroke();
+    }
   }
   ctx.lineCap = 'butt';
 
@@ -1286,8 +1623,14 @@ function draw() {
   if (playing()) for (const r of rockets) drawSymbol(r);
 
   ctx.drawImage(fg, 0, 0, W, H);
+  drawVan();
   drawFlag();
   drawShowman();
+  drawCandle();
+  if (state === 'arrive' && !paused) {
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '600 13px system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Tap to skip', W / 2, H - 14);
+  }
 
   if (flash > 0) {
     ctx.fillStyle = `rgba(255,235,210,${flash * 0.12})`;
@@ -1307,7 +1650,7 @@ function draw() {
   ctx.textAlign = 'center';
   for (const t of texts) {
     ctx.globalAlpha = Math.min(1, t.life);
-    ctx.font = `800 ${t.big ? 40 : 17}px system-ui, sans-serif`;
+    ctx.font = `800 ${t.big ? Math.min(40, W / 15) : 17}px system-ui, sans-serif`;
     ctx.fillStyle = t.color;
     ctx.fillText(t.txt, t.x, t.y);
   }
