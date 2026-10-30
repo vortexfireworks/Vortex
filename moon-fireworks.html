@@ -182,9 +182,20 @@ function horizon(x) {
   return groundY + Math.sin(x * 0.004 + 1) * 12 + Math.sin(x * 0.013) * 5;
 }
 
+// innerWidth/innerHeight can read 0 when the page loads in a background tab,
+// an in-app browser or the home-screen app before layout, so fall back to
+// other viewport measurements.
+function viewportSize() {
+  const de = document.documentElement, vv = window.visualViewport;
+  const w = innerWidth || de.clientWidth || (vv && Math.round(vv.width)) || 0;
+  const h = innerHeight || de.clientHeight || (vv && Math.round(vv.height)) || 0;
+  return { w: Math.max(1, w), h: Math.max(1, h) };
+}
+
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
-  W = Math.max(1, innerWidth); H = Math.max(1, innerHeight);
+  const vw = viewportSize();
+  W = vw.w; H = vw.h;
   cv.width = W * dpr; cv.height = H * dpr;
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1353,6 +1364,7 @@ addEventListener('keydown', e => {
 document.addEventListener('visibilitychange', () => { if (document.hidden) setPaused(true); });
 addEventListener('blur', () => setPaused(true));
 addEventListener('resize', resize);
+if (window.visualViewport) visualViewport.addEventListener('resize', resize);
 
 // ---------- leaderboard ----------
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1662,6 +1674,10 @@ function draw() {
 
 let last = performance.now();
 function frame(now) {
+  // Not every browser fires 'resize' once the viewport gets its real size,
+  // so re-check here to avoid getting stuck with a 1px canvas.
+  const vw = viewportSize();
+  if (vw.w !== W || vw.h !== H) resize();
   const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
   last = now;
   if (!paused) update(dt);
