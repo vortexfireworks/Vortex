@@ -121,7 +121,7 @@
   <h2>How to play</h2>
   <p>Tap rockets before they reach the top. Every rocket that fizzles costs a ♥, and when all 5 are gone the show's over.</p>
   <ul class="legend">
-    <li><span class="dot" style="--c:#ff8a4a"></span><span><b>Regular:</b> 10 points. Bursts as a peony, chrysanthemum, palm, crossette, willow, crackle or ring.</span></li>
+    <li><span class="dot" style="--c:#ff8a4a"></span><span><b>Regular:</b> 10 points. Bursts as a peony, chrysanthemum, palm, crossette, willow, crackle, ring or waterfall.</span></li>
     <li><span class="dot" style="--c:#e8b020">★</span><span><b>Gold:</b> 50 points.</span></li>
     <li><span class="dot" style="--c:#ff4f8f">♥</span><span><b>Pink:</b> gives you a life back.</span></li>
     <li><span class="dot" style="--c:#9a1a1a">U</span><span><b>Dark red:</b> rare! 100 points.</span></li>
@@ -1992,9 +1992,9 @@ function drawSwarm() {
 }
 
 // ---------- shells ----------
-const SHELL_TYPES = ['peony', 'chrysanthemum', 'palm', 'crossette', 'willow', 'crackle', 'ring', 'double'];
+const SHELL_TYPES = ['peony', 'chrysanthemum', 'palm', 'crossette', 'willow', 'crackle', 'ring', 'double', 'waterfall'];
 const SHELL_NAMES = { peony: 'Peony', chrysanthemum: 'Chrysanthemum', palm: 'Palm', crossette: 'Crossette',
-  willow: 'Willow', crackle: 'Crackle', ring: 'Ring', double: 'Double Ring' };
+  willow: 'Willow', crackle: 'Crackle', ring: 'Ring', double: 'Double Ring', waterfall: 'Waterfall' };
 
 function explode(r) {
   const s = r.size;
@@ -2046,6 +2046,19 @@ function shell(x, y, type, hue, scale, gold) {
         size: 3, streak: 0.3, emit: 45, trailLife: 1.1, split, decay: 0.3, glitter: false });
     }
     crossetteSound(splits);
+  } else if (type === 'waterfall') {
+    // a red flash, then silver glitter strands thrown up and out that arc over and pour down,
+    // leaving hanging trails like a waterfall; the whole burst leans a little to one side
+    const lean = (rand() - 0.5) * 0.8;
+    add({ vx: 0, vy: -4, h: 2, sat: 100, lit: 45, life: 1, decay: 1.1, size: sp * 0.55, haze: true, glitter: false });
+    add({ vx: 0, vy: -4, h: 10, sat: 100, lit: 60, life: 0.8, decay: 1.6, size: sp * 0.22, haze: true, glitter: false });
+    for (let i = 0; i < 25; i++) add({ ...dir(rand() * TAU, sp * 0.25 * rand()), h: rand() * 15, sat: 100, lit: 55, life: 0.5, decay: 1.5, size: 1.6, glitter: false });
+    const k = Math.round(60 * Math.max(0.6, scale));
+    for (let i = 0; i < k; i++) {
+      const a = -Math.PI / 2 + lean + (rand() - 0.5) * 2.7;
+      add({ ...dir(a, sp * (0.45 + rand() * 0.5)), h: 42, sat: 18, lit: 80, decay: 0.36 + rand() * 0.08,
+        size: 2, gm: 3.6, streak: 0.06, emit: 60, trailLife: 1.4, glitter: true });
+    }
   } else if (type === 'willow') {
     for (let i = 0; i < n; i++) {
       add({ ...dir(rand() * TAU, sp * 0.75 * Math.sqrt(rand())), h: 42, sat: 70, decay: 0.2 + rand() * 0.06,
@@ -2422,6 +2435,13 @@ function draw() {
   ctx.lineCap = 'round';
   for (const p of particles) {
     let a = Math.min(1, p.life);
+    if (p.haze) {
+      // a soft coloured glow around a burst
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+      g.addColorStop(0, `hsla(${p.h},100%,${p.lit}%,${a * 0.55})`); g.addColorStop(1, `hsla(${p.h},100%,${p.lit}%,0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
+      continue;
+    }
     if (p.glitter && p.life < 0.6) a *= Math.random() < 0.5 ? 1 : 0.15;
     const l = p.lit ? p.lit + p.life * 12 : 55 + p.life * 30;
     ctx.strokeStyle = `hsla(${p.h},${p.sat}%,${l}%,${a})`;
