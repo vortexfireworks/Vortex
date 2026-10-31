@@ -405,6 +405,8 @@ let van = null, arriveT = 0;
 // long and VAN_TALL units tall, with (0,0) at its back bottom corner on the ground.
 const VAN_LEN = 72, VAN_TALL = 32, VAN_KX = VAN_LEN / 910, VAN_KY = VAN_TALL / 335;
 const VAN_DOOR = { rear: 470, front: 300 }; // driver's door edges in photo x
+// the driver's door outline in photo coordinates
+const VAN_DOOR_SHAPE = [[470, 822], [390, 822], [300, 914], [300, 1040], [324, 1088], [470, 1088]];
 function drawVan() {
   if (!van) return;
   const p = pixelSize();
@@ -472,11 +474,20 @@ function drawVan() {
   if (d <= 0) {
     poly([[466, 955], [452, 955], [452, 972], [466, 972]]); ctx.fill();
   } else {
-    const r = X(VAN_DOOR.rear), f = X(VAN_DOOR.front), top = Y(824), bot = Y(1060);
-    ctx.fillStyle = '#2a2a33'; ctx.fillRect(r, top, f - r, bot - top);
-    const w = (f - r) * Math.cos(d * 1.3);
+    // the doorway, in the door's real shape: slanted along the windshield, cut around the wheel arch
+    ctx.fillStyle = '#2a2a33'; poly(VAN_DOOR_SHAPE); ctx.fill();
+    ctx.fillStyle = '#44444e'; poly([[460, 960], [400, 960], [400, 1000], [460, 1000]]); ctx.fill(); // seat
+    // the door turns on its front hinge: everything is squeezed toward the hinge as it opens, and
+    // the swinging edge grows a little as it comes toward us
+    const c = Math.cos(d * 1.3), grow = 0.1 * (1 - c);
+    const swing = pts => pts.map(([x, y]) => {
+      const k = (x - VAN_DOOR.front) / (VAN_DOOR.rear - VAN_DOOR.front);
+      return [VAN_DOOR.front + (x - VAN_DOOR.front) * c, 955 + (y - 955) * (1 + grow * k)];
+    });
     ctx.fillStyle = '#e6e6ea'; ctx.strokeStyle = '#8c8c98'; ctx.lineWidth = lw;
-    ctx.fillRect(f - w, top - p, w, bot - top + 2 * p); ctx.strokeRect(f - w, top - p, w, bot - top + 2 * p);
+    poly(swing(VAN_DOOR_SHAPE)); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#2b3442'; poly(swing([[455, 838], [392, 838], [314, 916], [322, 925], [455, 925]])); ctx.fill();
+    ctx.fillStyle = '#6a6a74'; poly(swing([[466, 955], [452, 955], [452, 972], [466, 972]])); ctx.fill();
   }
 
   // steel wheels with silver hubcaps
