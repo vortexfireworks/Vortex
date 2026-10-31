@@ -131,7 +131,7 @@
     <li><span class="dot" style="--c:#6e6e78">✕</span><span><b>Grey dud:</b> don't tap it! It costs 25 points. Let it fizzle, it's harmless.</span></li>
     <li><span class="dot" style="--c:#4a4f5c">✈</span><span><b>Drone:</b> rare! It flies across the sky with blinking lights. Don't tap it! It costs 1000 points.</span></li>
   </ul>
-  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck pulls out a Roman candle: tap him to fire it! Every shot is worth 100 bonus points, up to 20 shots before time runs out. After show 5 there's a drone show intermission: tap the drones to knock them out of the sky for bonus points. Tap Chuck once per show for a surprise. His whippet tags along too, so watch where you step.</p>
+  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck pulls out a Roman candle: tap the sky to aim each shot. Hit the lanterns and balloons for 250 bonus points, or a shooting star for 500. After show 5 there's a drone show intermission: tap the drones to knock them out of the sky for bonus points. Tap Chuck once per show for a surprise. His whippet tags along too, so watch where you step.</p>
   <button class="play" id="helpGo">Got it</button>
 </div></div>
 
@@ -400,65 +400,118 @@ const placard = new Image();
 placard.src = 'data:image/png;base64,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';
 let van = null, arriveT = 0;
 
-// Drawn in Chuck's pixel units (p) so it matches him; (0,0) is the van's back bottom corner on the ground.
+// A white full-size cargo van, traced from a side-on photo (front on the right). Shapes are given
+// in the photo's pixel coordinates and mapped into Chuck's pixel units: the van is VAN_LEN units
+// long and VAN_TALL units tall, with (0,0) at its back bottom corner on the ground.
+const VAN_LEN = 72, VAN_TALL = 32, VAN_KX = VAN_LEN / 910, VAN_KY = VAN_TALL / 335;
+const VAN_DOOR = { rear: 470, front: 300 }; // driver's door edges in photo x
+// the driver's door outline in photo coordinates
+const VAN_DOOR_SHAPE = [[470, 822], [390, 822], [300, 914], [300, 1040], [324, 1088], [470, 1088]];
 function drawVan() {
   if (!van) return;
   const p = pixelSize();
   const moving = !van.parked && arriveT < 2.6;
-  const gx = van.x, gy = horizon(van.x + 32 * p) + 3 + (moving ? Math.sin(time * 30) * 0.6 : 0);
-  const X = u => gx + u * p, Y = v => gy + v * p;
+  const gx = van.x, gy = horizon(van.x + VAN_LEN / 2 * p) + 3 + (moving ? Math.sin(time * 30) * 0.6 : 0);
+  const X = px => gx + (1028 - px) * VAN_KX * p, Y = py => gy - (1150 - py) * VAN_KY * p;
+  const poly = pts => { ctx.beginPath(); pts.forEach(([a, b], i) => i ? ctx.lineTo(X(a), Y(b)) : ctx.moveTo(X(a), Y(b))); ctx.closePath(); };
+  const arch = (cx, cy, r) => ctx.ellipse(X(cx), Y(cy), r * VAN_KX * p, r * VAN_KY * p, 0, 0, Math.PI, true);
+  const line = (x1, y1, x2, y2) => { ctx.beginPath(); ctx.moveTo(X(x1), Y(y1)); ctx.lineTo(X(x2), Y(y2)); ctx.stroke(); };
+  const lw = Math.max(1, p * 0.6);
 
   ctx.fillStyle = 'rgba(0,0,0,.3)';
-  ctx.beginPath(); ctx.ellipse(X(32), gy, 34 * p, 2 * p, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(X(573), gy, VAN_LEN / 2 * p + 2 * p, 2 * p, 0, 0, TAU); ctx.fill();
 
-  // body
-  ctx.fillStyle = '#f4f4f6'; ctx.strokeStyle = '#8c8c98'; ctx.lineWidth = Math.max(1, p * 0.6);
+  // body: flat roof, raked windshield, short hood, with arches cut for the wheels
+  ctx.fillStyle = '#f4f4f6'; ctx.strokeStyle = '#8c8c98'; ctx.lineWidth = lw;
   ctx.beginPath();
-  ctx.moveTo(X(0), Y(-31)); ctx.arcTo(X(0), Y(-34), X(3), Y(-34), 3 * p);
-  ctx.lineTo(X(50), Y(-34)); ctx.lineTo(X(60), Y(-22)); ctx.lineTo(X(64), Y(-20));
-  ctx.lineTo(X(64), Y(-8)); ctx.lineTo(X(0), Y(-8)); ctx.closePath();
-  ctx.fill(); ctx.stroke();
-  // red stripe
-  ctx.fillStyle = '#d4252b'; ctx.fillRect(X(0.5), Y(-14), 63.5 * p, 2 * p);
-  // windows
-  ctx.fillStyle = '#5a7fa8';
-  ctx.beginPath(); ctx.moveTo(X(51), Y(-32)); ctx.lineTo(X(58.5), Y(-23)); ctx.lineTo(X(51), Y(-23)); ctx.closePath(); ctx.fill();
-  ctx.fillRect(X(43), Y(-31), 7 * p, 8 * p);
-  // bumper and headlight
-  ctx.fillStyle = '#9a9aa6'; ctx.fillRect(X(61), Y(-12), 4 * p, 4 * p); ctx.fillRect(X(-1), Y(-12), 2 * p, 4 * p);
-  ctx.fillStyle = '#ffe28a'; ctx.fillRect(X(62), Y(-19), 2 * p, 3 * p);
-  ctx.fillStyle = '#ff4a3a'; ctx.fillRect(X(0), Y(-30), 1.5 * p, 4 * p);
-  // the 1.3G placard
-  if (placard.complete && placard.naturalWidth) ctx.drawImage(placard, X(13), Y(-32), 18 * p, 18 * p);
+  ctx.moveTo(X(1005), Y(1098));
+  ctx.lineTo(X(1005), Y(842)); ctx.quadraticCurveTo(X(1005), Y(818), X(982), Y(818));
+  ctx.lineTo(X(392), Y(818)); ctx.quadraticCurveTo(X(372), Y(818), X(362), Y(828));
+  ctx.lineTo(X(270), Y(918)); ctx.quadraticCurveTo(X(262), Y(925), X(240), Y(927));
+  ctx.lineTo(X(160), Y(935)); ctx.quadraticCurveTo(X(128), Y(940), X(126), Y(965));
+  ctx.lineTo(X(124), Y(1060)); ctx.lineTo(X(160), Y(1060));
+  arch(240, 1088, 84);
+  ctx.lineTo(X(735), Y(1094));
+  arch(820, 1094, 88);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  // panel lines: driver's door, sliding door, a body crease and the fuel door
+  ctx.strokeStyle = '#b4b4be'; ctx.lineWidth = lw * 0.8;
+  line(VAN_DOOR.rear, 824, VAN_DOOR.rear, 1088);
+  line(712, 826, 712, 930);
+  line(488, 932, 960, 932);
+  ctx.beginPath(); ctx.ellipse(X(596), Y(1034), 12 * VAN_KX * p, 12 * VAN_KY * p, 0, 0, TAU); ctx.stroke();
+
+  // windshield edge and the driver's window
+  ctx.fillStyle = '#2b3442';
+  poly([[384, 822], [366, 822], [270, 918], [288, 918]]); ctx.fill();
+  poly([[455, 838], [392, 838], [314, 916], [322, 925], [455, 925]]); ctx.fill();
+  ctx.fillStyle = 'rgba(160,190,220,.35)';
+  poly([[440, 845], [410, 845], [360, 900], [380, 900]]); ctx.fill();
+
+  // rear: black pillar trim and the tall red tail light; front marker light
+  ctx.fillStyle = '#1e1e24';
+  poly([[958, 822], [985, 822], [1003, 846], [1003, 872], [975, 872], [962, 845]]); ctx.fill();
+  ctx.fillStyle = '#d4252b'; poly([[975, 876], [1003, 876], [1003, 935], [975, 935]]); ctx.fill();
+  ctx.fillStyle = '#f2f2f4'; poly([[978, 908], [1000, 908], [1000, 915], [978, 915]]); ctx.fill();
+  ctx.fillStyle = '#ffb347'; poly([[128, 965], [146, 965], [146, 1012], [128, 1012]]); ctx.fill();
+
+  // bumpers and side mirror
+  ctx.fillStyle = '#3a3b42';
+  poly([[992, 1056], [1030, 1058], [1030, 1100], [992, 1100]]); ctx.fill();
+  poly([[118, 1018], [178, 1018], [182, 1072], [170, 1100], [126, 1100], [118, 1080]]); ctx.fill();
+  ctx.fillStyle = '#1e1e24'; poly([[305, 880], [326, 878], [326, 922], [305, 924]]); ctx.fill();
+
+  // the 1.3G placard on the cargo side, between the driver's door and the rear wheel
+  if (placard.complete && placard.naturalWidth) {
+    const s = 13 * p;
+    const cx = X(600), cy = Y(950); // clear of the rear wheel arch
+    // clip to the diamond so the image's white corners don't cover the van's panel lines
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(cx, cy - s / 2); ctx.lineTo(cx + s / 2, cy); ctx.lineTo(cx, cy + s / 2); ctx.lineTo(cx - s / 2, cy); ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(placard, cx - s / 2, cy - s / 2, s, s);
+    ctx.restore();
+  }
 
   // driver's door: closed, or swung open toward us on its front hinge
   const d = van.door;
-  ctx.strokeStyle = '#8c8c98';
+  ctx.fillStyle = '#6a6a74';
   if (d <= 0) {
-    ctx.strokeRect(X(42), Y(-33), 10 * p, 24 * p);
-    ctx.fillStyle = '#6a6a74'; ctx.fillRect(X(43), Y(-21), 2.5 * p, 1 * p);
+    poly([[466, 955], [452, 955], [452, 972], [466, 972]]); ctx.fill();
   } else {
-    ctx.fillStyle = '#2a2a33'; ctx.fillRect(X(42), Y(-33), 10 * p, 24 * p);
-    const w = 10 * Math.cos(d * 1.3);
-    ctx.fillStyle = '#e6e6ea'; ctx.fillRect(X(52 - w), Y(-34), w * p, 26 * p);
-    ctx.strokeRect(X(52 - w), Y(-34), w * p, 26 * p);
+    // the doorway, in the door's real shape: slanted along the windshield, cut around the wheel arch
+    ctx.fillStyle = '#2a2a33'; poly(VAN_DOOR_SHAPE); ctx.fill();
+    ctx.fillStyle = '#44444e'; poly([[460, 960], [400, 960], [400, 1000], [460, 1000]]); ctx.fill(); // seat
+    // the door turns on its front hinge: everything is squeezed toward the hinge as it opens, and
+    // the swinging edge grows a little as it comes toward us
+    const c = Math.cos(d * 1.3), grow = 0.1 * (1 - c);
+    const swing = pts => pts.map(([x, y]) => {
+      const k = (x - VAN_DOOR.front) / (VAN_DOOR.rear - VAN_DOOR.front);
+      return [VAN_DOOR.front + (x - VAN_DOOR.front) * c, 955 + (y - 955) * (1 + grow * k)];
+    });
+    ctx.fillStyle = '#e6e6ea'; ctx.strokeStyle = '#8c8c98'; ctx.lineWidth = lw;
+    poly(swing(VAN_DOOR_SHAPE)); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#2b3442'; poly(swing([[455, 838], [392, 838], [314, 916], [322, 925], [455, 925]])); ctx.fill();
+    ctx.fillStyle = '#6a6a74'; poly(swing([[466, 955], [452, 955], [452, 972], [466, 972]])); ctx.fill();
   }
 
-  // wheels
-  for (const wx of [12, 52]) {
-    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(X(wx), Y(-5), 5 * p, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#9a9aa6'; ctx.beginPath(); ctx.arc(X(wx), Y(-5), 2.2 * p, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#555'; ctx.lineWidth = Math.max(1, p * 0.7);
-    ctx.beginPath();
-    for (let k = 0; k < 3; k++) {
-      const a = van.spin + k * TAU / 3;
-      ctx.moveTo(X(wx), Y(-5)); ctx.lineTo(X(wx) + Math.cos(a) * 2.2 * p, Y(-5) + Math.sin(a) * 2.2 * p);
+  // steel wheels with silver hubcaps
+  for (const wx of [240, 820]) {
+    const cx = X(wx), cy = gy - 63 * VAN_KY * p, R = 60 * VAN_KY * p;
+    ctx.fillStyle = '#141416'; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#c9cad2'; ctx.beginPath(); ctx.arc(cx, cy, R * 0.6, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#8e8f99'; ctx.lineWidth = Math.max(1, p * 0.5);
+    ctx.beginPath(); ctx.arc(cx, cy, R * 0.45, 0, TAU); ctx.stroke();
+    ctx.fillStyle = '#7a7b85';
+    for (let k = 0; k < 5; k++) {
+      const a = van.spin + k * TAU / 5;
+      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R * 0.32, cy + Math.sin(a) * R * 0.32, Math.max(0.8, R * 0.06), 0, TAU); ctx.fill();
     }
-    ctx.stroke();
+    ctx.fillStyle = '#e4e4ea'; ctx.beginPath(); ctx.arc(cx, cy, R * 0.18, 0, TAU); ctx.fill();
   }
 }
 
-// A two-tone car horn: "beep, beeeep".
 function honk() {
   if (!actx) return;
   const shaper = actx.createWaveShaper();
@@ -534,16 +587,16 @@ function muteEngine(off) {
   if (engine) engine.out.gain.setTargetAtTime(off ? 0.0001 : 0.12, actx.currentTime, 0.05);
 }
 
-function vanParkX() { return Math.max(8, Math.min(W * 0.56, W - 66 * pixelSize() - 8)); }
+function vanParkX() { return Math.max(8, Math.min(W * 0.56, W - (VAN_LEN + 4) * pixelSize() - 8)); }
 
 // Start of every game: the van drives in, Chuck hops out and asks if anyone needs fireworks.
 function startArrival() {
   const p = pixelSize();
-  van = { startX: -70 * p, x: -70 * p, parkX: vanParkX(), door: 0, spin: 0, parked: false };
+  van = { startX: -(VAN_LEN + 8) * p, x: -(VAN_LEN + 8) * p, parkX: vanParkX(), door: 0, spin: 0, parked: false };
   state = 'arrive'; arriveT = 0;
   startEngine();
   showman.hidden = true; showman.say = null; showman.mood = 'walk';
-  dog.hidden = true; poops = [];
+  dog.hidden = true; dog.hide = false; poops = [];
 }
 
 function updateArrival(dt) {
@@ -565,10 +618,10 @@ function updateArrival(dt) {
   const clamp = k => Math.max(0, Math.min(1, k));
   v.door = clamp((arriveT - 3.0) / 0.4) - clamp((arriveT - 5.2) / 0.4);
   if (arriveT >= 3.4 && m.hidden) {
-    m.hidden = false; m.x = v.x + 47 * p; m.dir = -1;
+    m.hidden = false; m.x = v.x + 51 * p; m.dir = -1;
   }
   // his whippet leaps out right behind him
-  if (arriveT >= 3.9 && dog.hidden) releaseDog(v.x + 47 * p);
+  if (arriveT >= 3.9 && dog.hidden) releaseDog(v.x + 51 * p);
   // he walks along the van until he's clear of it, then turns to the crowd
   if (!m.hidden && arriveT < 5.0) {
     m.x -= 34 * p * dt;
@@ -861,6 +914,21 @@ function updateDog(dt) {
   if (!d.x) d.x = W * 0.4;
   for (const s of poops) s.age += dt;
   if (d.hidden) return;
+  if (d.hide && van) {
+    // scared of the Roman candle: hides behind the van, and now and then peeks out the back
+    d.peek -= dt; d.anim += dt;
+    if (d.peek < -0.9) d.peek = 1.5 + Math.random() * 1.5;
+    const tx = d.peek < 0 ? van.x + 9 * p : van.x + VAN_LEN / 2 * p;
+    if (Math.abs(tx - d.x) > 2) {
+      d.dir = tx > d.x ? 1 : -1;
+      d.x += d.dir * Math.min(Math.abs(tx - d.x), 75 * p * dt);
+      d.pose = Math.floor(d.anim / 0.08) % 2 ? DOG_POSES.stretch : DOG_POSES.gather;
+    } else {
+      d.dir = -1;
+      d.pose = DOG_POSES.stand;
+    }
+    return;
+  }
   d.t -= dt; d.anim += dt;
   const speed = d.mode === 'zoom' ? 75 : d.mode === 'trot' ? 24 : 0;
   if (speed) {
@@ -1089,6 +1157,19 @@ function whistle(dur) {
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.05);
 }
+// A Roman candle shot leaving the tube: a soft low thump with a puff of air.
+function candleThump() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = 'sine';
+  o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.18);
+  const og = actx.createGain(); og.gain.setValueAtTime(0.5, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+  o.connect(og).connect(master); o.start(t); o.stop(t + 0.25);
+  const s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+  const g = actx.createGain(); g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  s.connect(lp).connect(g).connect(master); s.start(t); s.stop(t + 0.14);
+}
 function candlePop() {
   if (!actx) return;
   const t = actx.currentTime;
@@ -1238,22 +1319,44 @@ function startFinale() {
 }
 
 // ---------- Roman candle break ----------
-// The showman stops and aims a Roman candle; each tap on him fires a shot that bursts like a
-// salute, worth 100 points. The break ends after 20 shots or when time runs out. No new rockets
-// launch until he's done. Candle points go to the score but not toward the show's target.
-const CANDLE_SHOTS = 20, CANDLE_TIME = 12, CANDLE_POINTS = 100;
-function candleAim() { return -Math.PI / 2 + showman.dir * (-0.3 + Math.random() * 1.3); }
+// Chuck stops and holds out a Roman candle. Tap the sky to aim: he swings the candle toward the
+// tap and fires a star that flies there. Lanterns, balloons and the odd shooting star drift by as
+// targets. Between shots the tube sprays sparks, like a real candle. Each break uses one of a few
+// candle types. Candle points go to the score but not toward the show's target.
+const CANDLE_TIME = 14, CANDLE_SHOT_POINTS = 25;
+const CANDLE_TYPES = [
+  { name: 'Classic Candle', shots: 15, cool: 0.22, speed: 1, size: 5, finale: 'crackle',
+    hue: i => [0, 120, 220, 45][i % 4] },
+  { name: 'Thunder Candle', shots: 8, cool: 0.45, speed: 0.9, size: 7, finale: 'report', burst: true,
+    hue: i => i % 2 ? 0 : 50, sat: i => i % 2 ? 100 : 20 },
+  { name: 'Rainbow Candle', shots: 25, cool: 0.1, speed: 1.1, size: 4, finale: 'crackle',
+    hue: i => i * 25 % 360 },
+  { name: 'Comet Candle', shots: 12, cool: 0.3, speed: 0.8, size: 5, finale: 'crackle', comet: true,
+    hue: () => 42, sat: () => 60 },
+];
+const CANDLE_TARGETS = {
+  lantern: { points: 250, name: 'LANTERN' },
+  balloon: { points: 250, name: 'BALLOON' },
+  star: { points: 500, name: 'SHOOTING STAR' },
+};
+const CANDLE_NAGS = ["C'mon, light me up!", 'Tap the sky!', "Don't leave me hanging!"];
 
 function startCandle() {
   state = 'candle';
   const m = showman;
   m.dir = m.x < W / 2 ? 1 : -1;
   m.mood = 'candle';
-  candle = { shots: 0, cool: 0, timeLeft: CANDLE_TIME, aim: -Math.PI / 2, target: candleAim(), kick: 0, done: 0 };
-  banner = { title: 'Roman candle!', sub: 'Tap Chuck to fire', sub2: CANDLE_POINTS + ' points a shot', t: 2.2, dur: 2.2 };
+  const type = CANDLE_TYPES[Math.floor(Math.random() * CANDLE_TYPES.length)];
+  candle = { type, shots: 0, cool: 0, timeLeft: CANDLE_TIME, aim: -Math.PI / 2 + m.dir * 0.4, kick: 0, done: 0,
+    t: 0, idle: 0, stars: [], targets: [], smoke: [], fountain: 0 };
+  banner = { title: type.name + '!', sub: 'Tap the sky to aim · ' + type.shots + ' shots',
+    sub2: 'Hit lanterns & balloons for 250', t: 2.4, dur: 2.4 };
   updateHud();
 }
 
+function candleActive() { return candle && candle.shots < candle.type.shots && candle.timeLeft > 0; }
+
+// Where Chuck's hand is and where the tube's mouth points.
 function candleMuzzle() {
   const c = candle, { left, top, p } = showmanBox();
   const hx = left + (showman.dir > 0 ? 23 : 1) * p, hy = top + 15 * p;
@@ -1261,69 +1364,162 @@ function candleMuzzle() {
   return { hx, hy, mx: hx + Math.cos(c.aim) * len, my: hy + Math.sin(c.aim) * len, p };
 }
 
-function updateCandle(dt) {
+// Tap the sky: Chuck turns toward the tap if he has to, aims and fires a star at it.
+function candleShoot(x, y) {
   const c = candle;
-  c.aim += (c.target - c.aim) * Math.min(1, dt * 14);
-  c.kick = Math.max(0, c.kick - dt * 6);
-  c.cool -= dt;
-  if (c.shots < CANDLE_SHOTS && c.timeLeft > 0) {
-    c.timeLeft -= dt;
-  } else {
-    c.done += dt;
-    if (c.done > 2) endCandle();
-  }
-}
-
-// Tap area around Chuck during the candle break, a bit bigger than he is.
-function candleTapped(x, y) {
-  if (!candle || candle.shots >= CANDLE_SHOTS || candle.timeLeft <= 0) return false;
-  const b = showmanBox(), pad = 18;
-  return x > b.left - pad && x < b.left + b.w + pad && y > b.top - pad && y < b.top + b.h + pad;
-}
-
-function tapCandle() {
-  const c = candle;
-  if (c.cool > 0) return;
-  c.cool = 0.12;
-  fireCandle();
-  score += CANDLE_POINTS;
-  const { mx } = candleMuzzle();
-  texts.push({ x: mx, y: showmanBox().top - 62, txt: '+' + CANDLE_POINTS, color: '#ffd86b', life: 0.9 });
+  if (!candleActive() || c.cool > 0) return;
+  const m = showman;
+  if ((x - m.x) * m.dir < 0) m.dir *= -1;
+  let { hx, hy } = candleMuzzle();
+  let a = Math.atan2(y - hy, x - hx);
+  // only upward, at least a little above flat
+  if (a > -0.35) a = m.dir > 0 ? -0.35 : -Math.PI + 0.35;
+  if (a < -Math.PI + 0.35) a = -Math.PI + 0.35;
+  c.aim = a;
+  const { mx, my } = candleMuzzle();
+  const i = c.shots++, ty = c.type, sp = Math.max(W, H) * 0.95 * ty.speed;
+  const dist = Math.max(40, Math.hypot(x - mx, y - my));
+  c.stars.push({ x: mx, y: my, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, end: dist / sp,
+    h: ty.hue(i), sat: ty.sat ? ty.sat(i) : 100, size: ty.size, last: c.shots === ty.shots });
+  c.cool = ty.cool; c.kick = 1; c.idle = 0; c.fountain = 0.25;
+  for (let k = 0; k < 4; k++) c.smoke.push({ x: mx, y: my, vx: Math.cos(a) * 20 + (Math.random() - 0.5) * 20, vy: -10 - Math.random() * 15,
+    r: 4 + Math.random() * 4, life: 1 });
+  score += CANDLE_SHOT_POINTS;
+  flash = Math.min(1, flash + 0.04);
+  candleThump(); buzz(10);
+  // the dog has had enough after the first bang
+  if (i === 0 && !dog.hidden && van && van.parked) { dog.hide = true; dog.peek = 2; }
   updateHud();
 }
 
-// Each candle star bursts like a salute: a white flash, a sharp bang and a red or white burst.
-function candleBurst(x, y) {
+function spawnCandleTarget() {
+  const r = Math.random(), s = Math.max(1, Math.min(W, H) / 420);
+  if (r < 0.15) {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    return { kind: 'star', x: dir > 0 ? -20 : W + 20, y: skyTop + 10 + Math.random() * (groundY * 0.35), vx: dir * (150 + Math.random() * 80), vy: 25, r: 13 * s, t: 0 };
+  }
+  if (r < 0.6) {
+    // lanterns released somewhere out of sight, already floating up through the sky
+    return { kind: 'lantern', x: W * (0.1 + Math.random() * 0.8), y: groundY * (0.55 + Math.random() * 0.12), vx: (Math.random() - 0.5) * 20, vy: -(24 + Math.random() * 20),
+      r: 14 * s, t: Math.random() * 10 };
+  }
+  const dir = Math.random() < 0.5 ? 1 : -1;
+  return { kind: 'balloon', x: dir > 0 ? -20 : W + 20, y: skyTop + 30 + Math.random() * (groundY * 0.4), vx: dir * (40 + Math.random() * 35), vy: 0,
+    r: 15 * s, t: Math.random() * 10, h: [0, 50, 120, 200, 290][Math.floor(Math.random() * 5)] };
+}
+
+function updateCandle(dt) {
+  const c = candle, ty = c.type;
+  c.t += dt;
+  c.kick = Math.max(0, c.kick - dt * 6);
+  c.cool -= dt;
+  const active = candleActive();
+  if (active) {
+    c.timeLeft -= dt;
+    c.idle += dt;
+    if (c.idle > 3 && c.t > 3) {
+      c.idle = -2;
+      texts.push({ x: showman.x, y: showmanBox().top - 70, txt: CANDLE_NAGS[Math.floor(Math.random() * CANDLE_NAGS.length)], color: '#fff', life: 1.6 });
+    }
+    // targets: keep a few drifting through once the banner has gone
+    const want = ty.shots > 20 ? 4 : 3;
+    if (c.t > 1.2 && c.targets.length < want && Math.random() < dt * 2) c.targets.push(spawnCandleTarget());
+  }
+  for (const g of c.targets) {
+    g.t += dt; g.x += g.vx * dt; g.y += g.vy * dt;
+    if (g.kind === 'lantern') g.x += Math.sin(g.t * 1.3) * 10 * dt;
+    if (g.kind === 'balloon') g.y += Math.sin(g.t * 2) * 8 * dt;
+    if (g.x < -60 || g.x > W + 60 || g.y < skyTop - 60 || g.y > groundY + 20) g.gone = true;
+  }
+  // between shots the tube sprays a fountain of sparks
+  if (active || c.stars.length) {
+    c.fountain = Math.max(0, c.fountain - dt);
+    const rate = (active ? 30 : 8) + c.fountain * 160;
+    const { mx, my } = candleMuzzle();
+    for (let k = 0; k < rate * dt; k++) {
+      const a = c.aim + (Math.random() - 0.5) * 0.6, s = 60 + Math.random() * 110;
+      particles.push({ x: mx, y: my, px: mx, py: my, vx: Math.cos(a) * s, vy: Math.sin(a) * s, h: 38, sat: 90,
+        life: 0.35 + Math.random() * 0.2, decay: 1.6, size: 1.2, gm: 3, glitter: true });
+    }
+  }
+  for (const s of c.smoke) { s.x += s.vx * dt; s.y += s.vy * dt; s.r += 10 * dt; s.life -= dt * 0.6; }
+  c.smoke = c.smoke.filter(s => s.life > 0);
+  for (const st of c.stars) {
+    st.t += dt;
+    st.vy += H * 0.05 * dt;
+    st.x += st.vx * dt; st.y += st.vy * dt;
+    // tail
+    const n = ty.comet ? 3 : 1.5;
+    for (let k = 0; k < n; k++) particles.push({ x: st.x, y: st.y, px: st.x, py: st.y, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12,
+      h: st.h, sat: st.sat, life: ty.comet ? 0.9 : 0.45, decay: 1.4, size: ty.comet ? 1.8 : 1.4, glitter: !!ty.comet });
+    const hit = c.targets.find(g => !g.gone && Math.hypot(g.x - st.x, g.y - st.y) < g.r + st.size + 4);
+    if (hit) { popCandleTarget(hit); st.gone = true; candleStarEnd(st, true); continue; }
+    if (st.t >= st.end || st.y < 0 || st.x < 0 || st.x > W) { st.gone = true; candleStarEnd(st, false); }
+  }
+  c.stars = c.stars.filter(s => !s.gone);
+  c.targets = c.targets.filter(g => !g.gone);
+  if (!active && !c.stars.length) {
+    c.done += dt;
+    if (c.done > 1.8) endCandle();
+  }
+}
+
+// What a star does when it's done: thunder stars burst (and take out targets nearby), the last
+// shot of every candle ends with a crackle or a big report, the rest just burn out.
+function candleStarEnd(st, hit) {
+  const ty = candle.type;
+  if (st.last) {
+    if (ty.finale === 'report') candleBurst(st.x, st.y, 1.1);
+    else { shell(st.x, st.y, 'crackle', st.h, 0.8); }
+    for (const g of candle.targets) if (!g.gone && Math.hypot(g.x - st.x, g.y - st.y) < 70) popCandleTarget(g);
+    return;
+  }
+  if (ty.burst) {
+    candleBurst(st.x, st.y, 0.75);
+    for (const g of candle.targets) if (!g.gone && Math.hypot(g.x - st.x, g.y - st.y) < 55) popCandleTarget(g);
+    return;
+  }
+  if (!hit) for (let k = 0; k < 8; k++) {
+    const a = Math.random() * TAU, v = 20 + Math.random() * 40;
+    particles.push({ x: st.x, y: st.y, px: st.x, py: st.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, h: st.h, sat: st.sat,
+      life: 0.4, decay: 1.6, size: 1.4, glitter: true });
+  }
+}
+
+function popCandleTarget(g) {
+  if (g.gone) return;
+  g.gone = true;
+  const info = CANDLE_TARGETS[g.kind];
+  score += info.points;
+  texts.push({ x: g.x, y: g.y - 10, txt: '+' + info.points + ' ' + info.name, color: g.kind === 'star' ? '#ffd86b' : '#fff', life: 1.3 });
+  if (g.kind === 'star') shell(g.x, g.y, 'glitter', 45, 0.6);
+  else {
+    const h = g.kind === 'lantern' ? 22 : g.h;
+    for (let k = 0; k < 22; k++) {
+      const a = Math.random() * TAU, v = 30 + Math.random() * 90;
+      particles.push({ x: g.x, y: g.y, px: g.x, py: g.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, h, sat: 100,
+        life: 0.7, decay: 1.2, size: 2, gm: 2, glitter: g.kind === 'lantern' });
+    }
+  }
+  candlePop(); buzz(25);
+  react('cheer', 0.6);
+  updateHud();
+}
+
+// A salute-style burst for thunder stars: white flash, bang and a red or white burst.
+function candleBurst(x, y, scale) {
   const hue = [0, 355, 0][Math.floor(Math.random() * 3)];
-  shell(x, y, ['peony', 'ring', 'chrysanthemum'][Math.floor(Math.random() * 3)], hue, 0.75);
+  shell(x, y, ['peony', 'ring', 'chrysanthemum'][Math.floor(Math.random() * 3)], hue, scale);
   particles.push({ x, y, px: x, py: y, vx: 0, vy: 0, h: 50, sat: 10, lit: 95, life: 0.3, decay: 3, size: 14, glow: true, glitter: false });
   flash = Math.min(1, flash + 0.18); shake = Math.max(shake, 3);
   reportSound();
-}
-
-function fireCandle() {
-  const c = candle;
-  c.shots++;
-  const { mx, my } = candleMuzzle();
-  const sp = H * (0.42 + Math.random() * 0.1);
-  particles.push({ x: mx, y: my, px: mx, py: my, vx: Math.cos(c.aim) * sp, vy: Math.sin(c.aim) * sp,
-    h: Math.random() * 360, sat: 100, life: 1, decay: 0.55, size: 5, streak: 0.08, emit: 50, glow: true, glitter: false,
-    burst: 0.6 + Math.random() * 0.3 });
-  for (let i = 0; i < 10; i++) {
-    const a = c.aim + (Math.random() - 0.5) * 1.2, s = 40 + Math.random() * 80;
-    particles.push({ x: mx, y: my, px: mx, py: my, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-      h: 40, sat: 100, life: 0.4, decay: 2, size: 1.4, glitter: false });
-  }
-  c.kick = 1;
-  flash = Math.min(1, flash + 0.06);
-  candlePop(); buzz(8);
-  c.target = candleAim();
 }
 
 function endCandle() {
   candle = null;
   showman.mood = 'walk';
   react('cheer', 1.2);
+  if (dog.hide) { dog.hide = false; dogMode('zoom', 1.5); }
   if (showScore >= showInfo(showIdx).target) return startFinale();
   state = 'play'; spawnTimer = 0.6;
   updateHud();
@@ -1331,33 +1527,89 @@ function endCandle() {
 
 function drawCandle() {
   if (!candle) return;
+  const c = candle;
+  // targets
+  for (const g of c.targets) drawCandleTarget(g);
+  // smoke drifts up from the tube
+  for (const s of c.smoke) {
+    ctx.fillStyle = `rgba(190,190,200,${s.life * 0.28})`;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, TAU); ctx.fill();
+  }
+  // the stars: glowing balls
+  for (const st of c.stars) {
+    const r = st.size * 2.2, g = ctx.createRadialGradient(st.x, st.y, 0, st.x, st.y, r);
+    g.addColorStop(0, '#fff'); g.addColorStop(0.3, `hsla(${st.h},${st.sat}%,65%,1)`); g.addColorStop(1, `hsla(${st.h},${st.sat}%,55%,0)`);
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(st.x, st.y, r, 0, TAU); ctx.fill();
+  }
+  // the tube
   const { hx, hy, mx, my, p } = candleMuzzle();
   ctx.lineCap = 'butt';
   ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 3 * p;
   ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(mx, my); ctx.stroke();
   ctx.strokeStyle = '#2f6fe0'; ctx.lineWidth = 2 * p;
   ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(mx, my); ctx.stroke();
-  // yellow bands on the tube
   ctx.strokeStyle = '#ffd86b';
   for (const t of [0.35, 0.7]) {
     const x = hx + (mx - hx) * t, y = hy + (my - hy) * t, dx = (mx - hx) * 0.06, dy = (my - hy) * 0.06;
     ctx.beginPath(); ctx.moveTo(x - dx, y - dy); ctx.lineTo(x + dx, y + dy); ctx.stroke();
   }
-  if (candle.kick > 0) {
-    const g = ctx.createRadialGradient(mx, my, 0, mx, my, 10 * p * candle.kick);
+  if (c.kick > 0) {
+    const g = ctx.createRadialGradient(mx, my, 0, mx, my, 10 * p * c.kick);
     g.addColorStop(0, 'rgba(255,240,180,.95)'); g.addColorStop(1, 'rgba(255,160,40,0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, 10 * p * candle.kick, 0, TAU); ctx.fill();
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, 10 * p * c.kick, 0, TAU); ctx.fill();
   }
-  // prompt: a pulsing ring around Chuck and how many shots and seconds are left
-  if (candle.shots < CANDLE_SHOTS && candle.timeLeft > 0 && !paused) {
-    const b = showmanBox(), cx = b.left + b.w / 2, cy = b.top + b.h / 2;
-    ctx.strokeStyle = `rgba(255,216,107,${0.45 + 0.35 * Math.sin(time * 8)})`; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(cx, cy, b.w * 0.8 + 4 * Math.sin(time * 8), b.h * 0.65, 0, 0, TAU); ctx.stroke();
+  // prompt with the shots left as glowing dots
+  if (candleActive() && !paused) {
+    const b = showmanBox(), cx = b.left + b.w / 2;
     ctx.font = '800 16px system-ui, sans-serif'; ctx.textAlign = 'center';
-    const label = 'Tap Chuck! ' + (CANDLE_SHOTS - candle.shots) + ' left · ' + Math.ceil(candle.timeLeft) + 's';
+    const label = 'Tap the sky to aim! · ' + Math.ceil(c.timeLeft) + 's';
     const half = ctx.measureText(label).width / 2 + 6, lx = Math.max(half, Math.min(W - half, cx));
-    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(label, lx, b.top - 34);
-    ctx.fillStyle = '#ffd86b'; ctx.fillText(label, lx, b.top - 34);
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(label, lx, b.top - 42);
+    ctx.fillStyle = '#ffd86b'; ctx.fillText(label, lx, b.top - 42);
+    const n = c.type.shots, gap = n > 15 ? 6 : 9, w = (n - 1) * gap, dx0 = Math.max(8, Math.min(W - 8 - w, cx - w / 2));
+    for (let i = 0; i < n; i++) {
+      const on = i < n - c.shots;
+      ctx.fillStyle = on ? `hsla(${c.type.hue(n - 1 - i)},100%,65%,1)` : 'rgba(255,255,255,.18)';
+      ctx.beginPath(); ctx.arc(dx0 + i * gap, b.top - 28, on ? 2.6 : 2, 0, TAU); ctx.fill();
+    }
+  }
+}
+
+function drawCandleTarget(g) {
+  const r = g.r;
+  if (g.kind === 'lantern') {
+    const glow = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, r * 2.4);
+    glow.addColorStop(0, 'rgba(255,150,60,.45)'); glow.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(g.x, g.y, r * 2.4, 0, TAU); ctx.fill();
+    const flick = 0.85 + 0.15 * Math.sin(g.t * 17);
+    ctx.fillStyle = `hsl(22,100%,${52 * flick}%)`;
+    ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.75, r, 0, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(150,50,10,.6)'; ctx.lineWidth = 1;
+    for (const k of [-0.4, 0, 0.4]) { ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.75 * Math.abs(k || 0.02), r, 0, 0, TAU); ctx.stroke(); }
+    ctx.fillStyle = '#3a2214'; ctx.fillRect(g.x - r * 0.4, g.y - r - 2, r * 0.8, 3); ctx.fillRect(g.x - r * 0.35, g.y + r - 1, r * 0.7, 3);
+    ctx.fillStyle = '#ffe9a8'; ctx.beginPath(); ctx.arc(g.x, g.y + r * 0.55, r * 0.18, 0, TAU); ctx.fill();
+  } else if (g.kind === 'balloon') {
+    ctx.strokeStyle = 'rgba(230,230,240,.7)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(g.x, g.y + r * 1.2);
+    for (let k = 1; k <= 6; k++) ctx.lineTo(g.x + Math.sin(g.t * 3 + k) * 3, g.y + r * 1.2 + k * r * 0.35);
+    ctx.stroke();
+    ctx.fillStyle = `hsl(${g.h},85%,55%)`;
+    ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.85, r * 1.1, 0, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(g.x - 3, g.y + r * 1.25); ctx.lineTo(g.x + 3, g.y + r * 1.25); ctx.lineTo(g.x, g.y + r * 1.05); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(g.x - r * 0.3, g.y - r * 0.4, r * 0.18, r * 0.3, -0.4, 0, TAU); ctx.fill();
+  } else {
+    // shooting star with a fading tail
+    const tail = ctx.createLinearGradient(g.x, g.y, g.x - g.vx * 0.35, g.y - g.vy * 0.35);
+    tail.addColorStop(0, 'rgba(255,230,140,.8)'); tail.addColorStop(1, 'rgba(255,230,140,0)');
+    ctx.strokeStyle = tail; ctx.lineWidth = r * 0.5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(g.x - g.vx * 0.35, g.y - g.vy * 0.35); ctx.stroke(); ctx.lineCap = 'butt';
+    ctx.fillStyle = '#ffe27a';
+    ctx.beginPath();
+    for (let k = 0; k < 10; k++) {
+      const a = g.t * 4 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r;
+      k ? ctx.lineTo(g.x + Math.cos(a) * rr, g.y + Math.sin(a) * rr) : ctx.moveTo(g.x + Math.cos(a) * rr, g.y + Math.sin(a) * rr);
+    }
+    ctx.closePath(); ctx.fill();
   }
 }
 
@@ -2310,7 +2562,7 @@ cv.addEventListener('pointerdown', e => {
   // a tap right on a drone hits it, unless a rocket is even closer to the tap
   const dh = droneAt(x, y);
   if (dh && (!target || dh.dist < bestD)) { hitDrone(dh.d); return; }
-  if (state === 'candle' && candleTapped(x, y)) { tapCandle(); return; }
+  if (state === 'candle' && candleActive()) { candleShoot(x, y); return; }
   if (state === 'swarm' && tapSwarm(x, y, touch)) return;
   if (target) {
     pop(target, 0);
@@ -2356,7 +2608,7 @@ $('resume').onclick = () => setPaused(false);
 $('quit').onclick = () => {
   state = 'menu'; paused = false; slowT = 0; banner = null; rockets = [];
   candle = null; swarm = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
-  dog.hidden = false;
+  dog.hidden = false; dog.hide = false;
   if (van && !van.parked) van = null;
   stopEngine(); clearDrones();
   $('hud').classList.add('hidden');
@@ -2491,12 +2743,8 @@ function update(dt) {
   rockets = rockets.filter(r => !r.dead);
 
   const pg = H * 0.05; // gentle lunar gravity, no air drag
-  const born = [], bursts = [];
+  const born = [];
   for (const p of particles) {
-    if (p.burst !== undefined) {
-      p.burst -= dt;
-      if (p.burst <= 0 || p.y < skyTop || p.x < 0 || p.x > W) { p.life = 0; p.burst = undefined; bursts.push([p.x, p.y]); continue; }
-    }
     p.px = p.x; p.py = p.y;
     p.vy += pg * (p.gm || 1) * dt;
     if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; }
@@ -2533,7 +2781,6 @@ function update(dt) {
   }
   particles = particles.filter(p => p.life > 0 && p.y < H + 10);
   for (const b of born) particles.push(b);
-  for (const [bx, by] of bursts) candleBurst(Math.max(10, Math.min(W - 10, bx)), Math.max(skyTop * 0.6, by));
   if (particles.length > 5000) particles.splice(0, particles.length - 5000);
 
   for (const t of texts) { t.y -= 30 * dt; t.life -= dt * 0.9; }
@@ -2680,10 +2927,11 @@ function draw() {
 
   drawSwarm();
   ctx.drawImage(fg, 0, 0, W, H);
+  if (dog.hide) drawDog(); // hiding behind the van
   drawVan();
   drawFlag();
   drawPoops();
-  drawDog();
+  if (!dog.hide) drawDog();
   drawShowman();
   drawCandle();
   drawDrones();
