@@ -587,8 +587,17 @@ function endArrival() {
   stopEngine(0.3);
   if (dog.hidden) releaseDog(van.parkX - 22 * p);
   van.x = van.parkX; van.door = 0; van.parked = true;
+  // Hidden shortcut for checking the drone show: open the page with #drones on the end of the
+  // address. The game skips straight to the intermission, then carries on with show 6.
+  // Scores from these games can't be posted to the leaderboard.
+  if (/^#drones$/i.test(location.hash)) {
+    shortcutUsed = true;
+    showIdx = SWARM_AFTER_SHOW;
+    return startSwarm();
+  }
   beginShow();
 }
+let shortcutUsed = false;
 
 function drawFlag() {
   const s = Math.max(0.6, Math.min(1.6, H / 550, W / 560));
@@ -1146,6 +1155,7 @@ function startGame() {
   clearDrones(); droneIn = 25 + Math.random() * 35;
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
   candle = null; swarm = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
+  shortcutUsed = false;
   showOverlay(null);
   $('hud').classList.remove('hidden');
   startArrival();
@@ -1311,7 +1321,9 @@ function gameOver() {
   showman.mood = 'walk';
   showman.dir = showman.x < W / 2 ? 1 : -1;
   showman.say = { text: 'I love every damn one of you.', t: 0 };
-  if (score > best) {
+  if (shortcutUsed) {
+    $('best').textContent = 'Drone show shortcut game: score not saved';
+  } else if (score > best) {
     best = score;
     store.set('moonFireworksBest', best);
     $('best').textContent = 'New personal best!';
@@ -1321,7 +1333,7 @@ function gameOver() {
   $('final').textContent = 'Score: ' + score;
   $('reached').textContent = 'You made it to Show ' + (showIdx + 1) + ': ' + showInfo(showIdx).name;
   $('nameIn').value = store.get('mfName', '');
-  $('postForm').style.display = score > 0 ? '' : 'none';
+  $('postForm').style.display = score > 0 && !shortcutUsed ? '' : 'none';
   $('postBtn').disabled = false;
   setStatus('', null);
   loadScores($('overList'));
