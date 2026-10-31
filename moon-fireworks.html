@@ -1069,6 +1069,20 @@ function reportSound() {
   const og = actx.createGain(); og.gain.setValueAtTime(0.35, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
   o.connect(og).connect(master); o.start(t); o.stop(t + 0.32);
 }
+// The crack of each crossette star breaking, timed to match when each one splits.
+function crossetteSound(times) {
+  if (!actx) return;
+  const t0 = actx.currentTime;
+  for (const d of times) {
+    const t = t0 + d;
+    const s = actx.createBufferSource(); s.buffer = noiseBuf;
+    s.playbackRate.value = 2 + Math.random();
+    const hp = actx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 1800;
+    const g = actx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16, t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+    s.connect(hp).connect(g).connect(master); s.start(t); s.stop(t + 0.08);
+  }
+}
 function fizzleSound() {
   if (!actx) return;
   const t = actx.currentTime;
@@ -2022,9 +2036,16 @@ function shell(x, y, type, hue, scale, gold) {
     }
     for (let i = 0; i < 30; i++) add(dir(rand() * TAU, sp * 0.3 * Math.sqrt(rand())));
   } else if (type === 'crossette') {
-    // stars that each break into a little cross partway out
-    const k = 14;
-    for (let i = 0; i < k; i++) add({ ...dir(i / k * TAU, sp * 0.7), size: 2.2, split: 0.42 + rand() * 0.12, decay: 0.3 });
+    // red tailed stars thrown out unevenly; partway out each one cracks into a little cross of
+    // white glittering stars, one after another
+    const k = 16 + Math.floor(rand() * 5), splits = [];
+    for (let i = 0; i < k; i++) {
+      const split = 0.55 + rand() * 0.4;
+      splits.push(split);
+      add({ ...dir(i / k * TAU + (rand() - 0.5) * 0.35, sp * (0.8 + rand() * 0.35)), h: rand() * 10, sat: 100, lit: 52,
+        size: 3, streak: 0.3, emit: 45, trailLife: 1.1, split, decay: 0.3, glitter: false });
+    }
+    crossetteSound(splits);
   } else if (type === 'willow') {
     for (let i = 0; i < n; i++) {
       add({ ...dir(rand() * TAU, sp * 0.75 * Math.sqrt(rand())), h: 42, sat: 70, decay: 0.2 + rand() * 0.06,
@@ -2281,17 +2302,20 @@ function update(dt) {
     p.life -= p.decay * dt;
     if (p.emit && Math.random() < p.emit * dt) {
       born.push({ x: p.x, y: p.y, px: p.x, py: p.y, vx: p.vx * 0.1 + (Math.random() - 0.5) * 10, vy: p.vy * 0.1,
-        h: p.h, sat: p.sat, life: 0.5, decay: 1.8, size: 1, glitter: false });
+        h: p.h, sat: p.sat, lit: p.lit, life: p.trailLife || 0.5, decay: 1.8, size: p.trailLife ? 1.6 : 1, glitter: !!p.trailLife && p.glitter });
     }
     if (p.split !== undefined) {
       p.split -= dt;
       if (p.split <= 0) {
+        // crossette break: a white flash and a cross of silver stars that keep the star's drift
         p.life = 0;
-        const a0 = Math.atan2(p.vy, p.vx), s = Math.hypot(p.vx, p.vy) * 0.7 + 30;
+        const a0 = Math.atan2(p.vy, p.vx) + (Math.random() - 0.5) * 0.5, s = Math.hypot(p.vx, p.vy) * 0.55 + 25;
+        born.push({ x: p.x, y: p.y, px: p.x, py: p.y, vx: p.vx * 0.3, vy: p.vy * 0.3, h: 40, sat: 20, lit: 95,
+          life: 0.2, decay: 5, size: 5, glow: true, glitter: false });
         for (let k = 0; k < 4; k++) {
-          const a = a0 + k * TAU / 4 + Math.PI / 4;
-          born.push({ x: p.x, y: p.y, px: p.x, py: p.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
-            h: p.h, sat: p.sat, life: 0.8, decay: 0.9, size: 1.6, glitter: true });
+          const a = a0 + k * TAU / 4 + Math.PI / 4 + (Math.random() - 0.5) * 0.3, v = s * (0.8 + Math.random() * 0.4);
+          born.push({ x: p.x, y: p.y, px: p.x, py: p.y, vx: p.vx * 0.35 + Math.cos(a) * v, vy: p.vy * 0.35 + Math.sin(a) * v,
+            h: 45, sat: 15, lit: 84, life: 1.1, decay: 0.85, size: 2.3, streak: 0.14, emit: 22, trailLife: 0.9, glitter: true });
         }
       }
     }
