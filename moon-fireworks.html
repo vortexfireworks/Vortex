@@ -465,7 +465,13 @@ function drawVan() {
   // the 1.3G placard on the cargo side, between the driver's door and the rear wheel
   if (placard.complete && placard.naturalWidth) {
     const s = 13 * p;
-    ctx.drawImage(placard, X(600) - s / 2, Y(950) - s / 2, s, s); // clear of the rear wheel arch
+    const cx = X(600), cy = Y(950); // clear of the rear wheel arch
+    // clip to the diamond so the image's white corners don't cover the van's panel lines
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(cx, cy - s / 2); ctx.lineTo(cx + s / 2, cy); ctx.lineTo(cx, cy + s / 2); ctx.lineTo(cx - s / 2, cy); ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(placard, cx - s / 2, cy - s / 2, s, s);
+    ctx.restore();
   }
 
   // driver's door: closed, or swung open toward us on its front hinge
