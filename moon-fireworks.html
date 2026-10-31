@@ -129,6 +129,7 @@
     <li><span class="dot" style="--c:#3d8cff">⏱</span><span><b>Blue:</b> slows every rocket down for 6 seconds.</span></li>
     <li><span class="dot" style="--c:#9b4dff">✸</span><span><b>Purple:</b> mega burst that sets off every rocket on screen.</span></li>
     <li><span class="dot" style="--c:#6e6e78">✕</span><span><b>Grey dud:</b> don't tap it! It costs 25 points. Let it fizzle, it's harmless.</span></li>
+    <li><span class="dot" style="--c:#4a4f5c">✈</span><span><b>Drone:</b> rare! It flies across the sky with blinking lights. Don't tap it! It costs 1000 points.</span></li>
   </ul>
   <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck takes a break to fire a Roman candle, so sit back and enjoy it. Tap Chuck once per show for a surprise. His whippet tags along too, so watch where you step.</p>
   <button class="play" id="helpGo">Got it</button>
@@ -1129,6 +1130,7 @@ function startGame() {
   goFullscreen();
   audio();
   rockets = []; particles = []; texts = []; ripples = [];
+  clearDrones(); droneIn = 40 + Math.random() * 60;
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
   candle = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
   showOverlay(null);
@@ -1283,6 +1285,7 @@ function setPaused(v) {
   if (!playing()) return;
   paused = v;
   muteEngine(v);
+  muteDrones(v);
   showOverlay(v ? 'pause' : null);
 }
 
@@ -1478,6 +1481,134 @@ function puff(x, y, n) {
   }
 }
 
+// ---------- drones: rare, cross the sky, and cost 1000 points if you tap one ----------
+let drones = [], droneIn = 60;
+const DRONE_LINES = ['Not the drone!', "That's coming out of your pay", 'Who brought a drone?!'];
+function droneScale() { return Math.max(0.9, Math.min(1.6, Math.min(W, H) / 400)); }
+
+function spawnDrone() {
+  const dir = Math.random() < 0.5 ? 1 : -1, s = droneScale();
+  const y = skyTop + 20 + Math.random() * Math.max(10, groundY * 0.45 - skyTop);
+  drones.push({ x: dir > 0 ? -40 * s : W + 40 * s, y, baseY: y, dir, s, t: 0,
+    speed: Math.max(60, W / 7) * (0.85 + Math.random() * 0.3), hit: false, vy: 0, spin: 0, sound: droneSound() });
+}
+
+function updateDrones(dt) {
+  if (state === 'play') {
+    droneIn -= dt;
+    if (droneIn <= 0) {
+      droneIn = 50 + Math.random() * 70;
+      if (!drones.length) spawnDrone();
+    }
+  }
+  for (const d of drones) {
+    d.t += dt;
+    if (d.hit) {
+      d.vy += 420 * dt; d.y += d.vy * dt; d.x += d.dir * d.speed * 0.4 * dt; d.spin += dt * 9;
+      if (Math.random() < 0.7) particles.push({ x: d.x, y: d.y, px: d.x, py: d.y, vx: (Math.random() - 0.5) * 60, vy: -Math.random() * 40,
+        h: 25 + Math.random() * 20, sat: 100, life: 0.5, decay: 1.6, size: 1.6, glitter: false });
+      if (d.y >= horizon(d.x)) { d.gone = true; puff(d.x, horizon(d.x), 26); boom(false, true); }
+    } else {
+      d.x += d.dir * d.speed * dt;
+      d.y = d.baseY + Math.sin(d.t * 1.7) * 8 * d.s;
+      if ((d.dir > 0 && d.x > W + 50 * d.s) || (d.dir < 0 && d.x < -50 * d.s)) d.gone = true;
+      if (d.sound && actx) d.sound.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, d.x / W * 2 - 1)), actx.currentTime, 0.1);
+    }
+    if (d.gone) stopDroneSound(d);
+  }
+  drones = drones.filter(d => !d.gone);
+}
+
+// Tight box around the drone itself; returns the drone hit and its distance from the tap.
+function droneAt(x, y) {
+  for (const d of drones) {
+    if (d.hit) continue;
+    if (Math.abs(x - d.x) < 22 * d.s && Math.abs(y - d.y) < 12 * d.s) return { d, dist: Math.hypot(x - d.x, y - d.y) };
+  }
+  return null;
+}
+
+function hitDrone(d) {
+  d.hit = true; d.vy = -60;
+  stopDroneSound(d);
+  score = Math.max(0, score - 1000); streak = 0; shake = 14; flash = Math.min(1, flash + 0.3);
+  texts.push({ x: d.x, y: d.y - 10, txt: 'DRONE! -1000', color: '#ff4a4a', life: 1.8, big: true });
+  const m = showman;
+  if (!m.hidden && m.mood !== 'candle' && !m.say)
+    texts.push({ x: m.x, y: showmanBox().top - 10, txt: DRONE_LINES[Math.floor(Math.random() * DRONE_LINES.length)], color: '#fff', life: 1.8 });
+  crashSound(); buzz([80, 40, 120]); react('slump', 1.5);
+  updateHud();
+}
+
+function droneSound() {
+  if (!actx) return null;
+  const t = actx.currentTime;
+  const out = actx.createGain(); out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(paused ? 0.0001 : 0.03, t + 0.6);
+  const pan = actx.createStereoPanner ? actx.createStereoPanner() : null;
+  const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.8;
+  const oscs = [205, 213].map(f => { const o = actx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(bp); o.start(t); return o; });
+  bp.connect(out);
+  if (pan) out.connect(pan).connect(master); else out.connect(master);
+  return { out, oscs, pan: pan || { pan: { setTargetAtTime() {} } } };
+}
+function stopDroneSound(d) {
+  if (!d.sound || !actx) return;
+  const t = actx.currentTime, s = d.sound;
+  d.sound = null;
+  s.out.gain.cancelScheduledValues(t); s.out.gain.setValueAtTime(s.out.gain.value, t);
+  s.out.gain.linearRampToValueAtTime(0.0001, t + 0.2);
+  for (const o of s.oscs) o.stop(t + 0.25);
+}
+function muteDrones(off) {
+  if (!actx) return;
+  for (const d of drones) if (d.sound) d.sound.out.gain.setTargetAtTime(off ? 0.0001 : 0.03, actx.currentTime, 0.05);
+}
+function clearDrones() { for (const d of drones) stopDroneSound(d); drones = []; }
+
+function crashSound() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(80, t + 0.9);
+  const g = actx.createGain(); g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.95);
+  o.connect(g).connect(master); o.start(t); o.stop(t + 1);
+  fizzleSound();
+}
+
+function drawDrones() {
+  for (const d of drones) {
+    const s = d.s;
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    ctx.rotate(d.hit ? d.spin : d.dir * 0.12);
+    // arms and rotors
+    ctx.strokeStyle = '#4a4f5c'; ctx.lineWidth = 2.5 * s;
+    ctx.beginPath(); ctx.moveTo(-17 * s, -4 * s); ctx.lineTo(17 * s, -4 * s); ctx.stroke();
+    for (const rx of [-17, 17]) {
+      ctx.fillStyle = '#2a2d36'; ctx.fillRect((rx - 1.5) * s, -7 * s, 3 * s, 4 * s);
+      const blur = d.hit ? 0.5 : 0.35 + 0.25 * Math.abs(Math.sin(d.t * 40 + rx));
+      ctx.fillStyle = `rgba(200,210,230,${blur})`;
+      ctx.beginPath(); ctx.ellipse(rx * s, -8 * s, 9 * s, 1.6 * s, 0, 0, TAU); ctx.fill();
+    }
+    // body, camera and landing legs
+    ctx.fillStyle = '#d9dce4';
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-9 * s, -6 * s, 18 * s, 8 * s, 3 * s) : ctx.rect(-9 * s, -6 * s, 18 * s, 8 * s); ctx.fill();
+    ctx.fillStyle = '#2a2d36'; ctx.fillRect(-3 * s, 2 * s, 6 * s, 3 * s);
+    ctx.fillStyle = '#6ab0ff'; ctx.fillRect(-1 * s, 3 * s, 2 * s, 1.5 * s);
+    ctx.strokeStyle = '#4a4f5c'; ctx.lineWidth = 1.5 * s;
+    ctx.beginPath(); ctx.moveTo(-6 * s, 2 * s); ctx.lineTo(-9 * s, 7 * s); ctx.moveTo(6 * s, 2 * s); ctx.lineTo(9 * s, 7 * s); ctx.stroke();
+    // navigation lights: red and green, plus a white strobe
+    const blink = Math.floor(d.t * 2) % 2 === 0;
+    ctx.fillStyle = blink ? '#ff3030' : '#661010'; ctx.fillRect(-9 * s, -3 * s, 2 * s, 2 * s);
+    ctx.fillStyle = blink ? '#30ff60' : '#106620'; ctx.fillRect(7 * s, -3 * s, 2 * s, 2 * s);
+    if (!d.hit && d.t % 1.2 < 0.08) {
+      ctx.fillStyle = 'rgba(255,255,255,.9)';
+      ctx.beginPath(); ctx.arc(0, -6 * s, 3 * s, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
 // ---------- shells ----------
 const SHELL_TYPES = ['peony', 'chrysanthemum', 'palm', 'crossette', 'willow', 'crackle', 'ring', 'double'];
 const SHELL_NAMES = { peony: 'Peony', chrysanthemum: 'Chrysanthemum', palm: 'Palm', crossette: 'Crossette',
@@ -1587,6 +1718,9 @@ cv.addEventListener('pointerdown', e => {
     const d = Math.hypot(r.x - x, r.y - y);
     if (d < bestD) { bestD = d; target = r; }
   }
+  // a tap right on a drone hits it, unless a rocket is even closer to the tap
+  const dh = droneAt(x, y);
+  if (dh && (!target || dh.dist < bestD)) { hitDrone(dh.d); return; }
   if (target) {
     pop(target, 0);
     if (firstHint) { firstHint = false; store.set('mfPlayed', '1'); }
@@ -1633,7 +1767,7 @@ $('quit').onclick = () => {
   candle = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
   dog.hidden = false;
   if (van && !van.parked) van = null;
-  stopEngine();
+  stopEngine(); clearDrones();
   $('hud').classList.add('hidden');
   showOverlay('menu');
   updateHud();
@@ -1802,6 +1936,7 @@ function update(dt) {
 
   updateShowman(dt);
   updateDog(dt);
+  updateDrones(dt);
   updateEarthFire(dt);
 
   flash = Math.max(0, flash - dt * 2.5);
@@ -1935,6 +2070,7 @@ function draw() {
   drawDog();
   drawShowman();
   drawCandle();
+  drawDrones();
   if (state === 'arrive' && !paused) {
     ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '600 13px system-ui, sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('Tap to skip', W / 2, H - 14);
@@ -1960,7 +2096,9 @@ function draw() {
     ctx.globalAlpha = Math.min(1, t.life);
     ctx.font = `800 ${t.big ? Math.min(40, W / 15) : 17}px system-ui, sans-serif`;
     ctx.fillStyle = t.color;
-    ctx.fillText(t.txt, t.x, t.y);
+    // keep labels on screen when they pop up near an edge
+    const half = ctx.measureText(t.txt).width / 2 + 6;
+    ctx.fillText(t.txt, Math.max(half, Math.min(W - half, t.x)), t.y);
   }
   ctx.globalAlpha = 1;
   drawHint();
