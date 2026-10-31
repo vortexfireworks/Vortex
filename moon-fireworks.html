@@ -131,7 +131,7 @@
     <li><span class="dot" style="--c:#6e6e78">✕</span><span><b>Grey dud:</b> don't tap it! It costs 25 points. Let it fizzle, it's harmless.</span></li>
     <li><span class="dot" style="--c:#4a4f5c">✈</span><span><b>Drone:</b> rare! It flies across the sky with blinking lights. Don't tap it! It costs 1000 points.</span></li>
   </ul>
-  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck pulls out a Roman candle: tap him to fire it! Every shot is worth 100 bonus points, up to 20 shots before time runs out. Tap Chuck once per show for a surprise. His whippet tags along too, so watch where you step.</p>
+  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck pulls out a Roman candle: tap him to fire it! Every shot is worth 100 bonus points, up to 20 shots before time runs out. After show 5 there's a drone show intermission: tap the drones to knock them out of the sky for bonus points. Tap Chuck once per show for a surprise. His whippet tags along too, so watch where you step.</p>
   <button class="play" id="helpGo">Got it</button>
 </div></div>
 
@@ -1121,7 +1121,7 @@ let flash = 0, shake = 0, time = 0;
 let best = +store.get('moonFireworksBest', 0) || 0;
 let firstHint = store.get('mfPlayed', '0') !== '1';
 
-const playing = () => ['arrive', 'intro', 'play', 'finale', 'candle'].includes(state);
+const playing = () => ['arrive', 'intro', 'play', 'finale', 'candle', 'swarm'].includes(state);
 
 function showOverlay(id) {
   for (const o of ['menu', 'help', 'board', 'pause', 'over']) $(o).classList.toggle('hidden', o !== id);
@@ -1145,7 +1145,7 @@ function startGame() {
   rockets = []; particles = []; texts = []; ripples = [];
   clearDrones(); droneIn = 25 + Math.random() * 35;
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
-  candle = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
+  candle = null; swarm = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
   showOverlay(null);
   $('hud').classList.remove('hidden');
   startArrival();
@@ -1301,6 +1301,7 @@ function endFinale() {
     texts.push({ x: W / 2, y: H * 0.5, txt: 'Bonus +1 ♥', color: '#ff7aa8', life: 1.6, big: true });
   }
   showIdx++;
+  if (showIdx === SWARM_AFTER_SHOW) return startSwarm();
   beginShow();
 }
 
@@ -1347,7 +1348,7 @@ function updateHud() {
   $('score').textContent = 'Score ' + score;
   $('lives').textContent = '♥'.repeat(Math.max(0, lives)) + '♡'.repeat(Math.max(0, MAX_LIVES - lives));
   const info = showInfo(showIdx);
-  $('showName').textContent = 'Show ' + (showIdx + 1) + ' · ' + info.name;
+  $('showName').textContent = state === 'swarm' ? 'Intermission · Drone show' : 'Show ' + (showIdx + 1) + ' · ' + info.name;
   $('barFill').style.width = (state === 'finale' ? 100 : Math.min(100, showScore / info.target * 100)) + '%';
   const m = multiplier();
   const parts = [];
@@ -1660,6 +1661,310 @@ function drawDrones() {
   }
 }
 
+// Sponsor logos for the drone show, one character per drone (. = empty, a-h = palette colour).
+const SWARM_LOGOS = [
+  { name: 'Phantom Fireworks', pal: ['#ffed26', '#e3de31', '#f9a034', '#aaa972', '#b7718d', '#975ca6', '#d84736', '#87608b'], rows: [
+    '.............................dgbdbb.........................',
+    '........................dbb..aaa.aa.h.bbd...................',
+    '.............d........baaaa..aaaaaa.h.aaa...................',
+    '.............g........aa.aaa.aaa.aa..aaaa...d...............',
+    '.............g........aaaaa..ba..aa.aaaaa...aa..............',
+    '............gg..e.....daa..............aa..aaa..............',
+    '............gg.ge...ddda...cccccccccccc....aaabaa...........',
+    '............gg.g...ddb...cccccccccccccccc..aaaaaa...........',
+    '............gggg.ddbdcccccccccccccccccccccc..aaa..d.........',
+    '...........gcgggddddcccccccchfffffffgcccccccc.aa..aa........',
+    '...........cccccbd.ggccccccffffffffffffhhhhccc...d.aa.......',
+    '..........dccccccgggccccc.fffffffffffffffffgccc.bdaaaa......',
+    '.....gccccccccccccccccccgffffffffffffffffffccccc.aaaaa......',
+    '......gccbaaaaccccccccccffffffffffffffffeeeccccccca.........',
+    '........caaaaaaccccccccffffffffffffffffffccccccccc..........',
+    '........aabddbaccccccccfffffffffffffffffffcccccccccddaaa....',
+    '......dcaadddbaaccccbbfffffffffffffffff..ffeccccccc.aaaa....',
+    '.....cccaadddbccccbbbffffffffffffffff....fffecccccccaa.aa...',
+    '....ccccaaddbbcccbbbffffffffffffffff....ffffeeccccccaa.aa...',
+    '..gggcccc.ddacccbbbeffffffffffffff....fffffffeeccccccaaaa...',
+    '.gggggccddbdaccbbbbd......f.......fffffffffffeeeccccc.aa....',
+    '.........dd.cccbbbbb....ef...........ffffffffeee.ccc..b.....',
+    '.........dd.ccbbbbbbbh.eeefffff........fffffffeeecce..d.ba.h',
+    '........dddgccbbbbbbbbh.eeeffff.d.f....fffffffeee.e...aaaa..',
+    '........hd.cccbbbbbbbbbfeeefff.dd.f.....ffffffeeeee...aaaa..',
+    '.........b.cccbbbbbbbbbdeeeeff..fff.....ffffffeeee.....aa...',
+    '.........b.cccbbbbbbbbbb.dd.ff..fff..f..fffffeeeeefeee.aaa..',
+    '.........b.gccbbbbbbbbbbbdeeef...ff..ff.fffffeeeeffeeeaaaa..',
+    '.........bdcccbbbbbbbbbbbbdeeef..ff..ff.fffffeeeffffeeaaaa..',
+    '.........b.ccccbbbbbbbbbbbdeeee..ff..ff.fffffeeeffffee.b....',
+    '.........d.ccccbbbbbbbbbbbheee..ffff..f.ffffffefffffeedd.ddh',
+    '.........b.cccccbbbbbbbbbbh.eeeeffff..f.ffffffffffffeedddddd',
+    '.......baaaccccccbbbbbddedf..eeeffff...fffffffffffffeebd....',
+    '......aaaaa.cccccccbbdeeef...eeeefff..ffffffffffffffe.bd....',
+    '........a.aaccccccccceeeef....eeeeff..ffffffffffffffe.dd....',
+    '............ccccccccceeeeff...deeeef.ffffffffffffffffdd.....',
+    '...........aacccccccceeeeff....eeee.ffffffff.fffffff.bd.....',
+    '........daaaaccccccc.eeeefff.......ffffffff.ffffffffbd......',
+    '.........aa..accccceffffffffff...fffffffff....fffff.bd......',
+    '............aaaccccffffffffffffffffffffff...fffffffbd.......',
+    '..........baa.acccffffffffffffffffffffff..eeefffffddd.......',
+    '..........aaaaaaccfffffffffffffffffffff.......hff.bd........',
+    '............aaa.abfffffffff.ffffffffff....efffffhbd.........',
+    '............a...aabfffffffff..ffffff.....fffffffbdd.........',
+    '...............aa.aafffffffff..........hf.ffff.bdd..........',
+    '..............aaaa..a.fffffff......ffffffffffdbdd...........',
+    '...............aa...aa.dfffffff..ffffffffffhaddd............',
+    '................a..da.aa.hffffffffffffffffaaa..d............',
+    '...................aaaaaaa.aadfffffffhdba.aaa...............',
+    '...................aaaaaa.aaaafgaaaa.aaaa...aad.............',
+    '......................aa..aa.aaba.aa.aaaa..aaad.............',
+    '..........................aaaa.daaaa.aaaad..................',
+    '...........................aaa..aaab.ca.a...................',
+    '...............................da.aa........................',
+    '...............................h....d.......................',
+  ] },
+  { name: 'TNT Fireworks', pal: ['#fff31a', '#fff500', '#fff200', '#f07c33', '#ef1c23', '#ed1c24', '#ed1c23', '#ed1b23'], rows: [
+    '............................................................',
+    '............................................................',
+    '...............................f............................',
+    '...............................ff...........................',
+    '...............................ff...........................',
+    '..............f.........d......ff...........................',
+    '...............f........ff....aff......d........d...........',
+    '...............ff.......ff...cfff.....fg.......ff...........',
+    '................fff..a..fff..cfff....ff......fff............',
+    '.................fff.cc.fffd.cfffd..fff........a............',
+    '.................ffffcc.ffff.cffff.fff............d.........',
+    '............cc....ffffccfffffdffffd............ccddd........',
+    '...........hfcca..dffffdfffffffff...........cccccddd........',
+    '............fffda..fffffffffff............ccccccc...........',
+    '.............ffffffffffffff............ccccccccccf..........',
+    '..aaa.........ffffffffffff...........ccccccccccc.cc.........',
+    '....fffdda.....ffffff...ff.......cc..cccccccccdccc..........',
+    '.......fffffffe.fff.............ccc..ccccccccccca......fffd.',
+    '.........fffffff................ccc...cc.ccccccefffffffff...',
+    '...........fff...........cc.....ccc......cccc.ffffffff......',
+    '.......................ccccc....cccc.....cccc.fffffcccc.....',
+    '....................c..ccccc....cccc.....ccccbffcccccccc....',
+    '....c.............ccc..cccccc...cccc.....cccccdcccccc.......',
+    '...c...........cccccc..ccccccc..cccc.....cccccfffa..........',
+    '............ccccccccc..ccccccc..cccc.....cccccfffffff.......',
+    '..........ccccccccccc..cccccccc.cccc......ccccfffffff.......',
+    '.........bccccccccc....ccccccccccccc......ccccdcccccca......',
+    '..........cccccccc.....ccccccccccccc......ccccdccca.........',
+    '.aaee.....cccccccc.....cccc.cccccccc......ccccffff..........',
+    '......a...b..ccccc......ccc..ccccccc......cccceffffff.......',
+    '..............cccc......ccc..ccccccc......ccccbcccaadfdd....',
+    '..............cccc......cccb..cccccc.f....cccdfdccccc.......',
+    '..............cccc......cccb...ccccceffff.effaaaacccccc.....',
+    '........c.....cccc......cccb...cccccefffffefffd.....acccca..',
+    '......ccc.....cccc......cccc....cccceffffefccffa............',
+    '....cccca.....cccc......ccccfff..efeffffffaccccda...........',
+    '..ac..........cccc......ccccfffcffffcefffff..ccccc..........',
+    '..............cccc......cccdfffcdfffccdffff.....cc..........',
+    '..............ccccbcff..cfcffffc.fffccccffff................',
+    '..............ccccbcfffccecffffc..ffcc.ccfef................',
+    '..............ccccbcff.ccc.ffffc..ffcc..ccdce...............',
+    '.........a....cccccaf..ccc.ffffc...fcc....cccc..............',
+    '..............cccccg...cc..ffcdc...dcc......ccc.............',
+    '..............accc.....c...h.cac.....c.......cc.............',
+    '..............ccc.....c....h.ccc.....c.........c............',
+    '..............ca......a......ccc................a...........',
+    '.............cc...............cc............................',
+    '.............a................cc............................',
+    '..............................cc............................',
+    '...............................c............................',
+    '............................................................',
+    '............................................................',
+  ] },
+  { name: 'Dragon', pal: ['#ffffff', '#fffffe', '#feffff', '#fcfdfc', '#f6ccc4', '#ef5731', '#ed362a', '#ec232a'], rows: [
+    '..............hhhhhhhh..............',
+    '...........hhhddaaaacdhhh...........',
+    '.........hhdcddefffeddhhdgh.........',
+    '.......hhddhhhhhhhhhhhdhacchh.......',
+    '......hhdhhhhhhhhhecachhhdcdhh......',
+    '.....hfdhhhhhhhdaaaadhhhhhhhgeh.....',
+    '....hfehhhhhheaaaaadhhhhhgddhddg....',
+    '...hhehhhhhhdaaaadddcaacaadhhcadg...',
+    '...hdhhhhhhfaaaaaaaaaaacdhhhhgaag...',
+    '..hdhhhhhhdbaaaaaaaadfhhhfefgggedg..',
+    '..hghhhhheaaaaaaaadhhhhhhbaaaacdgg..',
+    '.hehhhhhgaaaaaaaabdbbdehhgaaaadeegg.',
+    '.hehhhhhaaaaadaaaaaadhhadgddggggddf.',
+    '.ghhhhhbaaachcaaaaachhhcaeggggggdad.',
+    'hdhhhhdaabdhfaaaaaaadhhgbagdaddgfbdf',
+    'hehhhhaadfhfaaaaaaaaadggeafgaaaadfdf',
+    'hdhhhhdaaaaaaaaaaebbgggggbcgdeedbdff',
+    'hdhhhhaaaaaaccaaaehgdadgffdgggffffff',
+    'hdhhhaaaaachheaaahhdaaagegcgecfffadf',
+    'hdhhcaaaabhhdaaaehgdaaaggfaffaadfabf',
+    'hdhhaaedadhfaaghhgggcaaegddffaaaeddf',
+    'hdhhaaaddhhaachhgggffggggafffbaaafef',
+    '.ghhhdbfghddhhhggggcaadgfafffffeddf.',
+    '.hdhhhhhhdahhhgggggaaabfdaffddfffef.',
+    '.hdhhhhhhcchhgggggecaadfdaffdacfdef.',
+    '..hehhhhheghggggggfggfffadffdbaede..',
+    '..hdhhhhhhhggggggaaaaefdaffffffdff..',
+    '...hdhhhhhggggggaaaaaffaaffdffdff...',
+    '...hfdhhhggggggecaabffcabffadecff...',
+    '....hddhgggggdaefffffdaafffdafdf....',
+    '.....hddgggdaaaadeffdaadfedeaff.....',
+    '......gedegfddefffebaadfdacfdf......',
+    '.......ggcdegggfdbaaadecaadff.......',
+    '.........ggddaaaaaaaaaaadff.........',
+    '...........gfedbbaacddeff...........',
+    '..............ffffffff..............',
+  ] },
+  { name: 'Pepsi', pal: ['#c9002b', '#004b93'], rows: [
+    '..............aaaaaaaa..............',
+    '...........aaaaaaaaaaaaaa...........',
+    '.........aaaaaaaaaaaaaaaaaa.........',
+    '.......aaaaaaaaaaaaaaaaaaaaa........',
+    '......aaaaaaaaaaaaaaaaaaaaaa........',
+    '.....aaaaaaaaaaaaaaaaaaaaaaa........',
+    '....aaaaaaaaaaaaaaaaaaaaaaaa........',
+    '...aaaaaaaaaaaaaaaaaaaaaaaa.........',
+    '...aaaaaaaaaaaaaaaaaaaaaaaa.........',
+    '..aaaaaaaaaaaaaaaaaaaaaaaa..........',
+    '..aaaaaaaaaaaaaaaaaaaaaaaa..........',
+    '.aaaaaaaaaaaaaaaaaaaaaaaa.........b.',
+    '.aaaaaaaaaaaaaaaaaaaaaaa..........b.',
+    '.aaaaaaaaaaaaaaaaaaaaaaa..........b.',
+    'aaaaaaaaaaaaaaaaaaaaaaa..........bbb',
+    'aaaaaaaaaaaaaaaaaaaaaa...........bbb',
+    'aaaaaaaaaaaaaaaaaaaaa............bbb',
+    'aaaaaaaaaaaaaaaaaaaa............bbbb',
+    'aaaaaaaaaaaaaaaaaaa.............bbbb',
+    'aaaaaaaaaaaaaaaaaa.............bbbbb',
+    'aaaaaaaaaaaaaaaaa.............bbbbbb',
+    'aaaaaaaaaaaaaaa..............bbbbbbb',
+    '.aaaaaaaaaaaaa..............bbbbbbb.',
+    '.aaaaaaaaaaa..............bbbbbbbbb.',
+    '.aaaaaaaaa..............bbbbbbbbbbb.',
+    '..aaaaaa............bbbbbbbbbbbbbb..',
+    '..aaa...........bbbbbbbbbbbbbbbbbb..',
+    '............bbbbbbbbbbbbbbbbbbbbb...',
+    '........bbbbbbbbbbbbbbbbbbbbbbbbb...',
+    '.....bbbbbbbbbbbbbbbbbbbbbbbbbbb....',
+    '.....bbbbbbbbbbbbbbbbbbbbbbbbbb.....',
+    '......bbbbbbbbbbbbbbbbbbbbbbbb......',
+    '.......bbbbbbbbbbbbbbbbbbbbbb.......',
+    '.........bbbbbbbbbbbbbbbbbb.........',
+    '...........bbbbbbbbbbbbbb...........',
+    '..............bbbbbbbb..............',
+  ] },
+];
+
+// ---------- drone show intermission after the 5th show ----------
+// The sponsor logos, each drawn by a swarm of lit drones, drift across the sky from right to
+// left. Tapping knocks nearby drones out of the sky with a small explosion, 1 point per drone.
+// Like the Roman candle, these are bonus points that don't count toward a show's target.
+const SWARM_AFTER_SHOW = 5, SWARM_POINTS = 1;
+let swarm = null;
+const swarmSprites = {};
+function swarmSprite(col) {
+  if (swarmSprites[col]) return swarmSprites[col];
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  const g = c.getContext('2d'), grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, '#fff'); grad.addColorStop(0.18, col); grad.addColorStop(0.45, col + '99'); grad.addColorStop(1, col + '00');
+  g.fillStyle = grad; g.fillRect(0, 0, 32, 32);
+  return (swarmSprites[col] = c);
+}
+
+function startSwarm() {
+  clearDrones();
+  state = 'swarm';
+  const size = Math.min(W * 0.75, groundY - skyTop - 50, 460), gap = size * 0.45;
+  const cy = (skyTop + groundY - 40) / 2;
+  const logos = SWARM_LOGOS.map((L, i) => {
+    const rows = L.rows, cols = Math.max(...rows.map(r => r.length)), n = Math.max(rows.length, cols), cell = size / n;
+    const drones = [];
+    rows.forEach((r, y) => [...r].forEach((ch, x) => {
+      if (ch === '.') return;
+      drones.push({ ox: (x - cols / 2 + 0.5) * cell, oy: (y - rows.length / 2 + 0.5) * cell,
+        sprite: swarmSprite(L.pal['abcdefgh'.indexOf(ch)]), ph: Math.random() * TAU, up: true });
+    }));
+    return { x: W + size / 2 + 30 + i * (size + gap), cell, drones };
+  });
+  swarm = { logos, size, cy, speed: (W + size) / 9, falling: [], downed: 0, done: 0 };
+  banner = { title: 'Drone show!', sub: 'Tap the drones to knock them down', sub2: SWARM_POINTS + ' point a drone', t: 2.6, dur: 2.6 };
+  react('cheer', 1.2);
+  updateHud();
+}
+
+function updateSwarm(dt) {
+  const s = swarm;
+  for (const L of s.logos) L.x -= s.speed * dt;
+  const g = H * 1.1;
+  for (const f of s.falling) {
+    f.vy += g * dt; f.x += f.vx * dt; f.y += f.vy * dt;
+    if (f.y >= horizon(f.x) + 2) { f.gone = true; puff(f.x, horizon(f.x), 3); }
+  }
+  s.falling = s.falling.filter(f => !f.gone);
+  const last = s.logos[s.logos.length - 1];
+  if (last.x + s.size / 2 < 0 && !s.falling.length) {
+    s.done += dt;
+    if (s.done > 0.8) endSwarm();
+  }
+}
+
+function endSwarm() {
+  const n = swarm.downed;
+  swarm = null;
+  beginShow();
+  texts.push({ x: W / 2, y: H * 0.62, txt: n ? 'Drones downed: ' + n + ' (+' + n * SWARM_POINTS + ')' : 'What a drone show!', color: '#7ff0ff', life: 2.6, big: true });
+}
+
+// Knock down every drone within reach of the tap. Returns true if any were hit.
+function tapSwarm(x, y, touch) {
+  const s = swarm;
+  let hit = 0;
+  for (const L of s.logos) {
+    const r = Math.max(touch ? 16 : 11, L.cell * 1.8);
+    if (Math.abs(x - L.x) > s.size / 2 + r || Math.abs(y - s.cy) > s.size / 2 + r) continue;
+    for (const d of L.drones) {
+      if (!d.up) continue;
+      const dx = L.x + d.ox, dy = s.cy + d.oy;
+      if (Math.hypot(dx - x, dy - y) > r) continue;
+      d.up = false; hit++;
+      s.falling.push({ x: dx, y: dy, vx: (dx - x) * 2 + (Math.random() - 0.5) * 30, vy: -30 - Math.random() * 50,
+        sprite: d.sprite, size: L.cell * 1.9 });
+    }
+  }
+  if (!hit) return false;
+  s.downed += hit;
+  score += hit * SWARM_POINTS;
+  // small explosion where the tap landed
+  for (let i = 0; i < 16; i++) {
+    const a = Math.random() * TAU, v = 30 + Math.random() * 90;
+    particles.push({ x, y, px: x, py: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, h: 30 + Math.random() * 25, sat: 100,
+      life: 0.6, decay: 1.5, size: 1.6, glitter: Math.random() < 0.4 });
+  }
+  particles.push({ x, y, px: x, py: y, vx: 0, vy: 0, h: 45, sat: 30, lit: 90, life: 0.25, decay: 4, size: 10, glow: true, glitter: false });
+  candlePop(); buzz(10);
+  texts.push({ x, y: y - 16, txt: '+' + hit * SWARM_POINTS, color: '#7ff0ff', life: 0.9 });
+  if (Math.random() < 0.15) react('cheer', 0.6);
+  updateHud();
+  return true;
+}
+
+function drawSwarm() {
+  if (!swarm) return;
+  const s = swarm;
+  for (const L of s.logos) {
+    if (L.x + s.size / 2 < -20 || L.x - s.size / 2 > W + 20) continue;
+    const sz = L.cell * 1.9, h = sz / 2;
+    for (const d of L.drones) {
+      if (!d.up) continue;
+      const x = L.x + d.ox;
+      if (x < -sz || x > W + sz) continue;
+      const y = s.cy + d.oy + Math.sin(time * 2 + d.ph) * 0.8;
+      ctx.globalAlpha = 0.8 + 0.2 * Math.sin(time * 5 + d.ph);
+      ctx.drawImage(d.sprite, x - h, y - h, sz, sz);
+    }
+  }
+  ctx.globalAlpha = 0.7;
+  for (const f of s.falling) ctx.drawImage(f.sprite, f.x - f.size / 2, f.y - f.size / 2, f.size, f.size);
+  ctx.globalAlpha = 1;
+}
+
 // ---------- shells ----------
 const SHELL_TYPES = ['peony', 'chrysanthemum', 'palm', 'crossette', 'willow', 'crackle', 'ring', 'double'];
 const SHELL_NAMES = { peony: 'Peony', chrysanthemum: 'Chrysanthemum', palm: 'Palm', crossette: 'Crossette',
@@ -1760,7 +2065,7 @@ cv.addEventListener('pointerdown', e => {
   const x = e.clientX, y = e.clientY;
   ripples.push({ x, y, life: 1 });
   if (state === 'arrive' && !paused) { endArrival(); return; }
-  if (!(state === 'play' || state === 'finale' || state === 'candle') || paused) return;
+  if (!(state === 'play' || state === 'finale' || state === 'candle' || state === 'swarm') || paused) return;
   const touch = e.pointerType !== 'mouse';
   const hitR = touch ? Math.max(56, Math.min(W, H) * 0.07) : Math.max(34, Math.min(W, H) * 0.05);
   let target = null, bestD = hitR;
@@ -1773,6 +2078,7 @@ cv.addEventListener('pointerdown', e => {
   const dh = droneAt(x, y);
   if (dh && (!target || dh.dist < bestD)) { hitDrone(dh.d); return; }
   if (state === 'candle' && candleTapped(x, y)) { tapCandle(); return; }
+  if (state === 'swarm' && tapSwarm(x, y, touch)) return;
   if (target) {
     pop(target, 0);
     if (firstHint) { firstHint = false; store.set('mfPlayed', '1'); }
@@ -1816,7 +2122,7 @@ $('pauseBtn').onclick = () => setPaused(!paused);
 $('resume').onclick = () => setPaused(false);
 $('quit').onclick = () => {
   state = 'menu'; paused = false; slowT = 0; banner = null; rockets = [];
-  candle = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
+  candle = null; swarm = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
   dog.hidden = false;
   if (van && !van.parked) van = null;
   stopEngine(); clearDrones();
@@ -1899,6 +2205,7 @@ function update(dt) {
   if (state === 'play') showTime += dt;
   if (state === 'play' && showScore >= candleAt) { candleAt = Infinity; startCandle(); }
   if (state === 'candle') updateCandle(dt);
+  if (state === 'swarm' && swarm) updateSwarm(dt);
   if (state === 'arrive') updateArrival(dt);
   if (banner) { banner.t -= dt; if (banner.t <= 0) banner = null; }
 
@@ -2120,6 +2427,7 @@ function draw() {
   ctx.globalCompositeOperation = 'source-over';
   if (playing()) for (const r of rockets) drawSymbol(r);
 
+  drawSwarm();
   ctx.drawImage(fg, 0, 0, W, H);
   drawVan();
   drawFlag();
