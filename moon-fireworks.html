@@ -121,7 +121,7 @@
   <h2>How to play</h2>
   <p>Tap rockets before they reach the top. Every rocket that fizzles costs a ♥, and when all 5 are gone the show's over.</p>
   <ul class="legend">
-    <li><span class="dot" style="--c:#ff8a4a"></span><span><b>Regular:</b> 10 points. Bursts as a peony, chrysanthemum, palm, crossette, willow, crackle, ring or waterfall.</span></li>
+    <li><span class="dot" style="--c:#ff8a4a"></span><span><b>Regular:</b> 10 points. Bursts as one of 25 classic effects, from peony, palm tree and crossette to spider, jellyfish, silver dragon and time rain.</span></li>
     <li><span class="dot" style="--c:#e8b020">★</span><span><b>Gold:</b> 50 points.</span></li>
     <li><span class="dot" style="--c:#ff4f8f">♥</span><span><b>Pink:</b> gives you a life back.</span></li>
     <li><span class="dot" style="--c:#9a1a1a">U</span><span><b>Dark red:</b> rare! 100 points.</span></li>
@@ -1992,9 +1992,16 @@ function drawSwarm() {
 }
 
 // ---------- shells ----------
-const SHELL_TYPES = ['peony', 'chrysanthemum', 'palm', 'crossette', 'willow', 'crackle', 'ring', 'double', 'waterfall'];
-const SHELL_NAMES = { peony: 'Peony', chrysanthemum: 'Chrysanthemum', palm: 'Palm', crossette: 'Crossette',
-  willow: 'Willow', crackle: 'Crackle', ring: 'Ring', double: 'Double Ring', waterfall: 'Waterfall' };
+// The 25 classic effects regular rockets pick from. ('ring' and 'double' are kept for specials.)
+const SHELL_NAMES = {
+  brocade: 'Brocade Crown', chrysanthemum: 'Chrysanthemum', crackle: 'Crackle', crossette: 'Crossette', coconut: 'Coconut',
+  comets: 'Comets', dahlia: 'Dahlia', fish: 'Fish', leaves: 'Falling Leaves', glitter: 'Glitter',
+  jellyfish: 'Jellyfish', mine: 'Mine', palm: 'Palm Tree', peony: 'Peony', rings: 'Rings',
+  dragon: 'Silver Dragon', spider: 'Spider', spiral: 'Spiral', snowflakes: 'Snowflakes', strobe: 'Strobe',
+  timerain: 'Time Rain', waterfall: 'Waterfall', wave: 'Wave', whirlwind: 'Whirlwind', willow: 'Willow',
+  ring: 'Ring', double: 'Double Ring',
+};
+const SHELL_TYPES = Object.keys(SHELL_NAMES).filter(t => t !== 'ring' && t !== 'double');
 
 function explode(r) {
   const s = r.size;
@@ -2058,6 +2065,144 @@ function shell(x, y, type, hue, scale, gold) {
       const a = -Math.PI / 2 + lean + (rand() - 0.5) * 2.7;
       add({ ...dir(a, sp * (0.45 + rand() * 0.5)), h: 42, sat: 18, lit: 80, decay: 0.36 + rand() * 0.08,
         size: 2, gm: 3.6, streak: 0.06, emit: 60, trailLife: 1.4, glitter: true });
+    }
+  } else if (type === 'brocade') {
+    // brocade crown: a dense dome of orange-gold stars that slow, then sag with heavy glittering trails
+    add({ vx: 0, vy: 0, h: 30, sat: 100, lit: 50, life: 0.8, decay: 1.4, size: sp * 0.35, haze: true, glitter: false });
+    for (let i = 0; i < 80; i++) {
+      add({ ...dir(-Math.PI / 2 + (rand() - 0.5) * 3.4, sp * (0.75 + rand() * 0.35)), h: 28 + rand() * 12, sat: 95, lit: 55,
+        size: 2, drag: 0.6, gm: 3, decay: 0.3 + rand() * 0.06, emit: 45, trailLife: 1.2, glitter: true });
+    }
+  } else if (type === 'coconut') {
+    // a coconut palm: a dozen thick golden-brown fronds that droop over
+    const k = 10 + Math.floor(rand() * 4);
+    for (let i = 0; i < k; i++) {
+      add({ ...dir(i / k * TAU + rand() * 0.3, sp * (0.9 + rand() * 0.3)), h: 32, sat: 75, lit: 62, size: 3.6,
+        streak: 0.2, emit: 60, trailLife: 1.2, gm: 2.8, drag: 0.35, decay: 0.3, glitter: false });
+    }
+    for (let i = 0; i < 20; i++) add({ ...dir(rand() * TAU, sp * 0.25 * rand()), h: 35, sat: 80, size: 1.6, decay: 0.9 });
+  } else if (type === 'comets') {
+    // a handful of big comets with long tails, flung up and out so they cross
+    for (let i = 0; i < 8; i++) {
+      const white = i < 6;
+      add({ ...dir(-Math.PI / 2 + (rand() - 0.5) * 2.6, sp * (0.95 + rand() * 0.35)), h: white ? 45 : hue, sat: white ? 35 : 100,
+        lit: white ? 78 : 60, size: 4.2, streak: 0.24, emit: 70, trailLife: 1, gm: 1.6, decay: 0.34, glitter: false });
+    }
+  } else if (type === 'dahlia') {
+    // fewer, bigger stars on long straight tails, evenly spaced
+    const k = 26;
+    for (let i = 0; i < k; i++) {
+      add({ ...dir(i / k * TAU + (rand() - 0.5) * 0.08, sp * (0.95 + rand() * 0.1)), h: i % 3 ? 30 : hue, sat: 100, lit: 58,
+        size: 3, streak: 0.3, emit: 22, trailLife: 0.8, decay: 0.4, glitter: false });
+    }
+    add({ vx: 0, vy: 0, h: 40, sat: 100, lit: 70, life: 0.5, decay: 2, size: sp * 0.25, haze: true, glitter: false });
+  } else if (type === 'fish') {
+    // a white flash, then stars that squirm away like little fish
+    add({ vx: 0, vy: 0, h: 50, sat: 10, lit: 85, life: 0.6, decay: 1.8, size: sp * 0.3, haze: true, glitter: false });
+    for (let i = 0; i < 70; i++) {
+      add({ ...dir(rand() * TAU, sp * (0.55 + rand() * 0.45)), lit: 60, size: 2.6, streak: 0.06, emit: 20, trailLife: 0.7, drag: 0.8, decay: 0.36,
+        wig: 9, wf: 12 + rand() * 6, wph: rand() * TAU, glitter: false });
+    }
+  } else if (type === 'leaves') {
+    // falling leaves: glowing pieces that pop out, then flutter slowly down
+    const cols = [[48, 90, 62], [90, 70, 55], [200, 60, 75], [30, 95, 58]];
+    for (let i = 0; i < 46; i++) {
+      const [h, sat, lit] = cols[Math.floor(rand() * cols.length)];
+      add({ ...dir(rand() * TAU, sp * (0.4 + rand() * 0.7)), h, sat, lit, size: 3, drag: 1.6, gm: 2.6, decay: 0.24 + rand() * 0.06,
+        flutter: 45 + rand() * 30, ff: 2 + rand() * 2, fph: rand() * TAU, emit: 4, glitter: false });
+    }
+  } else if (type === 'glitter') {
+    // stars that shed a dense cloud of twinkling sparks
+    for (let i = 0; i < 80; i++) {
+      add({ ...dir(rand() * TAU, sp * Math.sqrt(rand())), h: 18 + rand() * 20, sat: 100, size: 1.7, emit: 32, trailLife: 0.9,
+        decay: 0.38, glitter: true });
+    }
+  } else if (type === 'jellyfish') {
+    // a silver dome on top with wavy tentacles trailing down
+    for (let i = 0; i < 56; i++) {
+      add({ ...dir(-Math.PI + (i / 55) * Math.PI, sp * (0.85 + rand() * 0.08)), h: 200, sat: 15, lit: 82, size: 2.4,
+        emit: 16, drag: 0.9, gm: 0.6, decay: 0.36, glitter: true });
+    }
+    for (let i = 0; i < 26; i++) {
+      // tentacles spread out under the dome's width, then hang and wave
+      add({ vx: (rand() * 2 - 1) * sp * 0.75, vy: sp * (0.05 + rand() * 0.12), h: 200, sat: 15, lit: 82,
+        size: 1.8, gm: 1.6, drag: 0.9, emit: 45, trailLife: 1.4, decay: 0.3, wig: 2.5, wf: 4 + rand() * 3, wph: rand() * TAU, glitter: true });
+    }
+  } else if (type === 'mine') {
+    // a V-shaped spray of gold sparks blasting upward from the break
+    add({ vx: 0, vy: 0, h: 35, sat: 100, lit: 55, life: 0.7, decay: 1.5, size: sp * 0.3, haze: true, glitter: false });
+    for (let i = 0; i < 95; i++) {
+      add({ ...dir(-Math.PI / 2 + (rand() - 0.5) * 0.9, sp * (0.5 + rand() * 1.1)), h: 36 + rand() * 10, sat: 90, size: 1.8,
+        streak: 0.14, emit: 14, gm: 3.2, decay: 0.5 + rand() * 0.15, glitter: true });
+    }
+  } else if (type === 'dragon') {
+    // silver dragons: a few silver tails that twist and curl as they climb, with a whistle
+    for (let i = 0; i < 12; i++) {
+      add({ ...dir(-Math.PI / 2 + (rand() - 0.5) * 2.4, sp * (0.75 + rand() * 0.3)), h: 210, sat: 6, lit: 82, size: 2.6,
+        emit: 60, trailLife: 1.2, swirl: (rand() < 0.5 ? -1 : 1) * (2.5 + rand() * 2.5), wig: 4, wf: 9, wph: rand() * TAU,
+        drag: 0.4, decay: 0.36, glitter: true });
+    }
+    whistle(1.2);
+  } else if (type === 'spider') {
+    // lots of fast thin gold legs that stop short and sag
+    for (let i = 0; i < 130; i++) {
+      add({ ...dir(rand() * TAU, sp * (1.3 + rand() * 0.3)), h: 40, sat: 85, size: 1.6, streak: 0.12, emit: 26, trailLife: 1.1,
+        drag: 1.1, gm: 3, decay: 0.34, glitter: true });
+    }
+  } else if (type === 'spiral') {
+    // stars laid out along spiral arms around a green core, slowly turning
+    const arms = 5, per = 14;
+    for (let a = 0; a < arms; a++) {
+      for (let j = 1; j <= per; j++) {
+        const r = j / per;
+        add({ ...dir(a / arms * TAU + r * 2.6, sp * (0.15 + 0.85 * r)), lit: 62, size: 2.8, swirl: 0.7, decay: 0.34, glitter: false });
+      }
+    }
+    for (let i = 0; i < 18; i++) add({ ...dir(rand() * TAU, sp * 0.12 * rand()), h: 110, sat: 100, size: 2.4, decay: 0.5 });
+  } else if (type === 'snowflakes') {
+    // a cloud of tiny white and pale blue twinkles
+    for (let i = 0; i < 180; i++) {
+      add({ ...dir(rand() * TAU, sp * 0.9 * Math.sqrt(rand())), h: rand() < 0.1 ? 275 : 205, sat: 35, lit: 85, size: 1.9,
+        drag: 0.8, gm: 0.4, decay: 0.28 + rand() * 0.06, strobe: 3 + rand() * 4, sph: rand(), glitter: false });
+    }
+  } else if (type === 'strobe') {
+    // stars that blink on and off
+    const cols = [[25, 100, 60], [5, 100, 58], [45, 20, 88]];
+    for (let i = 0; i < 80; i++) {
+      const [h, sat, lit] = cols[Math.floor(rand() * cols.length)];
+      add({ ...dir(rand() * TAU, sp * 0.85 * Math.sqrt(rand())), h, sat, lit: lit + 6, size: 3.6, drag: 0.6, gm: 0.8,
+        decay: 0.3, strobe: 7 + rand() * 5, sph: rand(), glitter: false });
+    }
+  } else if (type === 'timerain') {
+    // long-hanging glittering gold that drifts down and crackles out at the end
+    for (let i = 0; i < 70; i++) {
+      add({ ...dir(rand() * TAU, sp * 0.8 * Math.sqrt(rand())), h: 45, sat: 60, size: 1.6, drag: 0.5, gm: 2, decay: 0.17 + rand() * 0.04,
+        emit: 25, trailLife: 0.9, crackle: true, glitter: true });
+    }
+  } else if (type === 'wave') {
+    // a pink flower whose petals curve as they open, around a white pistil
+    const k = 36;
+    for (let i = 0; i < k; i++) {
+      add({ ...dir(i / k * TAU, sp * 0.95), h: 318, sat: 90, lit: 62, size: 2.6, swirl: 1.3, drag: 0.5, emit: 60, trailLife: 0.9,
+        streak: 0.12, decay: 0.4, glitter: false });
+    }
+    for (let i = 0; i < 22; i++) add({ ...dir(rand() * TAU, sp * 0.22 * Math.sqrt(rand())), h: 50, sat: 15, lit: 85, size: 2, decay: 0.7 });
+  } else if (type === 'whirlwind') {
+    // blue and white stars that spin in tight curls as they fly out
+    for (let i = 0; i < 40; i++) {
+      add({ ...dir(rand() * TAU, sp * (0.8 + rand() * 0.4)), h: 215, sat: i % 3 ? 70 : 10, lit: 72, size: 2.2,
+        swirl: (i % 2 ? 1 : -1) * (2.2 + rand() * 1.2), drag: 0.2, emit: 45, trailLife: 1, decay: 0.36, glitter: false });
+    }
+  } else if (type === 'rings') {
+    // three small rings, each around its own little core
+    for (let r = 0; r < 3; r++) {
+      const a0 = r / 3 * TAU + rand(), cx = x + Math.cos(a0) * sp * 0.45, cy = y + Math.sin(a0) * sp * 0.35;
+      const h = [hue, 45, hue2][r], tilt = 0.75 + rand() * 0.25;
+      for (let i = 0; i < 32; i++) {
+        const a = i / 32 * TAU;
+        add({ x: cx, y: cy, px: cx, py: cy, vx: Math.cos(a) * sp * 0.45, vy: Math.sin(a) * sp * 0.45 * tilt, h, lit: 62, size: 2.4, decay: 0.42, glitter: true });
+      }
+      for (let i = 0; i < 10; i++) add({ x: cx, y: cy, px: cx, py: cy, ...dir(rand() * TAU, sp * 0.12 * rand()), h: 30, size: 2, decay: 0.7 });
     }
   } else if (type === 'willow') {
     for (let i = 0; i < n; i++) {
@@ -2311,7 +2456,14 @@ function update(dt) {
       if (p.burst <= 0 || p.y < skyTop || p.x < 0 || p.x > W) { p.life = 0; p.burst = undefined; bursts.push([p.x, p.y]); continue; }
     }
     p.px = p.x; p.py = p.y;
-    p.vy += pg * (p.gm || 1) * dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vy += pg * (p.gm || 1) * dt;
+    if (p.drag) { const k = Math.exp(-p.drag * dt); p.vx *= k; p.vy *= k; }
+    // swirl turns a star steadily; wig makes it squirm back and forth
+    const turn = (p.swirl || 0) * dt + (p.wig ? Math.sin((p.t || 0) * p.wf + p.wph) * p.wig * dt : 0);
+    if (turn) { const c = Math.cos(turn), s = Math.sin(turn), vx = p.vx; p.vx = vx * c - p.vy * s; p.vy = vx * s + p.vy * c; }
+    if (p.wig || p.flutter) p.t = (p.t || 0) + dt;
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.flutter) p.x += Math.sin(p.t * p.ff + p.fph) * p.flutter * dt;
     p.life -= p.decay * dt;
     if (p.emit && Math.random() < p.emit * dt) {
       born.push({ x: p.x, y: p.y, px: p.x, py: p.y, vx: p.vx * 0.1 + (Math.random() - 0.5) * 10, vy: p.vy * 0.1,
@@ -2443,6 +2595,7 @@ function draw() {
       continue;
     }
     if (p.glitter && p.life < 0.6) a *= Math.random() < 0.5 ? 1 : 0.15;
+    if (p.strobe && (time * p.strobe + p.sph) % 1 > 0.45) continue;
     const l = p.lit ? p.lit + p.life * 12 : 55 + p.life * 30;
     ctx.strokeStyle = `hsla(${p.h},${p.sat}%,${l}%,${a})`;
     ctx.lineWidth = p.size;
