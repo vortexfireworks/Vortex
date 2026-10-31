@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Moon Fireworks">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Moon Fireworks</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
@@ -11,7 +17,8 @@
     -webkit-tap-highlight-color: transparent; }
   canvas { display: block; cursor: crosshair; touch-action: none; }
 
-  #hud { position: fixed; top: 0; left: 0; right: 0; padding: 10px 12px; display: flex;
+  #hud { position: fixed; top: 0; left: 0; right: 0; display: flex;
+    padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 10px calc(12px + env(safe-area-inset-left));
     align-items: flex-start; justify-content: space-between; gap: 8px; pointer-events: none;
     text-shadow: 0 0 6px #000; }
   #hud.hidden { visibility: hidden; }
@@ -21,7 +28,7 @@
     text-overflow: ellipsis; max-width: 46vw; }
   #bar { width: min(180px, 40vw); height: 5px; background: rgba(255,255,255,.18); border-radius: 3px; overflow: hidden; }
   #barFill { height: 100%; width: 0; background: linear-gradient(90deg, #ff5ea8, #ffd86b); transition: width .2s; }
-  #mult { position: fixed; top: 64px; left: 0; right: 0; text-align: center; color: #ffd86b;
+  #mult { position: fixed; top: calc(64px + env(safe-area-inset-top)); left: 0; right: 0; text-align: center; color: #ffd86b;
     font-weight: 700; font-size: 15px; pointer-events: none; text-shadow: 0 0 6px #000; }
   .hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   #lives { color: #ff5e8a; letter-spacing: 2px; font-size: 18px; }
@@ -175,7 +182,7 @@ const fg = document.createElement('canvas');
 // The "back to tools" link only makes sense inside the Vortex app.
 if (!/moon-fireworks\.html$/.test(location.pathname)) document.querySelectorAll('.back').forEach(a => a.remove());
 
-let W, H, dpr, groundY, stars = [];
+let W, H, dpr, groundY, skyTop, stars = [];
 
 // ---------- scene ----------
 function horizon(x) {
@@ -199,12 +206,19 @@ function resize() {
   cv.width = W * dpr; cv.height = H * dpr;
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  groundY = H * 0.8;
+  groundY = H * 0.86;
+  // rockets top out below the score bar and buttons so they never hide behind them
+  const hudR = $('hud').getBoundingClientRect(), multR = $('mult').getBoundingClientRect();
+  skyTop = Math.min(groundY * 0.4, Math.max(H * 0.1, hudR.bottom + 24, multR.top + 40));
   stars = [];
   const n = Math.floor(W * H / 2200);
   for (let i = 0; i < n; i++) {
     stars.push({ x: Math.random() * W, y: Math.random() * groundY, r: Math.random() * 1.4 + 0.3,
       speed: 0.5 + Math.random() * 2, phase: Math.random() * TAU });
+  }
+  if (van) {
+    van.parkX = vanParkX();
+    if (van.parked) van.x = van.parkX;
   }
   drawBackground();
   drawForeground();
@@ -519,10 +533,12 @@ function muteEngine(off) {
   if (engine) engine.out.gain.setTargetAtTime(off ? 0.0001 : 0.12, actx.currentTime, 0.05);
 }
 
+function vanParkX() { return Math.max(8, Math.min(W * 0.56, W - 66 * pixelSize() - 8)); }
+
 // Start of every game: the van drives in, Chuck hops out and asks if anyone needs fireworks.
 function startArrival() {
   const p = pixelSize();
-  van = { startX: -70 * p, x: -70 * p, parkX: Math.max(8, Math.min(W * 0.56, W - 66 * p - 8)), door: 0, spin: 0, parked: false };
+  van = { startX: -70 * p, x: -70 * p, parkX: vanParkX(), door: 0, spin: 0, parked: false };
   state = 'arrive'; arriveT = 0;
   startEngine();
   showman.hidden = true; showman.say = null; showman.mood = 'walk';
@@ -574,7 +590,7 @@ function endArrival() {
 }
 
 function drawFlag() {
-  const s = Math.max(0.7, Math.min(1.6, H / 550, W / 450));
+  const s = Math.max(0.6, Math.min(1.6, H / 550, W / 560));
   const px = W * 0.12, py = horizon(px);
   const poleH = 135 * s, fw = 80 * s, fh = 64 * s, top = py - poleH + 4 * s;
 
@@ -681,7 +697,9 @@ const POSES = {
 const showman = { x: 0, dir: 1, anim: 0, pause: 0, walk: 3 + Math.random() * 4,
   mood: 'walk', moodT: 0, pose: POSES.walk0, lift: 0, sink: 0, tappedShow: -1 };
 
-function pixelSize() { return Math.max(2, Math.round(H / 250)); }
+// Chuck, the van and the dog share one pixel grid; it follows the narrower of height and width
+// so they don't crowd a phone screen in portrait.
+function pixelSize() { return Math.max(2, Math.round(Math.min(H / 250, W / 200))); }
 
 function react(mood, dur) {
   const m = showman;
@@ -1095,7 +1113,20 @@ function showOverlay(id) {
   for (const o of ['menu', 'help', 'board', 'pause', 'over']) $(o).classList.toggle('hidden', o !== id);
 }
 
+// On phones and tablets, go fullscreen so the browser bars don't eat into the sky.
+// (iPhone Safari can't do this; adding the page to the Home Screen opens it fullscreen instead.)
+function goFullscreen() {
+  if (!matchMedia('(pointer: coarse)').matches) return;
+  const el = document.documentElement;
+  if (document.fullscreenElement || document.webkitFullscreenElement) return;
+  try {
+    const req = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen && el.webkitRequestFullscreen();
+    if (req && req.catch) req.catch(() => {});
+  } catch (e) {}
+}
+
 function startGame() {
+  goFullscreen();
   audio();
   rockets = []; particles = []; texts = []; ripples = [];
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
@@ -1309,7 +1340,7 @@ function pickKind() {
 
 function spawnRocket() {
   const x = W * 0.08 + Math.random() * W * 0.84;
-  const apex = H * 0.1 + Math.random() * groundY * 0.42;
+  const apex = skyTop + Math.random() * Math.max(groundY * 0.2, groundY * 0.55 - skyTop);
   launch(x, horizon(x), apex, flightTime() * (0.85 + Math.random() * 0.3), (Math.random() - 0.5) * W * 0.04, pickKind());
 }
 
@@ -1394,7 +1425,7 @@ function splitRocket(r) {
   texts.push({ x: r.x, y: r.y + 22, txt: 'SPLIT!', color: '#7ff0ff', life: 1 });
   for (let i = -1; i <= 1; i++) {
     const t = 0.75 + Math.random() * 0.3;
-    const apex = Math.max(H * 0.05, r.y - H * (0.1 + Math.random() * 0.08));
+    const apex = Math.max(skyTop, r.y - H * (0.1 + Math.random() * 0.08));
     launch(r.x, r.y, apex, t, i * W * 0.09 + (Math.random() - 0.5) * 20, 'mini');
   }
 }
@@ -1548,7 +1579,8 @@ cv.addEventListener('pointerdown', e => {
   ripples.push({ x, y, life: 1 });
   if (state === 'arrive' && !paused) { endArrival(); return; }
   if (!(state === 'play' || state === 'finale' || state === 'candle') || paused) return;
-  const hitR = Math.max(34, Math.min(W, H) * 0.05) * (e.pointerType === 'touch' ? 1.3 : 1);
+  const touch = e.pointerType !== 'mouse';
+  const hitR = touch ? Math.max(56, Math.min(W, H) * 0.07) : Math.max(34, Math.min(W, H) * 0.05);
   let target = null, bestD = hitR;
   for (const r of rockets) {
     if (r.dead || r.pending !== null || r.kind === 'salute') continue;
