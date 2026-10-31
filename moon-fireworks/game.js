@@ -78,8 +78,8 @@ function startFinale() {
 
 // ---------- Roman candle break ----------
 // Chuck stops and holds out a Roman candle. Tap the sky to aim: he swings the candle toward the
-// tap and fires a star that flies there. Lanterns, balloons and the odd shooting star drift by as
-// targets. Between shots the tube sprays sparks, like a real candle. Each break uses one of a few
+// tap and fires a star that flies there. Drones fly across as targets: during the break they're
+// fair game, and each one shot down is worth points. Between shots the tube sprays sparks, like a real candle. Each break uses one of a few
 // candle types. Candle points go to the score but not toward the show's target.
 const CANDLE_TIME = 14, CANDLE_SHOT_POINTS = 10;
 const CANDLE_TYPES = [
@@ -92,11 +92,7 @@ const CANDLE_TYPES = [
   { name: 'Comet Candle', shots: 12, cool: 0.3, speed: 0.8, size: 5, finale: 'crackle', comet: true,
     hue: () => 42, sat: () => 60 },
 ];
-const CANDLE_TARGETS = {
-  lantern: { points: 100, name: 'LANTERN' },
-  balloon: { points: 100, name: 'BALLOON' },
-  star: { points: 250, name: 'SHOOTING STAR' },
-};
+const CANDLE_DRONE_POINTS = 100;
 const CANDLE_NAGS = ["C'mon, light me up!", 'Tap the sky!', "Don't leave me hanging!"];
 
 function startCandle() {
@@ -106,9 +102,15 @@ function startCandle() {
   m.mood = 'candle';
   const type = CANDLE_TYPES[Math.floor(Math.random() * CANDLE_TYPES.length)];
   candle = { type, shots: 0, cool: 0, timeLeft: CANDLE_TIME, aim: -Math.PI / 2 + m.dir * 0.4, kick: 0, done: 0,
-    t: 0, idle: 0, stars: [], targets: [], smoke: [], fountain: 0 };
+    t: 0, idle: 0, stars: [], targets: [], smoke: [], fountain: 0, downed: 0 };
+  // a stray drone already in the sky becomes a target too, rather than a 1,000-point trap
+  for (const d of drones) if (!d.hit) {
+    stopDroneSound(d);
+    candle.targets.push({ x: d.x, y: d.y, baseY: d.baseY, dir: d.dir, s: d.s, t: d.t, speed: d.speed, r: 18 * d.s });
+  }
+  drones = drones.filter(d => d.hit);
   banner = { title: type.name + '!', sub: 'Tap the sky to aim · ' + type.shots + ' shots',
-    sub2: 'Hit lanterns & balloons for 100', t: 2.4, dur: 2.4 };
+    sub2: 'Shoot down the drones for ' + CANDLE_DRONE_POINTS, t: 2.4, dur: 2.4 };
   updateHud();
 }
 
@@ -150,20 +152,12 @@ function candleShoot(x, y) {
   updateHud();
 }
 
+// A drone flying across the sky at its own height and speed; some are much quicker than others.
 function spawnCandleTarget() {
-  const r = Math.random(), s = Math.max(1, Math.min(W, H) / 420);
-  if (r < 0.15) {
-    const dir = Math.random() < 0.5 ? 1 : -1;
-    return { kind: 'star', x: dir > 0 ? -20 : W + 20, y: skyTop + 10 + Math.random() * (groundY * 0.35), vx: dir * (150 + Math.random() * 80), vy: 25, r: 13 * s, t: 0 };
-  }
-  if (r < 0.6) {
-    // lanterns released somewhere out of sight, already floating up through the sky
-    return { kind: 'lantern', x: W * (0.1 + Math.random() * 0.8), y: groundY * (0.55 + Math.random() * 0.12), vx: (Math.random() - 0.5) * 20, vy: -(24 + Math.random() * 20),
-      r: 14 * s, t: Math.random() * 10 };
-  }
-  const dir = Math.random() < 0.5 ? 1 : -1;
-  return { kind: 'balloon', x: dir > 0 ? -20 : W + 20, y: skyTop + 30 + Math.random() * (groundY * 0.4), vx: dir * (40 + Math.random() * 35), vy: 0,
-    r: 15 * s, t: Math.random() * 10, h: [0, 50, 120, 200, 290][Math.floor(Math.random() * 5)] };
+  const dir = Math.random() < 0.5 ? 1 : -1, s = droneScale();
+  const y = skyTop + 20 + Math.random() * Math.max(10, groundY * 0.5 - skyTop);
+  return { x: dir > 0 ? -40 * s : W + 40 * s, y, baseY: y, dir, s, t: Math.random() * 10,
+    speed: Math.max(50, W / 8) * (0.6 + Math.random() * 0.9), r: 18 * s };
 }
 
 function updateCandle(dt) {
@@ -184,10 +178,9 @@ function updateCandle(dt) {
     if (c.t > 1.2 && c.targets.length < want && Math.random() < dt * 2) c.targets.push(spawnCandleTarget());
   }
   for (const g of c.targets) {
-    g.t += dt; g.x += g.vx * dt; g.y += g.vy * dt;
-    if (g.kind === 'lantern') g.x += Math.sin(g.t * 1.3) * 10 * dt;
-    if (g.kind === 'balloon') g.y += Math.sin(g.t * 2) * 8 * dt;
-    if (g.x < -60 || g.x > W + 60 || g.y < skyTop - 60 || g.y > groundY + 20) g.gone = true;
+    g.t += dt; g.x += g.dir * g.speed * dt;
+    g.y = g.baseY + Math.sin(g.t * 1.7) * 8 * g.s;
+    if ((g.dir > 0 && g.x > W + 50 * g.s) || (g.dir < 0 && g.x < -50 * g.s)) g.gone = true;
   }
   // between shots the tube sprays a fountain of sparks
   if (active || c.stars.length) {
@@ -244,24 +237,22 @@ function candleStarEnd(st, hit) {
   }
 }
 
+// A drone shot down: sparks, and it spins down and crashes like a tapped stray drone does.
 function popCandleTarget(g) {
   if (g.gone) return;
   g.gone = true;
-  const info = CANDLE_TARGETS[g.kind];
-  score += info.points;
+  score += CANDLE_DRONE_POINTS;
+  candle.downed++;
   addStat('targets', 1);
-  if (g.kind === 'star') unlock('star');
-  texts.push({ x: g.x, y: g.y - 10, txt: '+' + info.points + ' ' + info.name, color: g.kind === 'star' ? '#ffd86b' : '#fff', life: 1.3 });
-  if (g.kind === 'star') shell(g.x, g.y, 'glitter', 45, 0.6);
-  else {
-    const h = g.kind === 'lantern' ? 22 : g.h;
-    for (let k = 0; k < 22; k++) {
-      const a = Math.random() * TAU, v = 30 + Math.random() * 90;
-      particles.push({ x: g.x, y: g.y, px: g.x, py: g.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, h, sat: 100,
-        life: 0.7, decay: 1.2, size: 2, gm: 2, glitter: g.kind === 'lantern' });
-    }
+  if (candle.downed >= 5) unlock('sweep');
+  texts.push({ x: g.x, y: g.y - 10, txt: '+' + CANDLE_DRONE_POINTS + ' DRONE DOWN', color: '#fff', life: 1.3 });
+  for (let k = 0; k < 22; k++) {
+    const a = Math.random() * TAU, v = 30 + Math.random() * 90;
+    particles.push({ x: g.x, y: g.y, px: g.x, py: g.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, h: 25 + Math.random() * 25, sat: 100,
+      life: 0.7, decay: 1.2, size: 2, gm: 2, glitter: true });
   }
-  candlePop(); buzz(25);
+  drones.push({ x: g.x, y: g.y, baseY: g.y, dir: g.dir, s: g.s, t: g.t, speed: g.speed, hit: true, vy: -60, spin: 0, sound: null });
+  crashSound(); buzz(25);
   react('cheer', 0.6);
   updateHud();
 }
@@ -289,7 +280,7 @@ function drawCandle() {
   if (!candle) return;
   const c = candle;
   // targets
-  for (const g of c.targets) drawCandleTarget(g);
+  for (const g of c.targets) drawDrone(g);
   // smoke drifts up from the tube
   for (const s of c.smoke) {
     ctx.fillStyle = `rgba(190,190,200,${s.life * 0.28})`;
@@ -335,43 +326,6 @@ function drawCandle() {
   }
 }
 
-function drawCandleTarget(g) {
-  const r = g.r;
-  if (g.kind === 'lantern') {
-    const glow = ctx.createRadialGradient(g.x, g.y, 0, g.x, g.y, r * 2.4);
-    glow.addColorStop(0, 'rgba(255,150,60,.45)'); glow.addColorStop(1, 'rgba(255,120,40,0)');
-    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(g.x, g.y, r * 2.4, 0, TAU); ctx.fill();
-    const flick = 0.85 + 0.15 * Math.sin(g.t * 17);
-    ctx.fillStyle = `hsl(22,100%,${52 * flick}%)`;
-    ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.75, r, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = 'rgba(150,50,10,.6)'; ctx.lineWidth = 1;
-    for (const k of [-0.4, 0, 0.4]) { ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.75 * Math.abs(k || 0.02), r, 0, 0, TAU); ctx.stroke(); }
-    ctx.fillStyle = '#3a2214'; ctx.fillRect(g.x - r * 0.4, g.y - r - 2, r * 0.8, 3); ctx.fillRect(g.x - r * 0.35, g.y + r - 1, r * 0.7, 3);
-    ctx.fillStyle = '#ffe9a8'; ctx.beginPath(); ctx.arc(g.x, g.y + r * 0.55, r * 0.18, 0, TAU); ctx.fill();
-  } else if (g.kind === 'balloon') {
-    ctx.strokeStyle = 'rgba(230,230,240,.7)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(g.x, g.y + r * 1.2);
-    for (let k = 1; k <= 6; k++) ctx.lineTo(g.x + Math.sin(g.t * 3 + k) * 3, g.y + r * 1.2 + k * r * 0.35);
-    ctx.stroke();
-    ctx.fillStyle = `hsl(${g.h},85%,55%)`;
-    ctx.beginPath(); ctx.ellipse(g.x, g.y, r * 0.85, r * 1.1, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(g.x - 3, g.y + r * 1.25); ctx.lineTo(g.x + 3, g.y + r * 1.25); ctx.lineTo(g.x, g.y + r * 1.05); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.ellipse(g.x - r * 0.3, g.y - r * 0.4, r * 0.18, r * 0.3, -0.4, 0, TAU); ctx.fill();
-  } else {
-    // shooting star with a fading tail
-    const tail = ctx.createLinearGradient(g.x, g.y, g.x - g.vx * 0.35, g.y - g.vy * 0.35);
-    tail.addColorStop(0, 'rgba(255,230,140,.8)'); tail.addColorStop(1, 'rgba(255,230,140,0)');
-    ctx.strokeStyle = tail; ctx.lineWidth = r * 0.5; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(g.x, g.y); ctx.lineTo(g.x - g.vx * 0.35, g.y - g.vy * 0.35); ctx.stroke(); ctx.lineCap = 'butt';
-    ctx.fillStyle = '#ffe27a';
-    ctx.beginPath();
-    for (let k = 0; k < 10; k++) {
-      const a = g.t * 4 + k * Math.PI / 5, rr = k % 2 ? r * 0.45 : r;
-      k ? ctx.lineTo(g.x + Math.cos(a) * rr, g.y + Math.sin(a) * rr) : ctx.moveTo(g.x + Math.cos(a) * rr, g.y + Math.sin(a) * rr);
-    }
-    ctx.closePath(); ctx.fill();
-  }
-}
 
 function endFinale() {
   if (lives < MAX_LIVES) {
@@ -392,7 +346,7 @@ function gameOver() {
   showman.dir = showman.x < W / 2 ? 1 : -1;
   showman.say = { text: 'I love every damn one of you.', t: 0 };
   $('goalsLine').textContent = shortcutUsed ? '' : (goals.newThisGame.length ? '🏆 New: ' + goals.newThisGame.join(', ') + ' · ' : '') +
-    'Effects ' + goals.seen.length + '/' + SHELL_TYPES.length + ' · Achievements ' + Object.keys(goals.ach).length + '/' + ACHIEVEMENTS.length;
+    'Effects ' + goals.seen.length + '/' + SHELL_TYPES.length + ' · Achievements ' + achCount() + '/' + ACHIEVEMENTS.length;
   if (shortcutUsed) {
     $('best').textContent = 'Shortcut game: score not saved';
   } else if (score > best) {
