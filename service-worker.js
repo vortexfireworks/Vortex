@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuesheet-v8';
+const CACHE_NAME = 'cuesheet-v9';
 const ASSETS = [
   './',
   './index.html',
@@ -32,6 +32,14 @@ const ASSETS = [
   './manage-photo-wall.html',
   './tasks.html',
   './moon-fireworks.html',
+  './moon-fireworks/style.css',
+  './moon-fireworks/assets.js',
+  './moon-fireworks/scene.js',
+  './moon-fireworks/sound.js',
+  './moon-fireworks/game.js',
+  './moon-fireworks/events.js',
+  './moon-fireworks/effects.js',
+  './moon-fireworks/main.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
