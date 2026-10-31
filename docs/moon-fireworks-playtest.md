@@ -58,8 +58,8 @@ If anything stutters, note the phone model and which effect or moment it was.
 ## 4. Roman candle (use `#candle`)
 
 - [ ] Tapping the sky aims the candle and the star flies to where you tapped.
-- [ ] Lanterns and balloons are possible but not too easy to hit. Note whether they feel too
-      fast, too slow, too big or too small.
+- [ ] Drones are possible but not too easy to shoot down. Note whether they feel too fast, too
+      slow, too big or too small.
 - [ ] Try each candle type over a few breaks (Classic, Thunder, Rainbow, Comet).
 - [ ] The whippet hides behind the van and comes back out afterwards.
 - [ ] A break feels about the right length (it lasts up to 14 seconds).

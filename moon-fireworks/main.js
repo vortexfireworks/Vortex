@@ -108,8 +108,8 @@ const ACHIEVEMENTS = [
   { id: 'show3', name: 'Showrunner', desc: 'Finish 3 shows in one game.' },
   { id: 'encore', name: 'Encore!', desc: 'Make it to show 7.' },
   { id: 'big', name: 'Big Show', desc: 'Score 5,000 in one game.' },
-  { id: 'sharp', name: 'Sharpshooter', desc: 'Hit 10 Roman candle targets.', stat: 'targets', goal: 10 },
-  { id: 'star', name: 'Star Catcher', desc: 'Hit a shooting star with a Roman candle.' },
+  { id: 'sharp', name: 'Sharpshooter', desc: 'Shoot down 10 drones with a Roman candle.', stat: 'targets', goal: 10 },
+  { id: 'sweep', name: 'Clean Sweep', desc: 'Shoot down 5 drones in one Roman candle break.' },
   { id: 'buster', name: 'Drone Buster', desc: 'Knock down 500 drones in drone shows.', stat: 'swarm', goal: 500 },
   { id: 'oops', name: 'Oops!', desc: 'Tap a stray drone.' },
   { id: 'dog', name: 'Good Girl', desc: 'Pet the whippet 10 times.', stat: 'pets', goal: 10 },
@@ -118,6 +118,8 @@ const ACHIEVEMENTS = [
 const loadJSON = (k, d) => { try { return JSON.parse(store.get(k, '')) || d; } catch (e) { return d; } };
 const goals = { ach: loadJSON('mfAch', {}), stats: loadJSON('mfStats', {}), seen: loadJSON('mfEffects', []), newThisGame: [] };
 const counts = () => !shortcutUsed && playing();
+// only achievements that still exist count (an old one may be saved from an earlier version)
+const achCount = () => ACHIEVEMENTS.filter(a => goals.ach[a.id]).length;
 
 function unlock(id) {
   if (!counts() || goals.ach[id]) return;
@@ -163,7 +165,7 @@ function nextToast() {
 
 function updateGoalButtons() {
   $('menuEffects').textContent = 'Effects ' + goals.seen.length + '/' + SHELL_TYPES.length;
-  $('menuAch').textContent = 'Achievements ' + Object.keys(goals.ach).length + '/' + ACHIEVEMENTS.length;
+  $('menuAch').textContent = 'Achievements ' + achCount() + '/' + ACHIEVEMENTS.length;
 }
 
 function renderEffects() {

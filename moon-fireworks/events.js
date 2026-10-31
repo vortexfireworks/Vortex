@@ -96,7 +96,12 @@ function crashSound() {
 }
 
 function drawDrones() {
-  for (const d of drones) {
+  for (const d of drones) drawDrone(d);
+}
+
+// A quadcopter with blinking navigation lights; also used for the Roman candle's targets.
+function drawDrone(d) {
+  {
     const s = d.s;
     ctx.save();
     ctx.translate(d.x, d.y);
