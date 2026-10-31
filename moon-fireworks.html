@@ -3,6 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Moon Fireworks">
+<meta name="theme-color" content="#000000">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Moon Fireworks</title>
 <style>
   html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
@@ -11,7 +17,8 @@
     -webkit-tap-highlight-color: transparent; }
   canvas { display: block; cursor: crosshair; touch-action: none; }
 
-  #hud { position: fixed; top: 0; left: 0; right: 0; padding: 10px 12px; display: flex;
+  #hud { position: fixed; top: 0; left: 0; right: 0; display: flex;
+    padding: calc(10px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right)) 10px calc(12px + env(safe-area-inset-left));
     align-items: flex-start; justify-content: space-between; gap: 8px; pointer-events: none;
     text-shadow: 0 0 6px #000; }
   #hud.hidden { visibility: hidden; }
@@ -21,7 +28,7 @@
     text-overflow: ellipsis; max-width: 46vw; }
   #bar { width: min(180px, 40vw); height: 5px; background: rgba(255,255,255,.18); border-radius: 3px; overflow: hidden; }
   #barFill { height: 100%; width: 0; background: linear-gradient(90deg, #ff5ea8, #ffd86b); transition: width .2s; }
-  #mult { position: fixed; top: 64px; left: 0; right: 0; text-align: center; color: #ffd86b;
+  #mult { position: fixed; top: calc(64px + env(safe-area-inset-top)); left: 0; right: 0; text-align: center; color: #ffd86b;
     font-weight: 700; font-size: 15px; pointer-events: none; text-shadow: 0 0 6px #000; }
   .hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   #lives { color: #ff5e8a; letter-spacing: 2px; font-size: 18px; }
@@ -122,6 +129,7 @@
     <li><span class="dot" style="--c:#3d8cff">⏱</span><span><b>Blue:</b> slows every rocket down for 6 seconds.</span></li>
     <li><span class="dot" style="--c:#9b4dff">✸</span><span><b>Purple:</b> mega burst that sets off every rocket on screen.</span></li>
     <li><span class="dot" style="--c:#6e6e78">✕</span><span><b>Grey dud:</b> don't tap it! It costs 25 points. Let it fizzle, it's harmless.</span></li>
+    <li><span class="dot" style="--c:#4a4f5c">✈</span><span><b>Drone:</b> rare! It flies across the sky with blinking lights. Don't tap it! It costs 1000 points.</span></li>
   </ul>
   <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck takes a break to fire a Roman candle, so sit back and enjoy it. Tap Chuck once per show for a surprise. His whippet tags along too, so watch where you step.</p>
   <button class="play" id="helpGo">Got it</button>
@@ -175,7 +183,7 @@ const fg = document.createElement('canvas');
 // The "back to tools" link only makes sense inside the Vortex app.
 if (!/moon-fireworks\.html$/.test(location.pathname)) document.querySelectorAll('.back').forEach(a => a.remove());
 
-let W, H, dpr, groundY, stars = [];
+let W, H, dpr, groundY, skyTop, stars = [];
 
 // ---------- scene ----------
 function horizon(x) {
@@ -199,12 +207,19 @@ function resize() {
   cv.width = W * dpr; cv.height = H * dpr;
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  groundY = H * 0.8;
+  groundY = H * 0.86;
+  // rockets top out below the score bar and buttons so they never hide behind them
+  const hudR = $('hud').getBoundingClientRect(), multR = $('mult').getBoundingClientRect();
+  skyTop = Math.min(groundY * 0.4, Math.max(H * 0.1, hudR.bottom + 24, multR.top + 40));
   stars = [];
   const n = Math.floor(W * H / 2200);
   for (let i = 0; i < n; i++) {
     stars.push({ x: Math.random() * W, y: Math.random() * groundY, r: Math.random() * 1.4 + 0.3,
       speed: 0.5 + Math.random() * 2, phase: Math.random() * TAU });
+  }
+  if (van) {
+    van.parkX = vanParkX();
+    if (van.parked) van.x = van.parkX;
   }
   drawBackground();
   drawForeground();
@@ -519,10 +534,12 @@ function muteEngine(off) {
   if (engine) engine.out.gain.setTargetAtTime(off ? 0.0001 : 0.12, actx.currentTime, 0.05);
 }
 
+function vanParkX() { return Math.max(8, Math.min(W * 0.56, W - 66 * pixelSize() - 8)); }
+
 // Start of every game: the van drives in, Chuck hops out and asks if anyone needs fireworks.
 function startArrival() {
   const p = pixelSize();
-  van = { startX: -70 * p, x: -70 * p, parkX: Math.max(8, Math.min(W * 0.56, W - 66 * p - 8)), door: 0, spin: 0, parked: false };
+  van = { startX: -70 * p, x: -70 * p, parkX: vanParkX(), door: 0, spin: 0, parked: false };
   state = 'arrive'; arriveT = 0;
   startEngine();
   showman.hidden = true; showman.say = null; showman.mood = 'walk';
@@ -574,7 +591,7 @@ function endArrival() {
 }
 
 function drawFlag() {
-  const s = Math.max(0.7, Math.min(1.6, H / 550, W / 450));
+  const s = Math.max(0.6, Math.min(1.6, H / 550, W / 560));
   const px = W * 0.12, py = horizon(px);
   const poleH = 135 * s, fw = 80 * s, fh = 64 * s, top = py - poleH + 4 * s;
 
@@ -681,7 +698,9 @@ const POSES = {
 const showman = { x: 0, dir: 1, anim: 0, pause: 0, walk: 3 + Math.random() * 4,
   mood: 'walk', moodT: 0, pose: POSES.walk0, lift: 0, sink: 0, tappedShow: -1 };
 
-function pixelSize() { return Math.max(2, Math.round(H / 250)); }
+// Chuck, the van and the dog share one pixel grid; it follows the narrower of height and width
+// so they don't crowd a phone screen in portrait.
+function pixelSize() { return Math.max(2, Math.round(Math.min(H / 250, W / 200))); }
 
 function react(mood, dur) {
   const m = showman;
@@ -1095,9 +1114,23 @@ function showOverlay(id) {
   for (const o of ['menu', 'help', 'board', 'pause', 'over']) $(o).classList.toggle('hidden', o !== id);
 }
 
+// On phones and tablets, go fullscreen so the browser bars don't eat into the sky.
+// (iPhone Safari can't do this; adding the page to the Home Screen opens it fullscreen instead.)
+function goFullscreen() {
+  if (!matchMedia('(pointer: coarse)').matches) return;
+  const el = document.documentElement;
+  if (document.fullscreenElement || document.webkitFullscreenElement) return;
+  try {
+    const req = el.requestFullscreen ? el.requestFullscreen({ navigationUI: 'hide' }) : el.webkitRequestFullscreen && el.webkitRequestFullscreen();
+    if (req && req.catch) req.catch(() => {});
+  } catch (e) {}
+}
+
 function startGame() {
+  goFullscreen();
   audio();
   rockets = []; particles = []; texts = []; ripples = [];
+  clearDrones(); droneIn = 40 + Math.random() * 60;
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
   candle = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
   showOverlay(null);
@@ -1252,6 +1285,7 @@ function setPaused(v) {
   if (!playing()) return;
   paused = v;
   muteEngine(v);
+  muteDrones(v);
   showOverlay(v ? 'pause' : null);
 }
 
@@ -1309,7 +1343,7 @@ function pickKind() {
 
 function spawnRocket() {
   const x = W * 0.08 + Math.random() * W * 0.84;
-  const apex = H * 0.1 + Math.random() * groundY * 0.42;
+  const apex = skyTop + Math.random() * Math.max(groundY * 0.2, groundY * 0.55 - skyTop);
   launch(x, horizon(x), apex, flightTime() * (0.85 + Math.random() * 0.3), (Math.random() - 0.5) * W * 0.04, pickKind());
 }
 
@@ -1394,7 +1428,7 @@ function splitRocket(r) {
   texts.push({ x: r.x, y: r.y + 22, txt: 'SPLIT!', color: '#7ff0ff', life: 1 });
   for (let i = -1; i <= 1; i++) {
     const t = 0.75 + Math.random() * 0.3;
-    const apex = Math.max(H * 0.05, r.y - H * (0.1 + Math.random() * 0.08));
+    const apex = Math.max(skyTop, r.y - H * (0.1 + Math.random() * 0.08));
     launch(r.x, r.y, apex, t, i * W * 0.09 + (Math.random() - 0.5) * 20, 'mini');
   }
 }
@@ -1444,6 +1478,134 @@ function puff(x, y, n) {
     const a = Math.random() * TAU, s = Math.random() * 40;
     particles.push({ x, y, px: x, py: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, h: 0, sat: 0,
       life: 0.8, decay: 0.8, size: 2, glitter: false });
+  }
+}
+
+// ---------- drones: rare, cross the sky, and cost 1000 points if you tap one ----------
+let drones = [], droneIn = 60;
+const DRONE_LINES = ['Not the drone!', "That's coming out of your pay", 'Who brought a drone?!'];
+function droneScale() { return Math.max(0.9, Math.min(1.6, Math.min(W, H) / 400)); }
+
+function spawnDrone() {
+  const dir = Math.random() < 0.5 ? 1 : -1, s = droneScale();
+  const y = skyTop + 20 + Math.random() * Math.max(10, groundY * 0.45 - skyTop);
+  drones.push({ x: dir > 0 ? -40 * s : W + 40 * s, y, baseY: y, dir, s, t: 0,
+    speed: Math.max(60, W / 7) * (0.85 + Math.random() * 0.3), hit: false, vy: 0, spin: 0, sound: droneSound() });
+}
+
+function updateDrones(dt) {
+  if (state === 'play') {
+    droneIn -= dt;
+    if (droneIn <= 0) {
+      droneIn = 50 + Math.random() * 70;
+      if (!drones.length) spawnDrone();
+    }
+  }
+  for (const d of drones) {
+    d.t += dt;
+    if (d.hit) {
+      d.vy += 420 * dt; d.y += d.vy * dt; d.x += d.dir * d.speed * 0.4 * dt; d.spin += dt * 9;
+      if (Math.random() < 0.7) particles.push({ x: d.x, y: d.y, px: d.x, py: d.y, vx: (Math.random() - 0.5) * 60, vy: -Math.random() * 40,
+        h: 25 + Math.random() * 20, sat: 100, life: 0.5, decay: 1.6, size: 1.6, glitter: false });
+      if (d.y >= horizon(d.x)) { d.gone = true; puff(d.x, horizon(d.x), 26); boom(false, true); }
+    } else {
+      d.x += d.dir * d.speed * dt;
+      d.y = d.baseY + Math.sin(d.t * 1.7) * 8 * d.s;
+      if ((d.dir > 0 && d.x > W + 50 * d.s) || (d.dir < 0 && d.x < -50 * d.s)) d.gone = true;
+      if (d.sound && actx) d.sound.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, d.x / W * 2 - 1)), actx.currentTime, 0.1);
+    }
+    if (d.gone) stopDroneSound(d);
+  }
+  drones = drones.filter(d => !d.gone);
+}
+
+// Tight box around the drone itself; returns the drone hit and its distance from the tap.
+function droneAt(x, y) {
+  for (const d of drones) {
+    if (d.hit) continue;
+    if (Math.abs(x - d.x) < 22 * d.s && Math.abs(y - d.y) < 12 * d.s) return { d, dist: Math.hypot(x - d.x, y - d.y) };
+  }
+  return null;
+}
+
+function hitDrone(d) {
+  d.hit = true; d.vy = -60;
+  stopDroneSound(d);
+  score = Math.max(0, score - 1000); streak = 0; shake = 14; flash = Math.min(1, flash + 0.3);
+  texts.push({ x: d.x, y: d.y - 10, txt: 'DRONE! -1000', color: '#ff4a4a', life: 1.8, big: true });
+  const m = showman;
+  if (!m.hidden && m.mood !== 'candle' && !m.say)
+    texts.push({ x: m.x, y: showmanBox().top - 10, txt: DRONE_LINES[Math.floor(Math.random() * DRONE_LINES.length)], color: '#fff', life: 1.8 });
+  crashSound(); buzz([80, 40, 120]); react('slump', 1.5);
+  updateHud();
+}
+
+function droneSound() {
+  if (!actx) return null;
+  const t = actx.currentTime;
+  const out = actx.createGain(); out.gain.setValueAtTime(0.0001, t); out.gain.linearRampToValueAtTime(paused ? 0.0001 : 0.03, t + 0.6);
+  const pan = actx.createStereoPanner ? actx.createStereoPanner() : null;
+  const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.8;
+  const oscs = [205, 213].map(f => { const o = actx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(bp); o.start(t); return o; });
+  bp.connect(out);
+  if (pan) out.connect(pan).connect(master); else out.connect(master);
+  return { out, oscs, pan: pan || { pan: { setTargetAtTime() {} } } };
+}
+function stopDroneSound(d) {
+  if (!d.sound || !actx) return;
+  const t = actx.currentTime, s = d.sound;
+  d.sound = null;
+  s.out.gain.cancelScheduledValues(t); s.out.gain.setValueAtTime(s.out.gain.value, t);
+  s.out.gain.linearRampToValueAtTime(0.0001, t + 0.2);
+  for (const o of s.oscs) o.stop(t + 0.25);
+}
+function muteDrones(off) {
+  if (!actx) return;
+  for (const d of drones) if (d.sound) d.sound.out.gain.setTargetAtTime(off ? 0.0001 : 0.03, actx.currentTime, 0.05);
+}
+function clearDrones() { for (const d of drones) stopDroneSound(d); drones = []; }
+
+function crashSound() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const o = actx.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(80, t + 0.9);
+  const g = actx.createGain(); g.gain.setValueAtTime(0.08, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.95);
+  o.connect(g).connect(master); o.start(t); o.stop(t + 1);
+  fizzleSound();
+}
+
+function drawDrones() {
+  for (const d of drones) {
+    const s = d.s;
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    ctx.rotate(d.hit ? d.spin : d.dir * 0.12);
+    // arms and rotors
+    ctx.strokeStyle = '#4a4f5c'; ctx.lineWidth = 2.5 * s;
+    ctx.beginPath(); ctx.moveTo(-17 * s, -4 * s); ctx.lineTo(17 * s, -4 * s); ctx.stroke();
+    for (const rx of [-17, 17]) {
+      ctx.fillStyle = '#2a2d36'; ctx.fillRect((rx - 1.5) * s, -7 * s, 3 * s, 4 * s);
+      const blur = d.hit ? 0.5 : 0.35 + 0.25 * Math.abs(Math.sin(d.t * 40 + rx));
+      ctx.fillStyle = `rgba(200,210,230,${blur})`;
+      ctx.beginPath(); ctx.ellipse(rx * s, -8 * s, 9 * s, 1.6 * s, 0, 0, TAU); ctx.fill();
+    }
+    // body, camera and landing legs
+    ctx.fillStyle = '#d9dce4';
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(-9 * s, -6 * s, 18 * s, 8 * s, 3 * s) : ctx.rect(-9 * s, -6 * s, 18 * s, 8 * s); ctx.fill();
+    ctx.fillStyle = '#2a2d36'; ctx.fillRect(-3 * s, 2 * s, 6 * s, 3 * s);
+    ctx.fillStyle = '#6ab0ff'; ctx.fillRect(-1 * s, 3 * s, 2 * s, 1.5 * s);
+    ctx.strokeStyle = '#4a4f5c'; ctx.lineWidth = 1.5 * s;
+    ctx.beginPath(); ctx.moveTo(-6 * s, 2 * s); ctx.lineTo(-9 * s, 7 * s); ctx.moveTo(6 * s, 2 * s); ctx.lineTo(9 * s, 7 * s); ctx.stroke();
+    // navigation lights: red and green, plus a white strobe
+    const blink = Math.floor(d.t * 2) % 2 === 0;
+    ctx.fillStyle = blink ? '#ff3030' : '#661010'; ctx.fillRect(-9 * s, -3 * s, 2 * s, 2 * s);
+    ctx.fillStyle = blink ? '#30ff60' : '#106620'; ctx.fillRect(7 * s, -3 * s, 2 * s, 2 * s);
+    if (!d.hit && d.t % 1.2 < 0.08) {
+      ctx.fillStyle = 'rgba(255,255,255,.9)';
+      ctx.beginPath(); ctx.arc(0, -6 * s, 3 * s, 0, TAU); ctx.fill();
+    }
+    ctx.restore();
   }
 }
 
@@ -1548,13 +1710,17 @@ cv.addEventListener('pointerdown', e => {
   ripples.push({ x, y, life: 1 });
   if (state === 'arrive' && !paused) { endArrival(); return; }
   if (!(state === 'play' || state === 'finale' || state === 'candle') || paused) return;
-  const hitR = Math.max(34, Math.min(W, H) * 0.05) * (e.pointerType === 'touch' ? 1.3 : 1);
+  const touch = e.pointerType !== 'mouse';
+  const hitR = touch ? Math.max(56, Math.min(W, H) * 0.07) : Math.max(34, Math.min(W, H) * 0.05);
   let target = null, bestD = hitR;
   for (const r of rockets) {
     if (r.dead || r.pending !== null || r.kind === 'salute') continue;
     const d = Math.hypot(r.x - x, r.y - y);
     if (d < bestD) { bestD = d; target = r; }
   }
+  // a tap right on a drone hits it, unless a rocket is even closer to the tap
+  const dh = droneAt(x, y);
+  if (dh && (!target || dh.dist < bestD)) { hitDrone(dh.d); return; }
   if (target) {
     pop(target, 0);
     if (firstHint) { firstHint = false; store.set('mfPlayed', '1'); }
@@ -1601,7 +1767,7 @@ $('quit').onclick = () => {
   candle = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
   dog.hidden = false;
   if (van && !van.parked) van = null;
-  stopEngine();
+  stopEngine(); clearDrones();
   $('hud').classList.add('hidden');
   showOverlay('menu');
   updateHud();
@@ -1770,6 +1936,7 @@ function update(dt) {
 
   updateShowman(dt);
   updateDog(dt);
+  updateDrones(dt);
   updateEarthFire(dt);
 
   flash = Math.max(0, flash - dt * 2.5);
@@ -1903,6 +2070,7 @@ function draw() {
   drawDog();
   drawShowman();
   drawCandle();
+  drawDrones();
   if (state === 'arrive' && !paused) {
     ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '600 13px system-ui, sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('Tap to skip', W / 2, H - 14);
@@ -1928,7 +2096,9 @@ function draw() {
     ctx.globalAlpha = Math.min(1, t.life);
     ctx.font = `800 ${t.big ? Math.min(40, W / 15) : 17}px system-ui, sans-serif`;
     ctx.fillStyle = t.color;
-    ctx.fillText(t.txt, t.x, t.y);
+    // keep labels on screen when they pop up near an edge
+    const half = ctx.measureText(t.txt).width / 2 + 6;
+    ctx.fillText(t.txt, Math.max(half, Math.min(W - half, t.x)), t.y);
   }
   ctx.globalAlpha = 1;
   drawHint();
