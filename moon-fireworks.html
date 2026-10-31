@@ -131,7 +131,7 @@
     <li><span class="dot" style="--c:#6e6e78">✕</span><span><b>Grey dud:</b> don't tap it! It costs 25 points. Let it fizzle, it's harmless.</span></li>
     <li><span class="dot" style="--c:#4a4f5c">✈</span><span><b>Drone:</b> rare! It flies across the sky with blinking lights. Don't tap it! It costs 1000 points.</span></li>
   </ul>
-  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck takes a break to fire a Roman candle, so sit back and enjoy it. Tap Chuck once per show for a surprise. His whippet tags along too, so watch where you step.</p>
+  <p>Bursts set off nearby rockets for chain bonuses, and 10 in a row raises your multiplier. Each show you finish earns a grand finale and a bonus ♥. Partway through most shows Chuck pulls out a Roman candle: tap him to fire it! Every shot is worth 100 bonus points, up to 20 shots before time runs out. Tap Chuck once per show for a surprise. His whippet tags along too, so watch where you step.</p>
   <button class="play" id="helpGo">Got it</button>
 </div></div>
 
@@ -1047,6 +1047,19 @@ function candlePop() {
   const g = actx.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
   s.connect(bp).connect(g).connect(master); s.start(t); s.stop(t + 0.2);
 }
+// The sharp bang of a salute: a hard crack on top of a short low thump.
+function reportSound() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  const s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const hp = actx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 900;
+  const g = actx.createGain(); g.gain.setValueAtTime(0.45, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+  s.connect(hp).connect(g).connect(master); s.start(t); s.stop(t + 0.15);
+  const o = actx.createOscillator(); o.type = 'sine';
+  o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.25);
+  const og = actx.createGain(); og.gain.setValueAtTime(0.35, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+  o.connect(og).connect(master); o.start(t); o.stop(t + 0.32);
+}
 function fizzleSound() {
   if (!actx) return;
   const t = actx.currentTime;
@@ -1130,7 +1143,7 @@ function startGame() {
   goFullscreen();
   audio();
   rockets = []; particles = []; texts = []; ripples = [];
-  clearDrones(); droneIn = 40 + Math.random() * 60;
+  clearDrones(); droneIn = 25 + Math.random() * 35;
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
   candle = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
   showOverlay(null);
@@ -1159,9 +1172,10 @@ function startFinale() {
 }
 
 // ---------- Roman candle break ----------
-// The showman stops, aims a Roman candle and fires 20 shots in different directions, each
-// one sooner than the last. No new rockets launch until he's done.
-const CANDLE_SHOTS = 20;
+// The showman stops and aims a Roman candle; each tap on him fires a shot that bursts like a
+// salute, worth 100 points. The break ends after 20 shots or when time runs out. No new rockets
+// launch until he's done. Candle points go to the score but not toward the show's target.
+const CANDLE_SHOTS = 20, CANDLE_TIME = 12, CANDLE_POINTS = 100;
 function candleAim() { return -Math.PI / 2 + showman.dir * (-0.3 + Math.random() * 1.3); }
 
 function startCandle() {
@@ -1169,12 +1183,10 @@ function startCandle() {
   const m = showman;
   m.dir = m.x < W / 2 ? 1 : -1;
   m.mood = 'candle';
-  candle = { shots: 0, next: 1.4, aim: -Math.PI / 2, target: candleAim(), kick: 0, done: 0 };
-  banner = { title: 'Break time!', sub: 'Roman candle: 20 shots', t: 2.2, dur: 2.2 };
+  candle = { shots: 0, cool: 0, timeLeft: CANDLE_TIME, aim: -Math.PI / 2, target: candleAim(), kick: 0, done: 0 };
+  banner = { title: 'Roman candle!', sub: 'Tap Chuck to fire', sub2: CANDLE_POINTS + ' points a shot', t: 2.2, dur: 2.2 };
   updateHud();
 }
-
-function candleInterval(i) { return 0.65 * Math.pow(0.1 / 0.65, i / (CANDLE_SHOTS - 1)); }
 
 function candleMuzzle() {
   const c = candle, { left, top, p } = showmanBox();
@@ -1187,13 +1199,40 @@ function updateCandle(dt) {
   const c = candle;
   c.aim += (c.target - c.aim) * Math.min(1, dt * 14);
   c.kick = Math.max(0, c.kick - dt * 6);
-  if (c.shots < CANDLE_SHOTS) {
-    c.next -= dt;
-    if (c.next <= 0) { fireCandle(); c.next = candleInterval(c.shots); }
+  c.cool -= dt;
+  if (c.shots < CANDLE_SHOTS && c.timeLeft > 0) {
+    c.timeLeft -= dt;
   } else {
     c.done += dt;
     if (c.done > 2) endCandle();
   }
+}
+
+// Tap area around Chuck during the candle break, a bit bigger than he is.
+function candleTapped(x, y) {
+  if (!candle || candle.shots >= CANDLE_SHOTS || candle.timeLeft <= 0) return false;
+  const b = showmanBox(), pad = 18;
+  return x > b.left - pad && x < b.left + b.w + pad && y > b.top - pad && y < b.top + b.h + pad;
+}
+
+function tapCandle() {
+  const c = candle;
+  if (c.cool > 0) return;
+  c.cool = 0.12;
+  fireCandle();
+  score += CANDLE_POINTS;
+  const { mx } = candleMuzzle();
+  texts.push({ x: mx, y: showmanBox().top - 62, txt: '+' + CANDLE_POINTS, color: '#ffd86b', life: 0.9 });
+  updateHud();
+}
+
+// Each candle star bursts like a salute: a white flash, a sharp bang and a red or white burst.
+function candleBurst(x, y) {
+  const hue = [0, 355, 0][Math.floor(Math.random() * 3)];
+  shell(x, y, ['peony', 'ring', 'chrysanthemum'][Math.floor(Math.random() * 3)], hue, 0.75);
+  particles.push({ x, y, px: x, py: y, vx: 0, vy: 0, h: 50, sat: 10, lit: 95, life: 0.3, decay: 3, size: 14, glow: true, glitter: false });
+  flash = Math.min(1, flash + 0.18); shake = Math.max(shake, 3);
+  reportSound();
 }
 
 function fireCandle() {
@@ -1202,7 +1241,8 @@ function fireCandle() {
   const { mx, my } = candleMuzzle();
   const sp = H * (0.42 + Math.random() * 0.1);
   particles.push({ x: mx, y: my, px: mx, py: my, vx: Math.cos(c.aim) * sp, vy: Math.sin(c.aim) * sp,
-    h: Math.random() * 360, sat: 100, life: 1, decay: 0.55, size: 5, streak: 0.08, emit: 50, glow: true, glitter: false });
+    h: Math.random() * 360, sat: 100, life: 1, decay: 0.55, size: 5, streak: 0.08, emit: 50, glow: true, glitter: false,
+    burst: 0.6 + Math.random() * 0.3 });
   for (let i = 0; i < 10; i++) {
     const a = c.aim + (Math.random() - 0.5) * 1.2, s = 40 + Math.random() * 80;
     particles.push({ x: mx, y: my, px: mx, py: my, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
@@ -1241,6 +1281,17 @@ function drawCandle() {
     const g = ctx.createRadialGradient(mx, my, 0, mx, my, 10 * p * candle.kick);
     g.addColorStop(0, 'rgba(255,240,180,.95)'); g.addColorStop(1, 'rgba(255,160,40,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, 10 * p * candle.kick, 0, TAU); ctx.fill();
+  }
+  // prompt: a pulsing ring around Chuck and how many shots and seconds are left
+  if (candle.shots < CANDLE_SHOTS && candle.timeLeft > 0 && !paused) {
+    const b = showmanBox(), cx = b.left + b.w / 2, cy = b.top + b.h / 2;
+    ctx.strokeStyle = `rgba(255,216,107,${0.45 + 0.35 * Math.sin(time * 8)})`; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(cx, cy, b.w * 0.8 + 4 * Math.sin(time * 8), b.h * 0.65, 0, 0, TAU); ctx.stroke();
+    ctx.font = '800 16px system-ui, sans-serif'; ctx.textAlign = 'center';
+    const label = 'Tap Chuck! ' + (CANDLE_SHOTS - candle.shots) + ' left · ' + Math.ceil(candle.timeLeft) + 's';
+    const half = ctx.measureText(label).width / 2 + 6, lx = Math.max(half, Math.min(W - half, cx));
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(label, lx, b.top - 34);
+    ctx.fillStyle = '#ffd86b'; ctx.fillText(label, lx, b.top - 34);
   }
 }
 
@@ -1497,7 +1548,7 @@ function updateDrones(dt) {
   if (state === 'play') {
     droneIn -= dt;
     if (droneIn <= 0) {
-      droneIn = 50 + Math.random() * 70;
+      droneIn = 30 + Math.random() * 40;
       if (!drones.length) spawnDrone();
     }
   }
@@ -1721,6 +1772,7 @@ cv.addEventListener('pointerdown', e => {
   // a tap right on a drone hits it, unless a rocket is even closer to the tap
   const dh = droneAt(x, y);
   if (dh && (!target || dh.dist < bestD)) { hitDrone(dh.d); return; }
+  if (state === 'candle' && candleTapped(x, y)) { tapCandle(); return; }
   if (target) {
     pop(target, 0);
     if (firstHint) { firstHint = false; store.set('mfPlayed', '1'); }
@@ -1899,8 +1951,12 @@ function update(dt) {
   rockets = rockets.filter(r => !r.dead);
 
   const pg = H * 0.05; // gentle lunar gravity, no air drag
-  const born = [];
+  const born = [], bursts = [];
   for (const p of particles) {
+    if (p.burst !== undefined) {
+      p.burst -= dt;
+      if (p.burst <= 0 || p.y < skyTop || p.x < 0 || p.x > W) { p.life = 0; p.burst = undefined; bursts.push([p.x, p.y]); continue; }
+    }
     p.px = p.x; p.py = p.y;
     p.vy += pg * (p.gm || 1) * dt; p.x += p.vx * dt; p.y += p.vy * dt;
     p.life -= p.decay * dt;
@@ -1927,6 +1983,7 @@ function update(dt) {
   }
   particles = particles.filter(p => p.life > 0 && p.y < H + 10);
   for (const b of born) particles.push(b);
+  for (const [bx, by] of bursts) candleBurst(Math.max(10, Math.min(W - 10, bx)), Math.max(skyTop * 0.6, by));
   if (particles.length > 5000) particles.splice(0, particles.length - 5000);
 
   for (const t of texts) { t.y -= 30 * dt; t.life -= dt * 0.9; }
