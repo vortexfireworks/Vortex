@@ -75,12 +75,34 @@ function reportStamp() {
     gs.started.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
+// The short version shown first: just the main numbers, and any achievements unlocked.
+function reportHeadline() {
+  const g = gs;
+  return [
+    ['Final score', fmtNum(score)],
+    ['Made it to', 'Show ' + (showIdx + 1) + ': ' + showInfo(showIdx).name],
+    ['Rockets popped', fmtNum(g.popped)],
+    ['Accuracy', pct(g.popped, g.popped + g.fizzled)],
+    ['Best streak', fmtNum(g.bestStreak)],
+    ['Time on the moon', fmtTime(g.time)],
+  ];
+}
+
 function renderReport() {
   $('aarMeta').textContent = 'Moon Fireworks · ' + reportStamp() + (shortcutUsed ? ' · shortcut game, not saved' : '');
-  $('aarBody').innerHTML = reportSections().map(([title, rows]) =>
-    '<section><h3>' + esc(title) + '</h3><dl>' +
-    rows.map(([l, v]) => '<div' + (l === 'Total' ? ' class="total"' : '') + '><dt>' + esc(l) + '</dt><dd>' + esc(v) + '</dd></div>').join('') +
-    '</dl></section>').join('');
+  const section = (title, rows) => '<section>' + (title ? '<h3>' + esc(title) + '</h3>' : '') + '<dl>' +
+    rows.map(([l, v]) => '<div' + (l === 'Total' || l === 'Final score' ? ' class="total"' : '') + '><dt>' + esc(l) + '</dt><dd>' + esc(v) + '</dd></div>').join('') +
+    '</dl></section>';
+  // the full report, leaving out what the short version already shows
+  const shown = new Set(reportHeadline().map(([l]) => l).concat('Popped'));
+  const full = reportSections().filter(([t]) => t !== 'Achievements unlocked' && t !== 'Where the points came from')
+    .map(([t, rows]) => [t, rows.filter(([l]) => !shown.has(l))]).filter(([, rows]) => rows.length);
+  // the points breakdown stays whole, since its total is the final score
+  const pts = reportSections().find(([t]) => t === 'Where the points came from');
+  full.splice(Math.min(3, full.length), 0, pts);
+  $('aarBody').innerHTML = section('', reportHeadline()) +
+    (goals.newThisGame.length ? '<p class="aar-ach">🏆 ' + goals.newThisGame.map(esc).join(' · ') + '</p>' : '') +
+    '<details class="aar-more"><summary>See the full report</summary>' + full.map(([t, rows]) => section(t, rows)).join('') + '</details>';
   $('aarCopyStatus').textContent = '';
 }
 
