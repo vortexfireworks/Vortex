@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cuesheet-v9';
+const CACHE_NAME = 'cuesheet-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -38,6 +38,7 @@ const ASSETS = [
   './moon-fireworks/sound.js',
   './moon-fireworks/game.js',
   './moon-fireworks/events.js',
+  './moon-fireworks/stargazer.js',
   './moon-fireworks/effects.js',
   './moon-fireworks/main.js',
   './manifest.json',

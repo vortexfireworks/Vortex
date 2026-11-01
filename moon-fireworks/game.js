@@ -47,6 +47,7 @@ function startGame() {
   goFullscreen();
   audio();
   rockets = []; particles = []; texts = []; ripples = []; cameo = null; goals.kinds = new Set();
+  gazer = null; gazerShow = -1;
   clearDrones(); droneIn = 25 + Math.random() * 35;
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
   candle = null; swarm = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
