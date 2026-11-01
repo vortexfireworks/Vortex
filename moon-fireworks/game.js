@@ -422,11 +422,12 @@ function flightTime() {
   return Math.max(1.0, 2.6 - level() * 0.2);
 }
 
+// The dark red U and bright blue Y are the rarest: about 1 rocket in 80 each during play.
 function pickKind() {
-  if (state === 'finale') return Math.random() < 0.08 ? 'gold' : Math.random() < 0.03 ? 'utah' : Math.random() < 0.03 ? 'byu' : 'normal';
-  if (state !== 'play') return Math.random() < 0.05 ? 'gold' : Math.random() < 0.02 ? 'utah' : 'normal';
+  if (state === 'finale') return Math.random() < 0.08 ? 'gold' : Math.random() < 0.01 ? 'utah' : Math.random() < 0.01 ? 'byu' : 'normal';
+  if (state !== 'play') return Math.random() < 0.05 ? 'gold' : Math.random() < 0.008 ? 'utah' : 'normal';
   const later = showIdx >= 1;
-  const table = [['utah', .035], ['byu', .03], ['gold', .07], ['heart', lives < MAX_LIVES ? .04 : 0],
+  const table = [['utah', .0125], ['byu', .0125], ['gold', .07], ['heart', lives < MAX_LIVES ? .04 : 0],
     ['dud', later ? .08 : 0], ['stage2', later ? .06 : 0], ['slow', .025], ['mega', .02]];
   let roll = Math.random();
   for (const [k, p] of table) { if (roll < p) return k; roll -= p; }
