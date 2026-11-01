@@ -113,10 +113,11 @@ const ACHIEVEMENTS = [
   { id: 'buster', name: 'Drone Buster', desc: 'Knock down 500 drones in drone shows.', stat: 'swarm', goal: 500 },
   { id: 'oops', name: 'Oops!', desc: 'Tap a stray drone.' },
   { id: 'dog', name: 'Good Girl', desc: 'Pet the whippet 10 times.', stat: 'pets', goal: 10 },
+  { id: 'holywar', name: 'Holy War', desc: 'Pop a dark red U and a bright blue Y in the same game.' },
   { id: 'collector', name: 'Collector', desc: 'See all 25 firework effects.' },
 ];
 const loadJSON = (k, d) => { try { return JSON.parse(store.get(k, '')) || d; } catch (e) { return d; } };
-const goals = { ach: loadJSON('mfAch', {}), stats: loadJSON('mfStats', {}), seen: loadJSON('mfEffects', []), newThisGame: [] };
+const goals = { ach: loadJSON('mfAch', {}), stats: loadJSON('mfStats', {}), seen: loadJSON('mfEffects', []), newThisGame: [], kinds: new Set() };
 const counts = () => !shortcutUsed && playing();
 // only achievements that still exist count (an old one may be saved from an earlier version)
 const achCount = () => ACHIEVEMENTS.filter(a => goals.ach[a.id]).length;
@@ -381,6 +382,7 @@ function update(dt) {
   updateDog(dt);
   updateDrones(dt);
   updateEarthFire(dt);
+  updateCameo(dt);
 
   flash = Math.max(0, flash - dt * 2.5);
   shake = Math.max(0, shake - dt * 40);
@@ -498,9 +500,9 @@ function draw() {
       ctx.lineWidth = 2.5 * r.size;
       ctx.beginPath(); ctx.moveTo(r.trail[i - 2], r.trail[i - 1]); ctx.lineTo(r.trail[i], r.trail[i + 1]); ctx.stroke();
     }
-    const rad = 16 * r.size;
+    const rad = 16 * r.size * (r.kind === 'byu' ? 1.5 : 1); // the bright blue Y glows bigger
     const glow = ctx.createRadialGradient(r.x, r.y, 0, r.x, r.y, rad);
-    glow.addColorStop(0, rcol(r, 0.9, r.kind === 'utah' ? 40 : 80));
+    glow.addColorStop(0, rcol(r, 0.9, r.kind === 'utah' ? 40 : r.kind === 'byu' ? 60 : 80));
     glow.addColorStop(1, rcol(r, 0, 60));
     ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(r.x, r.y, rad, 0, TAU); ctx.fill();
     ctx.fillStyle = r.kind === 'utah' ? '#ff9a9a' : r.kind === 'dud' ? '#aaa' : '#fff';
@@ -538,6 +540,7 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
 
+  drawCameo();
   for (const r of ripples) {
     ctx.strokeStyle = `rgba(255,255,255,${r.life * 0.6})`;
     ctx.lineWidth = 2;

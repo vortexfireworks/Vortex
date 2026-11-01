@@ -16,6 +16,7 @@ function explode(r) {
   const s = r.size;
   switch (r.kind) {
     case 'utah': if (UTAH_POINTS.length) { explodeUtah(r); return ''; } break;
+    case 'byu': explodeY(r); return '';
     case 'heart': shell(r.x, r.y, 'heart', 335, s); return '';
     case 'slow': shell(r.x, r.y, 'ring', 210, s); return '';
     case 'mega': shell(r.x, r.y, 'double', 280, 1.3); shell(r.x, r.y, 'crackle', 50, 1); return '';
@@ -245,6 +246,30 @@ function shell(x, y, type, hue, scale, gold) {
 
 // Every spark flies outward at a speed proportional to its spot in the logo, so the
 // whole picture grows evenly (gravity tugs every spark the same, keeping it intact).
+// The oval Y: a bright blue oval of stars with a brilliant white Y inside it.
+const Y_POINTS = (() => {
+  const cols = Y_LOGO_ROWS[0].length, half = cols / 2, pts = [];
+  Y_LOGO_ROWS.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch !== '.') pts.push([(x - half + 0.5) / half, (y - Y_LOGO_ROWS.length / 2 + 0.5) / half, ch === 'w']);
+  }));
+  return pts;
+})();
+function explodeY(r) {
+  const sp = Math.min(W, H) * 0.24;
+  particles.push({ x: r.x, y: r.y, px: r.x, py: r.y, vx: 0, vy: 0, h: 218, sat: 100, lit: 55, life: 1, decay: 0.9, size: sp * 0.9, haze: true, glitter: false });
+  for (const [ox, oy, white] of Y_POINTS) {
+    const j = 0.97 + Math.random() * 0.06;
+    particles.push({
+      x: r.x, y: r.y, px: r.x, py: r.y, vx: ox * sp * j, vy: oy * sp * j,
+      h: white ? 210 : 218, sat: white ? 25 : 100, lit: white ? 86 : 56,
+      life: 1.25, decay: 0.42 + Math.random() * 0.08, size: white ? 3.8 : 3.2, glow: white,
+      glitter: Math.random() < 0.12,
+    });
+  }
+  flash = Math.min(1, flash + 0.6);
+  boom(true);
+}
+
 function explodeUtah(r) {
   const sp = Math.min(W, H) * 0.24;
   for (const [ox, oy] of UTAH_POINTS) {
