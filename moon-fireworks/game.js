@@ -433,7 +433,7 @@ function pickKind() {
 }
 
 // ---------- the portrait cameo after a Y burst ----------
-// A painted portrait, drawn pixelated, slides and tilts in from the right, says "Go Utes!",
+// A painted portrait, drawn pixelated with no frame, slides and tilts in from the right, says "Go Utes!",
 // holds for a moment and swings back out.
 const cameoImg = new Image();
 cameoImg.src = CAMEO_SRC;
@@ -459,8 +459,6 @@ function drawCameo() {
   ctx.save();
   ctx.translate(cx, cy); ctx.rotate(ang);
   ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(-pw / 2 + 6, -ph / 2 + 8, pw, ph);
-  ctx.fillStyle = '#b8892e'; ctx.fillRect(-pw / 2 - 6, -ph / 2 - 6, pw + 12, ph + 12);
-  ctx.fillStyle = '#e6c26a'; ctx.fillRect(-pw / 2 - 3, -ph / 2 - 3, pw + 6, ph + 6);
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(cameoImg, -pw / 2, -ph / 2, pw, ph);
   ctx.imageSmoothingEnabled = true;
