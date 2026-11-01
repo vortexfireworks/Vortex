@@ -104,6 +104,18 @@
   </div>
 </div></div>
 
+<div id="aar" class="overlay hidden"><div class="panel report">
+  <h2>After Action Report</h2>
+  <p id="aarMeta" class="status"></p>
+  <div id="aarBody"></div>
+  <button class="play" id="aarNext">Scores &amp; leaderboard</button>
+  <div class="row">
+    <button class="ghost" id="aarCopy">Copy report</button>
+    <button class="ghost" id="aarAgain">Play again</button>
+  </div>
+  <p id="aarCopyStatus" class="status"></p>
+</div></div>
+
 <div id="over" class="overlay hidden"><div class="panel">
   <h1>Show's over!</h1>
   <p class="quote">&ldquo;I love every damn one of you.&rdquo; <span>&mdash; Chuck</span></p>
@@ -119,6 +131,7 @@
   <h3>Crew leaderboard</h3>
   <ol id="overList" class="scores"></ol>
   <button class="play" id="again">Play again</button>
+  <div class="row"><button class="ghost" id="overAar">After Action Report</button></div>
   <div><a class="back" href="index.html">&larr; Back to Pyrotechnician Tools</a></div>
 </div></div>
 
@@ -129,6 +142,7 @@
 <script src="moon-fireworks/game.js"></script>
 <script src="moon-fireworks/events.js"></script>
 <script src="moon-fireworks/stargazer.js"></script>
+<script src="moon-fireworks/report.js"></script>
 <script src="moon-fireworks/effects.js"></script>
 <script src="moon-fireworks/main.js"></script>
 </body>

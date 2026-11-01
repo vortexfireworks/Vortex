@@ -51,6 +51,7 @@ function hitDrone(d) {
   unlock('oops');
   d.hit = true; d.vy = -60;
   stopDroneSound(d);
+  gs.strays++; gs.penalties += Math.min(score, 1000);
   score = Math.max(0, score - 1000); streak = 0; shake = 14; flash = Math.min(1, flash + 0.3);
   texts.push({ x: d.x, y: d.y - 10, txt: 'DRONE! -1000', color: '#ff4a4a', life: 1.8, big: true });
   const m = showman;
@@ -214,7 +215,7 @@ function knockSwarm(x, y, touch) {
         sprite: d.sprite, size: L.cell * 1.9 });
     }
   }
-  if (hit) { s.downed += hit; addStat('swarm', hit); }
+  if (hit) { s.downed += hit; gs.swarmDowned += hit; addStat('swarm', hit); }
   return hit;
 }
 
@@ -222,6 +223,7 @@ function swarmPoints(hit) {
   const pts = Math.max(1, Math.round(hit / SWARM_DRONES_PER_POINT));
   swarm.points += pts;
   score += pts;
+  gs.swarmPts += pts;
   return pts;
 }
 

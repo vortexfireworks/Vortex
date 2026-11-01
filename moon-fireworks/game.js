@@ -28,7 +28,7 @@ let firstHint = store.get('mfPlayed', '0') !== '1';
 const playing = () => ['arrive', 'intro', 'play', 'finale', 'candle', 'swarm'].includes(state);
 
 function showOverlay(id) {
-  for (const o of ['menu', 'help', 'board', 'pause', 'over', 'effects', 'ach']) $(o).classList.toggle('hidden', o !== id);
+  for (const o of ['menu', 'help', 'board', 'pause', 'over', 'effects', 'ach', 'aar']) $(o).classList.toggle('hidden', o !== id);
 }
 
 // On phones and tablets, go fullscreen so the browser bars don't eat into the sky.
@@ -47,6 +47,7 @@ function startGame() {
   goFullscreen();
   audio();
   rockets = []; particles = []; texts = []; ripples = []; cameo = null; goals.kinds = new Set();
+  gs = newGameStats();
   gazer = null; gazerShow = -1;
   goals.game = { chuckShows: new Set(), poops: 0 };
   clearDrones(); droneIn = 25 + Math.random() * 35;
@@ -75,6 +76,7 @@ function beginShow() {
 }
 
 function startFinale() {
+  gs.shows++;
   if (!goals.show.lostHeart) unlock('flawless');
   if (showIdx >= 1 && !goals.show.dud) unlock('dodger');
   if (lives === 1) unlock('gasp');
@@ -154,6 +156,7 @@ function candleShoot(x, y) {
   for (let k = 0; k < 4; k++) c.smoke.push({ x: mx, y: my, vx: Math.cos(a) * 20 + (Math.random() - 0.5) * 20, vy: -10 - Math.random() * 15,
     r: 4 + Math.random() * 4, life: 1 });
   score += CANDLE_SHOT_POINTS;
+  gs.candleShots++; gs.candlePts += CANDLE_SHOT_POINTS;
   flash = Math.min(1, flash + 0.04);
   candleThump(); buzz(10);
   // the dog has had enough after the first bang
@@ -259,6 +262,7 @@ function popCandleTarget(g) {
   if (g.gone) return;
   g.gone = true;
   score += CANDLE_DRONE_POINTS;
+  gs.candleDrones++; gs.candlePts += CANDLE_DRONE_POINTS;
   candle.downed++;
   addStat('targets', 1);
   if (candle.downed >= 5) unlock('sweep');
@@ -385,7 +389,8 @@ function gameOver() {
   loadScores($('overList'));
   setTimeout(() => {
     if (state !== 'over') return;
-    showOverlay('over');
+    renderReport();
+    showOverlay('aar');
     $('hud').classList.add('hidden');
   }, 3200);
   updateHud();
@@ -524,6 +529,7 @@ function pop(r, chain) {
   if (r.kind === 'dud') {
     puff(r.x, r.y, 24);
     if (!live) return;
+    gs.duds++; gs.penalties += Math.min(score, 25);
     score = Math.max(0, score - 25); streak = 0; shake = 6;
     goals.show.dud = true;
     texts.push({ x: r.x, y: r.y, txt: 'DUD! -25', color: '#c0c0c8', life: 1.1 });
@@ -545,6 +551,10 @@ function pop(r, chain) {
   streak++;
   const pts = KIND[r.kind].base * (chain + 1) * multiplier();
   addPoints(pts);
+  gs.popped++; gs.rocketPts += pts; gs.kinds[r.kind] = (gs.kinds[r.kind] || 0) + 1;
+  gs.bestStreak = Math.max(gs.bestStreak, streak); gs.bestChain = Math.max(gs.bestChain, chain + 1);
+  gs.topMult = Math.max(gs.topMult, multiplier());
+  if (shellName) gs.effects.add(shellName);
   let label = '+' + pts + (shellName ? ' ' + shellName : '');
   if (chain > 0) label += ' · CHAIN x' + (chain + 1);
   texts.push({ x: r.x, y: r.y, txt: label, color: r.kind === 'gold' ? '#ffd86b' : r.kind === 'utah' ? '#ff4a4a' : '#fff', life: 1 });
@@ -636,6 +646,7 @@ function fizzle(r) {
   puff(r.x, r.y, 18);
   lives--; streak = 0; shake = 10;
   goals.show.lostHeart = true;
+  gs.fizzled++;
   texts.push({ x: r.x, y: r.y, txt: 'fizzle!', color: '#ff6b6b', life: 1 });
   fizzleSound(); buzz([40, 40, 40]); react('slump', 1.2);
   updateHud();

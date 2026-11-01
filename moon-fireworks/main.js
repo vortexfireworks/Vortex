@@ -45,8 +45,10 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) cv.addEventList
 
 function tapShowman() {
   const m = showman;
+  gs.chuckTaps++;
   if (m.tappedShow !== showIdx) {
     m.tappedShow = showIdx;
+    gs.chuckPts += 50;
     goals.game.chuckShows.add(showIdx);
     if (goals.game.chuckShows.size >= 5) unlock('fanclub');
     addPoints(50);
@@ -75,6 +77,10 @@ $('boardClose').onclick = () => showOverlay('menu');
 $('menuEffects').onclick = () => { renderEffects(); showOverlay('effects'); };
 $('menuAch').onclick = () => { renderAchievements(); showOverlay('ach'); };
 $('effectsClose').onclick = () => showOverlay('menu');
+$('aarNext').onclick = () => showOverlay('over');
+$('aarAgain').onclick = startGame;
+$('aarCopy').onclick = copyReport;
+$('overAar').onclick = () => showOverlay('aar');
 $('achClose').onclick = () => showOverlay('menu');
 $('again').onclick = startGame;
 $('pauseBtn').onclick = () => setPaused(!paused);
@@ -179,6 +185,7 @@ function addStat(key, n, anywhere) {
 
 // The stargazer has named a planet (on the menu screen too).
 function notePlanet(name) {
+  if (playing()) gs.planets.add(name);
   if (shortcutUsed || goals.planets.includes(name)) return;
   goals.planets.push(name);
   store.set('mfPlanets', JSON.stringify(goals.planets));
@@ -188,6 +195,7 @@ function notePlanet(name) {
 function noteEffect(name) {
   if (!counts() || !name || goals.seen.includes(name)) return;
   goals.seen.push(name);
+  gs.newEffects++;
   store.set('mfEffects', JSON.stringify(goals.seen));
   toast('✨ New effect: ' + name, goals.seen.length + ' of ' + SHELL_TYPES.length + ' seen');
   if (goals.seen.length >= SHELL_TYPES.length) unlock('collector');
@@ -430,6 +438,7 @@ function update(dt) {
   updateEarthFire(dt);
   updateGazer(dt);
   updateCameo(dt);
+  if (playing()) gs.time += dt;
   updateSwipeTrail(dt);
 
   flash = Math.max(0, flash - dt * 2.5);

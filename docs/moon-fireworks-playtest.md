@@ -78,6 +78,8 @@ If anything stutters, note the phone model and which effect or moment it was.
 - [ ] A notice appears under the score bar when you see a new effect or unlock an achievement.
 - [ ] *Effects* and *Achievements* on the menu show your progress, and it's still there after
       closing and reopening the game.
+- [ ] When a game ends, the After Action Report appears first, its numbers look right, and *Copy
+      report* pastes into a message.
 - [ ] Posting a score to the crew leaderboard works.
 
 ## What to send back
