@@ -464,6 +464,7 @@ function pickKind() {
 const cameoImg = new Image();
 cameoImg.src = CAMEO_SRC;
 let cameo = null;
+const CAMEO_CHANCE = 0.15;
 function startCameo() {
   if (cameo) { cameo.t = Math.min(cameo.t, 0.7); return; }
   cameo = { t: 0 };
@@ -569,7 +570,8 @@ function pop(r, chain) {
       }
       break;
     case 'byu':
-      startCameo();
+      // the portrait only drops in now and then, so it stays a surprise (about 1 Y in 7)
+      if (Math.random() < CAMEO_CHANCE) startCameo();
       react('dance', 2.5);
       break;
     case 'utah':
@@ -667,7 +669,8 @@ function boardsPhase(t) {
 }
 let boards = null;
 // It opens with a 3-2-1 countdown on a dimmed screen so it stands apart from the game: the
-// rockets still in the air fizzle out quietly, and taps only count from "GO!".
+// rockets still in the air fizzle out quietly, then "3, 2, 1, CLEAR YOUR BOARDS!" and taps count
+// from there.
 const BOARDS_COUNTDOWN = 3;
 // a colour for each phase, for the glowing frame and the timer bar
 const BOARDS_COLOURS = { colours: null, glitter: '255,206,90', crossettes: '120,220,255', salutes: '255,255,255' };
@@ -678,7 +681,7 @@ function startBoards() {
   for (const r of rockets) if (!r.dead) { r.dead = true; puff(r.x, r.y, 6); }
   const m = showman;
   m.mood = 'walk'; m.dir = m.x < W / 2 ? 1 : -1;
-  m.say = { text: 'Clear Your Boards!', t: 0 };
+  m.say = null;
   countdownBeep(false);
   buzz([60, 40, 60]);
   updateHud();
@@ -704,7 +707,10 @@ function updateBoards(dt) {
   if (b.count > 0) {
     const before = Math.ceil(b.count);
     b.count -= dt;
-    if (b.count <= 0) { b.go = 0.8; countdownBeep(true); buzz(80); }
+    if (b.count <= 0) {
+      b.go = 1.1; countdownBeep(true); buzz(80);
+      showman.say = { text: 'Clear Your Boards!', t: 0 };
+    }
     else if (Math.ceil(b.count) !== before) countdownBeep(false);
     return;
   }
@@ -730,10 +736,8 @@ function drawBoards() {
     // the countdown: dimmed screen, the title, and a big number that pops each second
     ctx.fillStyle = 'rgba(8,4,20,.62)'; ctx.fillRect(0, 0, W, H);
     const n = Math.ceil(b.count), k = b.count - Math.floor(b.count) || 1;
-    fit('CLEAR YOUR BOARDS!', Math.min(56, W / 9));
-    const g = ctx.createLinearGradient(W / 2 - 200, 0, W / 2 + 200, 0);
-    g.addColorStop(0, '#ff5ea8'); g.addColorStop(0.5, '#ffd86b'); g.addColorStop(1, '#6bf3ff');
-    outlined('CLEAR YOUR BOARDS!', W / 2, H * 0.24, g);
+    fit('Get ready…', Math.min(40, W / 10), 800);
+    outlined('Get ready…', W / 2, H * 0.24, '#ffd86b');
     const size = Math.min(220, H * 0.28) * (1 + 0.35 * Math.pow(k, 3));
     ctx.globalAlpha = Math.min(1, 0.35 + (1 - k) * 2 + 0.3);
     big(size); outlined(String(n), W / 2, H * 0.45, '#fff');
@@ -762,10 +766,16 @@ function drawBoards() {
     ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(bx - 2, by - 2, bw + 4, 12);
     ctx.fillStyle = `rgb(${rgb})`; ctx.fillRect(bx, by, bw * left / BOARDS_TIME, 8);
   }
-  // "GO!" right after the countdown
+  // "CLEAR YOUR BOARDS!" right after 3, 2, 1
   if (b.go > 0) {
     ctx.globalAlpha = Math.min(1, b.go * 2.5);
-    big(Math.min(160, H * 0.2) * (1 + (0.8 - b.go) * 0.6)); outlined('GO!', W / 2, H * 0.42, '#7dff9a');
+    const lines = ['CLEAR YOUR', 'BOARDS!'], grow = 1 + (1.1 - b.go) * 0.25;
+    big(100); const w = Math.max(...lines.map(l => ctx.measureText(l).width));
+    const size = Math.min(110, H * 0.13, 100 * (W - 30) / w) * grow;
+    big(size);
+    const g = ctx.createLinearGradient(W / 2 - W * 0.4, 0, W / 2 + W * 0.4, 0);
+    g.addColorStop(0, '#ff5ea8'); g.addColorStop(0.5, '#ffd86b'); g.addColorStop(1, '#6bf3ff');
+    lines.forEach((l, i) => outlined(l, W / 2, H * 0.4 + (i - 0.5) * size * 1.05, g));
     ctx.globalAlpha = 1;
   }
   ctx.textBaseline = 'alphabetic';

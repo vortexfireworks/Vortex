@@ -91,6 +91,12 @@ p { line-height: 1.5; margin: 6px 0; color: #dfe3ff; }
 .report dt { color: #b8bfe6; }
 .report dd { margin: 0; color: #fff; font-weight: 700; text-align: right; }
 .report dl div.total dt, .report dl div.total dd { color: #ffd86b; font-weight: 800; }
+.report .aar-ach { text-align: center; color: #ffd86b; font-size: 14px; }
+.report .aar-more summary { list-style: none; cursor: pointer; text-align: center; margin: 12px auto 4px; width: max-content;
+  background: rgba(255,255,255,.12); border-radius: 999px; padding: 9px 18px; font-size: 15px; color: #fff; }
+.report .aar-more summary::-webkit-details-marker { display: none; }
+.report .aar-more summary::after { content: ' ▾'; }
+.report .aar-more[open] summary::after { content: ' ▴'; }
 #toast { position: fixed; left: 50%; top: calc(96px + env(safe-area-inset-top)); transform: translate(-50%, 0); opacity: 0;
   background: rgba(20,22,40,.92); border: 1px solid rgba(255,216,107,.5); border-radius: 12px; padding: 8px 16px;
   text-align: center; pointer-events: none; transition: opacity .35s, transform .35s; z-index: 5; max-width: 86vw; }

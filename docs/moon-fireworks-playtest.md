@@ -78,12 +78,12 @@ If anything stutters, note the phone model and which effect or moment it was.
 - [ ] A notice appears under the score bar when you see a new effect or unlock an achievement.
 - [ ] *Effects* and *Achievements* on the menu show your progress, and it's still there after
       closing and reopening the game.
-- [ ] Losing your last heart starts "Clear Your Boards!" with a 3-2-1 countdown, then every tap
-      launches a shell. It lasts 10
+- [ ] Losing your last heart starts a 3-2-1 countdown ending in "Clear Your Boards!", then every
+      tap launches a shell. It lasts 10
       seconds (colours, glitter, crossettes, then salutes that are just a flash and a bang), and the
       phone keeps up with fast tapping.
-- [ ] When a game ends, the After Action Report appears first, its numbers look right, and *Copy
-      report* pastes into a message.
+- [ ] When a game ends, the short After Action Report appears first, *See the full report* expands
+      the rest, the numbers look right, and *Copy report* pastes into a message.
 - [ ] Posting a score to the crew leaderboard works.
 
 ## What to send back
