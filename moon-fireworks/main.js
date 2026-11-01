@@ -28,6 +28,7 @@ cv.addEventListener('pointerdown', e => {
   }
   const b = showmanBox();
   if (x > b.left && x < b.left + b.w && y > b.top && y < b.top + b.h) { tapShowman(); return; }
+  if (tapGazer(x, y)) return;
   const db = dogBox();
   if (!dog.hidden && x > db.left && x < db.left + db.w && y > db.top && y < db.top + db.h) tapDog();
 });
@@ -382,6 +383,7 @@ function update(dt) {
   updateDog(dt);
   updateDrones(dt);
   updateEarthFire(dt);
+  updateGazer(dt);
   updateCameo(dt);
 
   flash = Math.max(0, flash - dt * 2.5);
@@ -462,6 +464,7 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   drawEarthFire();
+  drawPlanets();
 
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'round';
@@ -522,6 +525,7 @@ function draw() {
   drawVan();
   drawFlag();
   drawPoops();
+  drawGazer();
   if (!dog.hide) drawDog();
   drawShowman();
   drawCandle();
