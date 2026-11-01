@@ -790,6 +790,7 @@ function updateDog(dt) {
 function dropPoop() {
   const p = pixelSize();
   poops.push({ x: dog.x - dog.dir * 9 * p, age: 0 });
+  if (playing() && ++goals.game.poops >= 5) unlock('dogout');
   if (poops.length > 8) poops.shift();
   plop();
   const m = showman;

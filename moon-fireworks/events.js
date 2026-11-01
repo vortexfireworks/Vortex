@@ -190,6 +190,7 @@ function updateSwarm(dt) {
 
 function endSwarm() {
   const n = swarm.downed, pts = swarm.points;
+  if (n >= 300) unlock('wrecker');
   swarm = null;
   beginShow();
   texts.push({ x: W / 2, y: H * 0.62, txt: n ? 'Drones downed: ' + n + ' (+' + pts + ')' : 'What a drone show!', color: '#7ff0ff', life: 2.6, big: true });

@@ -48,6 +48,7 @@ function startGame() {
   audio();
   rockets = []; particles = []; texts = []; ripples = []; cameo = null; goals.kinds = new Set();
   gazer = null; gazerShow = -1;
+  goals.game = { chuckShows: new Set(), poops: 0 };
   clearDrones(); droneIn = 25 + Math.random() * 35;
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
   candle = null; swarm = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
@@ -60,6 +61,10 @@ function startGame() {
 
 function beginShow() {
   const info = showInfo(showIdx);
+  goals.show = { lostHeart: false, dud: false };
+  if (showIdx >= 3) unlock('earthfire');
+  const hour = new Date().getHours();
+  if (hour < 4) unlock('nightowl');
   state = 'intro'; introT = 2.6; showScore = 0; showTime = 0;
   // Most shows (always the first) take a Roman candle break somewhere in the middle.
   candleAt = showIdx === 0 || Math.random() < 0.7 ? info.target * (0.35 + Math.random() * 0.25) : Infinity;
@@ -70,6 +75,9 @@ function beginShow() {
 }
 
 function startFinale() {
+  if (!goals.show.lostHeart) unlock('flawless');
+  if (showIdx >= 1 && !goals.show.dud) unlock('dodger');
+  if (lives === 1) unlock('gasp');
   state = 'finale'; finaleT = 7; spawnTimer = 0;
   banner = { title: 'GRAND FINALE!', sub: showInfo(showIdx).name + ' complete', t: 2.6, dur: 2.6 };
   react('dance', 7);
@@ -103,7 +111,7 @@ function startCandle() {
   m.mood = 'candle';
   const type = CANDLE_TYPES[Math.floor(Math.random() * CANDLE_TYPES.length)];
   candle = { type, shots: 0, cool: 0, timeLeft: CANDLE_TIME, aim: -Math.PI / 2 + m.dir * 0.4, kick: 0, done: 0,
-    t: 0, idle: 0, stars: [], targets: [], smoke: [], fountain: 0, downed: 0 };
+    t: 0, idle: 0, stars: [], targets: [], smoke: [], fountain: 0, downed: 0, hitShots: 0 };
   // a stray drone already in the sky becomes a target too, rather than a 1,000-point trap
   for (const d of drones) if (!d.hit) {
     stopDroneSound(d);
@@ -220,17 +228,25 @@ function updateCandle(dt) {
 // shot of every candle ends with a crackle or a big report, the rest just burn out.
 function candleStarEnd(st, hit) {
   const ty = candle.type;
+  // drones taken out by this star's burst, for Thunderstruck and Bullseye
+  let n = 0;
+  const blast = r => { for (const g of candle.targets) if (!g.gone && Math.hypot(g.x - st.x, g.y - st.y) < r) { popCandleTarget(g); n++; } };
+  const done = () => {
+    if (ty.burst && n + (hit ? 1 : 0) >= 2) unlock('thunder');
+    if (hit || n > 0) candle.hitShots++;
+  };
   if (st.last) {
     if (ty.finale === 'report') candleBurst(st.x, st.y, 1.1);
     else { shell(st.x, st.y, 'crackle', st.h, 0.8); }
-    for (const g of candle.targets) if (!g.gone && Math.hypot(g.x - st.x, g.y - st.y) < 70) popCandleTarget(g);
-    return;
+    blast(70);
+    return done();
   }
   if (ty.burst) {
     candleBurst(st.x, st.y, 0.75);
-    for (const g of candle.targets) if (!g.gone && Math.hypot(g.x - st.x, g.y - st.y) < 55) popCandleTarget(g);
-    return;
+    blast(55);
+    return done();
   }
+  done();
   if (!hit) for (let k = 0; k < 8; k++) {
     const a = Math.random() * TAU, v = 20 + Math.random() * 40;
     particles.push({ x: st.x, y: st.y, px: st.x, py: st.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, h: st.h, sat: st.sat,
@@ -268,6 +284,7 @@ function candleBurst(x, y, scale) {
 }
 
 function endCandle() {
+  if (candle.hitShots >= candle.type.shots) unlock('bullseye');
   candle = null;
   showman.mood = 'walk';
   react('cheer', 1.2);
@@ -341,6 +358,8 @@ function endFinale() {
 }
 
 function gameOver() {
+  addStat('games', 1, true);
+  addStat('total', score, true);
   state = 'over'; paused = false; slowT = 0;
   store.set('mfPlayed', '1'); firstHint = false;
   showman.mood = 'walk';
@@ -422,11 +441,12 @@ function flightTime() {
   return Math.max(1.0, 2.6 - level() * 0.2);
 }
 
+// The dark red U and bright blue Y are the rarest: about 1 rocket in 80 each during play.
 function pickKind() {
-  if (state === 'finale') return Math.random() < 0.08 ? 'gold' : Math.random() < 0.03 ? 'utah' : Math.random() < 0.03 ? 'byu' : 'normal';
-  if (state !== 'play') return Math.random() < 0.05 ? 'gold' : Math.random() < 0.02 ? 'utah' : 'normal';
+  if (state === 'finale') return Math.random() < 0.08 ? 'gold' : Math.random() < 0.01 ? 'utah' : Math.random() < 0.01 ? 'byu' : 'normal';
+  if (state !== 'play') return Math.random() < 0.05 ? 'gold' : Math.random() < 0.008 ? 'utah' : 'normal';
   const later = showIdx >= 1;
-  const table = [['utah', .035], ['byu', .03], ['gold', .07], ['heart', lives < MAX_LIVES ? .04 : 0],
+  const table = [['utah', .0125], ['byu', .0125], ['gold', .07], ['heart', lives < MAX_LIVES ? .04 : 0],
     ['dud', later ? .08 : 0], ['stage2', later ? .06 : 0], ['slow', .025], ['mega', .02]];
   let roll = Math.random();
   for (const [k, p] of table) { if (roll < p) return k; roll -= p; }
@@ -505,6 +525,7 @@ function pop(r, chain) {
     puff(r.x, r.y, 24);
     if (!live) return;
     score = Math.max(0, score - 25); streak = 0; shake = 6;
+    goals.show.dud = true;
     texts.push({ x: r.x, y: r.y, txt: 'DUD! -25', color: '#c0c0c8', life: 1.1 });
     fizzleSound(); buzz(70); react('slump', 0.9);
     updateHud();
@@ -517,6 +538,8 @@ function pop(r, chain) {
   if (chain >= 2) unlock('chain3');
   if (r.kind === 'utah') unlock('utes');
   goals.kinds.add(r.kind);
+  if (chain >= 4) unlock('chain5');
+  if (slowT > 0 && r.kind !== 'slow' && ++goals.slowPops >= 10) unlock('slowhands');
   if (goals.kinds.has('utah') && goals.kinds.has('byu')) unlock('holywar');
 
   streak++;
@@ -529,6 +552,7 @@ function pop(r, chain) {
 
   switch (r.kind) {
     case 'heart':
+      if (lives === 1) unlock('comeback');
       if (lives < MAX_LIVES) {
         lives++;
         texts.push({ x: r.x, y: r.y + 24, txt: '+1 ♥', color: '#ff7aa8', life: 1.2 });
@@ -545,7 +569,7 @@ function pop(r, chain) {
       break;
     case 'gold': react('cheer', 1); break;
     case 'slow':
-      slowT = 6;
+      slowT = 6; goals.slowPops = 0;
       texts.push({ x: W / 2, y: H * 0.36, txt: 'SLOW-MO!', color: '#7fc4ff', life: 1.4, big: true });
       break;
     case 'stage2': splitRocket(r); break;
@@ -596,6 +620,7 @@ function megaBurst(r, chain) {
     if (o.kind === 'dud') { o.dead = true; puff(o.x, o.y, 12); continue; }
     o.pending = 0.08 + i * 0.05; o.chain = chain + 1; i++;
   }
+  if (i >= 8) unlock('megablast');
 }
 
 function atApex(r) {
@@ -610,6 +635,7 @@ function fizzle(r) {
   r.dead = true;
   puff(r.x, r.y, 18);
   lives--; streak = 0; shake = 10;
+  goals.show.lostHeart = true;
   texts.push({ x: r.x, y: r.y, txt: 'fizzle!', color: '#ff6b6b', life: 1 });
   fizzleSound(); buzz([40, 40, 40]); react('slump', 1.2);
   updateHud();

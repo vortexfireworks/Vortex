@@ -87,6 +87,7 @@ function updateGazer(dt) {
   } else if (g.mode === 'point') {
     // face so the free arm is on the planet's side
     g.flip = planetPos(g.targets[g.idx]).x > g.x;
+    if (g.t > 0.3) notePlanet(g.targets[g.idx].name);
     if (g.t > 2.6) nextGazerPlanet();
   } else {
     g.dir = g.from; g.flip = g.dir > 0;
