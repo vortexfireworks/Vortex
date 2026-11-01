@@ -67,7 +67,8 @@ If anything stutters, note the phone model and which effect or moment it was.
 ## 5. Drone show (use `#drones`)
 
 - [ ] All four logos are recognisable.
-- [ ] Tapping knocks drones down with a small explosion.
+- [ ] Tapping knocks drones down with a small explosion, and swiping across a logo knocks down
+      every drone along the path.
 - [ ] Show 6 starts after the last logo passes.
 
 ## 6. Scoring and goals

@@ -167,7 +167,7 @@ function startSwarm() {
     return { x: W + size / 2 + 30 + i * (size + gap), cell, drones };
   });
   swarm = { logos, size, cy, speed: (W + size) / 9, falling: [], downed: 0, points: 0, done: 0 };
-  banner = { title: 'Drone show!', sub: 'Tap the drones to knock them down', sub2: '1 point for every 3 drones', t: 2.6, dur: 2.6 };
+  banner = { title: 'Drone show!', sub: 'Tap or swipe across the drones to knock them down', sub2: '1 point for every 3 drones', t: 2.6, dur: 2.6 };
   react('cheer', 1.2);
   updateHud();
 }
@@ -189,6 +189,7 @@ function updateSwarm(dt) {
 }
 
 function endSwarm() {
+  endSwipe();
   const n = swarm.downed, pts = swarm.points;
   if (n >= 300) unlock('wrecker');
   swarm = null;
@@ -197,7 +198,8 @@ function endSwarm() {
 }
 
 // Knock down every drone within reach of the tap. Returns true if any were hit.
-function tapSwarm(x, y, touch) {
+// Knock down every drone within reach of (x, y); returns how many fell.
+function knockSwarm(x, y, touch) {
   const s = swarm;
   let hit = 0;
   for (const L of s.logos) {
@@ -212,12 +214,22 @@ function tapSwarm(x, y, touch) {
         sprite: d.sprite, size: L.cell * 1.9 });
     }
   }
-  if (!hit) return false;
-  s.downed += hit;
+  if (hit) { s.downed += hit; addStat('swarm', hit); }
+  return hit;
+}
+
+function swarmPoints(hit) {
   const pts = Math.max(1, Math.round(hit / SWARM_DRONES_PER_POINT));
-  s.points += pts;
+  swarm.points += pts;
   score += pts;
-  addStat('swarm', hit);
+  return pts;
+}
+
+// A tap: knock down the drones under it with a small explosion.
+function tapSwarm(x, y, touch) {
+  const hit = knockSwarm(x, y, touch);
+  if (!hit) return false;
+  const pts = swarmPoints(hit);
   // small explosion where the tap landed
   for (let i = 0; i < 16; i++) {
     const a = Math.random() * TAU, v = 30 + Math.random() * 90;
@@ -230,6 +242,68 @@ function tapSwarm(x, y, touch) {
   if (Math.random() < 0.15) react('cheer', 0.6);
   updateHud();
   return true;
+}
+
+// A swipe: drag across the logos to knock down every drone along the path. The path is walked
+// in small steps so a fast swipe doesn't skip any, with sparks where drones fall; the pops and
+// the points are grouped so a long swipe doesn't flood the screen.
+let swipe = null;
+const swipeTrail = [];
+function startSwipe(x, y, touch) {
+  swipe = { x, y, touch, hits: 0, lastSound: 0, lastText: time };
+  swipeTrail.push({ x, y, life: 1 });
+}
+function moveSwipe(x, y) {
+  if (!swipe || !swarm) return;
+  const sw = swipe, dist = Math.hypot(x - sw.x, y - sw.y);
+  const steps = Math.max(1, Math.ceil(dist / 8));
+  for (let i = 1; i <= steps; i++) {
+    const px = sw.x + (x - sw.x) * i / steps, py = sw.y + (y - sw.y) * i / steps;
+    const hit = knockSwarm(px, py, sw.touch);
+    if (!hit) continue;
+    sw.hits += hit;
+    for (let k = 0; k < 5; k++) {
+      const a = Math.random() * TAU, v = 30 + Math.random() * 70;
+      particles.push({ x: px, y: py, px, py, vx: Math.cos(a) * v, vy: Math.sin(a) * v, h: 30 + Math.random() * 25, sat: 100,
+        life: 0.5, decay: 1.6, size: 1.5, glitter: Math.random() < 0.4 });
+    }
+    if (time - sw.lastSound > 0.07) { sw.lastSound = time; candlePop(); buzz(6); }
+  }
+  sw.x = x; sw.y = y;
+  swipeTrail.push({ x, y, life: 1 });
+  if (time - sw.lastText > 0.25) flushSwipe();
+}
+// show the points earned so far in this swipe
+function flushSwipe() {
+  const sw = swipe;
+  sw.lastText = time;
+  if (!sw.hits) return;
+  const pts = swarmPoints(sw.hits);
+  texts.push({ x: sw.x, y: sw.y - 16, txt: '+' + pts, color: '#7ff0ff', life: 0.9 });
+  sw.hits = 0;
+  if (Math.random() < 0.3) react('cheer', 0.6);
+  updateHud();
+}
+function endSwipe() {
+  if (!swipe) return;
+  if (swarm) flushSwipe();
+  swipe = null;
+}
+function updateSwipeTrail(dt) {
+  for (const t of swipeTrail) t.life -= dt * 4;
+  while (swipeTrail.length && swipeTrail[0].life <= 0) swipeTrail.shift();
+}
+function drawSwipeTrail() {
+  if (swipeTrail.length < 2) return;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (let i = 1; i < swipeTrail.length; i++) {
+    const a = swipeTrail[i - 1], b = swipeTrail[i], life = Math.max(0, b.life);
+    ctx.strokeStyle = `rgba(127,240,255,${life * 0.35})`; ctx.lineWidth = 12 * life;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.strokeStyle = `rgba(255,255,255,${life * 0.8})`; ctx.lineWidth = 3 * life;
+    ctx.stroke();
+  }
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
 }
 
 function drawSwarm() {
@@ -247,6 +321,7 @@ function drawSwarm() {
       ctx.drawImage(d.sprite, x - h, y - h, sz, sz);
     }
   }
+  drawSwipeTrail();
   ctx.globalAlpha = 0.7;
   for (const f of s.falling) ctx.drawImage(f.sprite, f.x - f.size / 2, f.y - f.size / 2, f.size, f.size);
   ctx.globalAlpha = 1;

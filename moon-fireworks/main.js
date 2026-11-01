@@ -20,7 +20,7 @@ cv.addEventListener('pointerdown', e => {
   const dh = droneAt(x, y);
   if (dh && (!target || dh.dist < bestD)) { hitDrone(dh.d); return; }
   if (state === 'candle' && candleActive()) { candleShoot(x, y); return; }
-  if (state === 'swarm' && tapSwarm(x, y, touch)) return;
+  if (state === 'swarm') { tapSwarm(x, y, touch); startSwipe(x, y, touch); return; }
   if (target) {
     pop(target, 0);
     if (firstHint) { firstHint = false; store.set('mfPlayed', '1'); }
@@ -33,6 +33,15 @@ cv.addEventListener('pointerdown', e => {
   if (!dog.hidden && x > db.left && x < db.left + db.w && y > db.top && y < db.top + db.h) tapDog();
 });
 cv.addEventListener('contextmenu', e => e.preventDefault());
+// swiping across the drone show
+cv.addEventListener('pointermove', e => {
+  if (!swipe) return;
+  if (state !== 'swarm' || paused) { endSwipe(); return; }
+  e.preventDefault();
+  const pts = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+  for (const c of pts.length ? pts : [e]) moveSwipe(c.clientX, c.clientY);
+});
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) cv.addEventListener(ev, endSwipe);
 
 function tapShowman() {
   const m = showman;
@@ -421,6 +430,7 @@ function update(dt) {
   updateEarthFire(dt);
   updateGazer(dt);
   updateCameo(dt);
+  updateSwipeTrail(dt);
 
   flash = Math.max(0, flash - dt * 2.5);
   shake = Math.max(0, shake - dt * 40);
