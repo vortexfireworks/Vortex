@@ -7,7 +7,8 @@ cv.addEventListener('pointerdown', e => {
   ripples.push({ x, y, life: 1 });
   if (state === 'arrive' && !paused) { endArrival(); return; }
   if (state === 'gallery') { nextGallery(); return; }
-  if (!(state === 'play' || state === 'finale' || state === 'candle' || state === 'swarm') || paused) return;
+  if (!(state === 'play' || state === 'finale' || state === 'candle' || state === 'swarm' || state === 'boards') || paused) return;
+  if (state === 'boards') { launchBoard(x); return; }
   const touch = e.pointerType !== 'mouse';
   const hitR = touch ? Math.max(56, Math.min(W, H) * 0.07) : Math.max(34, Math.min(W, H) * 0.05);
   let target = null, bestD = hitR;
@@ -87,7 +88,7 @@ $('pauseBtn').onclick = () => setPaused(!paused);
 $('resume').onclick = () => setPaused(false);
 $('quit').onclick = () => {
   state = 'menu'; paused = false; slowT = 0; banner = null; rockets = [];
-  candle = null; swarm = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
+  candle = null; swarm = null; boards = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
   dog.hidden = false; dog.hide = false;
   if (van && !van.parked) van = null;
   stopEngine(); clearDrones();
@@ -153,6 +154,7 @@ const ACHIEVEMENTS = [
   // playing over time
   { id: 'regular', name: 'Regular', desc: 'Play 10 games.', stat: 'games', goal: 10 },
   { id: 'nightowl', name: 'Night Owl', desc: 'Play between midnight and 4 a.m.' },
+  { id: 'rapidfire', name: 'Rapid Fire', desc: 'Launch 50 shells while clearing your boards.' },
   { id: 'tycoon', name: 'Fireworks Tycoon', desc: 'Score 100,000 points across all your games.', stat: 'total', goal: 100000 },
 ];
 const loadJSON = (k, d) => { try { return JSON.parse(store.get(k, '')) || d; } catch (e) { return d; } };
@@ -335,6 +337,7 @@ function update(dt) {
   if (state === 'candle') updateCandle(dt);
   if (state === 'swarm' && swarm) updateSwarm(dt);
   if (state === 'gallery' && gallery) updateGallery(dt);
+  if (state === 'boards' && boards) updateBoards(dt);
   if (state === 'arrive') updateArrival(dt);
   if (banner) { banner.t -= dt; if (banner.t <= 0) banner = null; }
 
@@ -478,8 +481,11 @@ function drawBanner() {
   const k = banner.t / banner.dur;
   ctx.globalAlpha = Math.max(0, Math.min(1, k * 4, (1 - k) * 6));
   ctx.textAlign = 'center';
-  const big = Math.min(64, W / 9);
+  let big = Math.min(64, W / 9);
   ctx.font = `900 ${big}px system-ui, sans-serif`;
+  // long titles shrink to fit the screen
+  const tw = ctx.measureText(banner.title).width;
+  if (tw > W - 24) { big *= (W - 24) / tw; ctx.font = `900 ${big}px system-ui, sans-serif`; }
   const g = ctx.createLinearGradient(W / 2 - big * 3, 0, W / 2 + big * 3, 0);
   g.addColorStop(0, '#ff5ea8'); g.addColorStop(0.5, '#ffd86b'); g.addColorStop(1, '#6bf3ff');
   ctx.fillStyle = g;
@@ -617,6 +623,7 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   drawHint();
+  drawBoards();
   drawBanner();
   ctx.restore();
 }

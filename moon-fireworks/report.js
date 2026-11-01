@@ -6,7 +6,7 @@
 function newGameStats() {
   return { time: 0, shows: 0, popped: 0, fizzled: 0, duds: 0, bestStreak: 0, bestChain: 0, topMult: 1, kinds: {},
     rocketPts: 0, chuckPts: 0, candlePts: 0, swarmPts: 0, penalties: 0,
-    candleShots: 0, candleDrones: 0, swarmDowned: 0, strays: 0,
+    candleShots: 0, candleDrones: 0, swarmDowned: 0, strays: 0, boardsShots: 0, boardsPts: 0,
     effects: new Set(), newEffects: 0, planets: new Set(), chuckTaps: 0, pets: 0, poops: 0,
     started: new Date() };
 }
@@ -47,12 +47,14 @@ function reportSections() {
       ['Drones shot down by candle', fmtNum(g.candleDrones) + (g.candleShots ? ' (' + pct(g.candleDrones, g.candleShots) + ' of shots)' : '')],
       ['Drone show drones knocked down', fmtNum(g.swarmDowned)],
       ['Stray drones tapped', fmtNum(g.strays)],
+      ['Shells launched clearing your boards', fmtNum(g.boardsShots)],
     ]],
     ['Where the points came from', [
       ['Rockets', fmtNum(g.rocketPts)],
       ['Roman candle', fmtNum(g.candlePts)],
       ['Drone show', fmtNum(g.swarmPts)],
       ['Saying hi to Chuck', fmtNum(g.chuckPts)],
+      ['Clearing your boards', fmtNum(g.boardsPts)],
       ['Penalties (duds, stray drones)', g.penalties ? '−' + fmtNum(g.penalties) : '0'],
       ['Total', fmtNum(score)],
     ]],
