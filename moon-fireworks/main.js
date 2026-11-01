@@ -416,8 +416,10 @@ function update(dt) {
           life: 0.2, decay: 5, size: 5, glow: true, glitter: false });
         for (let k = 0; k < 4; k++) {
           const a = a0 + k * TAU / 4 + Math.PI / 4 + (Math.random() - 0.5) * 0.3, v = s * (0.8 + Math.random() * 0.4);
+          // silver crosses, or (for the multi-coloured crossette) crosses in the star's own colour
+          const col = p.splitColour ? { h: p.h, sat: 100, lit: 62 } : { h: 45, sat: 15, lit: 84 };
           born.push({ x: p.x, y: p.y, px: p.x, py: p.y, vx: p.vx * 0.35 + Math.cos(a) * v, vy: p.vy * 0.35 + Math.sin(a) * v,
-            h: 45, sat: 15, lit: 84, life: 1.1, decay: 0.85, size: 2.3, streak: 0.14, emit: 22, trailLife: 0.9, glitter: true });
+            ...col, life: 1.1, decay: 0.85, size: 2.3, streak: 0.14, emit: 22, trailLife: 0.9, glitter: true });
         }
       }
     }

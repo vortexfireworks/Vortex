@@ -656,9 +656,15 @@ function fizzle(r) {
 // ---------- clear your boards: the last-chance finale ----------
 // When the last heart goes, Chuck calls "Clear Your Boards!" and you get a few seconds to tap as
 // fast as you can. Every tap launches a shell from the ground below it, worth 5 points, and it
-// bursts on its own at the top. Shells are regular ones (the odd gold), never the U or the Y.
-// When time's up and the last shells have burst, the game ends.
-const BOARDS_TIME = 8, BOARDS_POINTS = 5;
+// bursts on its own at the top, never as the U or the Y. What it bursts as depends on when it was
+// launched: 4 s of random colours, 2 s of glitter, 2 s of multi-coloured crossettes, then 2 s of
+// salutes (just a flash and a loud bang). When time's up and the last shells have burst, the game ends.
+const BOARDS_PHASES = [['colours', 4, 'Colours'], ['glitter', 2, 'Glitter'], ['crossettes', 2, 'Crossettes'], ['salutes', 2, 'Salutes']];
+const BOARDS_TIME = BOARDS_PHASES.reduce((t, ph) => t + ph[1], 0), BOARDS_POINTS = 5;
+function boardsPhase(t) {
+  for (const ph of BOARDS_PHASES) { if (t < ph[1]) return ph; t -= ph[1]; }
+  return BOARDS_PHASES[BOARDS_PHASES.length - 1];
+}
 let boards = null;
 function startBoards() {
   state = 'boards'; slowT = 0;
@@ -675,7 +681,9 @@ function launchBoard(x) {
   if (!boardsActive()) return;
   x = Math.max(W * 0.05, Math.min(W * 0.95, x));
   const apex = skyTop + Math.random() * Math.max(groundY * 0.2, groundY * 0.5 - skyTop);
-  launch(x, horizon(x), apex, 0.75 + Math.random() * 0.3, (Math.random() - 0.5) * W * 0.03, Math.random() < 0.08 ? 'gold' : 'normal');
+  const phase = boardsPhase(boards.t)[0];
+  launch(x, horizon(x), apex, 0.75 + Math.random() * 0.3, (Math.random() - 0.5) * W * 0.03, phase === 'salutes' ? 'salute' : 'normal');
+  rockets[rockets.length - 1].boards = phase;
   boards.shots++;
   score += BOARDS_POINTS;
   gs.boardsShots++; gs.boardsPts += BOARDS_POINTS;
@@ -697,7 +705,7 @@ function drawBoards() {
   const left = Math.max(0, BOARDS_TIME - boards.t);
   ctx.textAlign = 'center';
   ctx.font = '800 ' + Math.min(30, W / 13) + 'px system-ui, sans-serif';
-  const label = left > 0 ? Math.ceil(left) + 's · ' + boards.shots + ' shells' : boards.shots + ' shells launched!';
+  const label = left > 0 ? boardsPhase(boards.t)[2] + ' · ' + Math.ceil(left) + 's · ' + boards.shots + ' shells' : boards.shots + ' shells launched!';
   ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(label, W / 2, skyTop + 26);
   ctx.fillStyle = '#ffd86b'; ctx.fillText(label, W / 2, skyTop + 26);
 }
