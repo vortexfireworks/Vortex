@@ -38,6 +38,8 @@ function tapShowman() {
   const m = showman;
   if (m.tappedShow !== showIdx) {
     m.tappedShow = showIdx;
+    goals.game.chuckShows.add(showIdx);
+    if (goals.game.chuckShows.size >= 5) unlock('fanclub');
     addPoints(50);
     texts.push({ x: m.x, y: showmanBox().top - 10, txt: 'Hey there! +50', color: '#ffd86b', life: 1.3 });
     buzz(25);
@@ -116,15 +118,41 @@ const ACHIEVEMENTS = [
   { id: 'dog', name: 'Good Girl', desc: 'Pet the whippet 10 times.', stat: 'pets', goal: 10 },
   { id: 'holywar', name: 'Holy War', desc: 'Pop a dark red U and a bright blue Y in the same game.' },
   { id: 'collector', name: 'Collector', desc: 'See all 25 firework effects.' },
+  // skill
+  { id: 'flawless', name: 'Flawless', desc: 'Finish a show without losing a heart.' },
+  { id: 'chain5', name: 'Chain Master', desc: 'Set off a chain of 5 rockets with one tap.' },
+  { id: 'dodger', name: 'Dud Dodger', desc: 'Finish show 2 or later without tapping a dud.' },
+  { id: 'gasp', name: 'Last Gasp', desc: 'Finish a show with only 1 heart left.' },
+  { id: 'comeback', name: 'Comeback Kid', desc: 'Catch a pink heart rocket while down to your last heart.' },
+  { id: 'slowhands', name: 'Slow Hands', desc: 'Pop 10 rockets during one slow-motion.' },
+  { id: 'megablast', name: 'Mega Blast', desc: 'Set off 8 or more rockets with one mega burst.' },
+  // bonus rounds
+  { id: 'thunder', name: 'Thunderstruck', desc: 'Take down 2 drones with a single Thunder Candle burst.' },
+  { id: 'bullseye', name: 'Bullseye', desc: 'Hit a drone with every shot of a Roman candle break.' },
+  { id: 'wrecker', name: 'Logo Wrecker', desc: 'Knock down 300 drones in a single drone show.' },
+  // characters and Easter eggs
+  { id: 'astro', name: 'Astronomy 101', desc: 'Have the stargazer name all 5 planets.' },
+  { id: 'fanclub', name: 'Fan Club', desc: 'Tap Chuck in 5 different shows of one game.' },
+  { id: 'dogout', name: 'Who Let the Dog Out', desc: 'The whippet leaves 5 piles in one game.' },
+  { id: 'earthfire', name: "Earth's on Fire", desc: 'Make it to show 4, when the Earth catches fire.' },
+  // playing over time
+  { id: 'regular', name: 'Regular', desc: 'Play 10 games.', stat: 'games', goal: 10 },
+  { id: 'nightowl', name: 'Night Owl', desc: 'Play between midnight and 4 a.m.' },
+  { id: 'tycoon', name: 'Fireworks Tycoon', desc: 'Score 100,000 points across all your games.', stat: 'total', goal: 100000 },
 ];
 const loadJSON = (k, d) => { try { return JSON.parse(store.get(k, '')) || d; } catch (e) { return d; } };
-const goals = { ach: loadJSON('mfAch', {}), stats: loadJSON('mfStats', {}), seen: loadJSON('mfEffects', []), newThisGame: [], kinds: new Set() };
-const counts = () => !shortcutUsed && playing();
+const goals = { ach: loadJSON('mfAch', {}), stats: loadJSON('mfStats', {}), seen: loadJSON('mfEffects', []),
+  planets: loadJSON('mfPlanets', []), newThisGame: [], kinds: new Set(),
+  game: { chuckShows: new Set(), poops: 0 },   // this game
+  show: { lostHeart: false, dud: false },      // this show
+  slowPops: 0 };
+// Most goals only count during a game; a few (the stargazer, games played) count anywhere.
+const counts = anywhere => !shortcutUsed && (anywhere || playing());
 // only achievements that still exist count (an old one may be saved from an earlier version)
 const achCount = () => ACHIEVEMENTS.filter(a => goals.ach[a.id]).length;
 
-function unlock(id) {
-  if (!counts() || goals.ach[id]) return;
+function unlock(id, anywhere) {
+  if (!counts(anywhere) || goals.ach[id]) return;
   goals.ach[id] = Date.now();
   store.set('mfAch', JSON.stringify(goals.ach));
   const a = ACHIEVEMENTS.find(a => a.id === id);
@@ -133,11 +161,19 @@ function unlock(id) {
   updateGoalButtons();
 }
 
-function addStat(key, n) {
-  if (!counts()) return;
+function addStat(key, n, anywhere) {
+  if (!counts(anywhere)) return;
   goals.stats[key] = (goals.stats[key] || 0) + n;
   store.set('mfStats', JSON.stringify(goals.stats));
-  for (const a of ACHIEVEMENTS) if (a.stat === key && goals.stats[key] >= a.goal) unlock(a.id);
+  for (const a of ACHIEVEMENTS) if (a.stat === key && goals.stats[key] >= a.goal) unlock(a.id, anywhere);
+}
+
+// The stargazer has named a planet (on the menu screen too).
+function notePlanet(name) {
+  if (shortcutUsed || goals.planets.includes(name)) return;
+  goals.planets.push(name);
+  store.set('mfPlanets', JSON.stringify(goals.planets));
+  if (goals.planets.length >= PLANETS.length) unlock('astro', true);
 }
 
 function noteEffect(name) {
