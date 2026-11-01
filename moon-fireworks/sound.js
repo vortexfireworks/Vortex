@@ -135,6 +135,16 @@ function crossetteSound(times) {
     s.connect(hp).connect(g).connect(master); s.start(t); s.stop(t + 0.08);
   }
 }
+// The Clear Your Boards countdown: a short beep for 3, 2, 1 and a higher, longer one for GO.
+function countdownBeep(go) {
+  if (!actx) return;
+  const t = actx.currentTime, dur = go ? 0.45 : 0.16;
+  const o = actx.createOscillator(); o.type = 'square'; o.frequency.value = go ? 1046 : 660;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.09, t + 0.01);
+  g.gain.setValueAtTime(0.09, t + dur - 0.04); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
 function fizzleSound() {
   if (!actx) return;
   const t = actx.currentTime;

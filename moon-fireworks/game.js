@@ -666,17 +666,24 @@ function boardsPhase(t) {
   return BOARDS_PHASES[BOARDS_PHASES.length - 1];
 }
 let boards = null;
+// It opens with a 3-2-1 countdown on a dimmed screen so it stands apart from the game: the
+// rockets still in the air fizzle out quietly, and taps only count from "GO!".
+const BOARDS_COUNTDOWN = 3;
+// a colour for each phase, for the glowing frame and the timer bar
+const BOARDS_COLOURS = { colours: null, glitter: '255,206,90', crossettes: '120,220,255', salutes: '255,255,255' };
 function startBoards() {
-  state = 'boards'; slowT = 0;
-  boards = { t: 0, shots: 0, done: 0 };
+  state = 'boards'; slowT = 0; banner = null;
+  boards = { count: BOARDS_COUNTDOWN, t: 0, shots: 0, done: 0, go: 0 };
+  // clear the sky: whatever's still up fizzles out quietly
+  for (const r of rockets) if (!r.dead) { r.dead = true; puff(r.x, r.y, 6); }
   const m = showman;
   m.mood = 'walk'; m.dir = m.x < W / 2 ? 1 : -1;
   m.say = { text: 'Clear Your Boards!', t: 0 };
-  banner = { title: 'CLEAR YOUR BOARDS!', sub: 'Tap as fast as you can!', sub2: BOARDS_POINTS + ' points a shell', t: 2, dur: 2 };
+  countdownBeep(false);
   buzz([60, 40, 60]);
   updateHud();
 }
-const boardsActive = () => boards && boards.t < BOARDS_TIME;
+const boardsActive = () => boards && boards.count <= 0 && boards.t < BOARDS_TIME;
 function launchBoard(x) {
   if (!boardsActive()) return;
   x = Math.max(W * 0.05, Math.min(W * 0.95, x));
@@ -693,21 +700,80 @@ function launchBoard(x) {
   updateHud();
 }
 function updateBoards(dt) {
-  boards.t += dt;
-  if (boards.t < BOARDS_TIME) return;
+  const b = boards;
+  if (b.count > 0) {
+    const before = Math.ceil(b.count);
+    b.count -= dt;
+    if (b.count <= 0) { b.go = 0.8; countdownBeep(true); buzz(80); }
+    else if (Math.ceil(b.count) !== before) countdownBeep(false);
+    return;
+  }
+  b.go = Math.max(0, b.go - dt);
+  b.t += dt;
+  if (b.t < BOARDS_TIME) return;
   // time's up: wait for the last shells to burst, then the show's over
   if (rockets.some(r => !r.dead)) return;
-  boards.done += dt;
-  if (boards.done > 1.2) { boards = null; gameOver(); }
+  b.done += dt;
+  if (b.done > 1.2) { boards = null; gameOver(); }
 }
+
 function drawBoards() {
   if (!boards || paused) return;
-  const left = Math.max(0, BOARDS_TIME - boards.t);
-  ctx.textAlign = 'center';
-  ctx.font = '800 ' + Math.min(30, W / 13) + 'px system-ui, sans-serif';
-  const label = left > 0 ? boardsPhase(boards.t)[2] + ' · ' + Math.ceil(left) + 's · ' + boards.shots + ' shells' : boards.shots + ' shells launched!';
-  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(label, W / 2, skyTop + 26);
-  ctx.fillStyle = '#ffd86b'; ctx.fillText(label, W / 2, skyTop + 26);
+  const b = boards, big = (size, weight = 900) => { ctx.font = weight + ' ' + size + 'px system-ui, sans-serif'; };
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const outlined = (text, x, y, fill) => {
+    ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.85)'; ctx.strokeText(text, x, y);
+    ctx.fillStyle = fill; ctx.fillText(text, x, y);
+  };
+  const fit = (text, size, weight) => { big(size, weight); const w = ctx.measureText(text).width; if (w > W - 24) big(size * (W - 24) / w, weight); };
+  if (b.count > 0) {
+    // the countdown: dimmed screen, the title, and a big number that pops each second
+    ctx.fillStyle = 'rgba(8,4,20,.62)'; ctx.fillRect(0, 0, W, H);
+    const n = Math.ceil(b.count), k = b.count - Math.floor(b.count) || 1;
+    fit('CLEAR YOUR BOARDS!', Math.min(56, W / 9));
+    const g = ctx.createLinearGradient(W / 2 - 200, 0, W / 2 + 200, 0);
+    g.addColorStop(0, '#ff5ea8'); g.addColorStop(0.5, '#ffd86b'); g.addColorStop(1, '#6bf3ff');
+    outlined('CLEAR YOUR BOARDS!', W / 2, H * 0.24, g);
+    const size = Math.min(220, H * 0.28) * (1 + 0.35 * Math.pow(k, 3));
+    ctx.globalAlpha = Math.min(1, 0.35 + (1 - k) * 2 + 0.3);
+    big(size); outlined(String(n), W / 2, H * 0.45, '#fff');
+    ctx.globalAlpha = 1;
+    fit('Tap as fast as you can!', Math.min(26, W / 16), 700); outlined('Tap as fast as you can!', W / 2, H * 0.64, '#fff');
+    fit(BOARDS_POINTS + ' points a shell', Math.min(18, W / 22), 600); outlined(BOARDS_POINTS + ' points a shell', W / 2, H * 0.64 + 34, '#c9cff5');
+    ctx.textBaseline = 'alphabetic';
+    return;
+  }
+  const left = Math.max(0, BOARDS_TIME - b.t), ph = boardsPhase(b.t);
+  const rgb = BOARDS_COLOURS[ph[0]] || hslToRgbStr((time * 120) % 360);
+  // a glowing frame around the whole screen while it lasts
+  if (left > 0) {
+    const pulse = 0.55 + 0.35 * Math.sin(time * 10);
+    for (const [w, a] of [[22, 0.18], [10, 0.35], [4, 0.9]]) {
+      ctx.strokeStyle = `rgba(${rgb},${a * pulse})`; ctx.lineWidth = w;
+      ctx.strokeRect(w / 2, w / 2, W - w, H - w);
+    }
+  }
+  // phase, time left as a bar, and the shell count
+  const y = skyTop + 18;
+  fit(left > 0 ? ph[2].toUpperCase() + ' · ' + b.shots + ' shells' : b.shots + ' shells launched!', Math.min(30, W / 13), 800);
+  outlined(left > 0 ? ph[2].toUpperCase() + ' · ' + b.shots + ' shells' : b.shots + ' shells launched!', W / 2, y, '#ffd86b');
+  if (left > 0) {
+    const bw = Math.min(W * 0.7, 320), bx = W / 2 - bw / 2, by = y + 24;
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(bx - 2, by - 2, bw + 4, 12);
+    ctx.fillStyle = `rgb(${rgb})`; ctx.fillRect(bx, by, bw * left / BOARDS_TIME, 8);
+  }
+  // "GO!" right after the countdown
+  if (b.go > 0) {
+    ctx.globalAlpha = Math.min(1, b.go * 2.5);
+    big(Math.min(160, H * 0.2) * (1 + (0.8 - b.go) * 0.6)); outlined('GO!', W / 2, H * 0.42, '#7dff9a');
+    ctx.globalAlpha = 1;
+  }
+  ctx.textBaseline = 'alphabetic';
+}
+// "r,g,b" for a hue, for the rainbow frame during the colours phase
+function hslToRgbStr(h) {
+  const f = n => { const k = (n + h / 30) % 12; return Math.round(255 * (0.55 - 0.45 * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
+  return f(0) + ',' + f(8) + ',' + f(4);
 }
 
 function puff(x, y, n) {
