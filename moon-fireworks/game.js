@@ -433,7 +433,7 @@ function pickKind() {
 }
 
 // ---------- the portrait cameo after a Y burst ----------
-// A painted portrait, drawn pixelated with no frame, slides and tilts in from the right, says "Go Utes!",
+// A painted portrait, cut out from its background and drawn pixelated, slides and tilts in from the right, says "Go Utes!",
 // holds for a moment and swings back out.
 const cameoImg = new Image();
 cameoImg.src = CAMEO_SRC;
@@ -453,17 +453,19 @@ function drawCameo() {
   // 0 = off to the right, 1 = leaning in
   const ease = k => 1 - Math.pow(1 - k, 3);
   const k = t < IN ? ease(t / IN) : t < OUT ? 1 : 1 - ease(Math.min(1, (t - OUT) / 0.7));
-  const ph = Math.min(H * 0.5, W * 0.72, 440), pw = ph / 2;
+  const ph = Math.min(H * 0.5, W * 0.72, 440), pw = ph / 1.8;
   const cx = W + pw * 0.75 - k * pw * 1.15, cy = groundY - ph * 0.55;
   const ang = 0.45 - k * 0.6; // ends tilted toward the middle of the screen
   ctx.save();
   ctx.translate(cx, cy); ctx.rotate(ang);
-  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(-pw / 2 + 6, -ph / 2 + 8, pw, ph);
+  // a faint moonlit glow around him so his dark suit doesn't vanish into the night sky
+  ctx.shadowColor = 'rgba(170,195,255,.45)'; ctx.shadowBlur = 14;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(cameoImg, -pw / 2, -ph / 2, pw, ph);
   ctx.imageSmoothingEnabled = true;
+  ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
   // where his mouth is, in screen coordinates
-  const mx = -pw * 0.05, my = -ph * 0.17;
+  const mx = -pw * 0.02, my = -ph * 0.21;
   const sx = cx + mx * Math.cos(ang) - my * Math.sin(ang), sy = cy + mx * Math.sin(ang) + my * Math.cos(ang);
   ctx.restore();
   if (t > IN * 0.8 && t < OUT + 0.2) drawSpeech('Go Utes!', Math.max(70, sx - pw * 0.55), sy - ph * 0.12);
