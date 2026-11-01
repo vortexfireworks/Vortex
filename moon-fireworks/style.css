@@ -79,6 +79,18 @@ p { line-height: 1.5; margin: 6px 0; color: #dfe3ff; }
 .achs li.got { color: #dfe3ff; background: rgba(255,216,107,.16); }
 .achs li b { color: #fff; }
 .achs .ic { font-size: 20px; }
+#aar { background: rgba(2,3,14,.86); }
+.report { text-align: left; }
+.report h2, .report > p, .report .play, .report .row, .report .status { text-align: center; }
+.report .play { display: block; margin: 18px auto 0; }
+.report section { background: rgba(22,26,52,.92); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 4px 12px 8px; margin: 10px 0; }
+.report h3 { margin: 8px 0 4px; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; }
+.report dl { margin: 0; }
+.report dl div { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border-top: 1px solid rgba(255,255,255,.07); font-size: 14px; }
+.report dl div:first-child { border-top: 0; }
+.report dt { color: #b8bfe6; }
+.report dd { margin: 0; color: #fff; font-weight: 700; text-align: right; }
+.report dl div.total dt, .report dl div.total dd { color: #ffd86b; font-weight: 800; }
 #toast { position: fixed; left: 50%; top: calc(96px + env(safe-area-inset-top)); transform: translate(-50%, 0); opacity: 0;
   background: rgba(20,22,40,.92); border: 1px solid rgba(255,216,107,.5); border-radius: 12px; padding: 8px 16px;
   text-align: center; pointer-events: none; transition: opacity .35s, transform .35s; z-index: 5; max-width: 86vw; }

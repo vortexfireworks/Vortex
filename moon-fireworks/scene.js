@@ -790,6 +790,7 @@ function updateDog(dt) {
 function dropPoop() {
   const p = pixelSize();
   poops.push({ x: dog.x - dog.dir * 9 * p, age: 0 });
+  if (playing()) gs.poops++;
   if (playing() && ++goals.game.poops >= 5) unlock('dogout');
   if (poops.length > 8) poops.shift();
   plop();
@@ -823,6 +824,7 @@ function dogBox() {
 
 function tapDog() {
   dogMode('zoom', 2);
+  gs.pets++;
   addStat('pets', 1);
   texts.push({ x: dog.x, y: dogBox().top - 6, txt: 'Woof!', color: '#ffd86b', life: 1 });
 }

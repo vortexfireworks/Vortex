@@ -25,10 +25,10 @@ let flash = 0, shake = 0, time = 0;
 let best = +store.get('moonFireworksBest', 0) || 0;
 let firstHint = store.get('mfPlayed', '0') !== '1';
 
-const playing = () => ['arrive', 'intro', 'play', 'finale', 'candle', 'swarm'].includes(state);
+const playing = () => ['arrive', 'intro', 'play', 'finale', 'candle', 'swarm', 'boards'].includes(state);
 
 function showOverlay(id) {
-  for (const o of ['menu', 'help', 'board', 'pause', 'over', 'effects', 'ach']) $(o).classList.toggle('hidden', o !== id);
+  for (const o of ['menu', 'help', 'board', 'pause', 'over', 'effects', 'ach', 'aar']) $(o).classList.toggle('hidden', o !== id);
 }
 
 // On phones and tablets, go fullscreen so the browser bars don't eat into the sky.
@@ -46,7 +46,8 @@ function goFullscreen() {
 function startGame() {
   goFullscreen();
   audio();
-  rockets = []; particles = []; texts = []; ripples = []; cameo = null; goals.kinds = new Set();
+  rockets = []; particles = []; texts = []; ripples = []; cameo = null; goals.kinds = new Set(); boards = null;
+  gs = newGameStats();
   gazer = null; gazerShow = -1;
   goals.game = { chuckShows: new Set(), poops: 0 };
   clearDrones(); droneIn = 25 + Math.random() * 35;
@@ -75,6 +76,7 @@ function beginShow() {
 }
 
 function startFinale() {
+  gs.shows++;
   if (!goals.show.lostHeart) unlock('flawless');
   if (showIdx >= 1 && !goals.show.dud) unlock('dodger');
   if (lives === 1) unlock('gasp');
@@ -154,6 +156,7 @@ function candleShoot(x, y) {
   for (let k = 0; k < 4; k++) c.smoke.push({ x: mx, y: my, vx: Math.cos(a) * 20 + (Math.random() - 0.5) * 20, vy: -10 - Math.random() * 15,
     r: 4 + Math.random() * 4, life: 1 });
   score += CANDLE_SHOT_POINTS;
+  gs.candleShots++; gs.candlePts += CANDLE_SHOT_POINTS;
   flash = Math.min(1, flash + 0.04);
   candleThump(); buzz(10);
   // the dog has had enough after the first bang
@@ -259,6 +262,7 @@ function popCandleTarget(g) {
   if (g.gone) return;
   g.gone = true;
   score += CANDLE_DRONE_POINTS;
+  gs.candleDrones++; gs.candlePts += CANDLE_DRONE_POINTS;
   candle.downed++;
   addStat('targets', 1);
   if (candle.downed >= 5) unlock('sweep');
@@ -385,7 +389,8 @@ function gameOver() {
   loadScores($('overList'));
   setTimeout(() => {
     if (state !== 'over') return;
-    showOverlay('over');
+    renderReport();
+    showOverlay('aar');
     $('hud').classList.add('hidden');
   }, 3200);
   updateHud();
@@ -524,6 +529,7 @@ function pop(r, chain) {
   if (r.kind === 'dud') {
     puff(r.x, r.y, 24);
     if (!live) return;
+    gs.duds++; gs.penalties += Math.min(score, 25);
     score = Math.max(0, score - 25); streak = 0; shake = 6;
     goals.show.dud = true;
     texts.push({ x: r.x, y: r.y, txt: 'DUD! -25', color: '#c0c0c8', life: 1.1 });
@@ -545,6 +551,10 @@ function pop(r, chain) {
   streak++;
   const pts = KIND[r.kind].base * (chain + 1) * multiplier();
   addPoints(pts);
+  gs.popped++; gs.rocketPts += pts; gs.kinds[r.kind] = (gs.kinds[r.kind] || 0) + 1;
+  gs.bestStreak = Math.max(gs.bestStreak, streak); gs.bestChain = Math.max(gs.bestChain, chain + 1);
+  gs.topMult = Math.max(gs.topMult, multiplier());
+  if (shellName) gs.effects.add(shellName);
   let label = '+' + pts + (shellName ? ' ' + shellName : '');
   if (chain > 0) label += ' · CHAIN x' + (chain + 1);
   texts.push({ x: r.x, y: r.y, txt: label, color: r.kind === 'gold' ? '#ffd86b' : r.kind === 'utah' ? '#ff4a4a' : '#fff', life: 1 });
@@ -636,10 +646,68 @@ function fizzle(r) {
   puff(r.x, r.y, 18);
   lives--; streak = 0; shake = 10;
   goals.show.lostHeart = true;
+  gs.fizzled++;
   texts.push({ x: r.x, y: r.y, txt: 'fizzle!', color: '#ff6b6b', life: 1 });
   fizzleSound(); buzz([40, 40, 40]); react('slump', 1.2);
   updateHud();
-  if (lives <= 0) gameOver();
+  if (lives <= 0) startBoards();
+}
+
+// ---------- clear your boards: the last-chance finale ----------
+// When the last heart goes, Chuck calls "Clear Your Boards!" and you get a few seconds to tap as
+// fast as you can. Every tap launches a shell from the ground below it, worth 5 points, and it
+// bursts on its own at the top, never as the U or the Y. What it bursts as depends on when it was
+// launched: 4 s of random colours, 2 s of glitter, 2 s of multi-coloured crossettes, then 2 s of
+// salutes (just a flash and a loud bang). When time's up and the last shells have burst, the game ends.
+const BOARDS_PHASES = [['colours', 4, 'Colours'], ['glitter', 2, 'Glitter'], ['crossettes', 2, 'Crossettes'], ['salutes', 2, 'Salutes']];
+const BOARDS_TIME = BOARDS_PHASES.reduce((t, ph) => t + ph[1], 0), BOARDS_POINTS = 5;
+function boardsPhase(t) {
+  for (const ph of BOARDS_PHASES) { if (t < ph[1]) return ph; t -= ph[1]; }
+  return BOARDS_PHASES[BOARDS_PHASES.length - 1];
+}
+let boards = null;
+function startBoards() {
+  state = 'boards'; slowT = 0;
+  boards = { t: 0, shots: 0, done: 0 };
+  const m = showman;
+  m.mood = 'walk'; m.dir = m.x < W / 2 ? 1 : -1;
+  m.say = { text: 'Clear Your Boards!', t: 0 };
+  banner = { title: 'CLEAR YOUR BOARDS!', sub: 'Tap as fast as you can!', sub2: BOARDS_POINTS + ' points a shell', t: 2, dur: 2 };
+  buzz([60, 40, 60]);
+  updateHud();
+}
+const boardsActive = () => boards && boards.t < BOARDS_TIME;
+function launchBoard(x) {
+  if (!boardsActive()) return;
+  x = Math.max(W * 0.05, Math.min(W * 0.95, x));
+  const apex = skyTop + Math.random() * Math.max(groundY * 0.2, groundY * 0.5 - skyTop);
+  const phase = boardsPhase(boards.t)[0];
+  launch(x, horizon(x), apex, 0.75 + Math.random() * 0.3, (Math.random() - 0.5) * W * 0.03, phase === 'salutes' ? 'salute' : 'normal');
+  rockets[rockets.length - 1].boards = phase;
+  boards.shots++;
+  score += BOARDS_POINTS;
+  gs.boardsShots++; gs.boardsPts += BOARDS_POINTS;
+  if (boards.shots >= 50) unlock('rapidfire');
+  texts.push({ x, y: horizon(x) - 30, txt: '+' + BOARDS_POINTS, color: '#ffd86b', life: 0.6 });
+  candleThump(); buzz(8);
+  updateHud();
+}
+function updateBoards(dt) {
+  boards.t += dt;
+  if (boards.t < BOARDS_TIME) return;
+  // time's up: wait for the last shells to burst, then the show's over
+  if (rockets.some(r => !r.dead)) return;
+  boards.done += dt;
+  if (boards.done > 1.2) { boards = null; gameOver(); }
+}
+function drawBoards() {
+  if (!boards || paused) return;
+  const left = Math.max(0, BOARDS_TIME - boards.t);
+  ctx.textAlign = 'center';
+  ctx.font = '800 ' + Math.min(30, W / 13) + 'px system-ui, sans-serif';
+  const label = left > 0 ? boardsPhase(boards.t)[2] + ' · ' + Math.ceil(left) + 's · ' + boards.shots + ' shells' : boards.shots + ' shells launched!';
+  ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(0,0,0,.8)'; ctx.strokeText(label, W / 2, skyTop + 26);
+  ctx.fillStyle = '#ffd86b'; ctx.fillText(label, W / 2, skyTop + 26);
 }
 
 function puff(x, y, n) {

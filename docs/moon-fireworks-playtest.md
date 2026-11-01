@@ -67,7 +67,8 @@ If anything stutters, note the phone model and which effect or moment it was.
 ## 5. Drone show (use `#drones`)
 
 - [ ] All four logos are recognisable.
-- [ ] Tapping knocks drones down with a small explosion.
+- [ ] Tapping knocks drones down with a small explosion, and swiping across a logo knocks down
+      every drone along the path.
 - [ ] Show 6 starts after the last logo passes.
 
 ## 6. Scoring and goals
@@ -77,6 +78,11 @@ If anything stutters, note the phone model and which effect or moment it was.
 - [ ] A notice appears under the score bar when you see a new effect or unlock an achievement.
 - [ ] *Effects* and *Achievements* on the menu show your progress, and it's still there after
       closing and reopening the game.
+- [ ] Losing your last heart starts "Clear Your Boards!": every tap launches a shell, it lasts 10
+      seconds (colours, glitter, crossettes, then salutes that are just a flash and a bang), and the
+      phone keeps up with fast tapping.
+- [ ] When a game ends, the After Action Report appears first, its numbers look right, and *Copy
+      report* pastes into a message.
 - [ ] Posting a score to the crew leaderboard works.
 
 ## What to send back

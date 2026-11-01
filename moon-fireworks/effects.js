@@ -12,8 +12,34 @@ const SHELL_NAMES = {
 };
 const SHELL_TYPES = Object.keys(SHELL_NAMES).filter(t => t !== 'ring' && t !== 'double');
 
+// A salute: no stars at all, just a blinding flash, a loud bang and a puff of smoke.
+function salute(x, y) {
+  particles.push({ x, y, px: x, py: y, vx: 0, vy: 0, h: 50, sat: 10, lit: 97, life: 0.22, decay: 4.5, size: 26, glow: true, glitter: false });
+  particles.push({ x, y, px: x, py: y, vx: 0, vy: 0, h: 45, sat: 40, lit: 80, life: 0.5, decay: 2.2, size: Math.min(W, H) * 0.12, haze: true, glitter: false });
+  for (let k = 0; k < 10; k++) {
+    const a = Math.random() * TAU, v = 40 + Math.random() * 60;
+    particles.push({ x, y, px: x, py: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, h: 40, sat: 10, lit: 90,
+      life: 0.18, decay: 5, size: 1.6, glitter: false });
+  }
+  flash = Math.min(1, flash + 0.35); shake = Math.max(shake, 7);
+  if (!playBang(Math.random() < 0.5 ? 0 : 3, 0.95, 1)) boom(true);
+  reportSound();
+}
+
+// The Clear Your Boards finale's bursts change as it goes (see BOARDS_PHASES).
+function explodeBoards(r) {
+  const x = r.x, y = r.y;
+  switch (r.boards) {
+    case 'colours': shell(x, y, Math.random() < 0.7 ? 'peony' : 'chrysanthemum', Math.random() * 360, 0.9); break;
+    case 'glitter': shell(x, y, 'glitter', 20 + Math.random() * 30, 0.9); break;
+    case 'crossettes': shell(x, y, 'crossette-multi', 0, 0.85); break;
+    case 'salutes': salute(x, y); break;
+  }
+}
+
 function explode(r) {
   const s = r.size;
+  if (r.boards) { explodeBoards(r); return ''; }
   switch (r.kind) {
     case 'utah': if (UTAH_POINTS.length) { explodeUtah(r); return ''; } break;
     case 'byu': explodeY(r); return '';
@@ -61,6 +87,16 @@ function shell(x, y, type, hue, scale, gold) {
       splits.push(split);
       add({ ...dir(i / k * TAU + (rand() - 0.5) * 0.35, sp * (0.8 + rand() * 0.35)), h: rand() * 10, sat: 100, lit: 52,
         size: 3, streak: 0.3, emit: 45, trailLife: 1.1, split, decay: 0.3, glitter: false });
+    }
+    crossetteSound(splits);
+  } else if (type === 'crossette-multi') {
+    // the crossette in every colour: each star its own colour, cracking into a cross of the same colour
+    const k = 16 + Math.floor(rand() * 5), splits = [];
+    for (let i = 0; i < k; i++) {
+      const split = 0.5 + rand() * 0.35;
+      splits.push(split);
+      add({ ...dir(i / k * TAU + (rand() - 0.5) * 0.35, sp * (0.8 + rand() * 0.35)), h: rand() * 360, sat: 100, lit: 55,
+        size: 3, streak: 0.3, emit: 40, trailLife: 1, split, splitColour: true, decay: 0.3, glitter: false });
     }
     crossetteSound(splits);
   } else if (type === 'waterfall') {

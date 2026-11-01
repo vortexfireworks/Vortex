@@ -7,7 +7,8 @@ cv.addEventListener('pointerdown', e => {
   ripples.push({ x, y, life: 1 });
   if (state === 'arrive' && !paused) { endArrival(); return; }
   if (state === 'gallery') { nextGallery(); return; }
-  if (!(state === 'play' || state === 'finale' || state === 'candle' || state === 'swarm') || paused) return;
+  if (!(state === 'play' || state === 'finale' || state === 'candle' || state === 'swarm' || state === 'boards') || paused) return;
+  if (state === 'boards') { launchBoard(x); return; }
   const touch = e.pointerType !== 'mouse';
   const hitR = touch ? Math.max(56, Math.min(W, H) * 0.07) : Math.max(34, Math.min(W, H) * 0.05);
   let target = null, bestD = hitR;
@@ -20,7 +21,7 @@ cv.addEventListener('pointerdown', e => {
   const dh = droneAt(x, y);
   if (dh && (!target || dh.dist < bestD)) { hitDrone(dh.d); return; }
   if (state === 'candle' && candleActive()) { candleShoot(x, y); return; }
-  if (state === 'swarm' && tapSwarm(x, y, touch)) return;
+  if (state === 'swarm') { tapSwarm(x, y, touch); startSwipe(x, y, touch); return; }
   if (target) {
     pop(target, 0);
     if (firstHint) { firstHint = false; store.set('mfPlayed', '1'); }
@@ -33,11 +34,22 @@ cv.addEventListener('pointerdown', e => {
   if (!dog.hidden && x > db.left && x < db.left + db.w && y > db.top && y < db.top + db.h) tapDog();
 });
 cv.addEventListener('contextmenu', e => e.preventDefault());
+// swiping across the drone show
+cv.addEventListener('pointermove', e => {
+  if (!swipe) return;
+  if (state !== 'swarm' || paused) { endSwipe(); return; }
+  e.preventDefault();
+  const pts = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+  for (const c of pts.length ? pts : [e]) moveSwipe(c.clientX, c.clientY);
+});
+for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) cv.addEventListener(ev, endSwipe);
 
 function tapShowman() {
   const m = showman;
+  gs.chuckTaps++;
   if (m.tappedShow !== showIdx) {
     m.tappedShow = showIdx;
+    gs.chuckPts += 50;
     goals.game.chuckShows.add(showIdx);
     if (goals.game.chuckShows.size >= 5) unlock('fanclub');
     addPoints(50);
@@ -66,13 +78,17 @@ $('boardClose').onclick = () => showOverlay('menu');
 $('menuEffects').onclick = () => { renderEffects(); showOverlay('effects'); };
 $('menuAch').onclick = () => { renderAchievements(); showOverlay('ach'); };
 $('effectsClose').onclick = () => showOverlay('menu');
+$('aarNext').onclick = () => showOverlay('over');
+$('aarAgain').onclick = startGame;
+$('aarCopy').onclick = copyReport;
+$('overAar').onclick = () => showOverlay('aar');
 $('achClose').onclick = () => showOverlay('menu');
 $('again').onclick = startGame;
 $('pauseBtn').onclick = () => setPaused(!paused);
 $('resume').onclick = () => setPaused(false);
 $('quit').onclick = () => {
   state = 'menu'; paused = false; slowT = 0; banner = null; rockets = [];
-  candle = null; swarm = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
+  candle = null; swarm = null; boards = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
   dog.hidden = false; dog.hide = false;
   if (van && !van.parked) van = null;
   stopEngine(); clearDrones();
@@ -138,6 +154,7 @@ const ACHIEVEMENTS = [
   // playing over time
   { id: 'regular', name: 'Regular', desc: 'Play 10 games.', stat: 'games', goal: 10 },
   { id: 'nightowl', name: 'Night Owl', desc: 'Play between midnight and 4 a.m.' },
+  { id: 'rapidfire', name: 'Rapid Fire', desc: 'Launch 50 shells while clearing your boards.' },
   { id: 'tycoon', name: 'Fireworks Tycoon', desc: 'Score 100,000 points across all your games.', stat: 'total', goal: 100000 },
 ];
 const loadJSON = (k, d) => { try { return JSON.parse(store.get(k, '')) || d; } catch (e) { return d; } };
@@ -170,6 +187,7 @@ function addStat(key, n, anywhere) {
 
 // The stargazer has named a planet (on the menu screen too).
 function notePlanet(name) {
+  if (playing()) gs.planets.add(name);
   if (shortcutUsed || goals.planets.includes(name)) return;
   goals.planets.push(name);
   store.set('mfPlanets', JSON.stringify(goals.planets));
@@ -179,6 +197,7 @@ function notePlanet(name) {
 function noteEffect(name) {
   if (!counts() || !name || goals.seen.includes(name)) return;
   goals.seen.push(name);
+  gs.newEffects++;
   store.set('mfEffects', JSON.stringify(goals.seen));
   toast('✨ New effect: ' + name, goals.seen.length + ' of ' + SHELL_TYPES.length + ' seen');
   if (goals.seen.length >= SHELL_TYPES.length) unlock('collector');
@@ -318,6 +337,7 @@ function update(dt) {
   if (state === 'candle') updateCandle(dt);
   if (state === 'swarm' && swarm) updateSwarm(dt);
   if (state === 'gallery' && gallery) updateGallery(dt);
+  if (state === 'boards' && boards) updateBoards(dt);
   if (state === 'arrive') updateArrival(dt);
   if (banner) { banner.t -= dt; if (banner.t <= 0) banner = null; }
 
@@ -396,8 +416,10 @@ function update(dt) {
           life: 0.2, decay: 5, size: 5, glow: true, glitter: false });
         for (let k = 0; k < 4; k++) {
           const a = a0 + k * TAU / 4 + Math.PI / 4 + (Math.random() - 0.5) * 0.3, v = s * (0.8 + Math.random() * 0.4);
+          // silver crosses, or (for the multi-coloured crossette) crosses in the star's own colour
+          const col = p.splitColour ? { h: p.h, sat: 100, lit: 62 } : { h: 45, sat: 15, lit: 84 };
           born.push({ x: p.x, y: p.y, px: p.x, py: p.y, vx: p.vx * 0.35 + Math.cos(a) * v, vy: p.vy * 0.35 + Math.sin(a) * v,
-            h: 45, sat: 15, lit: 84, life: 1.1, decay: 0.85, size: 2.3, streak: 0.14, emit: 22, trailLife: 0.9, glitter: true });
+            ...col, life: 1.1, decay: 0.85, size: 2.3, streak: 0.14, emit: 22, trailLife: 0.9, glitter: true });
         }
       }
     }
@@ -421,6 +443,8 @@ function update(dt) {
   updateEarthFire(dt);
   updateGazer(dt);
   updateCameo(dt);
+  if (playing()) gs.time += dt;
+  updateSwipeTrail(dt);
 
   flash = Math.max(0, flash - dt * 2.5);
   shake = Math.max(0, shake - dt * 40);
@@ -459,8 +483,11 @@ function drawBanner() {
   const k = banner.t / banner.dur;
   ctx.globalAlpha = Math.max(0, Math.min(1, k * 4, (1 - k) * 6));
   ctx.textAlign = 'center';
-  const big = Math.min(64, W / 9);
+  let big = Math.min(64, W / 9);
   ctx.font = `900 ${big}px system-ui, sans-serif`;
+  // long titles shrink to fit the screen
+  const tw = ctx.measureText(banner.title).width;
+  if (tw > W - 24) { big *= (W - 24) / tw; ctx.font = `900 ${big}px system-ui, sans-serif`; }
   const g = ctx.createLinearGradient(W / 2 - big * 3, 0, W / 2 + big * 3, 0);
   g.addColorStop(0, '#ff5ea8'); g.addColorStop(0.5, '#ffd86b'); g.addColorStop(1, '#6bf3ff');
   ctx.fillStyle = g;
@@ -598,6 +625,7 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   drawHint();
+  drawBoards();
   drawBanner();
   ctx.restore();
 }
