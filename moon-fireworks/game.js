@@ -46,7 +46,7 @@ function goFullscreen() {
 function startGame() {
   goFullscreen();
   audio();
-  rockets = []; particles = []; texts = []; ripples = [];
+  rockets = []; particles = []; texts = []; ripples = []; cameo = null; goals.kinds = new Set();
   clearDrones(); droneIn = 25 + Math.random() * 35;
   score = 0; lives = MAX_LIVES; streak = 0; showIdx = 0; slowT = 0; paused = false;
   candle = null; swarm = null; showman.mood = 'walk'; showman.say = null; showman.tappedShow = -1;
@@ -404,6 +404,7 @@ const KIND = {
   gold:   { base: 50, hue: 45,  sym: '★' },
   heart:  { base: 10, hue: 335, sym: '♥' },
   utah:   { base: 100, hue: 355, sym: 'U', lit: 40 },
+  byu:    { base: 100, hue: 218, sym: 'Y', lit: 62 },  // bright blue, bursts into the oval Y
   dud:    { base: 0,  hue: 0,   sym: '✕', sat: 0, lit: 60 },
   stage2: { base: 10, hue: 185, sym: '2' },
   slow:   { base: 10, hue: 210, sym: 'clock' },
@@ -421,14 +422,53 @@ function flightTime() {
 }
 
 function pickKind() {
-  if (state === 'finale') return Math.random() < 0.08 ? 'gold' : Math.random() < 0.03 ? 'utah' : 'normal';
+  if (state === 'finale') return Math.random() < 0.08 ? 'gold' : Math.random() < 0.03 ? 'utah' : Math.random() < 0.03 ? 'byu' : 'normal';
   if (state !== 'play') return Math.random() < 0.05 ? 'gold' : Math.random() < 0.02 ? 'utah' : 'normal';
   const later = showIdx >= 1;
-  const table = [['utah', .035], ['gold', .07], ['heart', lives < MAX_LIVES ? .04 : 0],
+  const table = [['utah', .035], ['byu', .03], ['gold', .07], ['heart', lives < MAX_LIVES ? .04 : 0],
     ['dud', later ? .08 : 0], ['stage2', later ? .06 : 0], ['slow', .025], ['mega', .02]];
   let roll = Math.random();
   for (const [k, p] of table) { if (roll < p) return k; roll -= p; }
   return 'normal';
+}
+
+// ---------- the portrait cameo after a Y burst ----------
+// A painted portrait, drawn pixelated, slides and tilts in from the right, says "Go Utes!",
+// holds for a moment and swings back out.
+const cameoImg = new Image();
+cameoImg.src = CAMEO_SRC;
+let cameo = null;
+function startCameo() {
+  if (cameo) { cameo.t = Math.min(cameo.t, 0.7); return; }
+  cameo = { t: 0 };
+}
+function updateCameo(dt) {
+  if (!cameo) return;
+  cameo.t += dt;
+  if (cameo.t > 4.3) cameo = null;
+}
+function drawCameo() {
+  if (!cameo || !cameoImg.complete || !cameoImg.naturalWidth) return;
+  const t = cameo.t, IN = 0.7, OUT = 3.6;
+  // 0 = off to the right, 1 = leaning in
+  const ease = k => 1 - Math.pow(1 - k, 3);
+  const k = t < IN ? ease(t / IN) : t < OUT ? 1 : 1 - ease(Math.min(1, (t - OUT) / 0.7));
+  const ph = Math.min(H * 0.5, W * 0.72, 440), pw = ph / 2;
+  const cx = W + pw * 0.75 - k * pw * 1.15, cy = groundY - ph * 0.55;
+  const ang = 0.45 - k * 0.6; // ends tilted toward the middle of the screen
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(ang);
+  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(-pw / 2 + 6, -ph / 2 + 8, pw, ph);
+  ctx.fillStyle = '#b8892e'; ctx.fillRect(-pw / 2 - 6, -ph / 2 - 6, pw + 12, ph + 12);
+  ctx.fillStyle = '#e6c26a'; ctx.fillRect(-pw / 2 - 3, -ph / 2 - 3, pw + 6, ph + 6);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(cameoImg, -pw / 2, -ph / 2, pw, ph);
+  ctx.imageSmoothingEnabled = true;
+  // where his mouth is, in screen coordinates
+  const mx = -pw * 0.05, my = -ph * 0.17;
+  const sx = cx + mx * Math.cos(ang) - my * Math.sin(ang), sy = cy + mx * Math.sin(ang) + my * Math.cos(ang);
+  ctx.restore();
+  if (t > IN * 0.8 && t < OUT + 0.2) drawSpeech('Go Utes!', Math.max(70, sx - pw * 0.55), sy - ph * 0.12);
 }
 
 function spawnRocket() {
@@ -475,6 +515,8 @@ function pop(r, chain) {
   unlock('first');
   if (chain >= 2) unlock('chain3');
   if (r.kind === 'utah') unlock('utes');
+  goals.kinds.add(r.kind);
+  if (goals.kinds.has('utah') && goals.kinds.has('byu')) unlock('holywar');
 
   streak++;
   const pts = KIND[r.kind].base * (chain + 1) * multiplier();
@@ -490,6 +532,10 @@ function pop(r, chain) {
         lives++;
         texts.push({ x: r.x, y: r.y + 24, txt: '+1 ♥', color: '#ff7aa8', life: 1.2 });
       }
+      break;
+    case 'byu':
+      startCameo();
+      react('dance', 2.5);
       break;
     case 'utah':
       texts.push({ x: r.x, y: r.y - 30, txt: 'GO UTES!', color: '#ff3b3b', life: 1.6, big: true });
