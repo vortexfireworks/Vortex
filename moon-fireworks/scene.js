@@ -570,59 +570,12 @@ function drawShowman() {
 }
 
 // ---------- Chuck's whippet: rides along in the van, does zoomies and leaves little surprises ----------
-const DOG_PAL = {
-  F: '#c99460', f: '#9a6a3e', w: '#f2ece2', E: '#1a1210', N: '#1a1210', C: '#d4252b',
-  P: '#5a3a1e', p: '#3e2612', q: '#7a5430',
-};
-// Facing right, drawn in Chuck's pixel units; the last row is the paws on the ground.
-const DOG_BODY = [
-  '...................ff.....',
-  '..................fFFFF...',
-  '..................FFEFFFFN',
-  '.................CCFFFww..',
-  '.................CCF......',
-  '................FFF.......',
-  '...FFFFFFFFFFFFFFFw.......',
-  '..fFFFFFFFFFFFFFFww.......',
-  '.f.FFFF.....FFFFww........',
-  'f...FFf.....FFFw..........',
-];
-const DOG_LEGS = {
-  stand: ['f....Ff......Fw...........',
-          '.....F.......F............',
-          '....F........F............',
-          '...ff........ww...........'],
-  stretch: ['...F.........FF...........',
-            '..F............F..........',
-            '.F...............F........',
-            'ff................ww......'],
-  gather: ['.....F......F.............',
-           '......F....F..............',
-           '.......F..F...............',
-           '.......ffww...............'],
-};
-const DOG_SQUAT = [
-  '...................ff.....',
-  '..................fFFFF...',
-  '..................FFEFFFFN',
-  '.................CCFFFww..',
-  '.........FFFF....CCF......',
-  '......FFFFFFFFFFFFF.......',
-  '.....FFFFFFFFFFFFFw.......',
-  'ff..FFFFFFFFFFFFww........',
-  '..ffFFFFF....FFww.........',
-  '....FFFF.....Fw...........',
-  '....FFF......F............',
-  '....FFF......F............',
-  '...FFFF......F............',
-  '..fff........ww...........',
-];
-const DOG_POSES = {
-  stand: DOG_BODY.concat(DOG_LEGS.stand),
-  stretch: DOG_BODY.concat(DOG_LEGS.stretch),
-  gather: DOG_BODY.concat(DOG_LEGS.gather),
-  squat: DOG_SQUAT,
-};
+// The whippet is a pixel-art sprite facing right (flipped when she runs left). Her gait and moods are
+// shown by movement: a stretching, bobbing gallop, leaning back to squat, dipping her head to sniff.
+const DOG_W = 45, DOG_H = 40, DOG_TALL = 16;   // sprite size in pixels, and her height in units
+const dogImg = new Image(); dogImg.src = DOG_SRC;
+const DOG_POSES = { stand: 'stand', stretch: 'stretch', gather: 'gather', squat: 'squat' };
+const POOP_PAL = { P: '#5a3a1e', p: '#3e2612', q: '#7a5430' };
 const POOP = ['..p..', '.pPq.', 'pPPPp'];
 const CHUCK_POOP_LINES = ['Aw, not there!', 'Good girl… I guess', "Who's cleaning that up?", 'Moon dust and dog poop'];
 const dog = { x: 0, dir: -1, mode: 'trot', t: 2, anim: 0, poopIn: 8, hidden: false, pose: DOG_POSES.stand };
@@ -639,7 +592,7 @@ function updateDog(dt) {
     // scared of the Roman candle: hides behind the van, and now and then peeks out the back
     d.peek -= dt; d.anim += dt;
     if (d.peek < -0.9) d.peek = 1.5 + Math.random() * 1.5;
-    const tx = d.peek < 0 ? van.x + 9 * p : van.x + VAN_LEN / 2 * p;
+    const tx = d.peek < 0 ? van.x + 5 * p : van.x + VAN_LEN / 2 * p;
     if (Math.abs(tx - d.x) > 2) {
       d.dir = tx > d.x ? 1 : -1;
       d.x += d.dir * Math.min(Math.abs(tx - d.x), 75 * p * dt);
@@ -706,8 +659,8 @@ function releaseDog(x) {
 }
 
 function dogBox() {
-  const d = dog, p = pixelSize();
-  const w = d.pose[0].length * p, h = d.pose.length * p;
+  const d = dog, p = pixelSize(), k = DOG_TALL * p / DOG_H;
+  const w = DOG_W * k, h = DOG_H * k;
   const bob = d.pose === DOG_POSES.stretch ? -p : 0;
   return { left: Math.round(d.x - w / 2), top: Math.round(horizon(d.x) + 4 - h + bob), w, h, p };
 }
@@ -726,7 +679,7 @@ function drawPoops() {
     for (let y = 0; y < POOP.length; y++) for (let x = 0; x < 5; x++) {
       const c = POOP[y][x];
       if (c === '.') continue;
-      ctx.fillStyle = DOG_PAL[c];
+      ctx.fillStyle = POOP_PAL[c];
       ctx.fillRect(left + x * p, top + y * p, p, p);
     }
     // stink lines while it's fresh
@@ -746,26 +699,21 @@ function drawPoops() {
 }
 
 function drawDog() {
-  if (dog.hidden) return;
-  const d = dog, { left, top, p } = dogBox();
-  const cols = d.pose[0].length;
+  if (dog.hidden || !dogImg.complete || !dogImg.naturalWidth) return;
+  const d = dog, { left, top, w, h, p } = dogBox();
   ctx.fillStyle = 'rgba(0,0,0,.3)';
-  ctx.beginPath(); ctx.ellipse(d.x, horizon(d.x) + 4, 10 * p, 1.2 * p, 0, 0, TAU); ctx.fill();
-  for (let y = 0; y < d.pose.length; y++) {
-    const row = d.pose[y];
-    for (let x = 0; x < cols; x++) {
-      const c = row[d.dir > 0 ? x : cols - 1 - x];
-      if (!c || c === '.') continue;
-      ctx.fillStyle = DOG_PAL[c];
-      ctx.fillRect(left + x * p, top + y * p, p, p);
-    }
-  }
-  // sniffing: nose bobs down to the ground
-  if (d.mode === 'sniff' && Math.floor(d.anim * 4) % 2) {
-    ctx.fillStyle = DOG_PAL.N;
-    const nx = d.dir > 0 ? left + 25 * p : left;
-    ctx.fillRect(nx, top + 3 * p, p, p);
-  }
+  ctx.beginPath(); ctx.ellipse(d.x, horizon(d.x) + 4, w * 0.45, 1.2 * p, 0, 0, TAU); ctx.fill();
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  // work facing right: x runs from her tail (0) to her nose (w), y from her ears (0) to her paws (h)
+  if (d.dir < 0) { ctx.translate(left + w, top); ctx.scale(-1, 1); } else ctx.translate(left, top);
+  const pivot = (px, py, ang) => { ctx.translate(px, py); ctx.rotate(ang); ctx.translate(-px, -py); };
+  if (d.pose === DOG_POSES.stretch) { pivot(w / 2, h, -0.05); ctx.translate(-w * 0.03, h * 0.06); ctx.scale(1.06, 0.94); }
+  else if (d.pose === DOG_POSES.gather) { pivot(w / 2, h, 0.05); ctx.translate(w * 0.025, -h * 0.04); ctx.scale(0.95, 1.04); }
+  else if (d.pose === DOG_POSES.squat) { pivot(w * 0.8, h, -0.22); ctx.translate(0, h * 0.06); }
+  else if (d.mode === 'sniff') pivot(w * 0.15, h, Math.floor(d.anim * 4) % 2 ? 0.12 : 0.04);
+  ctx.drawImage(dogImg, 0, 0, w, h);
+  ctx.restore();
 }
 
 function drawSpeech(text, x, bottom) {
