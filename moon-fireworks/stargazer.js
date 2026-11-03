@@ -52,7 +52,7 @@ function drawPlanets() {
 // Now and then he walks out from the side away from Chuck, stops, points at three planets one
 // after another and names each one, then walks back off. He shows up from time to time on the
 // menu screen, and once per show during play. Tap him to move on to the next planet.
-const GAZER_W = 33, GAZER_H = 72, GAZER_SHOULDER = [5.6, 20.3], GAZER_TALL = 46;
+const GAZER_W = 33, GAZER_H = 72, GAZER_SHOULDER = [5.6, 20.3], GAZER_TALL = 38;
 const gazerImg = new Image(); gazerImg.src = GAZER_SRC;
 const gazerPointImg = new Image(); gazerPointImg.src = GAZER_POINT_SRC;
 let gazer = null, gazerTimer = 6, gazerShow = -1, gazerAt = 20;

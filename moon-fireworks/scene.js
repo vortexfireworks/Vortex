@@ -231,115 +231,72 @@ const placard = new Image();
 placard.src = PLACARD_SRC;
 let van = null, arriveT = 0;
 
-// A white full-size cargo van, traced from a side-on photo (front on the right). Shapes are given
-// in the photo's pixel coordinates and mapped into Chuck's pixel units: the van is VAN_LEN units
-// long and VAN_TALL units tall, with (0,0) at its back bottom corner on the ground.
-const VAN_LEN = 72, VAN_TALL = 32, VAN_KX = VAN_LEN / 910, VAN_KY = VAN_TALL / 335;
-const VAN_DOOR = { rear: 470, front: 300 }; // driver's door edges in photo x
-// the driver's door outline in photo coordinates
-const VAN_DOOR_SHAPE = [[470, 822], [390, 822], [300, 914], [300, 1040], [324, 1088], [470, 1088]];
+// Chuck's van is a pixel-art sprite of a cargo van. The picture faces left, so it's drawn flipped to face
+// right, the way the van drives in. Positions on the van (door, placard, wheels) are given in the
+// original picture's pixel coordinates, inside VAN_BOX, and mapped to the screen. The van is VAN_LEN of
+// Chuck's pixel units long, with (0,0) at its back bottom corner on the ground.
+const VAN_LEN = 80, VAN_BOX = [65, 246, 989, 673], VAN_K = VAN_LEN / (VAN_BOX[2] - VAN_BOX[0]);
+const VAN_DOOR = { rear: 641, front: 503 };  // the driver's door edges, in picture x
+const VAN_DOOR_SHAPE = [[503, 268], [622, 262], [638, 272], [641, 556], [523, 561], [506, 498]];
+const VAN_WINDOW = [[512, 276], [612, 270], [619, 378], [510, 381]];
+const VAN_DOOR_X = (VAN_BOX[2] - 572) * VAN_K;  // where Chuck and the dog step out, in units from the back
+const VAN_WHEELS = [[450, 590, 52], [855, 562, 40]]; // centre and hubcap size of each wheel, in picture pixels
+const vanImg = new Image(); vanImg.src = VAN_SRC;
 function drawVan() {
   if (!van) return;
   const p = pixelSize();
   const moving = !van.parked && arriveT < 2.6;
   const gx = van.x, gy = horizon(van.x + VAN_LEN / 2 * p) + 3 + (moving ? Math.sin(time * 30) * 0.6 : 0);
-  const X = px => gx + (1028 - px) * VAN_KX * p, Y = py => gy - (1150 - py) * VAN_KY * p;
+  const s = VAN_K * p;
+  const X = px => gx + (VAN_BOX[2] - px) * s, Y = py => gy - (VAN_BOX[3] - py) * s;
   const poly = pts => { ctx.beginPath(); pts.forEach(([a, b], i) => i ? ctx.lineTo(X(a), Y(b)) : ctx.moveTo(X(a), Y(b))); ctx.closePath(); };
-  const arch = (cx, cy, r) => ctx.ellipse(X(cx), Y(cy), r * VAN_KX * p, r * VAN_KY * p, 0, 0, Math.PI, true);
-  const line = (x1, y1, x2, y2) => { ctx.beginPath(); ctx.moveTo(X(x1), Y(y1)); ctx.lineTo(X(x2), Y(y2)); ctx.stroke(); };
-  const lw = Math.max(1, p * 0.6);
 
   ctx.fillStyle = 'rgba(0,0,0,.3)';
-  ctx.beginPath(); ctx.ellipse(X(573), gy, VAN_LEN / 2 * p + 2 * p, 2 * p, 0, 0, TAU); ctx.fill();
-
-  // body: flat roof, raked windshield, short hood, with arches cut for the wheels
-  ctx.fillStyle = '#f4f4f6'; ctx.strokeStyle = '#8c8c98'; ctx.lineWidth = lw;
-  ctx.beginPath();
-  ctx.moveTo(X(1005), Y(1098));
-  ctx.lineTo(X(1005), Y(842)); ctx.quadraticCurveTo(X(1005), Y(818), X(982), Y(818));
-  ctx.lineTo(X(392), Y(818)); ctx.quadraticCurveTo(X(372), Y(818), X(362), Y(828));
-  ctx.lineTo(X(270), Y(918)); ctx.quadraticCurveTo(X(262), Y(925), X(240), Y(927));
-  ctx.lineTo(X(160), Y(935)); ctx.quadraticCurveTo(X(128), Y(940), X(126), Y(965));
-  ctx.lineTo(X(124), Y(1060)); ctx.lineTo(X(160), Y(1060));
-  arch(240, 1088, 84);
-  ctx.lineTo(X(735), Y(1094));
-  arch(820, 1094, 88);
-  ctx.closePath(); ctx.fill(); ctx.stroke();
-
-  // panel lines: driver's door, sliding door, a body crease and the fuel door
-  ctx.strokeStyle = '#b4b4be'; ctx.lineWidth = lw * 0.8;
-  line(VAN_DOOR.rear, 824, VAN_DOOR.rear, 1088);
-  line(712, 826, 712, 930);
-  line(488, 932, 960, 932);
-  ctx.beginPath(); ctx.ellipse(X(596), Y(1034), 12 * VAN_KX * p, 12 * VAN_KY * p, 0, 0, TAU); ctx.stroke();
-
-  // windshield edge and the driver's window
-  ctx.fillStyle = '#2b3442';
-  poly([[384, 822], [366, 822], [270, 918], [288, 918]]); ctx.fill();
-  poly([[455, 838], [392, 838], [314, 916], [322, 925], [455, 925]]); ctx.fill();
-  ctx.fillStyle = 'rgba(160,190,220,.35)';
-  poly([[440, 845], [410, 845], [360, 900], [380, 900]]); ctx.fill();
-
-  // rear: black pillar trim and the tall red tail light; front marker light
-  ctx.fillStyle = '#1e1e24';
-  poly([[958, 822], [985, 822], [1003, 846], [1003, 872], [975, 872], [962, 845]]); ctx.fill();
-  ctx.fillStyle = '#d4252b'; poly([[975, 876], [1003, 876], [1003, 935], [975, 935]]); ctx.fill();
-  ctx.fillStyle = '#f2f2f4'; poly([[978, 908], [1000, 908], [1000, 915], [978, 915]]); ctx.fill();
-  ctx.fillStyle = '#ffb347'; poly([[128, 965], [146, 965], [146, 1012], [128, 1012]]); ctx.fill();
-
-  // bumpers and side mirror
-  ctx.fillStyle = '#3a3b42';
-  poly([[992, 1056], [1030, 1058], [1030, 1100], [992, 1100]]); ctx.fill();
-  poly([[118, 1018], [178, 1018], [182, 1072], [170, 1100], [126, 1100], [118, 1080]]); ctx.fill();
-  ctx.fillStyle = '#1e1e24'; poly([[305, 880], [326, 878], [326, 922], [305, 924]]); ctx.fill();
-
-  // the 1.3G placard on the cargo side, between the driver's door and the rear wheel
-  if (placard.complete && placard.naturalWidth) {
-    const s = 13 * p;
-    const cx = X(600), cy = Y(950); // clear of the rear wheel arch
-    // clip to the diamond so the image's white corners don't cover the van's panel lines
+  ctx.beginPath(); ctx.ellipse(X(560), gy - p, VAN_LEN / 2 * p + 2 * p, 2.2 * p, 0, 0, TAU); ctx.fill();
+  if (vanImg.complete && vanImg.naturalWidth) {
     ctx.save();
-    ctx.beginPath(); ctx.moveTo(cx, cy - s / 2); ctx.lineTo(cx + s / 2, cy); ctx.lineTo(cx, cy + s / 2); ctx.lineTo(cx - s / 2, cy); ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(placard, cx - s / 2, cy - s / 2, s, s);
+    ctx.imageSmoothingEnabled = false;
+    ctx.translate(X(VAN_BOX[0]), Y(VAN_BOX[1])); ctx.scale(-1, 1);
+    ctx.drawImage(vanImg, 0, 0, (VAN_BOX[2] - VAN_BOX[0]) * s, (VAN_BOX[3] - VAN_BOX[1]) * s);
     ctx.restore();
   }
 
-  // driver's door: closed, or swung open toward us on its front hinge
+  // the wheels' lug nuts turn while it drives
+  if (moving) {
+    ctx.fillStyle = 'rgba(40,42,50,.75)';
+    for (const [wx, wy, r] of VAN_WHEELS) {
+      for (let k = 0; k < 5; k++) {
+        const a = van.spin + k * TAU / 5;
+        ctx.beginPath(); ctx.arc(X(wx) + Math.cos(a) * r * 0.45 * s * 0.75, Y(wy) + Math.sin(a) * r * 0.45 * s, Math.max(0.8, r * 0.08 * s), 0, TAU); ctx.fill();
+      }
+    }
+  }
+
+  // the 1.3G placard on the cargo side
+  if (placard.complete && placard.naturalWidth) {
+    const ps = 12 * p, cx = X(790), cy = Y(405);
+    // clip to the diamond so the image's white corners don't cover the van
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(cx, cy - ps / 2); ctx.lineTo(cx + ps / 2, cy); ctx.lineTo(cx, cy + ps / 2); ctx.lineTo(cx - ps / 2, cy); ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(placard, cx - ps / 2, cy - ps / 2, ps, ps);
+    ctx.restore();
+  }
+
+  // the driver's door swung open toward us on its front hinge
   const d = van.door;
-  ctx.fillStyle = '#6a6a74';
-  if (d <= 0) {
-    poly([[466, 955], [452, 955], [452, 972], [466, 972]]); ctx.fill();
-  } else {
-    // the doorway, in the door's real shape: slanted along the windshield, cut around the wheel arch
-    ctx.fillStyle = '#2a2a33'; poly(VAN_DOOR_SHAPE); ctx.fill();
-    ctx.fillStyle = '#44444e'; poly([[460, 960], [400, 960], [400, 1000], [460, 1000]]); ctx.fill(); // seat
-    // the door turns on its front hinge: everything is squeezed toward the hinge as it opens, and
-    // the swinging edge grows a little as it comes toward us
+  if (d > 0) {
+    ctx.fillStyle = '#23232b'; poly(VAN_DOOR_SHAPE); ctx.fill();
+    ctx.fillStyle = '#3d3d47'; poly([[630, 400], [560, 404], [560, 470], [630, 466]]); ctx.fill(); // seat
+    // squeezed toward the hinge as it opens; the swinging edge grows a little as it comes toward us
     const c = Math.cos(d * 1.3), grow = 0.1 * (1 - c);
     const swing = pts => pts.map(([x, y]) => {
       const k = (x - VAN_DOOR.front) / (VAN_DOOR.rear - VAN_DOOR.front);
-      return [VAN_DOOR.front + (x - VAN_DOOR.front) * c, 955 + (y - 955) * (1 + grow * k)];
+      return [VAN_DOOR.front + (x - VAN_DOOR.front) * c, 415 + (y - 415) * (1 + grow * k)];
     });
-    ctx.fillStyle = '#e6e6ea'; ctx.strokeStyle = '#8c8c98'; ctx.lineWidth = lw;
+    ctx.fillStyle = '#dfe2e8'; ctx.strokeStyle = '#6e727c'; ctx.lineWidth = Math.max(1, p * 0.6);
     poly(swing(VAN_DOOR_SHAPE)); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#2b3442'; poly(swing([[455, 838], [392, 838], [314, 916], [322, 925], [455, 925]])); ctx.fill();
-    ctx.fillStyle = '#6a6a74'; poly(swing([[466, 955], [452, 955], [452, 972], [466, 972]])); ctx.fill();
-  }
-
-  // steel wheels with silver hubcaps
-  for (const wx of [240, 820]) {
-    const cx = X(wx), cy = gy - 63 * VAN_KY * p, R = 60 * VAN_KY * p;
-    ctx.fillStyle = '#141416'; ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#c9cad2'; ctx.beginPath(); ctx.arc(cx, cy, R * 0.6, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#8e8f99'; ctx.lineWidth = Math.max(1, p * 0.5);
-    ctx.beginPath(); ctx.arc(cx, cy, R * 0.45, 0, TAU); ctx.stroke();
-    ctx.fillStyle = '#7a7b85';
-    for (let k = 0; k < 5; k++) {
-      const a = van.spin + k * TAU / 5;
-      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R * 0.32, cy + Math.sin(a) * R * 0.32, Math.max(0.8, R * 0.06), 0, TAU); ctx.fill();
-    }
-    ctx.fillStyle = '#e4e4ea'; ctx.beginPath(); ctx.arc(cx, cy, R * 0.18, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#2b3442'; poly(swing(VAN_WINDOW)); ctx.fill();
   }
 }
 
@@ -449,10 +406,10 @@ function updateArrival(dt) {
   const clamp = k => Math.max(0, Math.min(1, k));
   v.door = clamp((arriveT - 3.0) / 0.4) - clamp((arriveT - 5.2) / 0.4);
   if (arriveT >= 3.4 && m.hidden) {
-    m.hidden = false; m.x = v.x + 51 * p; m.dir = -1;
+    m.hidden = false; m.x = v.x + VAN_DOOR_X * p; m.dir = -1;
   }
   // his whippet leaps out right behind him
-  if (arriveT >= 3.9 && dog.hidden) releaseDog(v.x + 51 * p);
+  if (arriveT >= 3.9 && dog.hidden) releaseDog(v.x + VAN_DOOR_X * p);
   // he walks along the van until he's clear of it, then turns to the crowd
   if (!m.hidden && arriveT < 5.0) {
     m.x -= 34 * p * dt;
@@ -508,86 +465,14 @@ function drawFlag() {
   }
 }
 
-// ---------- Chuck, the showman: a little pixel guy strolling the moon ----------
-const PAL = {
-  H: '#d4252b', h: '#951519', L: '#ff6060',            // bowler hat
-  W: '#f4f4f4', w: '#c4c4cc',                          // white hair & beard
-  S: '#f0c09c', s: '#cf9673', E: '#2a1a14', M: '#8a3a30', // face & hands
-  R: '#ea3d2c', r: '#a8221a', l: '#ff6e52',            // tailcoat
-  V: '#cf2c1d', B: '#ff2216', K: '#16161a',            // vest, bow tie, shirt
-  T: '#0a0a0a', Y: '#b8b8c0',                          // belt & buckle
-  J: '#26272e', j: '#3c3e4a', O: '#0b0b0d',            // jeans & shoes
-  D: '#8fd4ff',                                        // sweat drop
-};
-const BODY = [
-  '.........LHHHHH.........',
-  '........LHHHHHHH........',
-  '........LHHHHHHHh.......',
-  '........HHHHHHHHh.......',
-  '........hhhhhhhhh.......',
-  '......HHHHHHHHHHHHH.....',
-  '.......hhhhhhhhhhh......',
-  '........WWSSSSSSS.......',
-  '.......WWWSSSSSSSS......',
-  '.......WWsSSSSESSS......',
-  '.......WWsSSSSSSSSS.....',
-  '.......WWSSSWWWWWW......',
-  '........WSWWWWMWWW......',
-  '........WWWWWWWWW.......',
-  '.........WWWWWWw........',
-  '........RRBBKBBRR.......',
-  '.......RRRlKKKlRRRR.....',
-  '......RRRRlKKKlRRRRR....',
-  '......rRRRlVKVlRRRrR....',
-  '......rRRRRlVVVlRRrR....',
-  '......rRRRRlVrVlRRrR....',
-  '......rRRRRRVVVRRRrR....',
-  '......rRRRRRVrVRRRrR....',
-  '......rRRRRRVVVRRRrR....',
-  '......rRRRRRTYTRRRrR....',
-  '.....rRRRRRRJJJRRRrSS...',
-  '....rrRRRRRRJJJJRRRss...',
-  '...rrRRRRR.JJJJ.RR......',
-  '..rrRRRR...JJJJ.........',
-  '.rrRRR.....JJJJ.........',
-];
-const LEGS = [
-  ['rrR........JJ.JJ........',
-   '...........JJ.JJ........',
-   '...........jJ.jJ........',
-   '...........JJ.JJ........',
-   '...........JJ.JJ........',
-   '..........OOO.OOOO......'],
-  ['rrR.......JJ...JJ.......',
-   '.........JJ.....JJ......',
-   '.........jJ.....jJ......',
-   '........JJ.......JJ.....',
-   '........JJ.......JJ.....',
-   '.......OOO.......OOOO...'],
-];
-// Both arms thrown up in the air (and the hanging hand removed).
-const CHEER_ARMS = [
-  [18,15,'R'],[19,15,'R'],[19,14,'R'],[20,14,'R'],[20,13,'R'],[21,13,'R'],[21,12,'R'],[21,11,'S'],[22,11,'S'],[21,10,'S'],
-  [6,16,'R'],[5,15,'R'],[5,14,'R'],[4,14,'R'],[4,13,'R'],[3,13,'R'],[3,12,'R'],[3,11,'S'],[2,11,'S'],[3,10,'S'],
-  [19,25,'.'],[20,25,'.'],[19,26,'.'],[20,26,'.'],
-];
-const SWEAT = [[20,7,'D'],[20,8,'D'],[21,8,'D']];
-// Front arm held straight out to grip the Roman candle.
-const CANDLE_ARM = [
-  [19,15,'R'],[20,15,'R'],[21,15,'R'],[19,16,'R'],[20,16,'R'],[21,16,'r'],
-  [22,14,'S'],[23,14,'S'],[22,15,'S'],[23,15,'S'],
-  [19,25,'.'],[20,25,'.'],[19,26,'.'],[20,26,'.'],
-];
-function buildPose(legs, extra) {
-  const g = BODY.concat(legs).map(r => r.split(''));
-  for (const [x, y, c] of extra || []) g[y][x] = c;
-  return g;
-}
-const POSES = {
-  walk0: buildPose(LEGS[0]), walk1: buildPose(LEGS[1]),
-  cheer: buildPose(LEGS[0], CHEER_ARMS), slump: buildPose(LEGS[0], SWEAT),
-  candle: buildPose(LEGS[0], CANDLE_ARM),
-};
+// ---------- Chuck, the showman, strolling the moon ----------
+// Chuck is a pixel-art sprite, drawn facing right (flipped when he faces left). His moods (walking,
+// cheering, slumping, dancing, holding the Roman candle) are shown by how he moves rather than by
+// separate drawings.
+const CHUCK_W = 37, CHUCK_H = 80, CHUCK_TALL = 34;   // sprite size in pixels, and his height in units
+const CHUCK_HAND = [30.7, 48.6];   // his front hand, in sprite pixels, for holding the Roman candle
+const chuckImg = new Image(); chuckImg.src = CHUCK_SRC;
+const POSES = { walk0: 'walk0', walk1: 'walk1', cheer: 'cheer', slump: 'slump', candle: 'candle' };
 const showman = { x: 0, dir: 1, anim: 0, pause: 0, walk: 3 + Math.random() * 4,
   mood: 'walk', moodT: 0, pose: POSES.walk0, lift: 0, sink: 0, tappedShow: -1 };
 
@@ -653,28 +538,33 @@ function updateShowman(dt) {
 }
 
 function showmanBox() {
-  const m = showman, p = pixelSize();
-  const w = 24 * p, h = m.pose.length * p;
+  const m = showman, p = pixelSize(), k = CHUCK_TALL * p / CHUCK_H;
+  const w = CHUCK_W * k, h = CHUCK_H * k;
   const left = Math.round(m.x - w / 2);
   const bob = m.pose === POSES.walk1 ? -p : 0;
   const top = Math.round(horizon(m.x) + 4 - h + bob - m.lift + m.sink);
-  return { left, top, w, h, p };
+  return { left, top, w, h, p, k };
 }
 
 function drawShowman() {
   if (showman.hidden) return;
-  const m = showman, { left, top, p } = showmanBox();
-  const cols = m.pose[0].length;
+  const m = showman, { left, top, w, h, p } = showmanBox();
   ctx.fillStyle = 'rgba(0,0,0,.3)';
-  ctx.beginPath(); ctx.ellipse(m.x, horizon(m.x) + 4, 9 * p, 1.5 * p, 0, 0, TAU); ctx.fill();
-  for (let y = 0; y < m.pose.length; y++) {
-    const row = m.pose[y];
-    for (let x = 0; x < cols; x++) {
-      const c = row[m.dir > 0 ? x : cols - 1 - x];
-      if (c === '.') continue;
-      ctx.fillStyle = PAL[c];
-      ctx.fillRect(left + x * p, top + y * p, p, p);
-    }
+  ctx.beginPath(); ctx.ellipse(m.x, horizon(m.x) + 4, w * 0.5, 1.5 * p, 0, 0, TAU); ctx.fill();
+  if (chuckImg.complete && chuckImg.naturalWidth) {
+    ctx.save();
+    ctx.imageSmoothingEnabled = false;
+    // slumped: leaning forward a little from his feet
+    if (m.pose === POSES.slump) { ctx.translate(m.x, top + h); ctx.rotate(0.12 * m.dir); ctx.translate(-m.x, -(top + h)); }
+    if (m.dir < 0) { ctx.translate(left + w, top); ctx.scale(-1, 1); } else ctx.translate(left, top);
+    ctx.drawImage(chuckImg, 0, 0, w, h);
+    ctx.restore();
+  }
+  // a bead of sweat when he's slumped
+  if (m.pose === POSES.slump) {
+    ctx.fillStyle = '#8fd4ff';
+    const sx = m.x + m.dir * w * 0.42, sy = top + h * 0.12 + (time * 30 % 8);
+    ctx.beginPath(); ctx.arc(sx, sy, p * 0.9, 0, TAU); ctx.fill();
   }
   if (m.say) drawSpeech(m.say.text, m.x, top - 8);
 }
