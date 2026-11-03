@@ -129,8 +129,8 @@ function candleActive() { return candle && candle.shots < candle.type.shots && c
 
 // Where Chuck's hand is and where the tube's mouth points.
 function candleMuzzle() {
-  const c = candle, { left, top, p } = showmanBox();
-  const hx = left + (showman.dir > 0 ? 23 : 1) * p, hy = top + 15 * p;
+  const c = candle, { left, top, p, k } = showmanBox();
+  const hx = left + (showman.dir > 0 ? CHUCK_HAND[0] : CHUCK_W - CHUCK_HAND[0]) * k, hy = top + CHUCK_HAND[1] * k;
   const len = (11 - c.kick * 3) * p;
   return { hx, hy, mx: hx + Math.cos(c.aim) * len, my: hy + Math.sin(c.aim) * len, p };
 }
