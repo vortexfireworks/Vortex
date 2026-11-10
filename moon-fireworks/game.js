@@ -757,9 +757,18 @@ function updateFireball(dt) {
   f.head = f.base - (f.base - f.top) * (1 - Math.pow(1 - rise, 2));
   if (f.t < 2.8) {
     // the stem: hot puffs boiling up along the column
-    for (let i = 0; i < 75 * dt; i++) {
-      const y = f.head + Math.random() * (f.base - f.head);
-      firePuff(f.x + (Math.random() - 0.5) * R * 0.06, y, R * (0.024 + Math.random() * 0.022), (Math.random() - 0.5) * 20, -R * (0.2 + Math.random() * 0.25), 0.7 + Math.random() * 0.3);
+    for (let i = 0; i < 90 * dt; i++) {
+      // the stem flares out toward the ground (k: 0 at the head, 1 at the base)
+      const k = Math.pow(Math.random(), 0.8), y = f.head + k * (f.base - f.head);
+      firePuff(f.x + (Math.random() - 0.5) * R * (0.06 + 0.22 * k * k), y, R * (0.024 + 0.02 * k + Math.random() * 0.022), (Math.random() - 0.5) * 20, -R * (0.2 + Math.random() * 0.25), 0.7 + Math.random() * 0.3);
+    }
+  }
+  // a ring of fire rolling out along the ground where the column starts
+  if (f.t < 2.6) {
+    for (let i = 0; i < 40 * dt; i++) {
+      const side = Math.random() < 0.5 ? -1 : 1, s = R * (0.1 + Math.random() * 0.35);
+      firePuff(f.x + side * Math.random() * R * 0.05, f.base - R * 0.01, R * (0.03 + Math.random() * 0.03),
+        side * s, -R * (0.02 + Math.random() * 0.06), 0.65 + Math.random() * 0.3);
     }
   }
   if (rise >= 1 && f.t < 3.2) {
