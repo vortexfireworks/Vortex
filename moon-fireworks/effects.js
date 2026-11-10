@@ -39,6 +39,7 @@ function explodeBoards(r) {
 
 function explode(r) {
   const s = r.size;
+  showman.lastBurst = { x: r.x, y: r.y, at: time };
   if (r.boards) { explodeBoards(r); return ''; }
   switch (r.kind) {
     case 'utah': if (UTAH_POINTS.length) { explodeUtah(r); return ''; } break;

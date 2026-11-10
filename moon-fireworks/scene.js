@@ -510,10 +510,12 @@ function chuckArms() {
     const sw = s(m.anim * TAU * 1.5);
     front = [0.35 * sw, -0.3]; back = [-0.35 * sw, -0.3];
   } else {
-    // conducting: the baton traces a beat pattern; the other hand shapes the music
-    // elbows low and out, forearms up: the baton hand beats down-out-up, the other rises and falls
-    front = [0.95 + 0.35 * s(t * beat), 1.25 + 0.55 * Math.cos(t * beat * 2)];
-    back = [0.75 + 0.3 * s(t * beat / 2 + 1), 1.1 + 0.35 * s(t * beat)];
+    // conducting toward the fireworks: elbows out, forearms up, the baton beating toward where the
+    // action is (higher for bursts overhead, out to the side for low ones); the other hand shapes the music
+    const f = m.focus ? localTarget(m.focus.x, m.focus.y) : 1.6;
+    const up = Math.max(0, Math.min(1, (f - 1.2) / 1.5));   // 0 = out to the side, 1 = high overhead
+    front = [0.8 + 0.9 * up + 0.35 * s(t * beat), 1.3 - 0.5 * up + 0.55 * Math.cos(t * beat * 2)];
+    back = [0.7 + 0.5 * up + 0.3 * s(t * beat / 2 + 1), 1.1 + 0.35 * s(t * beat)];
   }
   // a cue: a quick point of the baton at a burst the player just popped
   if (m.cue && m.mood !== 'candle') {
@@ -626,6 +628,7 @@ function updateShowman(dt) {
   }
   if (m.pause > 0) {
     m.pause -= dt; m.pose = POSES.walk0;
+    faceTheShow(m);
     return;
   }
   m.x += m.dir * 14 * p * dt;
@@ -641,6 +644,22 @@ function updateShowman(dt) {
     m.walk = show ? 1 + Math.random() * 2.5 : 2 + Math.random() * 5;
     if (Math.random() < 0.4) m.dir *= -1;
   }
+}
+
+// Where the fireworks are: the middle of the rockets in the air, or else the latest burst for a
+// couple of seconds after it goes off.
+function fireworksFocus() {
+  let n = 0, x = 0, y = 0;
+  for (const r of rockets) if (!r.dead && r.kind !== 'salute') { x += r.x; y += r.y; n++; }
+  if (n) return { x: x / n, y: y / n };
+  const b = showman.lastBurst;
+  return b && time - b.at < 2.5 ? b : null;
+}
+// While he stands and conducts, he turns to face the fireworks (only once they're clearly on his
+// other side, so he doesn't flicker back and forth).
+function faceTheShow(m) {
+  m.focus = fireworksFocus();
+  if (m.focus && (m.focus.x - m.x) * m.dir < -W * 0.06) m.dir *= -1;
 }
 
 function showmanBox() {
