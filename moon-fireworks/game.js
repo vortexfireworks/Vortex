@@ -46,7 +46,7 @@ function goFullscreen() {
 function startGame() {
   goFullscreen();
   audio();
-  rockets = []; particles = []; texts = []; ripples = []; cameo = null; goals.kinds = new Set(); boards = null;
+  rockets = []; particles = []; texts = []; ripples = []; cameo = null; goals.kinds = new Set(); boards = null; fireball = null;
   gs = newGameStats();
   gazer = null; gazerShow = -1;
   goals.game = { chuckShows: new Set(), poops: 0 };
@@ -721,7 +721,117 @@ function updateBoards(dt) {
   // time's up: wait for the last shells to burst, then the show's over
   if (rockets.some(r => !r.dead)) return;
   b.done += dt;
-  if (b.done > 1.2) { boards = null; gameOver(); }
+  if (b.done > 1.2) { boards = null; startFireball(); }
+}
+
+// ---------- the giant fireball that ends the game ----------
+// After Clear Your Boards, a column of fire roars up from the ground and blooms into a huge mushroom
+// fireball (white-hot core, orange and red billows, purple smoke behind, embers falling), drawn on a
+// small canvas and scaled up so it has the same chunky pixel look as the rest of the scene.
+const FIRE_TIME = 5.2;
+let fireball = null;
+const fireCv = document.createElement('canvas'), fireCtx = fireCv.getContext('2d');
+function startFireball() {
+  const px = Math.max(4, Math.round(Math.min(W, H) / 110));
+  fireCv.width = Math.ceil(W / px); fireCv.height = Math.ceil(H / px);
+  // a little to the side away from Chuck
+  const fx = W * (showman.x < W / 2 ? 0.6 : 0.4);
+  fireball = { t: 0, px, x: fx, base: horizon(fx) + 2, top: Math.max(skyTop + 40, H * 0.3), head: horizon(W / 2), puffs: [], bloomed: false };
+  if (!playBang(0, 0.6, 1)) boom(true);
+  setTimeout(() => { if (fireball && !playBang(3, 0.5, 1)) boom(true); }, 450);
+  flash = 1; shake = 22; buzz([200, 80, 300]);
+  const m = showman;
+  m.mood = 'walk'; m.dir = m.x < W / 2 ? 1 : -1;
+  m.say = { text: "Now THAT'S a finale!", t: 0 };
+  if (!dog.hidden && van && van.parked) { dog.hide = true; dog.peek = 3; }
+}
+function firePuff(x, y, r, vx, vy, heat, smoke) {
+  fireball.puffs.push({ x, y, r, vx, vy, heat, smoke, life: 1, grow: smoke ? 0.45 : 0.5 });
+}
+function updateFireball(dt) {
+  const f = fireball, R = Math.min(W, H);
+  f.t += dt;
+  shake = Math.max(shake, f.t < 1.5 ? 10 * (1.5 - f.t) : 0);
+  // the column rises in the first 0.7 s
+  const rise = Math.min(1, f.t / 0.7);
+  f.head = f.base - (f.base - f.top) * (1 - Math.pow(1 - rise, 2));
+  if (f.t < 2.8) {
+    // the stem: hot puffs boiling up along the column
+    for (let i = 0; i < 55 * dt; i++) {
+      const y = f.head + Math.random() * (f.base - f.head);
+      firePuff(f.x + (Math.random() - 0.5) * R * 0.03, y, R * (0.014 + Math.random() * 0.014), (Math.random() - 0.5) * 20, -R * (0.2 + Math.random() * 0.25), 0.7 + Math.random() * 0.3);
+    }
+  }
+  if (rise >= 1 && f.t < 3.2) {
+    // the cap: billows rolling out from the head, hottest in the middle
+    // a wide, flattened ball that rolls outward and curls down at the edges
+    for (let i = 0; i < 110 * dt; i++) {
+      const a = Math.random() * TAU, s = R * (0.08 + Math.random() * 0.4);
+      const heat = 1.05 - Math.min(1, s / (R * 0.48)) * 0.7 + Math.random() * 0.08;
+      firePuff(f.x + Math.cos(a) * R * 0.04, f.head + Math.sin(a) * R * 0.02, R * (0.03 + Math.random() * 0.035),
+        Math.cos(a) * s * 1.25, Math.sin(a) * s * 0.45 - R * 0.06, heat);
+    }
+    // purple smoke rolling up behind it
+    if (f.t < 2.2) for (let i = 0; i < 8 * dt; i++)
+      firePuff(f.x + (Math.random() - 0.5) * R * 0.55, f.head - R * (0.05 + Math.random() * 0.1), R * (0.045 + Math.random() * 0.04),
+        (Math.random() - 0.5) * R * 0.15, -R * (0.03 + Math.random() * 0.04), 0, true);
+    if (!f.bloomed) { f.bloomed = true; flash = 1; shake = 18; buzz(150); }
+    // embers
+    if (Math.random() < dt * 30) {
+      const a = Math.random() * TAU, v = R * (0.3 + Math.random() * 0.6);
+      particles.push({ x: f.x, y: f.head, px: f.x, py: f.head, vx: Math.cos(a) * v, vy: Math.sin(a) * v - R * 0.2, h: 15 + Math.random() * 30, sat: 100,
+        life: 1.2, decay: 0.5, size: 2.2, gm: 5, streak: 0.05, emit: 10, glitter: Math.random() < 0.5 });
+    }
+  }
+  for (const p of f.puffs) {
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= Math.exp(-2.2 * dt); p.vy = p.vy * Math.exp(-1.6 * dt) - R * 0.05 * dt;
+    p.r += p.r * p.grow * dt;
+    p.heat -= dt * (p.smoke ? 0 : 0.42);
+    p.life -= dt * (p.smoke ? 0.3 : 0.34);
+  }
+  f.puffs = f.puffs.filter(p => p.life > 0 && p.heat > -0.1);
+  if (f.t > FIRE_TIME) { fireball = null; gameOver(); }
+}
+// fire colours from white-hot down to dark red, and the smoke's purples
+const FIRE_COLS = ['#fffbe6', '#ffe9a0', '#ffc94a', '#ff9a2a', '#f2611c', '#d23a16', '#9a1f17', '#5e1414'];
+function fireCol(heat) { return FIRE_COLS[Math.max(0, Math.min(FIRE_COLS.length - 1, Math.floor((1 - heat) * FIRE_COLS.length)))]; }
+function drawFireball() {
+  if (!fireball) return;
+  const f = fireball, g = fireCtx, k = 1 / f.px;
+  g.clearRect(0, 0, fireCv.width, fireCv.height);
+  const fade = Math.min(1, (FIRE_TIME - f.t) / 1.2);
+  // smoke first, then fire from coolest to hottest so the core glows on top
+  const smoke = f.puffs.filter(p => p.smoke), fireP = f.puffs.filter(p => !p.smoke).sort((a, b) => a.heat - b.heat);
+  for (const p of smoke) {
+    g.globalAlpha = Math.min(1, p.life * 1.4) * 0.55 * fade;
+    g.fillStyle = '#4a2580'; g.beginPath(); g.arc(p.x * k, p.y * k, p.r * k, 0, TAU); g.fill();
+    g.fillStyle = '#6b36b3'; g.beginPath(); g.arc((p.x - p.r * 0.25) * k, (p.y - p.r * 0.25) * k, p.r * 0.7 * k, 0, TAU); g.fill();
+  }
+  for (const p of fireP) {
+    g.globalAlpha = Math.min(1, p.life * 2.5) * fade;
+    // each billow is shaded: a darker rim, a hotter centre lit from above
+    g.fillStyle = fireCol(p.heat - 0.18); g.beginPath(); g.arc(p.x * k, p.y * k, p.r * k, 0, TAU); g.fill();
+    g.fillStyle = fireCol(p.heat); g.beginPath(); g.arc((p.x - p.r * 0.15) * k, (p.y - p.r * 0.2) * k, p.r * 0.72 * k, 0, TAU); g.fill();
+    if (p.heat > 0.55) { g.fillStyle = fireCol(p.heat + 0.2); g.beginPath(); g.arc((p.x - p.r * 0.2) * k, (p.y - p.r * 0.3) * k, p.r * 0.38 * k, 0, TAU); g.fill(); }
+  }
+  g.globalAlpha = 1;
+  // a warm glow over everything, then the pixelated fireball on top
+  const glow = ctx.createRadialGradient(f.x, f.head, 0, f.x, f.head, Math.max(W, H) * 0.7);
+  glow.addColorStop(0, `rgba(255,140,40,${0.35 * fade})`); glow.addColorStop(1, 'rgba(255,90,20,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(fireCv, 0, 0, fireCv.width * f.px, fireCv.height * f.px);
+  ctx.restore();
+  // the readout in the corner
+  if (f.t > 0.8) {
+    ctx.save();
+    ctx.globalAlpha = fade; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+    ctx.font = '800 ' + Math.min(22, W / 18) + 'px ui-monospace, Menlo, Consolas, monospace';
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,.85)';
+    ctx.strokeText('EXPLOSION: MAX', W - 14, H - 18); ctx.fillStyle = '#ffd86b'; ctx.fillText('EXPLOSION: MAX', W - 14, H - 18);
+    ctx.restore();
+  }
 }
 
 function drawBoards() {
