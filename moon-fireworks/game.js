@@ -735,7 +735,7 @@ function startFireball() {
   const px = Math.max(4, Math.round(Math.min(W, H) / 110));
   fireCv.width = Math.ceil(W / px); fireCv.height = Math.ceil(H / px);
   // a little to the side away from Chuck
-  const fx = W * (showman.x < W / 2 ? 0.6 : 0.4);
+  const fx = W * (showman.x < W / 2 ? 0.56 : 0.44);
   fireball = { t: 0, px, x: fx, base: horizon(fx) + 2, top: Math.max(skyTop + 40, H * 0.3), head: horizon(W / 2), puffs: [], bloomed: false };
   if (!playBang(0, 0.6, 1)) boom(true);
   setTimeout(() => { if (fireball && !playBang(3, 0.5, 1)) boom(true); }, 450);
@@ -757,24 +757,24 @@ function updateFireball(dt) {
   f.head = f.base - (f.base - f.top) * (1 - Math.pow(1 - rise, 2));
   if (f.t < 2.8) {
     // the stem: hot puffs boiling up along the column
-    for (let i = 0; i < 55 * dt; i++) {
+    for (let i = 0; i < 75 * dt; i++) {
       const y = f.head + Math.random() * (f.base - f.head);
-      firePuff(f.x + (Math.random() - 0.5) * R * 0.03, y, R * (0.014 + Math.random() * 0.014), (Math.random() - 0.5) * 20, -R * (0.2 + Math.random() * 0.25), 0.7 + Math.random() * 0.3);
+      firePuff(f.x + (Math.random() - 0.5) * R * 0.06, y, R * (0.024 + Math.random() * 0.022), (Math.random() - 0.5) * 20, -R * (0.2 + Math.random() * 0.25), 0.7 + Math.random() * 0.3);
     }
   }
   if (rise >= 1 && f.t < 3.2) {
     // the cap: billows rolling out from the head, hottest in the middle
     // a wide, flattened ball that rolls outward and curls down at the edges
-    for (let i = 0; i < 110 * dt; i++) {
+    for (let i = 0; i < 150 * dt; i++) {
       const a = Math.random() * TAU, s = R * (0.08 + Math.random() * 0.4);
       const heat = 1.05 - Math.min(1, s / (R * 0.48)) * 0.7 + Math.random() * 0.08;
-      firePuff(f.x + Math.cos(a) * R * 0.04, f.head + Math.sin(a) * R * 0.02, R * (0.03 + Math.random() * 0.035),
-        Math.cos(a) * s * 1.25, Math.sin(a) * s * 0.45 - R * 0.06, heat);
+      firePuff(f.x + Math.cos(a) * R * 0.07, f.head + Math.sin(a) * R * 0.02, R * (0.04 + Math.random() * 0.045),
+        Math.cos(a) * s * 2.2, Math.sin(a) * s * 0.45 - R * 0.06, heat);
     }
     // purple smoke rolling up behind it
-    if (f.t < 2.2) for (let i = 0; i < 8 * dt; i++)
-      firePuff(f.x + (Math.random() - 0.5) * R * 0.55, f.head - R * (0.05 + Math.random() * 0.1), R * (0.045 + Math.random() * 0.04),
-        (Math.random() - 0.5) * R * 0.15, -R * (0.03 + Math.random() * 0.04), 0, true);
+    if (f.t < 2.2) for (let i = 0; i < 12 * dt; i++)
+      firePuff(f.x + (Math.random() - 0.5) * R * 1.0, f.head - R * (0.05 + Math.random() * 0.1), R * (0.06 + Math.random() * 0.05),
+        (Math.random() - 0.5) * R * 0.3, -R * (0.03 + Math.random() * 0.04), 0, true);
     if (!f.bloomed) { f.bloomed = true; flash = 1; shake = 18; buzz(150); }
     // embers
     if (Math.random() < dt * 30) {
