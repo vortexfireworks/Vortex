@@ -82,6 +82,8 @@ If anything stutters, note the phone model and which effect or moment it was.
       tap launches a shell. It lasts 10
       seconds (colours, glitter, crossettes, then salutes that are just a flash and a bang), and the
       phone keeps up with fast tapping.
+- [ ] After Clear Your Boards, a giant fireball rises from the ground, blooms into a mushroom cloud
+      and the phone stays smooth, then the After Action Report appears.
 - [ ] When a game ends, the short After Action Report appears first, *See the full report* expands
       the rest, the numbers look right, and *Copy report* pastes into a message.
 - [ ] Posting a score to the crew leaderboard works.

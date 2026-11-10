@@ -88,7 +88,7 @@ $('pauseBtn').onclick = () => setPaused(!paused);
 $('resume').onclick = () => setPaused(false);
 $('quit').onclick = () => {
   state = 'menu'; paused = false; slowT = 0; banner = null; rockets = [];
-  candle = null; swarm = null; boards = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
+  candle = null; swarm = null; boards = null; fireball = null; showman.mood = 'walk'; showman.say = null; showman.hidden = false;
   dog.hidden = false; dog.hide = false;
   if (van && !van.parked) van = null;
   stopEngine(); clearDrones();
@@ -338,6 +338,7 @@ function update(dt) {
   if (state === 'swarm' && swarm) updateSwarm(dt);
   if (state === 'gallery' && gallery) updateGallery(dt);
   if (state === 'boards' && boards) updateBoards(dt);
+  if (state === 'boards' && fireball) updateFireball(dt);
   if (state === 'arrive') updateArrival(dt);
   if (banner) { banner.t -= dt; if (banner.t <= 0) banner = null; }
 
@@ -584,6 +585,7 @@ function draw() {
 
   drawSwarm();
   ctx.drawImage(fg, 0, 0, W, H);
+  drawFireball();
   if (dog.hide) drawDog(); // hiding behind the van
   drawVan();
   drawFlag();
