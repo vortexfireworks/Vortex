@@ -129,8 +129,8 @@ function candleActive() { return candle && candle.shots < candle.type.shots && c
 
 // Where Chuck's hand is and where the tube's mouth points.
 function candleMuzzle() {
-  const c = candle, { left, top, p, k } = showmanBox();
-  const hx = left + (showman.dir > 0 ? CHUCK_HAND[0] : CHUCK_W - CHUCK_HAND[0]) * k, hy = top + CHUCK_HAND[1] * k;
+  const c = candle, { p } = showmanBox(), hand = chuckHand();
+  const hx = hand.x, hy = hand.y;
   const len = (11 - c.kick * 3) * p;
   return { hx, hy, mx: hx + Math.cos(c.aim) * len, my: hy + Math.sin(c.aim) * len, p };
 }
@@ -545,6 +545,7 @@ function pop(r, chain) {
   if (chain >= 2) unlock('chain3');
   if (r.kind === 'utah') unlock('utes');
   goals.kinds.add(r.kind);
+  showman.cue = { x: r.x, y: r.y, t: 0.45 };
   if (chain >= 4) unlock('chain5');
   if (slowT > 0 && r.kind !== 'slow' && ++goals.slowPops >= 10) unlock('slowhands');
   if (goals.kinds.has('utah') && goals.kinds.has('byu')) unlock('holywar');
