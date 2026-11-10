@@ -221,6 +221,10 @@ updateThemeToggleIcon();
       <label><input type="checkbox" id="myPayDisabledToggle" onchange="onMyPayDisabledToggle()"> Turn off My Pay self-serve lookup for everyone</label>
     </div>
 
+    <div class="settings-row">
+      <label><input type="checkbox" id="requireApprovalToggle" onchange="onRequireApprovalToggle()"> Require admin approval on new payroll (turn off to auto-approve new submissions; existing pending payroll is unaffected)</label>
+    </div>
+
     <div class="tab-row">
       <button type="button" class="tab-btn active" data-tab="shows" onclick="switchTab('shows')">By Show</button>
       <button type="button" class="tab-btn" data-tab="people" onclick="switchTab('people')">Totals by Person</button>
@@ -279,6 +283,7 @@ function todayIso(){ return new Date().toISOString().slice(0,10); }
 let RECORDS = [];
 let HIDE_UNAPPROVED = false;
 let MY_PAY_DISABLED = false;
+let REQUIRE_APPROVAL = true;
 
 async function postJson(payload){
   const res = await fetch(CHECKIN_API_URL, { method:'POST', headers:{ 'Content-Type':'text/plain;charset=utf-8' }, body: JSON.stringify(payload) });
@@ -299,6 +304,8 @@ async function loadRecords(){
     $('hideUnapprovedToggle').checked = HIDE_UNAPPROVED;
     MY_PAY_DISABLED = !!data.myPayDisabled;
     $('myPayDisabledToggle').checked = MY_PAY_DISABLED;
+    REQUIRE_APPROVAL = data.requireApproval !== false;
+    $('requireApprovalToggle').checked = REQUIRE_APPROVAL;
   } catch(err){
     wrap.innerHTML = '<p style="font-size:13px;color:var(--brick);">Could not load payroll records — check your connection and try again.</p>';
     $('countLine').textContent = '';
@@ -331,6 +338,20 @@ async function onMyPayDisabledToggle(){
   try{
     await postJson({ recordType: 'payrollSettings', myPayDisabled: wanted });
     MY_PAY_DISABLED = wanted;
+  } catch(err){
+    checkbox.checked = !wanted;
+    alert("Couldn't save that setting — check your connection and try again.");
+  }
+  checkbox.disabled = false;
+}
+
+async function onRequireApprovalToggle(){
+  const checkbox = $('requireApprovalToggle');
+  const wanted = checkbox.checked;
+  checkbox.disabled = true;
+  try{
+    await postJson({ recordType: 'payrollSettings', requireApproval: wanted });
+    REQUIRE_APPROVAL = wanted;
   } catch(err){
     checkbox.checked = !wanted;
     alert("Couldn't save that setting — check your connection and try again.");

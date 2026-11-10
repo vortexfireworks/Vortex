@@ -364,6 +364,15 @@ function payrollHideUnapproved() {
   return PropertiesService.getScriptProperties().getProperty('PAYROLL_HIDE_UNAPPROVED') === 'true';
 }
 
+// Whether a newly-submitted show's payroll lines need an admin's explicit approval at all.
+// On (the default, and the only behavior that existed before this setting): new lines land as
+// Pending and sit in that By Show list until approved. Off: new lines are written in as already
+// Approved, skipping the review step entirely. Admin-wide, changed from the Payroll Reports page.
+// Existing Pending lines are untouched either way — this only governs what NEW lines start as.
+function payrollRequiresApproval() {
+  return PropertiesService.getScriptProperties().getProperty('PAYROLL_REQUIRE_APPROVAL') !== 'false';
+}
+
 // Admin-wide kill switch for the self-serve My Pay lookup, changed from the Payroll Reports page.
 function myPayDisabled() {
   return PropertiesService.getScriptProperties().getProperty('MY_PAY_DISABLED') === 'true';
@@ -2141,6 +2150,7 @@ function doPostInner(e) {
     if (entries.length) {
       const unit = data.unit === 'hours' ? 'hours' : 'usd';
       const declaredTotal = data.declaredTotal === '' || data.declaredTotal == null ? '' : Number(data.declaredTotal) || 0;
+      const initialStatus = payrollRequiresApproval() ? 'Pending' : 'Approved';
       const payrollSheet = getOrCreatePayrollSheet(ss);
       const map = headerMap(payrollSheet);
       const rows = entries.map(entry => {
@@ -2155,7 +2165,7 @@ function doPostInner(e) {
         row[map['Amount']] = Number(entry.amount) || 0;
         row[map['Unit']] = unit;
         row[map['DeclaredTotal']] = declaredTotal;
-        row[map['Status']] = 'Pending';
+        row[map['Status']] = initialStatus;
         return row;
       }).filter(row => row[map['Name']]);
       if (rows.length) payrollSheet.getRange(payrollSheet.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
@@ -2320,6 +2330,9 @@ function doPostInner(e) {
     const props = PropertiesService.getScriptProperties();
     if (Object.prototype.hasOwnProperty.call(data, 'hideUnapproved')) {
       props.setProperty('PAYROLL_HIDE_UNAPPROVED', data.hideUnapproved ? 'true' : 'false');
+    }
+    if (Object.prototype.hasOwnProperty.call(data, 'requireApproval')) {
+      props.setProperty('PAYROLL_REQUIRE_APPROVAL', data.requireApproval ? 'true' : 'false');
     }
     if (Object.prototype.hasOwnProperty.call(data, 'myPayDisabled')) {
       props.setProperty('MY_PAY_DISABLED', data.myPayDisabled ? 'true' : 'false');
@@ -3269,11 +3282,11 @@ function doGetInner(e) {
     // Every logged line item (who was paid what, per show) — the Manage/Edit payroll
     // report groups and totals these client-side, including by date range. Always returns
     // pending lines too (with their status) so an admin can find and approve them.
-    return jsonOut({records: readPayrollRecords(ss).slice(0, 20000), hideUnapproved: payrollHideUnapproved(), myPayDisabled: myPayDisabled()});
+    return jsonOut({records: readPayrollRecords(ss).slice(0, 20000), hideUnapproved: payrollHideUnapproved(), requireApproval: payrollRequiresApproval(), myPayDisabled: myPayDisabled()});
   }
 
   if (e.parameter.type === 'payrollSettings') {
-    return jsonOut({hideUnapproved: payrollHideUnapproved(), myPayDisabled: myPayDisabled()});
+    return jsonOut({hideUnapproved: payrollHideUnapproved(), requireApproval: payrollRequiresApproval(), myPayDisabled: myPayDisabled()});
   }
 
   if (e.parameter.type === 'myPayStatus') {
