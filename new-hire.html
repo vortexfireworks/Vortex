@@ -338,6 +338,7 @@ updateThemeToggleIcon();
     <div class="actions">
       <button type="button" id="nhEmailBtn" onclick="emailQuestionnaire()">Email to Vortex (PDF)</button>
       <button class="secondary" type="button" onclick="downloadQuestionnairePDF()">Download as PDF</button>
+      <button class="secondary" type="button" id="nhSaveBtn" onclick="saveQuestionnaire()">Save</button>
     </div>
     <p class="sendto">Goes to <strong>vortexfireworksartists@gmail.com</strong> &middot; <button type="button" class="link-btn" onclick="copyVortexEmail()">Copy address</button></p>
     <p class="status" id="nhStatus" aria-live="polite"></p>
@@ -680,6 +681,30 @@ function downloadQuestionnairePDF(){
   const sync = syncOnce();
   buildQuestionnairePDF().save(`New_Hire_${name}.pdf`);
   sync.then(result => finishSubmit('PDF downloaded', `Email the downloaded PDF to ${VORTEX_EMAIL} to finish this step.`, result));
+}
+
+// For anyone who doesn't need the PDF/email round-trip at all — just saves this questionnaire
+// straight to the crew directory and confirms it.
+async function saveQuestionnaire(){
+  if(!validateNh()) return;
+  const btn = document.getElementById('nhSaveBtn');
+  const statusEl = document.getElementById('nhStatus');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  statusEl.textContent = '';
+  try{
+    const result = await syncOnce();
+    if(result.status === 'failed' || result.status === 'unchecked'){
+      statusEl.textContent = "Couldn't save — check your connection and try again.";
+      statusEl.style.color = '#ff6a5a';
+      return;
+    }
+    finishSubmit('Save successful', 'Your questionnaire has been saved.', result);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
 }
 
 async function emailQuestionnaire(){
