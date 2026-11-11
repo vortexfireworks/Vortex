@@ -390,7 +390,7 @@ function update(dt) {
   }
   rockets = rockets.filter(r => !r.dead);
 
-  const pg = H * 0.05; // gentle lunar gravity, no air drag
+  const pg = H * 0.05; // gravity; stars carry their own drag
   const born = [];
   for (const p of particles) {
     p.px = p.x; p.py = p.y;
@@ -405,7 +405,7 @@ function update(dt) {
     p.life -= p.decay * dt;
     if (p.emit && Math.random() < p.emit * dt) {
       born.push({ x: p.x, y: p.y, px: p.x, py: p.y, vx: p.vx * 0.1 + (Math.random() - 0.5) * 10, vy: p.vy * 0.1,
-        h: p.h, sat: p.sat, lit: p.lit, life: p.trailLife || 0.5, decay: 1.8, size: p.trailLife ? 1.6 : 1, glitter: !!p.trailLife && p.glitter });
+        h: p.h, sat: p.sat, lit: p.lit, life: p.trailLife || 0.5, decay: 1.8, size: p.trailLife ? 1.6 : 1, glitter: !!p.trailLife && p.glitter, spark: true });
     }
     if (p.split !== undefined) {
       p.split -= dt;
@@ -516,6 +516,22 @@ function drawHint() {
   ctx.strokeText('Tap it!', r.x, y + 6); ctx.fillText('Tap it!', r.x, y + 6);
 }
 
+// Small pre-drawn glows, one per colour, so thousands of stars can be drawn quickly.
+const glowSprites = {};
+function glowSprite(h, sat, l) {
+  const hb = Math.round(h / 12) * 12 % 360, sb = Math.round(sat / 25) * 25, lb = Math.round(l / 10) * 10;
+  const key = hb + '_' + sb + '_' + lb;
+  if (glowSprites[key]) return glowSprites[key];
+  const c = document.createElement('canvas'); c.width = c.height = 32;
+  const g = c.getContext('2d'), gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  gr.addColorStop(0, `hsla(${hb},${sb}%,${Math.min(97, lb + 35)}%,1)`);
+  gr.addColorStop(0.16, `hsla(${hb},${sb}%,${Math.min(92, lb + 18)}%,1)`);
+  gr.addColorStop(0.4, `hsla(${hb},${sb}%,${lb}%,.42)`);
+  gr.addColorStop(1, `hsla(${hb},${sb}%,${lb}%,0)`);
+  g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+  return (glowSprites[key] = c);
+}
+
 function draw() {
   ctx.save();
   if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
@@ -541,23 +557,34 @@ function draw() {
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, TAU); ctx.fill();
       continue;
     }
-    if (p.glitter && p.life < 0.6) a *= Math.random() < 0.5 ? 1 : 0.15;
+    // a star burns at full brightness for most of its life, then flickers and dies
+    a = Math.min(1, p.life * 3.5);
+    if (p.life < 0.3 || (p.glitter && p.life < 0.6)) a *= Math.random() < 0.5 ? 1 : 0.2;
     if (p.strobe && (time * p.strobe + p.sph) % 1 > 0.45) continue;
+    // some stars change colour as they burn out
+    const late = p.endH !== undefined && p.life < 0.5;
+    const h = late ? p.endH : p.h, sat = late ? p.endS : p.sat;
     const l = p.lit ? p.lit + p.life * 12 : 55 + p.life * 30;
-    ctx.strokeStyle = `hsla(${p.h},${p.sat}%,${l}%,${a})`;
-    ctx.lineWidth = p.size;
+    if (p.spark) {
+      // the sparks a star sheds are small and dim, so trails stay coloured instead of washing out white
+      const r = p.size * 1.9;
+      ctx.globalAlpha = a * 0.5;
+      ctx.drawImage(glowSprite(h, sat, l - 25), p.x - r, p.y - r, r * 2, r * 2);
+      ctx.globalAlpha = 1;
+      continue;
+    }
+    // a faint tail behind it
+    ctx.strokeStyle = `hsla(${h},${sat}%,${l}%,${a * 0.55})`;
+    ctx.lineWidth = p.size * 0.6;
     ctx.beginPath();
     if (p.streak) ctx.moveTo(p.x - p.vx * p.streak, p.y - p.vy * p.streak);
-    else ctx.moveTo(p.px, p.py);
+    else ctx.moveTo(p.px - (p.x - p.px), p.py - (p.y - p.py));
     ctx.lineTo(p.x, p.y); ctx.stroke();
-    if (p.glow) {
-      ctx.strokeStyle = `hsla(${p.h},100%,60%,${a * 0.3})`;
-      ctx.lineWidth = p.size * 3.5;
-      ctx.stroke();
-      ctx.strokeStyle = `rgba(255,255,255,${a})`;
-      ctx.lineWidth = p.size * 0.5;
-      ctx.stroke();
-    }
+    // the star itself: a white-hot point in a coloured glow, which adds up to white where stars crowd
+    const r = p.size * (p.glow ? 4.6 : 3.3);
+    ctx.globalAlpha = a;
+    ctx.drawImage(glowSprite(h, sat, l), p.x - r, p.y - r, r * 2, r * 2);
+    ctx.globalAlpha = 1;
   }
   ctx.lineCap = 'butt';
 
