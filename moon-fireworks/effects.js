@@ -37,6 +37,9 @@ function explodeBoards(r) {
   }
 }
 
+// how hard the air brakes a star, and how much faster it's thrown to still reach the same size of burst
+const STAR_DRAG = 2, STAR_THROW = 2.6;
+
 function explode(r) {
   const s = r.size;
   showman.lastBurst = { x: r.x, y: r.y, at: time };
@@ -59,9 +62,19 @@ function explode(r) {
 function shell(x, y, type, hue, scale, gold) {
   const sp = Math.min(W, H) * 0.26 * scale * (0.85 + Math.random() * 0.3);
   const hue2 = (hue + 120 + Math.random() * 80) % 360;
-  const add = o => particles.push(Object.assign({ x, y, px: x, py: y, vx: 0, vy: 0, h: hue, sat: 100, life: 1,
-    decay: 0.45 + Math.random() * 0.3, size: (1.5 + Math.random() * 1.3) * Math.max(0.7, scale),
-    glitter: gold || Math.random() < 0.2 }, o));
+  // about a third of bursts have stars that change colour as they burn out, to gold or silver-white
+  const shift = !gold && Math.random() < 0.35 ? (Math.random() < 0.5 ? { endH: 45, endS: 95 } : { endH: 50, endS: 12 }) : null;
+  const add = o => {
+    const p = Object.assign({ x, y, px: x, py: y, vx: 0, vy: 0, h: hue, sat: 100, life: 1,
+      decay: 0.45 + Math.random() * 0.3, size: (1.5 + Math.random() * 1.3) * Math.max(0.7, scale),
+      glitter: gold || Math.random() < 0.2 }, shift, o);
+    // like real stars: thrown out fast, braked hard by the air, then hanging and sinking.
+    // (Effects with their own drag, weight or curl are already shaped and keep theirs.)
+    if (o.drag === undefined && o.gm === undefined && !o.swirl && !o.wig && !o.haze && !o.flutter) {
+      p.drag = STAR_DRAG; p.vx *= STAR_THROW; p.vy *= STAR_THROW; p.gm = 2.2;
+    }
+    particles.push(p);
+  };
   const dir = (a, s) => ({ vx: Math.cos(a) * s, vy: Math.sin(a) * s });
   const rand = Math.random;
   const n = Math.round(100 * Math.max(0.5, scale) * (gold ? 1.3 : 1));
