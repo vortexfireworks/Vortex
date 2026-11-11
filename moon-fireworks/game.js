@@ -459,7 +459,7 @@ function pickKind() {
 }
 
 // ---------- the portrait cameo after a Y burst ----------
-// A painted portrait, cut out from its background, slides and tilts in from the right, says "Go Utes!",
+// A painted portrait, cut out from its background and drawn pixelated, slides and tilts in from the right, says "Go Utes!",
 // holds for a moment and swings back out.
 const cameoImg = new Image();
 cameoImg.src = CAMEO_SRC;
@@ -487,7 +487,9 @@ function drawCameo() {
   ctx.translate(cx, cy); ctx.rotate(ang);
   // a faint moonlit glow around him so his dark suit doesn't vanish into the night sky
   ctx.shadowColor = 'rgba(170,195,255,.45)'; ctx.shadowBlur = 14;
+  ctx.imageSmoothingEnabled = false;
   ctx.drawImage(cameoImg, -pw / 2, -ph / 2, pw, ph);
+  ctx.imageSmoothingEnabled = true;
   ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
   // where his mouth is, in screen coordinates
   const mx = -pw * 0.02, my = -ph * 0.21;
@@ -724,13 +726,13 @@ function updateBoards(dt) {
 
 // ---------- the giant fireball that ends the game ----------
 // After Clear Your Boards, a column of fire roars up from the ground and blooms into a huge mushroom
-// fireball (white-hot core, orange and red billows, purple smoke behind, embers falling), built from
-// soft glowing billows.
+// fireball (white-hot core, orange and red billows, purple smoke behind, embers falling), drawn on a
+// small canvas and scaled up so it has the same chunky pixel look as the rest of the scene.
 const FIRE_TIME = 5.2;
 let fireball = null;
 const fireCv = document.createElement('canvas'), fireCtx = fireCv.getContext('2d');
 function startFireball() {
-  const px = 2; // drawn at half size and scaled up smoothly, which also softens it
+  const px = Math.max(4, Math.round(Math.min(W, H) / 110));
   fireCv.width = Math.ceil(W / px); fireCv.height = Math.ceil(H / px);
   // a little to the side away from Chuck
   const fx = W * (showman.x < W / 2 ? 0.56 : 0.44);
@@ -802,13 +804,7 @@ function updateFireball(dt) {
 }
 // fire colours from white-hot down to dark red, and the smoke's purples
 const FIRE_COLS = ['#fffbe6', '#ffe9a0', '#ffc94a', '#ff9a2a', '#f2611c', '#d23a16', '#9a1f17', '#5e1414'];
-const FIRE_RGB = FIRE_COLS.map(c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)));
-// a smooth blend along the fire colours for a heat from 1 (white-hot) down to 0 (dark red)
-function fireCol(heat, alpha) {
-  const v = Math.max(0, Math.min(0.999, 1 - heat)) * (FIRE_RGB.length - 1), i = Math.floor(v), t = v - i;
-  const a = FIRE_RGB[i], b = FIRE_RGB[i + 1];
-  return `rgba(${Math.round(a[0] + (b[0] - a[0]) * t)},${Math.round(a[1] + (b[1] - a[1]) * t)},${Math.round(a[2] + (b[2] - a[2]) * t)},${alpha})`;
-}
+function fireCol(heat) { return FIRE_COLS[Math.max(0, Math.min(FIRE_COLS.length - 1, Math.floor((1 - heat) * FIRE_COLS.length)))]; }
 function drawFireball() {
   if (!fireball) return;
   const f = fireball, g = fireCtx, k = 1 / f.px;
@@ -816,27 +812,24 @@ function drawFireball() {
   const fade = Math.min(1, (FIRE_TIME - f.t) / 1.2);
   // smoke first, then fire from coolest to hottest so the core glows on top
   const smoke = f.puffs.filter(p => p.smoke), fireP = f.puffs.filter(p => !p.smoke).sort((a, b) => a.heat - b.heat);
-  // every billow is a soft ball: hottest in its middle, cooling and fading out toward its edge
-  const ball = (p, r, stops) => {
-    const x = p.x * k, y = p.y * k, rr = r * k;
-    const gr = g.createRadialGradient(x - rr * 0.15, y - rr * 0.2, 0, x, y, rr);
-    for (const [at, col] of stops) gr.addColorStop(at, col);
-    g.fillStyle = gr; g.beginPath(); g.arc(x, y, rr, 0, TAU); g.fill();
-  };
   for (const p of smoke) {
-    g.globalAlpha = Math.min(1, p.life * 1.4) * 0.6 * fade;
-    ball(p, p.r * 1.25, [[0, 'rgba(120,70,190,.9)'], [0.6, 'rgba(74,37,128,.7)'], [1, 'rgba(50,24,90,0)']]);
+    g.globalAlpha = Math.min(1, p.life * 1.4) * 0.55 * fade;
+    g.fillStyle = '#4a2580'; g.beginPath(); g.arc(p.x * k, p.y * k, p.r * k, 0, TAU); g.fill();
+    g.fillStyle = '#6b36b3'; g.beginPath(); g.arc((p.x - p.r * 0.25) * k, (p.y - p.r * 0.25) * k, p.r * 0.7 * k, 0, TAU); g.fill();
   }
   for (const p of fireP) {
     g.globalAlpha = Math.min(1, p.life * 2.5) * fade;
-    ball(p, p.r * 1.3, [[0, fireCol(p.heat + 0.15, 1)], [0.45, fireCol(p.heat, 1)], [0.8, fireCol(p.heat - 0.22, 0.75)], [1, fireCol(p.heat - 0.35, 0)]]);
+    // each billow is shaded: a darker rim, a hotter centre lit from above
+    g.fillStyle = fireCol(p.heat - 0.18); g.beginPath(); g.arc(p.x * k, p.y * k, p.r * k, 0, TAU); g.fill();
+    g.fillStyle = fireCol(p.heat); g.beginPath(); g.arc((p.x - p.r * 0.15) * k, (p.y - p.r * 0.2) * k, p.r * 0.72 * k, 0, TAU); g.fill();
+    if (p.heat > 0.55) { g.fillStyle = fireCol(p.heat + 0.2); g.beginPath(); g.arc((p.x - p.r * 0.2) * k, (p.y - p.r * 0.3) * k, p.r * 0.38 * k, 0, TAU); g.fill(); }
   }
   g.globalAlpha = 1;
-  // a warm glow over everything, then the fireball on top
+  // a warm glow over everything, then the pixelated fireball on top
   const glow = ctx.createRadialGradient(f.x, f.head, 0, f.x, f.head, Math.max(W, H) * 0.7);
   glow.addColorStop(0, `rgba(255,140,40,${0.35 * fade})`); glow.addColorStop(1, 'rgba(255,90,20,0)');
   ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
-  ctx.save(); ctx.imageSmoothingEnabled = true;
+  ctx.save(); ctx.imageSmoothingEnabled = false;
   ctx.drawImage(fireCv, 0, 0, fireCv.width * f.px, fireCv.height * f.px);
   ctx.restore();
   // the readout in the corner

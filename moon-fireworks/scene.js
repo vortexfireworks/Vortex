@@ -707,6 +707,8 @@ function drawShowman() {
 const DOG_W = 45, DOG_H = 40, DOG_TALL = 16;   // sprite size in pixels, and her height in units
 const dogImg = new Image(); dogImg.src = DOG_SRC;
 const DOG_POSES = { stand: 'stand', stretch: 'stretch', gather: 'gather', squat: 'squat' };
+const POOP_PAL = { P: '#5a3a1e', p: '#3e2612', q: '#7a5430' };
+const POOP = ['..p..', '.pPq.', 'pPPPp'];
 const CHUCK_POOP_LINES = ['Aw, not there!', 'Good girl… I guess', "Who's cleaning that up?", 'Moon dust and dog poop'];
 const dog = { x: 0, dir: -1, mode: 'trot', t: 2, anim: 0, poopIn: 8, hidden: false, pose: DOG_POSES.stand };
 let poops = [];
@@ -805,14 +807,13 @@ function tapDog() {
 function drawPoops() {
   const p = pixelSize();
   for (const s of poops) {
-    const top = Math.round(horizon(s.x) + 4 - 3 * p), gy = top + 3 * p;
-    // a little coiled pile: three rounded tiers, shaded, with a highlight
-    for (const [w, y, col] of [[2.6, 0.55, '#3e2612'], [1.8, 1.45, '#5a3a1e'], [1.0, 2.3, '#6b4726']]) {
-      ctx.fillStyle = col;
-      ctx.beginPath(); ctx.ellipse(s.x, gy - y * p, w * p, 0.7 * p, 0, 0, TAU); ctx.fill();
+    const left = Math.round(s.x - 2.5 * p), top = Math.round(horizon(s.x) + 4 - 3 * p);
+    for (let y = 0; y < POOP.length; y++) for (let x = 0; x < 5; x++) {
+      const c = POOP[y][x];
+      if (c === '.') continue;
+      ctx.fillStyle = POOP_PAL[c];
+      ctx.fillRect(left + x * p, top + y * p, p, p);
     }
-    ctx.fillStyle = '#6b4726'; ctx.beginPath(); ctx.arc(s.x + 0.2 * p, gy - 2.9 * p, 0.45 * p, 0, TAU); ctx.fill();
-    ctx.fillStyle = 'rgba(190,150,100,.55)'; ctx.beginPath(); ctx.ellipse(s.x - 0.8 * p, gy - 1.6 * p, 0.5 * p, 0.2 * p, -0.3, 0, TAU); ctx.fill();
     // stink lines while it's fresh
     if (s.age < 8) {
       ctx.strokeStyle = `rgba(170,200,110,${0.6 * (1 - s.age / 8)})`;
