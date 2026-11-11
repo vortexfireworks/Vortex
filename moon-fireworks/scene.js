@@ -469,68 +469,60 @@ function drawFlag() {
 // Chuck is a cut-out photo, flipped when he faces left. His moods (walking,
 // cheering, slumping, dancing, holding the Roman candle) are shown by how he moves rather than by
 // separate drawings.
-const CHUCK_COAT = '#ce4c42';
-const CHUCK_W = 29.81, CHUCK_H = 80, CHUCK_TALL = 36;   // the box he's drawn in (arm positions use these units), and his height in game units
+const CHUCK_W = 29.8, CHUCK_H = 80, CHUCK_TALL = 36;   // the box he's drawn in (arm positions use these units), and his height in game units
 const chuckImg = new Image(); chuckImg.src = CHUCK_SRC;
 const POSES = { walk0: 'walk0', walk1: 'walk1', cheer: 'cheer', slump: 'slump', candle: 'candle' };
 const showman = { x: 0, dir: 1, anim: 0, pause: 0, walk: 3 + Math.random() * 4, t: 0, cue: null, moving: false, drawnX: 0,
   mood: 'walk', moodT: 0, pose: POSES.walk0, lift: 0, sink: 0, tappedShow: -1 };
 
 // ---------- Chuck's arms: he conducts the show like an orchestra ----------
-// His arms are cut from the same photo as the rest of him: an upper arm hinged at the shoulder and a
-// forearm (with the hand) hinged at the elbow. Angles are measured from how they hang in the photo:
-// the first swings the whole arm out to its side and up, the second bends the elbow further.
-// The "front" arm holds the baton. His arms ease toward each pose rather than jumping to it.
-const BATON = 10;
-for (const arm of Object.values(CHUCK_ARMS)) for (const part of [arm.upper, arm.lower]) { part.img = new Image(); part.img.src = part.src; }
+// The sprite has no arms; they're drawn here so they can move. Everything is in sprite pixels, with
+// x running toward the way he faces. Each arm is an upper arm and a forearm: angles are measured
+// from hanging straight down, positive swinging out to that arm's side (forward for the front arm,
+// which holds the baton, back for the other).
+const CHUCK_SHOULDERS = { front: [22.3, 20.0], back: [5.4, 19.6] };
+const ARM_UPPER = 13, ARM_FORE = 12, BATON = 10;
+const ARM_COL = { sleeve: '#ce4c42', light: '#e2685c', edge: '#8a2a24', skin: '#dcab92', shade: '#a8745f' };
 
-// The pose his arms are heading for: [shoulder, elbow] angles for each arm.
-function chuckArmTargets() {
-  const m = showman, t = m.t || 0, s = Math.sin;
-  const beat = TAU * 0.9; // tempo for conducting, in radians a second
+// What his arms are doing right now: [upper, forearm] angles for each arm.
+function chuckArms() {
+  const m = showman, t = m.t || 0, s = Math.sin, PI = Math.PI;
+  const beat = TAU * 1.6; // tempo for conducting, in radians a second
   let front, back, baton = true;
   if (m.mood === 'candle' && candle) {
-    // holding the Roman candle out along the aim, the other hand up by his chest
-    front = [localAngle(candle.aim), 0]; back = [0.3, 1.2 + 0.2 * s(t * 4)]; baton = false;
+    // holding the Roman candle out along the aim, pumping the other fist
+    const aim = localAngle(candle.aim);
+    front = [aim, 0]; back = [2.3 + 0.35 * s(t * 7), 0.6]; baton = false;
   } else if (m.pose === POSES.slump) {
-    front = [0, 0]; back = [0, 0]; baton = false;
+    front = [0.06, 0.05]; back = [0.06, 0.05];
   } else if (m.mood === 'dance') {
-    // the grand finale: big alternating sweeps
-    front = [1.6 + 0.5 * s(t * 5), 0.5 + 0.3 * s(t * 5 + 1)];
-    back = [1.6 - 0.5 * s(t * 5), 0.5 - 0.3 * s(t * 5 + 1)];
+    // the grand finale: big two-handed sweeps
+    front = [1.9 + 0.9 * s(t * 8), -0.4 + 0.5 * s(t * 8 + 1)];
+    back = [1.9 + 0.9 * s(t * 8 + PI), -0.4 + 0.5 * s(t * 8 + PI + 1)];
   } else if (m.pose === POSES.cheer) {
-    front = [2.5 + 0.12 * s(t * 8), 0.2]; back = [2.5 - 0.12 * s(t * 8), 0.2];
+    front = [2.75 + 0.22 * s(t * 12), 0.25 * s(t * 12)];
+    back = [2.75 + 0.22 * s(t * 12 + PI), 0.25 * s(t * 12 + PI)];
   } else if (m.say) {
-    // talking with his hands, held in front of him
-    front = [0.4 + 0.12 * s(t * 3), 1.1 + 0.2 * s(t * 3 + 1)];
-    back = [0.3, 0.9 + 0.15 * s(t * 3 + 2)];
+    // talking with his hands
+    front = [0.8 + 0.25 * s(t * 5), 0.9 + 0.3 * s(t * 5 + 1)];
+    back = [0.6 + 0.25 * s(t * 5 + 2), 0.8];
   } else if (m.moving) {
     const sw = s(m.anim * TAU * 1.5);
-    front = [0.12 * sw, 0.15]; back = [-0.12 * sw, 0.15];
+    front = [0.35 * sw, -0.3]; back = [-0.35 * sw, -0.3];
   } else {
-    // conducting toward the fireworks: the baton hand beats a small pattern, raised higher for bursts
-    // overhead; the other hand rides along gently
+    // conducting toward the fireworks: elbows out, forearms up, the baton beating toward where the
+    // action is (higher for bursts overhead, out to the side for low ones); the other hand shapes the music
     const f = m.focus ? localTarget(m.focus.x, m.focus.y) : 1.6;
     const up = Math.max(0, Math.min(1, (f - 1.2) / 1.5));   // 0 = out to the side, 1 = high overhead
-    front = [0.55 + 0.5 * up + 0.18 * s(t * beat), 1.2 - 0.3 * up + 0.3 * s(t * beat * 2)];
-    back = [0.35 + 0.25 * up + 0.12 * s(t * beat / 2 + 1), 1.0 + 0.2 * s(t * beat + 0.5)];
+    front = [0.8 + 0.9 * up + 0.35 * s(t * beat), 1.3 - 0.5 * up + 0.55 * Math.cos(t * beat * 2)];
+    back = [0.7 + 0.5 * up + 0.3 * s(t * beat / 2 + 1), 1.1 + 0.35 * s(t * beat)];
   }
-  // a cue: a point of the baton at a burst the player just popped
-  if (m.cue && m.mood !== 'candle') front = [localTarget(m.cue.x, m.cue.y), 0.1];
+  // a cue: a quick point of the baton at a burst the player just popped
+  if (m.cue && m.mood !== 'candle') {
+    const k = m.cue.t / 0.45;
+    front = [localTarget(m.cue.x, m.cue.y) + 0.25 * k, -0.15 * k];
+  }
   return { front, back, baton };
-}
-// Ease his arms toward their target pose (quicker for a cue or the candle, which have to keep up).
-function updateChuckArms(dt) {
-  const m = showman, tg = chuckArmTargets();
-  if (!m.arm) m.arm = { front: [0, 0], back: [0, 0] };
-  const rate = (m.cue || m.mood === 'candle') ? 16 : 7, k = 1 - Math.exp(-rate * dt);
-  for (const side of ['front', 'back']) for (const i of [0, 1]) m.arm[side][i] += (tg[side][i] - m.arm[side][i]) * k;
-  m.arm.baton = tg.baton;
-}
-function chuckArms() {
-  const m = showman;
-  if (!m.arm) updateChuckArms(1);
-  return m.arm;
 }
 
 // Turn a screen angle (0 = right, clockwise) into an arm angle for his front arm.
@@ -541,21 +533,18 @@ function localAngle(a) {
 }
 // The front-arm angle that points from his shoulder at a spot on screen.
 function localTarget(wx, wy) {
-  const { left, top, k } = showmanBox(), [sx, sy] = CHUCK_ARMS.front.S;
+  const { left, top, k } = showmanBox(), [sx, sy] = CHUCK_SHOULDERS.front;
   let lx = (wx - left) / k;
   if (showman.dir < 0) lx = CHUCK_W - lx;
   return Math.max(0.3, Math.min(3, Math.atan2(lx - sx, (wy - top) / k - sy)));
 }
 
-// Where an arm's elbow and hand are for the given angles, and how far each piece is turned.
+// Elbow and hand of an arm, in sprite pixels.
 function armJoints(side, [a1, a2]) {
-  const arm = CHUCK_ARMS[side], out = side === 'front' ? 1 : -1;
-  const r1 = -out * a1, r2 = -out * (a1 + a2);
-  const turn = (vx, vy, r) => [vx * Math.cos(r) - vy * Math.sin(r), vx * Math.sin(r) + vy * Math.cos(r)];
-  const [ux, uy] = turn(arm.E[0] - arm.S[0], arm.E[1] - arm.S[1], r1);
-  const ex = arm.S[0] + ux, ey = arm.S[1] + uy;
-  const [fx, fy] = turn(arm.Hd[0] - arm.E[0], arm.Hd[1] - arm.E[1], r2);
-  return { arm, r1, r2, ex, ey, hx: ex + fx, hy: ey + fy, out };
+  const [sx, sy] = CHUCK_SHOULDERS[side], out = side === 'front' ? 1 : -1;
+  const ex = sx + out * Math.sin(a1) * ARM_UPPER, ey = sy + Math.cos(a1) * ARM_UPPER;
+  const hx = ex + out * Math.sin(a1 + a2) * ARM_FORE, hy = ey + Math.cos(a1 + a2) * ARM_FORE;
+  return { sx, sy, ex, ey, hx, hy, out };
 }
 
 // Where his front hand is on screen (the Roman candle sits in it).
@@ -564,28 +553,29 @@ function chuckHand() {
   return { x: left + (showman.dir > 0 ? j.hx : CHUCK_W - j.hx) * k, y: top + j.hy * k };
 }
 
-// Draw one arm (already in Chuck's own coordinates): the two photo pieces turned about their joints.
+// Draw one arm in chunky pixels to match the sprite (already in the sprite's own coordinates).
 function drawArm(side, angles, baton) {
-  const j = armJoints(side, angles), arm = j.arm;
-  if (!arm.upper.img.complete || !arm.lower.img.complete) return;
-  const piece = (part, px, py, ox, oy, r) => {
-    ctx.save(); ctx.translate(px, py); ctx.rotate(r); ctx.translate(-ox, -oy);
-    ctx.drawImage(part.img, part.x, part.y, part.w, part.h);
-    ctx.restore();
+  const j = armJoints(side, angles);
+  const seg = (x1, y1, x2, y2, wid, col) => {
+    ctx.strokeStyle = col; ctx.lineWidth = wid;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
   };
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // the forearm ends a little short so the hand sits at its tip
+  const hx = j.ex + (j.hx - j.ex) * 0.84, hy = j.ey + (j.hy - j.ey) * 0.84;
+  const sleeve = (wid, col, dy) => {
+    ctx.strokeStyle = col; ctx.lineWidth = wid;
+    ctx.beginPath(); ctx.moveTo(j.sx, j.sy + dy); ctx.lineTo(j.ex, j.ey + dy); ctx.lineTo(hx, hy + dy); ctx.stroke();
+  };
+  sleeve(6.2, ARM_COL.edge, 0); sleeve(5.4, ARM_COL.sleeve, 0); sleeve(1.6, ARM_COL.light, -1.2);
+  seg(hx, hy, j.hx, j.hy, 3.6, ARM_COL.shade); seg(hx, hy, j.hx, j.hy, 2.9, ARM_COL.skin);
   if (baton) {
-    // the baton, held in his hand and carrying on from the forearm
+    // the baton carries on from the forearm, with a little flick at the tip
     const a = Math.atan2(j.hy - j.ey, j.hx - j.ex) - 0.25 * j.out;
-    ctx.lineCap = 'round'; ctx.strokeStyle = '#f6f6f6'; ctx.lineWidth = 0.7;
-    ctx.beginPath(); ctx.moveTo(j.hx, j.hy); ctx.lineTo(j.hx + Math.cos(a) * BATON, j.hy + Math.sin(a) * BATON); ctx.stroke();
-    ctx.lineCap = 'butt';
+    seg(j.hx, j.hy, j.hx + Math.cos(a) * 2.5, j.hy + Math.sin(a) * 2.5, 1.6, '#3a2a1e');
+    seg(j.hx, j.hy, j.hx + Math.cos(a) * BATON, j.hy + Math.sin(a) * BATON, 0.7, '#f6f6f6');
   }
-  // a patch of sleeve at the elbow so no gap opens when it bends
-  ctx.fillStyle = CHUCK_COAT; ctx.beginPath(); ctx.arc(j.ex, j.ey, 2.5, 0, TAU); ctx.fill();
-  // and one at the shoulder, so a raised arm stays joined to his coat
-  ctx.beginPath(); ctx.arc(arm.S[0] - j.out * 0.8, arm.S[1] + 0.6, 3.1, 0, TAU); ctx.fill();
-  piece(arm.upper, arm.S[0], arm.S[1], arm.S[0], arm.S[1], j.r1);
-  piece(arm.lower, j.ex, j.ey, arm.E[0], arm.E[1], j.r2);
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
 }
 
 
@@ -606,7 +596,6 @@ function updateShowman(dt) {
   m.lift = 0; m.sink = 0;
   m.t += dt;
   if (m.cue && (m.cue.t -= dt) <= 0) m.cue = null;
-  updateChuckArms(dt);
   if (state === 'arrive') return; // updateArrival moves him
   if (m.mood === 'candle') { m.pose = POSES.candle; return; }
   if (m.say) {
@@ -696,8 +685,8 @@ function drawShowman() {
     if (!m.moving && !m.say && m.mood === 'walk') { ctx.translate(m.x, top + h); ctx.rotate(0.03 * Math.sin(m.t * TAU * 0.8)); ctx.translate(-m.x, -(top + h)); }
     if (m.dir < 0) { ctx.translate(left + w, top); ctx.scale(-1, 1); } else ctx.translate(left, top);
     ctx.scale(k, k);
-    ctx.drawImage(chuckImg, 0, 0, CHUCK_W, CHUCK_H);
     drawArm('back', arms.back, false);
+    ctx.drawImage(chuckImg, 0, 0, CHUCK_W, CHUCK_H);
     drawArm('front', arms.front, arms.baton);
     ctx.restore();
   }

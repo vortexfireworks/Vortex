@@ -543,7 +543,7 @@ function pop(r, chain) {
   if (chain >= 2) unlock('chain3');
   if (r.kind === 'utah') unlock('utes');
   goals.kinds.add(r.kind);
-  showman.cue = { x: r.x, y: r.y, t: 0.6 };
+  showman.cue = { x: r.x, y: r.y, t: 0.45 };
   if (chain >= 4) unlock('chain5');
   if (slowT > 0 && r.kind !== 'slow' && ++goals.slowPops >= 10) unlock('slowhands');
   if (goals.kinds.has('utah') && goals.kinds.has('byu')) unlock('holywar');
