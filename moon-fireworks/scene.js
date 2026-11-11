@@ -466,10 +466,10 @@ function drawFlag() {
 }
 
 // ---------- Chuck, the showman, strolling the moon ----------
-// Chuck is a cut-out photo, flipped when he faces left. His moods (walking,
+// Chuck is a pixel-art sprite, drawn facing right (flipped when he faces left). His moods (walking,
 // cheering, slumping, dancing, holding the Roman candle) are shown by how he moves rather than by
 // separate drawings.
-const CHUCK_W = 29.8, CHUCK_H = 80, CHUCK_TALL = 36;   // the box he's drawn in (arm positions use these units), and his height in game units
+const CHUCK_W = 37, CHUCK_H = 80, CHUCK_TALL = 34;   // sprite size in pixels, and his height in units
 const chuckImg = new Image(); chuckImg.src = CHUCK_SRC;
 const POSES = { walk0: 'walk0', walk1: 'walk1', cheer: 'cheer', slump: 'slump', candle: 'candle' };
 const showman = { x: 0, dir: 1, anim: 0, pause: 0, walk: 3 + Math.random() * 4, t: 0, cue: null, moving: false, drawnX: 0,
@@ -480,9 +480,9 @@ const showman = { x: 0, dir: 1, anim: 0, pause: 0, walk: 3 + Math.random() * 4, 
 // x running toward the way he faces. Each arm is an upper arm and a forearm: angles are measured
 // from hanging straight down, positive swinging out to that arm's side (forward for the front arm,
 // which holds the baton, back for the other).
-const CHUCK_SHOULDERS = { front: [22.3, 20.0], back: [5.4, 19.6] };
+const CHUCK_SHOULDERS = { front: [26.2, 20.1], back: [7.1, 18.5] };
 const ARM_UPPER = 13, ARM_FORE = 12, BATON = 10;
-const ARM_COL = { sleeve: '#ce4c42', light: '#e2685c', edge: '#8a2a24', skin: '#dcab92', shade: '#a8745f' };
+const ARM_COL = { sleeve: '#c4282b', light: '#e3463c', edge: '#4a0c0e', skin: '#eebf98', shade: '#c98d6a' };
 
 // What his arms are doing right now: [upper, forearm] angles for each arm.
 function chuckArms() {
@@ -557,25 +557,26 @@ function chuckHand() {
 function drawArm(side, angles, baton) {
   const j = armJoints(side, angles);
   const seg = (x1, y1, x2, y2, wid, col) => {
-    ctx.strokeStyle = col; ctx.lineWidth = wid;
-    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    const n = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 0.7));
+    ctx.fillStyle = col;
+    for (let i = 0; i <= n; i++) {
+      const x = x1 + (x2 - x1) * i / n, y = y1 + (y2 - y1) * i / n;
+      ctx.fillRect(Math.round(x - wid / 2), Math.round(y - wid / 2), Math.ceil(wid), Math.ceil(wid));
+    }
   };
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   // the forearm ends a little short so the hand sits at its tip
-  const hx = j.ex + (j.hx - j.ex) * 0.84, hy = j.ey + (j.hy - j.ey) * 0.84;
-  const sleeve = (wid, col, dy) => {
-    ctx.strokeStyle = col; ctx.lineWidth = wid;
-    ctx.beginPath(); ctx.moveTo(j.sx, j.sy + dy); ctx.lineTo(j.ex, j.ey + dy); ctx.lineTo(hx, hy + dy); ctx.stroke();
-  };
-  sleeve(6.2, ARM_COL.edge, 0); sleeve(5.4, ARM_COL.sleeve, 0); sleeve(1.6, ARM_COL.light, -1.2);
-  seg(hx, hy, j.hx, j.hy, 3.6, ARM_COL.shade); seg(hx, hy, j.hx, j.hy, 2.9, ARM_COL.skin);
+  const hx = j.ex + (j.hx - j.ex) * 0.82, hy = j.ey + (j.hy - j.ey) * 0.82;
+  seg(j.sx, j.sy, j.ex, j.ey, 6.5, ARM_COL.edge); seg(j.ex, j.ey, hx, hy, 6, ARM_COL.edge);
+  seg(j.sx, j.sy, j.ex, j.ey, 5, ARM_COL.sleeve); seg(j.ex, j.ey, hx, hy, 4.5, ARM_COL.sleeve);
+  seg(j.sx, j.sy - 1, j.ex, j.ey - 1, 1.5, ARM_COL.light);
+  seg(hx, hy, j.hx, j.hy, 4, ARM_COL.shade); seg(hx, hy, j.hx, j.hy, 3, ARM_COL.skin);
   if (baton) {
     // the baton carries on from the forearm, with a little flick at the tip
     const a = Math.atan2(j.hy - j.ey, j.hx - j.ex) - 0.25 * j.out;
-    seg(j.hx, j.hy, j.hx + Math.cos(a) * 2.5, j.hy + Math.sin(a) * 2.5, 1.6, '#3a2a1e');
-    seg(j.hx, j.hy, j.hx + Math.cos(a) * BATON, j.hy + Math.sin(a) * BATON, 0.7, '#f6f6f6');
+    const tx = j.hx + Math.cos(a) * BATON, ty = j.hy + Math.sin(a) * BATON;
+    seg(j.hx, j.hy, j.hx + Math.cos(a) * 2.5, j.hy + Math.sin(a) * 2.5, 1.8, '#3a2a1e');
+    seg(j.hx, j.hy, tx, ty, 1, '#f6f6f6');
   }
-  ctx.lineCap = 'butt'; ctx.lineJoin = 'miter';
 }
 
 
@@ -679,6 +680,7 @@ function drawShowman() {
   ctx.beginPath(); ctx.ellipse(m.x, horizon(m.x) + 4, w * 0.5, 1.5 * p, 0, 0, TAU); ctx.fill();
   if (chuckImg.complete && chuckImg.naturalWidth) {
     ctx.save();
+    ctx.imageSmoothingEnabled = false;
     // slumped: leaning forward a little from his feet
     if (m.pose === POSES.slump) { ctx.translate(m.x, top + h); ctx.rotate(0.12 * m.dir); ctx.translate(-m.x, -(top + h)); }
     // swaying a little to the beat while he conducts
